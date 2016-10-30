@@ -32,3 +32,9 @@ export enum BatteryStatusEnum {
 	FullyFilled = 3,
 }
 
+export interface BatteryInfo {
+	charging: boolean;
+	level: number;
+	lifetime: number;
+}
+

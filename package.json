@@ -19,7 +19,7 @@
   },
   "scripts": {
 	"start": "node --harmony source/utils/http_server.js",
-    "setup": "npm install; npm -g install typescript@1.5.3; npm -g install mocha",
+    "setup": "npm install; npm -g install typescript@2.0.6; npm -g install mocha",
     "build": "node --harmony source/utils/build_singleton.js",
     "benchmark": "node jspspemu_headless.js data/benchmark/benchmark.prx",
     "test": "mocha jspspemu_tests.js"

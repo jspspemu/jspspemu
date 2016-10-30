@@ -510,10 +510,9 @@ export class TextureState {
 					case TextureProjectionMapMode.GU_NORMAL: return 3;
 					case TextureProjectionMapMode.GU_NORMALIZED_NORMAL: return 3;
 					case TextureProjectionMapMode.GU_POSITION: return 3;
-					case TextureProjectionMapMode.GU_UV: return 2;
-					default: return 2;
+					case TextureProjectionMapMode.GU_UV: return 2; 
 				}
-				break;
+				return 2;
 			case TextureMapMode.GU_ENVIRONMENT_MAP: return 2;
 		}
 	}
@@ -776,6 +775,10 @@ export class GpuState {
 	get clearing() { return param1(this.data[Op.CLEAR], 0) != 0; }
 	get clearFlags() { return param8(this.data[Op.CLEAR], 8); }
 	get baseAddress() { return ((param24(this.data[Op.BASE]) << 8) & 0xff000000); }
+	set baseOffset(value: number) {
+		this.data[Op.OFFSETADDR] &= ~0x00FFFFFF;
+		this.data[Op.OFFSETADDR] |= (value >>> 8) & 0x00FFFFFF;
+	}
 	get baseOffset() { return param24(this.data[Op.OFFSETADDR]) << 8; }
 	get indexAddress() { return param24(this.data[Op.IADDR]); }
 	get shadeModel() { return <ShadingModelEnum>param16(this.data[Op.SHADEMODE], 0); }

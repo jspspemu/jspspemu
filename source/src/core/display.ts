@@ -138,10 +138,12 @@ export class PspDisplay extends BasePspDisplay implements IPspDisplay {
 	constructor(public memory: Memory, private interruptManager: InterruptManager, public canvas: HTMLCanvasElement, private webglcanvas: HTMLCanvasElement) {
 		super();
 		if (this.canvas) {
+			console.warn('Canvas');
 			this.context = <CanvasRenderingContext2D>this.canvas.getContext('2d');
 			this.imageData = this.context.createImageData(512, 272);
 			this.setEnabledDisplay(true);
 		} else {
+			console.warn('NO Canvas');
 			this.context = null;
 			this.setEnabledDisplay(false);
 		}
@@ -162,6 +164,7 @@ export class PspDisplay extends BasePspDisplay implements IPspDisplay {
 	}
 
 	setEnabledDisplay(enable: boolean) {
+		//console.log('display.setEnabledDisplay:' + enable);
 		this.enabled = enable;
 		if (this.canvas) this.canvas.style.display = enable ? 'block' : 'none';
 		if (this.webglcanvas) this.webglcanvas.style.display = !enable ? 'block' : 'none';

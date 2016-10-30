@@ -122,7 +122,7 @@ class VfpuPrefixRead extends VfpuPrefixBase {
 						case 1: value = sourceAbsolute ? (1 / 3) : (1); break;
 						case 2: value = sourceAbsolute ? (1 / 4) : (2); break;
 						case 3: value = sourceAbsolute ? (1 / 6) : (1 / 2); break;
-						default: throw (new Error("Invalid operation")); break;
+						default: throw new Error("Invalid operation");
 					}
 				} else {
 					//debugger;
@@ -1011,7 +1011,7 @@ export class FunctionGenerator {
 		);
 		
 		var labels: NumberDictionary<_ast.ANodeStmLabel> = {};
-		for (let labelPC in info.labels) labels[labelPC] = ast.label(labelPC);
+		for (let labelPC in info.labels) labels[labelPC] = ast.label(<number><any>labelPC);
 
 		/*
 		if (info.start == 0x08806280) {
@@ -1047,8 +1047,9 @@ export class FunctionGenerator {
 		let cycles = 0;
 
 		function createCycles(PC:number) {
-			return ast.raw(`state.PC = ${addressToHex(PC)}; state.checkCycles(${cycles});`);
+			let out = ast.raw(`state.PC = ${addressToHex(PC)}; state.checkCycles(${cycles});`);
 			cycles = 0;
+			return out;
 		}
 			
 		for (let PC = info.min; PC <= info.max; PC += 4) {

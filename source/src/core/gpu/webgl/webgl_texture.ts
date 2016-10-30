@@ -2,6 +2,7 @@
 ///<reference path="./webgl_enums.d.ts" />
 
 import _state = require('../gpu_state');
+import { GpuStats } from '../gpu_stats';
 import _vertex = require('../gpu_vertex');
 import _utils = require('./webgl_utils');
 import _pixelformat = require('../../pixelformat');
@@ -18,6 +19,9 @@ export class Texture {
 
 	recheckCount = 0;
 	framesEqual = 0;
+
+	_width?: number = null;
+	_height?: number = null;
 	
 	private state: _state.GpuState;
 
@@ -28,9 +32,9 @@ export class Texture {
 	
 	get textureState() { return this.state.texture; }
 	get mipmap() { return this.textureState.mipmaps[0]; }
-	
-	get width() { return this.mipmap.textureWidth; }
-	get height() { return this.mipmap.textureHeight; }
+
+	get width() { return this._width || this.mipmap.textureWidth; }
+	get height() { return this._height || this.mipmap.textureHeight; }
 	get swizzled() { return this.textureState.swizzled; }
 	get addressStart() { return this.mipmap.address; }
 	get addressEnd() { return this.mipmap.addressEnd; }
@@ -83,8 +87,8 @@ export class Texture {
 
 	fromBytesRGBA(data: Uint32Array, width: number, height: number) {
 		var gl = this.gl;
-		this.width = width;
-		this.height = height;
+		this._width = width;
+		this._height = height;
 		this._create(() => {
 			(<any>gl).texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, width, height, 0, gl.RGBA, gl.UNSIGNED_BYTE, ArrayBufferUtils.uint32ToUint8(data));
 		});
@@ -93,8 +97,8 @@ export class Texture {
 	fromCanvas(canvas: HTMLCanvasElement) {
 		var gl = this.gl;
 
-		this.width = canvas.width;
-		this.height = canvas.height;
+		this._width = canvas.width;
+		this._height = canvas.height;
 		this._create(() => {
 			gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, <any>canvas);
 			//gl.generateMipmap(gl.TEXTURE_2D);
@@ -146,7 +150,7 @@ export class Texture {
 }
 
 export class TextureHandler {
-	constructor(private gl: WebGLRenderingContext) {
+	constructor(private gl: WebGLRenderingContext, public stats: GpuStats) {
 		this.invalidateWithGl(gl);
 	}
 
@@ -216,6 +220,8 @@ export class TextureHandler {
 		//if (true) {
 		if (!texture.valid) {
 			var hash = textureState.getHashSlow(textureData, clutData);
+			this.stats.hashMemoryCount++;
+			this.stats.hashMemorySize += mipmap.sizeInBytes;
 			this.rehashSignal.dispatch(mipmap.sizeInBytes);
 			
 			if (this.texturesByHash.has(hash)) {

@@ -37,7 +37,7 @@ export class sceUtility {
 	_sceUtilitySavedataInitStart(paramsPtr: Stream): Promise2<number> {
 		console.error('sceUtilitySavedataInitStart');
 		var params = SceUtilitySavedataParam.struct.createProxy(paramsPtr);
-		
+
 		return Promise2.resolve(0).then(() => {
 			var fileManager = this.context.fileManager;
 			var savePathFolder = "ms0:/PSP/SAVEDATA/" + params.gameName + params.saveName;
@@ -71,76 +71,70 @@ export class sceUtility {
 						.openAsync(saveDataBin, FileOpenFlags.Create | FileOpenFlags.Truncate | FileOpenFlags.Write, parseIntFormat('0777'))
 						.then(file => file.entry.writeAllAsync(data))
 						.then(written => {
-						return 0;
-					}).catch(error => {
-						return SceKernelErrors.ERROR_SAVEDATA_SAVE_ACCESS_ERROR;
-					});
+							return 0;
+						}).catch(error => {
+							return SceKernelErrors.ERROR_SAVEDATA_SAVE_ACCESS_ERROR;
+						});
 				case PspUtilitySavedataMode.Read:
 				case PspUtilitySavedataMode.ReadSecure:
-					{
-						console.error("Not Implemented: sceUtilitySavedataInitStart.Read");
-						//return Promise2.resolve(-1);
-						return Promise2.resolve(0);
-					}
-					break;
-
+					console.error("Not Implemented: sceUtilitySavedataInitStart.Read");
+					//return Promise2.resolve(-1);
+					return Promise2.resolve(0);
 				case PspUtilitySavedataMode.Sizes:
+					var SceKernelError = SceKernelErrors.ERROR_OK;
+
+					//Console.Error.WriteLine("Not Implemented: sceUtilitySavedataInitStart.Sizes");
+
+					var SectorSize = 1024;
+					var FreeSize = 32 * 1024 * 1024; // 32 MB
+					var UsedSize = 0;
+
+					// MS free size.
+					// Gets the ammount of free space in the Memory Stick. If null,
+					// the size is ignored and no error is returned.
 					{
-						var SceKernelError = SceKernelErrors.ERROR_OK;
+						var sizeFreeInfoPtr = this.context.memory.getPointerPointer<SizeFreeInfo>(SizeFreeInfo.struct, params.msFreeAddr);
+						sizeFreeInfoPtr.readWrite(sizeFreeInfo => {
+							sizeFreeInfo.sectorSize = SectorSize;
+							sizeFreeInfo.freeSectors = FreeSize / SectorSize;
+							sizeFreeInfo.freeKb = FreeSize / 1024;
+							sizeFreeInfo.freeKbString = sizeFreeInfo.freeKb + 'KB';
+						});
+					}
 
-						//Console.Error.WriteLine("Not Implemented: sceUtilitySavedataInitStart.Sizes");
+					// MS data size.
+					// Gets the size of the data already saved in the Memory Stick.
+					// If null, the size is ignored and no error is returned.
+					{
+						var sizeUsedInfoPtr = this.context.memory.getPointerPointer<SizeUsedInfo>(SizeUsedInfo.struct, params.msDataAddr);
+					}
 
-						var SectorSize = 1024;
-						var FreeSize = 32 * 1024 * 1024; // 32 MB
-						var UsedSize = 0;
+					// Utility data size.
+					// Gets the size of the data to be saved in the Memory Stick.
+					// If null, the size is ignored and no error is returned.
+					{
+						var sizeRequiredSpaceInfoPtr = this.context.memory.getPointerPointer<SizeRequiredSpaceInfo>(SizeRequiredSpaceInfo.struct, params.utilityDataAddr);
 
-						// MS free size.
-						// Gets the ammount of free space in the Memory Stick. If null,
-						// the size is ignored and no error is returned.
-						{
-							var sizeFreeInfoPtr = this.context.memory.getPointerPointer<SizeFreeInfo>(SizeFreeInfo.struct, params.msFreeAddr);
-							sizeFreeInfoPtr.readWrite(sizeFreeInfo => {
-								sizeFreeInfo.sectorSize = SectorSize;
-								sizeFreeInfo.freeSectors = FreeSize / SectorSize;
-								sizeFreeInfo.freeKb = FreeSize / 1024;
-								sizeFreeInfo.freeKbString = sizeFreeInfo.freeKb + 'KB';
+						if (sizeRequiredSpaceInfoPtr != null) {
+							var RequiredSize = 0;
+							RequiredSize += params.icon0FileData.size;
+							RequiredSize += params.icon1FileData.size;
+							RequiredSize += params.pic1FileData.size;
+							RequiredSize += params.snd0FileData.size;
+							RequiredSize += params.dataSize;
+
+							sizeRequiredSpaceInfoPtr.readWrite(sizeRequiredSpaceInfo => {
+								sizeRequiredSpaceInfo.requiredSpaceSectors = MathUtils.requiredBlocks(RequiredSize, SectorSize);
+								sizeRequiredSpaceInfo.requiredSpaceKb = MathUtils.requiredBlocks(RequiredSize, 1024);
+								sizeRequiredSpaceInfo.requiredSpace32KB = MathUtils.requiredBlocks(RequiredSize, 32 * 1024);
+
+								sizeRequiredSpaceInfo.requiredSpaceString = (sizeRequiredSpaceInfo.requiredSpaceKb) + "KB";
+								sizeRequiredSpaceInfo.requiredSpace32KBString = (sizeRequiredSpaceInfo.requiredSpace32KB) + "KB";
 							});
 						}
-
-						// MS data size.
-						// Gets the size of the data already saved in the Memory Stick.
-						// If null, the size is ignored and no error is returned.
-						{
-							var sizeUsedInfoPtr = this.context.memory.getPointerPointer<SizeUsedInfo>(SizeUsedInfo.struct, params.msDataAddr);
-						}
-
-						// Utility data size.
-						// Gets the size of the data to be saved in the Memory Stick.
-						// If null, the size is ignored and no error is returned.
-						{
-							var sizeRequiredSpaceInfoPtr = this.context.memory.getPointerPointer<SizeRequiredSpaceInfo>(SizeRequiredSpaceInfo.struct, params.utilityDataAddr);
-
-							if (sizeRequiredSpaceInfoPtr != null) {
-								var RequiredSize = 0;
-								RequiredSize += params.icon0FileData.size;
-								RequiredSize += params.icon1FileData.size;
-								RequiredSize += params.pic1FileData.size;
-								RequiredSize += params.snd0FileData.size;
-								RequiredSize += params.dataSize;
-
-								sizeRequiredSpaceInfoPtr.readWrite(sizeRequiredSpaceInfo => {
-									sizeRequiredSpaceInfo.requiredSpaceSectors = MathUtils.requiredBlocks(RequiredSize, SectorSize);
-									sizeRequiredSpaceInfo.requiredSpaceKb = MathUtils.requiredBlocks(RequiredSize, 1024);
-									sizeRequiredSpaceInfo.requiredSpace32KB = MathUtils.requiredBlocks(RequiredSize, 32 * 1024);
-
-									sizeRequiredSpaceInfo.requiredSpaceString = (sizeRequiredSpaceInfo.requiredSpaceKb) + "KB";
-									sizeRequiredSpaceInfo.requiredSpace32KBString = (sizeRequiredSpaceInfo.requiredSpace32KB) + "KB";
-								});
-							}
-						}
-
-						if (SceKernelError != SceKernelErrors.ERROR_OK) return Promise2.resolve(SceKernelError);
 					}
+
+					if (SceKernelError != SceKernelErrors.ERROR_OK) return Promise2.resolve(SceKernelError);
 					break;
 				default:
 					console.error(`Not implemented ${params.mode}: ${PspUtilitySavedataMode[params.mode]}`);

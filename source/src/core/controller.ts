@@ -1,6 +1,5 @@
 ﻿///<reference path="../global.d.ts" />
 
-
 export interface IPspController {
 	startAsync():Promise2<void>;
 	stopAsync():Promise2<void>;
@@ -35,8 +34,11 @@ export class SceCtrlData {
 	]);
 }
 
+export interface IPspControllerSet {
+	setGamepadFrame(x: number, y: number, buttons: Uint8Array): void;
+}
 
-export class PspController {
+export class PspController implements IPspControllerSet {
 	data: SceCtrlData = new SceCtrlData();
 	buttonMapping: any = {};
 	fieldMapping: any = {};

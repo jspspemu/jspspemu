@@ -65,11 +65,8 @@ export class MemoryStickVfs extends ProxyVfs {
 				output.writeInt32(4);
 				return 0;
 			default:
-				throw(new Error("Invalid MemoryStick command '" + command + "'"));
-				break;
+				throw new Error("Invalid MemoryStick command '" + command + "'");
 		}
-
-		return 0;
 	}
 }
 

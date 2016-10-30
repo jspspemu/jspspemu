@@ -206,20 +206,17 @@ export class sceAtrac3plus {
 
 	@nativeFunction(0xCA3CA3D2, 150, 'uint', 'int/uint/void*')
 	sceAtracGetBufferInfoForReseting(id: number, uiSample: number, bufferInfoPtr: Stream) {
-		throw (new Error("Not implemented sceAtracGetBufferInfoForReseting"));
-		return 0;
+		throw new Error("Not implemented sceAtracGetBufferInfoForReseting");
 	}
 
 	@nativeFunction(0x644E5607, 150, 'uint', 'int/uint/uint/uint')
 	sceAtracResetPlayPosition(id: number, uiSample: number, uiWriteByteFirstBuf: number, uiWriteByteSecondBuf: number) {
-		throw (new Error("Not implemented sceAtracResetPlayPosition"));
-		return 0;
+		throw new Error("Not implemented sceAtracResetPlayPosition");
 	}
 
 	@nativeFunction(0xE88F759B, 150, 'uint', 'int/void*')
 	sceAtracGetInternalErrorInfo(id: number, errorResultPtr: Stream) {
-		throw (new Error("Not implemented sceAtracGetInternalErrorInfo"));
-		return 0;
+		throw new Error("Not implemented sceAtracGetInternalErrorInfo");
 	}
 
 	@nativeFunction(0xB3B5D042, 150, 'uint', 'int/void*')

@@ -6,6 +6,7 @@ GpuState, Color, ColorEnum, VertexInfo, PrimitiveType,
 CullingDirection, GuBlendingEquation, TextureMapMode,
 GuBlendingFactor
 } from '../gpu_state';
+import { GpuStats } from '../gpu_stats'
 import _vertex = require('../gpu_vertex');
 import _pixelformat = require('../../pixelformat');
 import { ShaderCache } from './webgl_shader';
@@ -20,7 +21,7 @@ export class WebGlPspDrawDriver {
 	private textureHandler: TextureHandler;
 	private glAntialiasing:boolean;
 
-	constructor(private canvas: HTMLCanvasElement) {
+	constructor(private canvas: HTMLCanvasElement, public stats: GpuStats) {
 		globalDriver = this;
 		this.createCanvas(false);
 		this.transformMatrix2d = mat4.ortho(mat4.create(), 0, 480, 272, 0, 0, -0xFFFF);
@@ -81,7 +82,7 @@ export class WebGlPspDrawDriver {
 				var shaderFragString = Stream.fromArrayBuffer(shaderFrag).readUtf8String(shaderFrag.byteLength);
 
 				this.cache = new ShaderCache(this.gl, shaderVertString, shaderFragString);
-				this.textureHandler = new TextureHandler(this.gl);
+				this.textureHandler = new TextureHandler(this.gl, this.stats);
 				this.textureHandler.rehashSignal.pipeTo(this.rehashSignal);
 			});
 		});

@@ -273,7 +273,6 @@ export class ElfLoader {
 		switch (sectionHeader.type) {
 			case ElfSectionHeaderType.NoBits: case ElfSectionHeaderType.Null:
 				return this.stream.sliceWithLength(0, 0);
-				break;
 			default:
 				return this.stream.sliceWithLength(sectionHeader.offset, sectionHeader.size);
 		}

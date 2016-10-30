@@ -4,8 +4,8 @@ import relooper = require('../../codegen/relooper');
 
 export class ANode {
 	index:number;
-	toJs() { return ''; }
-	optimize() { return this; }
+	toJs():string { return ''; }
+	optimize():ANode { return this; }
 }
 
 export class ANodeStm extends ANode {

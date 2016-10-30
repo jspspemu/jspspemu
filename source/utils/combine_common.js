@@ -66,8 +66,7 @@ function requireModules(moduleFiles) {
 function generateCombinedCommonJs(mapFiles) {
 	var commonjsFile = '';
 
-	var moduleNames = [];
-	for (var moduleName in mapFiles) moduleNames.push(moduleName);
+	var moduleNames = Object.keys(mapFiles);
 	moduleNames.sort();
 
 	var references = /reference path="(.*?)"/g;
@@ -79,16 +78,17 @@ function generateCombinedCommonJs(mapFiles) {
 
 	//console.log(mapFiles['src/global.js']);
 
+	//console.log(globalModules);
+
 	function isGlobal(moduleName) {
 		return moduleName.match(/^src\/global/);
 	}
 
 	//console.log(mapFiles);
 
-	globalModules.forEach(function(moduleName) {
-		if (!isGlobal(moduleName)) return;
+	globalModules.filter(isGlobal).forEach((moduleName) => {
 		commonjsFile += mapFiles[moduleName] + "\n";
-	});
+	})
 
 	/*
 	moduleNames.forEach(function(moduleName) {
@@ -172,7 +172,9 @@ function compileProject(watch, done) {
 	//console.log(tsc_command);
 	///*
 	tsc_command.stdout.on('data', function(data) {
-		if (data.toString().indexOf("TS6042") >= 0) {
+		/** @var string */
+		var dataStr = data.toString(); 
+		if (data.toString().indexOf("TS6042") >= 0 || data.toString().toLowerCase().indexOf("compilation complete") >= 0) {
 			done();
 			//console.log('DATA:' + data);
 			/*
@@ -208,6 +210,8 @@ exports.SOURCE_FOLDER = SOURCE_FOLDER;
 
 function updateSingleJsFile() {
 	var combinedContent = generateCombinedCommonJs(jsFilesContent);
+	//console.log(Object.keys(jsFilesContent));
+	console.log('Updating... ' + SINGLETON_JS_FILE);
 	fs.writeFileSync(SINGLETON_JS_FILE, combinedContent);
 	console.log('Updated ' + SINGLETON_JS_FILE);
 }

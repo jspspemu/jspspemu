@@ -355,6 +355,7 @@ class FastMemory extends Memory {
 	private f32: Float32Array;
 
 	constructor() {
+		super();
 		this.buffer = new ArrayBuffer(0x0a000000 + 4);
 		this.s8 = new Int8Array(this.buffer);
 		this.u8 = new Uint8Array(this.buffer);
@@ -363,7 +364,6 @@ class FastMemory extends Memory {
 		this.s32 = new Int32Array(this.buffer);
 		this.u32 = new Uint32Array(this.buffer);
 		this.f32 = new Float32Array(this.buffer);
-		super();
 	}
 
 	sb(address: number, value: number) { this.u8[(address & MASK) >> 0] = value; }
@@ -445,13 +445,13 @@ class LowMemory extends Memory {
 	private mainmem: LowMemorySegment;
 
 	constructor() {
+		super();
 		//this.scratchpad = new LowMemorySegment('scatchpad', 0x00010000, new ArrayBuffer(16 * 1024));
 		this.scratchpad = new LowMemorySegment('scatchpad', 0x00000000, new ArrayBuffer(16 * 1024 + 0x00010000));
 		//this.scratchpad = new LowMemorySegment('scatchpad', 0x00000000, new ArrayBuffer(0x00010000 + 16 * 1024));
 		this.videomem = new LowMemorySegment('videomem', 0x04000000, new ArrayBuffer(2 * 1024 * 1024));
 		this.mainmem = new LowMemorySegment('mainmem', 0x08000000, new ArrayBuffer(32 * 1024 * 1024));
 		//this.mainmem = new LowMemorySegment('mainmem', 0x08000000, new ArrayBuffer(64 * 1024 * 1024));
-		super();
 	}
 
 	getMemRange(address: number): LowMemorySegment {
@@ -505,7 +505,8 @@ function allowBigAlloc() {
 
 function supportFastMemory() {
 	//return !isNodeJs() && allowBigAlloc();
-	return !isNodeJs();
+	//return !isNodeJs();
+	return true;
 }
 
 export function create(): Memory {

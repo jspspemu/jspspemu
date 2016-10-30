@@ -135,7 +135,7 @@ var difflib = {
                 }
             }
 
-            for (var elt in populardict) {
+            for (let elt in populardict) {
                 if (populardict.hasOwnProperty(elt)) {
                     delete b2j[elt];
                 }
@@ -144,13 +144,13 @@ var difflib = {
             var isjunk = this.isjunk;
             var junkdict:any = {};
             if (isjunk) {
-                for (var elt in populardict) {
+                for (let elt in populardict) {
                     if (populardict.hasOwnProperty(elt) && isjunk(elt)) {
                         junkdict[elt] = 1;
                         delete populardict[elt];
                     }
                 }
-                for (var elt in b2j) {
+                for (let elt in b2j) {
                     if (b2j.hasOwnProperty(elt) && isjunk(elt)) {
                         junkdict[elt] = 1;
                         delete b2j[elt];

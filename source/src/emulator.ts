@@ -1,5 +1,7 @@
 ﻿///<reference path="global.d.ts" />
 
+import { GpuStats } from './core/gpu/gpu_stats';
+
 import _context = require('./context');
 import _cpu = require('./core/cpu');
 import _gpu = require('./core/gpu');
@@ -7,8 +9,9 @@ import _rtc = require('./core/rtc');
 import { Battery } from './core/battery';
 import _controller = require('./core/controller');
 import _stream = require('./core/stream'); _stream;
-import _display = require('./core/display');
-import _audio = require('./core/audio');
+//import _display = require('./core/display');
+import { PspDisplay } from './core/display';
+import { PspAudio } from './core/audio';
 import _interrupt = require('./core/interrupt');
 import _memory = require('./core/memory');
 import _format = require('./format/format');
@@ -50,8 +53,6 @@ import PspElfLoader = _elf_psp.PspElfLoader;
 import Memory = _memory.Memory;
 import EmulatorContext = _context.EmulatorContext;
 import InterruptManager = _interrupt.InterruptManager;
-import PspAudio = _audio.PspAudio;
-import PspDisplay = _display.PspDisplay;
 import PspGpu = _gpu.PspGpu;
 import PspController = _controller.PspController;
 import SyscallManager = _cpu.SyscallManager;
@@ -74,10 +75,11 @@ export class Emulator {
 	private interruptManager: InterruptManager;
 	fileManager: FileManager;
 	audio: PspAudio = new PspAudio();
-	private canvas: HTMLCanvasElement;
-	private webgl_canvas: HTMLCanvasElement;
-	private display: PspDisplay;
+	canvas: HTMLCanvasElement;
+	webgl_canvas: HTMLCanvasElement;
+	display: PspDisplay;
 	public gpu: PspGpu;
+	public gpuStats: GpuStats = new GpuStats();
 	public battery = new Battery();
 	public controller: PspController = new PspController();
 	private syscallManager: SyscallManager;
@@ -122,7 +124,7 @@ export class Emulator {
 			this.callbackManager = new CallbackManager(this.interop);
 			this.rtc = new PspRtc();
 			this.display = new PspDisplay(this.memory, this.interruptManager, this.canvas, this.webgl_canvas);
- 			this.gpu = new PspGpu(this.memory, this.display, this.interop);
+ 			this.gpu = new PspGpu(this.memory, this.display, this.interop, this.gpuStats);
 			/*
 			this.gpu.onDrawBatches.add(() => {
 				console.log('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa');

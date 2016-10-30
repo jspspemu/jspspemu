@@ -300,7 +300,7 @@ class VfpuPrefixes {
 				case 1: value = imm_f(sourceAbsolute ? (1 / 3) : (1)); break;
 				case 2: value = imm_f(sourceAbsolute ? (1 / 4) : (2)); break;
 				case 3: value = imm_f(sourceAbsolute ? (1 / 6) : (1 / 2)); break;
-				default: throw (new Error("Invalid operation")); break;
+				default: throw new Error("Invalid operation");
 			}
 		} else {
 			value = values[sourceIndex];

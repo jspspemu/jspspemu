@@ -32,8 +32,7 @@ export class sceNetAdhoc {
 	/** */
 	@nativeFunction(0x7A662D6B, 150, 'int', 'int/int/int/int')
 	sceNetAdhocPollSocket(socketAddress: number, int: number, timeout: number, nonblock: number) {
-		throw (new Error("Not implemented sceNetAdhocPollSocket"));
-		return -1;
+		throw new Error("Not implemented sceNetAdhocPollSocket");
 	}
 
 	private pdps = new UidCollection<Pdp>(1);
@@ -121,105 +120,90 @@ export class sceNetAdhoc {
 	@nativeFunction(0x7F75C338, 150, 'int', 'byte[]')
 	sceNetAdhocGameModeCreateMaster(data: Stream) {
 		throw (new Error("Not implemented sceNetAdhocGameModeCreateMaster"));
-		return -1;
 	}
 
 	/** Create peer game object type data. */
 	@nativeFunction(0x3278AB0C, 150, 'int', 'byte[6]/byte[]')
 	sceNetAdhocGameModeCreateReplica(mac: Uint8Array, data: Stream) {
 		throw (new Error("Not implemented sceNetAdhocGameModeCreateReplica"));
-		return -1;
 	}
 
 	/** Update own game object type data. */
 	@nativeFunction(0x98C204C8, 150, 'int', '')
 	sceNetAdhocGameModeUpdateMaster() {
 		throw (new Error("Not implemented sceNetAdhocGameModeUpdateMaster"));
-		return -1;
 	}
 
 	/** Update peer game object type data. */
 	@nativeFunction(0xFA324B4E, 150, 'int', 'int/int')
 	sceNetAdhocGameModeUpdateReplica(id: number, unk1: number) {
 		throw (new Error("Not implemented sceNetAdhocGameModeUpdateReplica"));
-		return -1;
 	}
 
 	/** Delete own game object type data. */
 	@nativeFunction(0xA0229362, 150, 'int', '')
 	sceNetAdhocGameModeDeleteMaster() {
 		throw (new Error("Not implemented sceNetAdhocGameModeDeleteMaster"));
-		return -1;
 	}
 
 	/** Delete peer game object type data. */
 	@nativeFunction(0x0B2228E9, 150, 'int', 'int')
 	sceNetAdhocGameModeDeleteReplica(id: number) {
 		throw (new Error("Not implemented sceNetAdhocGameModeDeleteReplica"));
-		return -1;
 	}
 
 	/** Open a PTP (Peer To Peer) connection */
 	@nativeFunction(0x877F6D66, 150, 'int', 'byte[6]/int/void*/int/int/int/int/int')
 	sceNetAdhocPtpOpen(srcmac: Uint8Array, srcport: number, destmac: Stream, destport: number, bufsize: number, delay: number, count: number, unk1: number) {
 		throw (new Error("Not implemented sceNetAdhocPtpOpen"));
-		return -1;
 	}
 
 	/** Wait for an incoming PTP connection */
 	@nativeFunction(0xE08BDAC1, 150, 'int', 'byte[6]/int/int/int/int/int/int')
 	sceNetAdhocPtpListen(srcmac: Uint8Array, srcport: number, bufsize: number, delay: number, count: number, queue: number, unk1: number) {
 		throw (new Error("Not implemented sceNetAdhocPtpListen"));
-		return -1;
 	}
 
 	/** Wait for connection created by sceNetAdhocPtpOpen */
 	@nativeFunction(0xFC6FC07B, 150, 'int', 'int/int/int')
 	sceNetAdhocPtpConnect(id: number, timeout: number, nonblock: number) {
 		throw (new Error("Not implemented sceNetAdhocPtpConnect"));
-		return -1;
 	}
 
 	/** Accept an incoming PTP connection */
 	@nativeFunction(0x9DF81198, 150, 'int', 'int/void*/void*/int/int')
 	sceNetAdhocPtpAccept(id:number, data: Stream, datasize: Stream, timeout: number, nonblock: number) {
 		throw (new Error("Not implemented sceNetAdhocPtpAccept"));
-		return -1;
 	}
 
 	/** Send data */
 	@nativeFunction(0x4DA4C788, 150, 'int', 'int/void*/void*/int/int')
 	sceNetAdhocPtpSend(id: number, data: Stream, datasize: Stream, timeout: number, nonblock: number) {
 		throw (new Error("Not implemented sceNetAdhocPtpSend"));
-		return -1;
 	}
 	
 	/** Receive data */
 	@nativeFunction(0x8BEA2B3E, 150, 'int', 'int/void*/void*/int/int')
 	sceNetAdhocPtpRecv(id: number, data: Stream, datasize: Stream, timeout: number, nonblock: number) {
 		throw (new Error("Not implemented sceNetAdhocPtpRecv"));
-		return -1;
 	}
 
 	/** Wait for data in the buffer to be sent */
 	@nativeFunction(0x9AC2EEAC, 150, 'int', 'int/int/int')
 	sceNetAdhocPtpFlush(id: number, timeout: number, nonblock: number) {
 		throw (new Error("Not implemented sceNetAdhocPtpFlush"));
-		return -1;
 	}
 
 	/** Close a socket */
 	@nativeFunction(0x157E6225, 150, 'int', 'int/int')
 	sceNetAdhocPtpClose(id: number, unk1: number) {
 		throw (new Error("Not implemented sceNetAdhocPtpClose"));
-		return -1;
 	}
 
 	/** Get the status of all PTP objects */
 	@nativeFunction(0xB9685118, 150, 'int', 'void*/void*')
 	sceNetAdhocGetPtpStat(size: Stream, stat: Stream) {
 		throw (new Error("Not implemented sceNetAdhocGetPtpStat"));
-		return -1;
 	}
 }
 

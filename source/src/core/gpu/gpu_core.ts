@@ -1,30 +1,22 @@
 ﻿///<reference path="../../global.d.ts" />
 
-import _memory = require('../memory');
-import _display = require('../display');
-import _pixelformat = require('../pixelformat');
-import _opcodes = require('./gpu_opcodes');
-import _state = require('./gpu_state');
-import _vertex = require('./gpu_vertex');
-import _cpu = require('../cpu'); _cpu.CpuState;
+import { GpuStats } from './gpu_stats';
+import { Memory } from '../memory';
+import { IPspDisplay } from '../display';
+import { PixelFormat } from '../pixelformat';
+import { GpuOpCodes as Op } from './gpu_opcodes';
+import { GpuState, VertexInfo, ColorEnum, PrimitiveType, IndexEnum, DisplayListStatus, SyncType } from './gpu_state';
+import { OptimizedDrawBuffer, OptimizedBatch } from './gpu_vertex';
+import { CpuState } from '../cpu';
 import _IndentStringGenerator = require('../../util/IndentStringGenerator');
 
-import DisplayListStatus = _state.DisplayListStatus;
-import CpuState = _cpu.CpuState;
-import PixelFormat = _pixelformat.PixelFormat;
-import IPspDisplay = _display.IPspDisplay;
-import Memory = _memory.Memory;
-import ColorEnum = _state.ColorEnum;
 //import WebGlPspDrawDriver = require('./webgl/webgl_driver');
-import Op = _opcodes.GpuOpCodes;
-import PrimitiveType = _state.PrimitiveType;
-import IndexEnum = _state.IndexEnum;
 
 export interface CpuExecutor {
 	execute(state: CpuState, address: number, gprArray: number[]): void;
 }
 
-var optimizedDrawBuffer = new _vertex.OptimizedDrawBuffer();
+var optimizedDrawBuffer = new OptimizedDrawBuffer();
 var singleCallTest = false;
 
 const enum PrimDrawType {
@@ -70,7 +62,7 @@ class PspGpuList {
 	private promiseReject: Function;
 	errorCount: number = 0;
 
-	constructor(public id: number, public memory: Memory, private runner: PspGpuListRunner, public gpu: PspGpu, public cpuExecutor: CpuExecutor, public state: _state.GpuState) {
+	constructor(public id: number, public stats: GpuStats, public memory: Memory, private runner: PspGpuListRunner, public gpu: PspGpu, public cpuExecutor: CpuExecutor, public state: GpuState) {
     }
 
     complete() {
@@ -91,7 +83,7 @@ class PspGpuList {
 			this.gpu.queueBatch(batch);
 			if (dumpFrameCommands) dumpFrameCommandsList.push(`<BATCH:${batch.indexCount}>`);
 			this.primBatchPrimitiveType = -1;
-			//batchCount.value++;
+			this.stats.batchCount++;
 		}
 	}
 
@@ -125,6 +117,7 @@ class PspGpuList {
 		let totalCommandsLocal = 0;
 		let current4 = this.current4;
 		let localPrimCount = 0;
+		let stats = this.stats;
 		//let startTime = 0;
 		if (stall4 == 0) stall4 = 0x7FFFFFFF;
 
@@ -157,6 +150,7 @@ class PspGpuList {
 						this.finishPrimBatch();
 					}
 					current4 = this.current4;
+					//stats.primCount++;
 					break;
 				}
 				case Op.BEZIER:
@@ -218,15 +212,14 @@ class PspGpuList {
 		}
 
 		this.current4 = current4;
-		/*
-		totalStalls.value++;
-		primCount.value += localPrimCount;
-		totalCommands.value += totalCommandsLocal;
-		*/
+
+		this.stats.totalStalls++;
+		this.stats.primCount = localPrimCount;
+		this.stats.totalCommands += totalCommandsLocal;
 		this.status = (this.isStalled) ? DisplayListStatus.Stalling : DisplayListStatus.Completed;
 	}
 
-	vertexInfo = new _state.VertexInfo();
+	vertexInfo = new VertexInfo();
 
 	private prim(p: number):PrimAction {
 		var vertexCount = param16(p, 0);
@@ -235,32 +228,29 @@ class PspGpuList {
 
 		var memory = this.memory;
 		var state = this.state;
+		let stats = this.stats;
 		var vertexInfo = this.vertexInfo.setState(this.state)
 		var vertexSize = vertexInfo.size;
 		var vertexAddress = state.getAddressRelativeToBaseOffset(vertexInfo.address);
 		var indicesAddress = state.getAddressRelativeToBaseOffset(state.indexAddress);
 		var hasIndices = (vertexInfo.index != IndexEnum.Void);
 		
-		/*
 		if (hasIndices) {
-			overlayIndexCount.value++;
+			stats.indexCount++;
 		} else {
-			overlayNonIndexCount.value++;
+			stats.nonIndexCount++;
 		}
-		*/
 
 		this.primBatchPrimitiveType = primitiveType;
 		
 		//if (vertexState.realWeightCount > 0) debugger;
 		
-		/*
 		switch (primitiveType) {
-			case PrimitiveType.Triangles: trianglePrimCount.value++; break;
-			case PrimitiveType.TriangleStrip: triangleStripPrimCount.value++; break;
-			case PrimitiveType.Sprites: spritePrimCount.value++; break;
-			default: otherPrimCount.value++; break;
+			case PrimitiveType.Triangles: stats.trianglePrimCount++; break;
+			case PrimitiveType.TriangleStrip: stats.triangleStripPrimCountalue++; break;
+			case PrimitiveType.Sprites: stats.spritePrimCount++; break;
+			default: stats.otherPrimCount++; break;
 		}
-		*/
 
 		var vertexInput: Uint8Array = this.memory.getPointerU8Array(vertexAddress);
 		var drawType = DRAW_TYPE_CONV[primitiveType];
@@ -294,7 +284,7 @@ class PspGpuList {
 		return (drawType == PrimDrawType.SINGLE_DRAW) ? PrimAction.FLUSH_PRIM : PrimAction.NOTHING;
 	}
 
-	private primOptimizedNoIndex(primitiveType: PrimitiveType, drawTypeDegenerated: boolean, vertexSize:number, vertexInfo:_state.VertexInfo, vertexInput: Uint8Array) {
+	private primOptimizedNoIndex(primitiveType: PrimitiveType, drawTypeDegenerated: boolean, vertexSize:number, vertexInfo:VertexInfo, vertexInput: Uint8Array) {
 		var current4 = (this.current4 - 1) | 0; 
 		var batchPrimCount = this.batchPrimCount | 0;
 		var _optimizedDrawBuffer = optimizedDrawBuffer;
@@ -320,7 +310,7 @@ class PspGpuList {
 			batchPrimCount++;
 		}
 
-		//overlayVertexCount.value += totalVertexCount;
+		this.stats.vertexCount += totalVertexCount;
 		let totalVerticesSize = totalVertexCount * vertexSize;
 		if (isSprite) {
 			_optimizedDrawBuffer.addVerticesDataSprite(vertexInput, totalVerticesSize, totalVertexCount, vertexInfo);
@@ -333,7 +323,7 @@ class PspGpuList {
 		this.current4 = current4;
 	}
 
-	vertexInfo2: _state.VertexInfo = new _state.VertexInfo();
+	vertexInfo2: VertexInfo = new VertexInfo();
 	private bezier(p: number) {
 		/*
 		let state = this.state;
@@ -426,11 +416,11 @@ class PspGpuListRunner {
     private lists: PspGpuList[] = [];
     private freeLists: PspGpuList[] = [];
 	private runningLists: PspGpuList[] = [];
-	private state = new _state.GpuState();
+	private state = new GpuState();
 
-	constructor(private memory: Memory, private gpu: PspGpu, private callbackManager: CpuExecutor) {
+	constructor(private memory: Memory, private stats: GpuStats, private gpu: PspGpu, private callbackManager: CpuExecutor) {
         for (var n = 0; n < 32; n++) {
-			var list = new PspGpuList(n, memory, this, gpu, callbackManager, this.state);
+			var list = new PspGpuList(n, stats, memory, this, gpu, callbackManager, this.state);
             this.lists.push(list);
             this.freeLists.push(list);
         }
@@ -467,7 +457,7 @@ class PspGpuListRunner {
 	}
 
 	waitAsync() {
-		return Promise2.all(this.runningLists.map(list => list.waitAsync())).then(() => _state.DisplayListStatus.Completed);
+		return Promise2.all(this.runningLists.map(list => list.waitAsync())).then(() => DisplayListStatus.Completed);
     }
 }
 
@@ -481,7 +471,7 @@ export class PspGpu {
 	private listRunner: PspGpuListRunner;
 	callbacks = new UidCollection<PspGpuCallback>(1);
 
-	constructor(private memory: Memory, private display: IPspDisplay, private cpuExecutor: CpuExecutor) {
+	constructor(private memory: Memory, private display: IPspDisplay, private cpuExecutor: CpuExecutor, public stats: GpuStats) {
 		/*
 		try {
 			this.driver = new WebGlPspDrawDriver(memory, display, canvas);
@@ -489,13 +479,10 @@ export class PspGpu {
 			this.driver = new _driver.BaseDrawDriver();
 		}
 		globalDriver = this.driver;
-		this.driver.rehashSignal.add(size => {
-			hashMemoryCount.value++;
-			hashMemorySize.value += size;
-		});
 		*/
 		//this.driver = new Context2dPspDrawDriver(memory, canvas);
-		this.listRunner = new PspGpuListRunner(memory, this, this.cpuExecutor);
+
+		this.listRunner = new PspGpuListRunner(memory, this.stats, this, this.cpuExecutor);
     }
 	
 	dumpCommands() {
@@ -522,7 +509,7 @@ export class PspGpu {
         return list.id;
     }
 
-    listSync(displayListId: number, syncType: _state.SyncType) {
+    listSync(displayListId: number, syncType: SyncType) {
         //console.log('listSync');
 		//overlay.update();
         return this.listRunner.getById(displayListId).waitAsync();
@@ -537,14 +524,14 @@ export class PspGpu {
 	end() {
 	}
 
-	textureFlush(state:_state.GpuState) {
+	textureFlush(state:GpuState) {
 	}
 	
-	textureSync(state:_state.GpuState) {
+	textureSync(state:GpuState) {
 	}
 	
-	private batches: _vertex.OptimizedBatch[] = [];
-	queueBatch(batch:_vertex.OptimizedBatch) {
+	private batches: OptimizedBatch[] = [];
+	queueBatch(batch:OptimizedBatch) {
 		this.batches.push(batch);
 	}
 
@@ -571,7 +558,7 @@ export class PspGpu {
 		dumpFrameCommandsList.length = 0;
 	}
 	
-	public onDrawBatches = new Signal2<_vertex.OptimizedDrawBuffer, _vertex.OptimizedBatch[]>();
+	public onDrawBatches = new Signal2<OptimizedDrawBuffer, OptimizedBatch[]>();
 	
 	private wv = new WatchValue(false);
 	sync() {
@@ -581,16 +568,17 @@ export class PspGpu {
 	public freezing = new WatchValue(false);
 
 	private lastTime = 0;
-	drawSync(syncType: _state.SyncType): any {
+	drawSync(syncType: SyncType): any {
 		//console.log('drawSync');
 		//console.warn('Not implemented sceGe_user.sceGeDrawSync');
 		return this.listRunner.waitAsync().then(() => {
 			this.flushCommands()
 			try {
 				var end = performance.now();
-				//timePerFrame.value = MathUtils.interpolate(timePerFrame.value, end - this.lastTime, 0.5);
+				this.stats.timePerFrame = MathUtils.interpolate(this.stats.timePerFrame, end - this.lastTime, 0.5); 
 				this.lastTime = end;
-				//overlay.updateAndReset();
+				//this.stats.batchCount = this.batches.length;
+				this.stats.updateAndReset();
 				//this.onDrawBatches.dispatch(optimizedDrawBuffer, this.batches.slice(0, overlayBatchSlider.ratio));
 				//console.info('onDrawBatches:', this.batches.length);
 				this.wv.value = false;
@@ -610,11 +598,11 @@ export class PspGpu {
 			}
 		});
 
-		switch (syncType) {
-			case _state.SyncType.Peek: return this.listRunner.peek();
-			case _state.SyncType.WaitForCompletion: return this.listRunner.waitAsync();
-			default: throw (new Error("Not implemented SyncType." + syncType));
-		}
+		//switch (syncType) {
+		//	case _state.SyncType.Peek: return this.listRunner.peek();
+		//	case _state.SyncType.WaitForCompletion: return this.listRunner.waitAsync();
+		//	default: throw (new Error("Not implemented SyncType." + syncType));
+		//}
     }
 }
 

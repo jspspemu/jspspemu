@@ -43,6 +43,7 @@ function sprintf() {
     var a = arguments;
     var i = 0;
     var format = a[i++];
+    // pad()
     var pad = function (str, len, chr, leftJustify) {
         if (!chr) {
             chr = ' ';
@@ -51,6 +52,7 @@ function sprintf() {
             .join(chr);
         return leftJustify ? str + padding : padding + str;
     };
+    // justify()
     var justify = function (value, prefix, leftJustify, minWidth, zeroPad, customPadChar) {
         if (customPadChar === void 0) { customPadChar = undefined; }
         var diff = minWidth - value.length;
@@ -64,7 +66,9 @@ function sprintf() {
         }
         return value;
     };
+    // formatBaseX()
     var formatBaseX = function (value, base, prefix, leftJustify, minWidth, precision, zeroPad) {
+        // Note: casts negative numbers to positive ones
         var number = value >>> 0;
         prefix = prefix && number && {
             '2': '0b',
@@ -74,6 +78,7 @@ function sprintf() {
         var valueStr = prefix + pad(number.toString(base), precision || 0, '0', false);
         return justify(valueStr, prefix, leftJustify, minWidth, zeroPad);
     };
+    // formatString()
     var formatString = function (value, leftJustify, minWidth, precision, zeroPad, customPadChar) {
         if (customPadChar === void 0) { customPadChar = undefined; }
         if (precision != null) {
@@ -81,11 +86,13 @@ function sprintf() {
         }
         return justify(value, '', leftJustify, minWidth, zeroPad, customPadChar);
     };
+    // doFormat()
     var doFormat = function (substring, valueIndex, flags, minWidth, _, precision, type) {
         var number, prefix, method, textTransform, value;
         if (substring === '%%') {
             return '%';
         }
+        // parse flags
         var leftJustify = false;
         var positivePrefix = '';
         var zeroPad = false;
@@ -115,6 +122,8 @@ function sprintf() {
                     break;
             }
         }
+        // parameters may be null, undefined, empty-string or real valued
+        // we want to ignore null, undefined and empty-string values
         if (!minWidth) {
             minWidth = 0;
         }
@@ -127,6 +136,7 @@ function sprintf() {
         else {
             minWidth = +minWidth;
         }
+        // Note: undocumented perl feature:
         if (minWidth < 0) {
             minWidth = -minWidth;
             leftJustify = true;
@@ -146,6 +156,7 @@ function sprintf() {
         else {
             precision = +precision;
         }
+        // grab value using valueIndex if required?
         value = valueIndex ? a[valueIndex.slice(0, -1)] : a[i++];
         switch (type) {
             case 's':
@@ -166,13 +177,13 @@ function sprintf() {
             case 'i':
             case 'd':
                 number = +value || 0;
-                number = Math.round(number - number % 1);
+                number = Math.round(number - number % 1); // Plain Math.round doesn't just truncate
                 prefix = number < 0 ? '-' : positivePrefix;
                 value = prefix + pad(String(Math.abs(number)), precision, '0', false);
                 return justify(value, prefix, leftJustify, minWidth, zeroPad);
             case 'e':
             case 'E':
-            case 'f':
+            case 'f': // Should handle locales (as per setlocale)
             case 'F':
             case 'g':
             case 'G':
@@ -212,7 +223,7 @@ var AsyncEntry = (function () {
         this.lastUsedTime = lastUsedTime;
     }
     return AsyncEntry;
-})();
+}());
 var AsyncCache = (function () {
     function AsyncCache(maxSize, measure) {
         if (maxSize === void 0) { maxSize = 16; }
@@ -252,6 +263,7 @@ var AsyncCache = (function () {
     AsyncCache.prototype.freeUntilAvailable = function (size) {
         if (size > this.maxSize)
             throw (new Error("Element too big"));
+        //console.log('count => ', size, this.availableSize, this.usedSize, this.maxSize, this.items.length);
         while (this.availableSize < size) {
             var itemToDelete = this.items.min(function (item) { return item.lastUsedTime; });
             delete this.itemsMap[itemToDelete.id];
@@ -274,7 +286,7 @@ var AsyncCache = (function () {
         }
     };
     return AsyncCache;
-})();
+}());
 var SortedSet = (function () {
     function SortedSet() {
         this.elements = [];
@@ -302,19 +314,19 @@ var SortedSet = (function () {
         this.elements.forEach(callback);
     };
     return SortedSet;
-})();
+}());
 var DSet = (function (_super) {
     __extends(DSet, _super);
     function DSet() {
-        _super.apply(this, arguments);
+        return _super.apply(this, arguments) || this;
     }
     return DSet;
-})(SortedSet);
+}(SortedSet));
 var Pool = (function () {
     function Pool() {
     }
     return Pool;
-})();
+}());
 var UidCollection = (function () {
     function UidCollection(lastId) {
         if (lastId === void 0) { lastId = 1; }
@@ -342,7 +354,7 @@ var UidCollection = (function () {
         delete this.items[id];
     };
     return UidCollection;
-})();
+}());
 String.prototype.startsWith = function (value) {
     var string = this;
     return string.substr(0, value.length) == value;
@@ -382,17 +394,17 @@ var Microtask = (function () {
         }
         Microtask.queued = false;
     };
-    Microtask.queued = false;
-    Microtask.callbacks = [];
     return Microtask;
-})();
+}());
+Microtask.queued = false;
+Microtask.callbacks = [];
 var _self = self;
 _self['polyfills'] = _self['polyfills'] || {};
 _self['polyfills']['ArrayBuffer_slice'] = !ArrayBuffer.prototype.slice;
 _self['polyfills']['performance'] = !self.performance;
-if (!self['performance']) {
-    self['performance'] = {};
-    self['performance']['now'] = function () {
+if (!_self['performance']) {
+    _self['performance'] = {};
+    _self['performance']['now'] = function () {
         return Date.now();
     };
 }
@@ -412,7 +424,7 @@ var Utf8 = (function () {
         return unescape(encodeURIComponent(input));
     };
     return Utf8;
-})();
+}());
 if (!ArrayBuffer.prototype.slice) {
     ArrayBuffer.prototype.slice = function (begin, end) {
         var that = new Uint8Array(this);
@@ -501,8 +513,11 @@ var ArrayBufferUtils = (function () {
             length = (input.length - offset);
         return new Uint8Array(input.buffer, input.byteOffset + offset, length);
     };
+    // http://jsperf.com/test-memory-copying
     ArrayBufferUtils.copy = function (input, inputPosition, output, outputPosition, length) {
+        //new Uint8Array(output.buffer, output.byteOffset + outputPosition, length).set(new Uint8Array(input.buffer, input.byteOffset + inputPosition, length));
         output.subarray(outputPosition, outputPosition + length).set(input.subarray(inputPosition, inputPosition + length));
+        //for (var n = 0; n < length; n++) output[outputPosition + n] = input[inputPosition + n];
     };
     ArrayBufferUtils.copyUint8ToUint32 = function (from) {
         var to = new Uint32Array(from.length);
@@ -539,7 +554,7 @@ var ArrayBufferUtils = (function () {
         return out;
     };
     return ArrayBufferUtils;
-})();
+}());
 var PromiseUtils = (function () {
     function PromiseUtils() {
     }
@@ -568,7 +583,7 @@ var PromiseUtils = (function () {
         return PromiseUtils.delayAsync(seconds * 1000);
     };
     return PromiseUtils;
-})();
+}());
 _self['requestFileSystem'] = _self['requestFileSystem'] || _self['webkitRequestFileSystem'];
 function setToString(Enum, value) {
     var items = [];
@@ -599,7 +614,7 @@ var WaitingThreadInfo = (function () {
         this.compensate = compensate;
     }
     return WaitingThreadInfo;
-})();
+}());
 window.WaitingThreadInfo = WaitingThreadInfo;
 var DebugOnceArray = {};
 function DebugOnce(name, times) {
@@ -622,12 +637,14 @@ var HalfFloat = (function () {
     }
     HalfFloat.fromFloat = function (Float) {
         var i = MathFloat.reinterpretFloatAsInt(Float);
-        var s = ((i >> 16) & 0x00008000);
-        var e = ((i >> 23) & 0x000000ff) - (127 - 15);
-        var f = ((i >> 0) & 0x007fffff);
+        var s = ((i >> 16) & 0x00008000); // sign
+        var e = ((i >> 23) & 0x000000ff) - (127 - 15); // exponent
+        var f = ((i >> 0) & 0x007fffff); // fraction
+        // need to handle NaNs and Inf?
         if (e <= 0) {
             if (e < -10) {
                 if (s != 0) {
+                    // handle -0.0
                     return 0x8000;
                 }
                 return 0;
@@ -637,24 +654,31 @@ var HalfFloat = (function () {
         }
         else if (e == 0xff - (127 - 15)) {
             if (f == 0) {
+                // Inf
                 return s | 0x7c00;
             }
+            // NAN
             f >>= 13;
             return s | 0x7c00 | f | ((f == 0) ? 1 : 0);
         }
         if (e > 30) {
+            // Overflow
             return s | 0x7c00;
         }
         return s | (e << 10) | (f >> 13);
     };
     HalfFloat.toFloat = function (imm16) {
-        var s = (imm16 >> 15) & 0x00000001;
-        var e = (imm16 >> 10) & 0x0000001f;
-        var f = (imm16 >> 0) & 0x000003ff;
+        var s = (imm16 >> 15) & 0x00000001; // Sign
+        var e = (imm16 >> 10) & 0x0000001f; // Exponent
+        var f = (imm16 >> 0) & 0x000003ff; // Fraction
+        // Need to handle 0x7C00 INF and 0xFC00 -INF?
         if (e == 0) {
+            // Need to handle +-0 case f==0 or f=0x8000?
             if (f == 0) {
+                // Plus or minus zero
                 return MathFloat.reinterpretIntAsFloat(s << 31);
             }
+            // Denormalized number -- renormalize it
             while ((f & 0x00000400) == 0) {
                 f <<= 1;
                 e -= 1;
@@ -664,8 +688,10 @@ var HalfFloat = (function () {
         }
         else if (e == 31) {
             if (f == 0) {
+                // Inf
                 return MathFloat.reinterpretIntAsFloat((s << 31) | 0x7f800000);
             }
+            // NaN
             return MathFloat.reinterpretIntAsFloat((s << 31) | 0x7f800000 | (f << 13));
         }
         e = e + (127 - 15);
@@ -673,7 +699,7 @@ var HalfFloat = (function () {
         return MathFloat.reinterpretIntAsFloat((s << 31) | (e << 23) | f);
     };
     return HalfFloat;
-})();
+}());
 function htmlspecialchars(str) {
     return str.replace(/[&<>]/g, function (tag) {
         switch (tag) {
@@ -702,7 +728,7 @@ var Signal0Cancelable = (function () {
         this.signal.remove(this.callback);
     };
     return Signal0Cancelable;
-})();
+}());
 var Signal1Cancelable = (function () {
     function Signal1Cancelable(signal, callback) {
         this.signal = signal;
@@ -712,7 +738,7 @@ var Signal1Cancelable = (function () {
         this.signal.remove(this.callback);
     };
     return Signal1Cancelable;
-})();
+}());
 var Signal2Cancelable = (function () {
     function Signal2Cancelable(signal, callback) {
         this.signal = signal;
@@ -722,7 +748,7 @@ var Signal2Cancelable = (function () {
         this.signal.remove(this.callback);
     };
     return Signal2Cancelable;
-})();
+}());
 var WatchValue = (function () {
     function WatchValue(value) {
         this.onChanged = new Signal1();
@@ -755,7 +781,7 @@ var WatchValue = (function () {
         configurable: true
     });
     return WatchValue;
-})();
+}());
 var Signal0 = (function () {
     function Signal0() {
         this.callbacks = [];
@@ -794,7 +820,7 @@ var Signal0 = (function () {
         });
     };
     return Signal0;
-})();
+}());
 var Signal1 = (function () {
     function Signal1() {
         this.callbacks = [];
@@ -833,7 +859,7 @@ var Signal1 = (function () {
         });
     };
     return Signal1;
-})();
+}());
 var Signal2 = (function () {
     function Signal2() {
         this.callbacks = [];
@@ -872,7 +898,7 @@ var Signal2 = (function () {
         });
     };
     return Signal2;
-})();
+}());
 var SignalPromise = (function () {
     function SignalPromise() {
         this.callbacks = [];
@@ -895,7 +921,7 @@ var SignalPromise = (function () {
         return Promise2.all(promises);
     };
     return SignalPromise;
-})();
+}());
 var Logger = (function () {
     function Logger(policy, console, name) {
         this.policy = policy;
@@ -962,7 +988,7 @@ var Logger = (function () {
         this._log('groupEnd', 5, args);
     };
     return Logger;
-})();
+}());
 var LoggerPolicies = (function () {
     function LoggerPolicies() {
         this.disableAll = false;
@@ -976,13 +1002,89 @@ var LoggerPolicies = (function () {
         return true;
     };
     return LoggerPolicies;
-})();
+}());
 if (typeof global == 'undefined')
     global = window;
 var loggerPolicies = new LoggerPolicies();
 var logger = new Logger(loggerPolicies, console, '');
 global.loggerPolicies = loggerPolicies;
 global.logger = logger;
+/*
+declare var executeCommandAsync: (code: string, args: ArrayBuffer[]) => Promise2<ArrayBuffer[]>;
+
+if (typeof window.document != 'undefined') {
+    var workers: Worker[] = [];
+    var workersJobs: number[] = [];
+    var lastRequestId: number = 0;
+    var resolvers: any = {};
+    [0, 1].forEach((index: number) => {
+        var ww = workers[index] = new Worker('jspspemu.js');
+        workersJobs[index] = 0;
+        console.log('created worker!');
+        ww.onmessage = function(event: any) {
+            var requestId = event.data.requestId;
+            workersJobs[index]--;
+            resolvers[requestId](event.data.args);
+            delete resolvers[requestId];
+        }
+    });
+
+    executeCommandAsync = (code: string, args: ArrayBuffer[]) => {
+        return new Promise2<ArrayBuffer[]>((resolve, reject) => {
+            var requestId = lastRequestId++;
+            resolvers[requestId] = resolve;
+            if (workersJobs[0] <= workersJobs[1]) {
+                //console.log('sent to worker0');
+                workersJobs[0]++;
+                workers[0].postMessage({ code: code, args: args, requestId: requestId }, args);
+            } else {
+                //console.log('sent to worker1');
+                workersJobs[1]++;
+                workers[1].postMessage({ code: code, args: args, requestId: requestId }, args);
+            }
+        });
+    };
+} else {
+    //console.log('inside worker!');
+    this.onmessage = function(event: any) {
+        var requestId = event.data.requestId;
+        var args = event.data.args;
+        try {
+            eval(event.data.code);
+        } catch (e) {
+            console.error(e);
+            args = [];
+        }
+        this.postMessage({ requestId: requestId, args: args }, args);
+    }
+
+    executeCommandAsync = (code: string, args: ArrayBuffer[]) => {
+        return new Promise2<ArrayBuffer[]>((resolve, reject) => {
+            try {
+                eval(code);
+            } catch (e) {
+                console.error(e);
+                args = [];
+            }
+            resolve(args);
+        });
+    };
+}
+
+function inflateRawArrayBufferAsync(data: ArrayBuffer): Promise2<ArrayBuffer> {
+    return inflateRawAsync(new Uint8Array(data)).then(data => data.buffer);
+}
+
+function inflateRawAsync(data: Uint8Array): Promise2<Uint8Array> {
+    return executeCommandAsync(`
+        var zlib = require("src/format/zlib");
+        args[0] = ArrayBufferUtils.fromUInt8Array(zlib.inflate_raw(new Uint8Array(args[0])));
+    `, [ArrayBufferUtils.fromUInt8Array(data)]).then(function(args: ArrayBuffer[]) {
+        if (args.length == 0) throw new Error("Can't decode");
+        return new Uint8Array(args[0]);
+    });
+}
+*/
 function numberToSeparator(value) {
     return (+value).toLocaleString();
 }
@@ -1034,8 +1136,8 @@ var Promise2 = (function () {
             var oneError = function (e) {
                 reject(e);
             };
-            for (var _i = 0; _i < promises.length; _i++) {
-                var p = promises[_i];
+            for (var _i = 0, promises_1 = promises; _i < promises_1.length; _i++) {
+                var p = promises_1[_i];
                 if (p instanceof Promise2) {
                     p.then(one, oneError);
                 }
@@ -1049,8 +1151,8 @@ var Promise2 = (function () {
         return new Promise2(function (resolve, reject) {
             if (promises.length == 0)
                 return resolve();
-            for (var _i = 0; _i < promises.length; _i++) {
-                var p = promises[_i];
+            for (var _i = 0, promises_2 = promises; _i < promises_2.length; _i++) {
+                var p = promises_2[_i];
                 if (p instanceof Promise2) {
                     p.then(resolve, reject);
                 }
@@ -1149,7 +1251,7 @@ var Promise2 = (function () {
         }
     };
     return Promise2;
-})();
+}());
 var DomHelp = (function () {
     function DomHelp(e) {
         this.e = e;
@@ -1234,6 +1336,7 @@ var DomHelp = (function () {
         this.e.style[key] = value;
         return this;
     };
+    //on(event:'mousedown', callback: (e:MouseEvent) => void):void;
     DomHelp.prototype.on = function (event, callback) {
         if (this.e)
             this.e.addEventListener(event, callback);
@@ -1247,12 +1350,13 @@ var DomHelp = (function () {
     else
         this.removeClass(clazz); };
     return DomHelp;
-})();
+}());
 function throwEndCycles() {
     throw new Error("CpuBreakException");
 }
 function throwWaitPromise(promise) {
     var error = new Error('WaitPromise');
+    //var error:any = new Error('WaitPromise');
     error.promise = promise;
     return error;
 }
@@ -1295,18 +1399,23 @@ Array.prototype.binarySearchIndex = function (selector) {
     var step = 0;
     if (array.length == 0)
         return -1;
+    //console.log('--------');
     while (true) {
         var current = Math.floor((min + max) / 2);
         var item = array[current];
         var result = selector(item);
         if (result == 0) {
+            //console.log('->', current);
             return current;
         }
+        //console.log(min, current, max);
         if (((current == min) || (current == max))) {
             if (min != max) {
+                //console.log('*');
                 min = max = current = (current != min) ? min : max;
             }
             else {
+                //console.log('#');
                 break;
             }
         }
@@ -1468,7 +1577,7 @@ function downloadFileAsync(url, headers) {
     }
     else {
         return _downloadFileAsync('GET', url, headers).then(function (request) {
-            var arraybuffer = request.response;
+            var arraybuffer = request.response; // not responseText
             return arraybuffer;
         });
     }
@@ -1488,7 +1597,12 @@ function statFileAsync(url) {
         return { size: size, date: date };
     });
 }
+/*
+function storePersistentKeyAsync(name:string, value:any) {
+}
+*/ 
 
+// Code from: http://docs.closure-library.googlecode.com/git/local_closure_goog_math_long.js.source.html
 var Integer64 = (function () {
     function Integer64(low, high) {
         this._low = low | 0;
@@ -1606,6 +1720,7 @@ var Integer64 = (function () {
         if (!thisNeg && otherNeg) {
             return 1;
         }
+        // at this point, the signs are the same, so subtraction will not overflow
         if (this.sub(other).isNegative()) {
             return -1;
         }
@@ -1670,18 +1785,18 @@ var Integer64 = (function () {
         c48 &= 0xFFFF;
         return Integer64.fromBits((c16 << 16) | c00, (c48 << 16) | c32);
     };
-    Integer64.ZERO = Integer64.fromInt(0);
-    Integer64.ONE = Integer64.fromInt(1);
-    Integer64.MIN_VALUE = Integer64.fromBits(0, 0x80000000 | 0);
-    Integer64.MAX_VALUE = Integer64.fromBits(0xFFFFFFFF | 0, 0x7FFFFFFF | 0);
-    Integer64._TWO_PWR_16_DBL = Math.pow(2, 16);
-    Integer64._TWO_PWR_23_DBL = Math.pow(2, 23);
-    Integer64._TWO_PWR_24_DBL = Math.pow(2, 24);
-    Integer64._TWO_PWR_32_DBL = Math.pow(2, 32);
-    Integer64._TWO_PWR_63_DBL = Math.pow(2, 63);
-    Integer64._TWO_PWR_24 = Integer64.fromInt(1 << 24);
     return Integer64;
-})();
+}());
+Integer64.ZERO = Integer64.fromInt(0);
+Integer64.ONE = Integer64.fromInt(1);
+Integer64.MIN_VALUE = Integer64.fromBits(0, 0x80000000 | 0);
+Integer64.MAX_VALUE = Integer64.fromBits(0xFFFFFFFF | 0, 0x7FFFFFFF | 0);
+Integer64._TWO_PWR_16_DBL = Math.pow(2, 16);
+Integer64._TWO_PWR_23_DBL = Math.pow(2, 23);
+Integer64._TWO_PWR_24_DBL = Math.pow(2, 24);
+Integer64._TWO_PWR_32_DBL = Math.pow(2, 32);
+Integer64._TWO_PWR_63_DBL = Math.pow(2, 63);
+Integer64._TWO_PWR_24 = Integer64.fromInt(1 << 24);
 
 if (typeof global != 'undefined')
     window = global;
@@ -1719,7 +1834,7 @@ var mat4x3 = (function () {
         data[11] = 0;
     };
     return mat4x3;
-})();
+}());
 var mat4 = (function () {
     function mat4() {
     }
@@ -1782,6 +1897,7 @@ var mat4 = (function () {
     };
     mat4.multiply = function (out, a, b) {
         var a00 = a[0], a01 = a[1], a02 = a[2], a03 = a[3], a10 = a[4], a11 = a[5], a12 = a[6], a13 = a[7], a20 = a[8], a21 = a[9], a22 = a[10], a23 = a[11], a30 = a[12], a31 = a[13], a32 = a[14], a33 = a[15];
+        // Cache only the current line of the second matrix
         var b0 = b[0], b1 = b[1], b2 = b[2], b3 = b[3];
         out[0] = b0 * a00 + b1 * a10 + b2 * a20 + b3 * a30;
         out[1] = b0 * a01 + b1 * a11 + b2 * a21 + b3 * a31;
@@ -1874,7 +1990,7 @@ var mat4 = (function () {
         return out;
     };
     return mat4;
-})();
+}());
 if (typeof self == 'undefined')
     window = self = global;
 if (typeof navigator == 'undefined')
@@ -1902,12 +2018,12 @@ if (!Math['sign']) {
 _self['polyfills']['rint'] = !Math['rint'];
 if (!Math['rint']) {
     Math['rint'] = function (value) {
-        var twoToThe52 = Math.pow(2, 52);
-        var sign = Math.sign(value);
+        var twoToThe52 = Math.pow(2, 52); // 2^52
+        var sign = Math.sign(value); // preserve sign info
         value = Math.abs(value);
         if (value < twoToThe52)
             value = ((twoToThe52 + value) - twoToThe52);
-        return sign * value;
+        return sign * value; // restore original sign
     };
 }
 _self['polyfills']['clz32'] = !Math['clz32'];
@@ -1917,6 +2033,7 @@ if (!Math['clz32']) {
         if (x == 0)
             return 32;
         var result = 0;
+        // Binary search.
         if ((x & 0xFFFF0000) === 0) {
             x <<= 16;
             result += 16;
@@ -1958,9 +2075,43 @@ if (!Math['imul']) {
         var al = a & 0xffff;
         var bh = (b >>> 16) & 0xffff;
         var bl = b & 0xffff;
+        // the shift by 0 fixes the sign on the high part
+        // the final |0 converts the unsigned value into a signed value
         return ((al * bl) + (((ah * bl + al * bh) << 16) >>> 0) | 0);
     };
 }
+//function testMultiply64_Base(a: number, b: number) {
+//	var result = Integer64.fromInt(a).multiply(Integer64.fromInt(b));
+//	var result2 = Math.imul32_64(a, b, [1, 1]);
+//	return {
+//		int64: result,
+//		fast: result2,
+//		compare: (result.low == result2[0]) && (result.high == result2[1]),
+//	};
+//}
+//
+//function testMultiply64_Base_u(a: number, b: number) {
+//	var result = Integer64.fromUnsignedInt(a).multiply(Integer64.fromUnsignedInt(b));
+//	var result2 = Math.umul32_64(a, b, [1, 1]);
+//	return {
+//		int64: result,
+//		fast: result2,
+//		compare: (result.low == result2[0]) && (result.high == result2[1]),
+//	};
+//}
+//
+//function testMultiply64() {
+//	var values = [0, -1, -2147483648, 2147483647, 777, 1234567, -999999, 99999, 65536, -65536, 65535, -65535, -32768, 32768, -32767, 32767];
+//	values.forEach((v1) => {
+//		values.forEach((v2) => {
+//			var result = testMultiply64_Base(v1, v2);
+//			if (!result.compare) console.log('signed', v1, v2, [result.int64.low, result.int64.high], result.fast);
+//
+//			var result = testMultiply64_Base_u(v1, v2);
+//			if (!result.compare) console.log('unsigned', v1, v2, [result.int64.low, result.int64.high], result.fast);
+//		});
+//	});
+//}
 _self['polyfills']['umul32_64'] = !Math['umul32_64'];
 if (!Math.umul32_64) {
     Math.umul32_64 = function (a, b, result) {
@@ -2035,11 +2186,11 @@ var BitUtils = (function () {
         return (1 << value) - 1;
     };
     BitUtils.bitrev32 = function (v) {
-        v = ((v >>> 1) & 0x55555555) | ((v & 0x55555555) << 1);
-        v = ((v >>> 2) & 0x33333333) | ((v & 0x33333333) << 2);
-        v = ((v >>> 4) & 0x0F0F0F0F) | ((v & 0x0F0F0F0F) << 4);
-        v = ((v >>> 8) & 0x00FF00FF) | ((v & 0x00FF00FF) << 8);
-        v = ((v >>> 16) & 0x0000FFFF) | ((v & 0x0000FFFF) << 16);
+        v = ((v >>> 1) & 0x55555555) | ((v & 0x55555555) << 1); // swap odd and even bits
+        v = ((v >>> 2) & 0x33333333) | ((v & 0x33333333) << 2); // swap consecutive pairs
+        v = ((v >>> 4) & 0x0F0F0F0F) | ((v & 0x0F0F0F0F) << 4); // swap nibbles ... 
+        v = ((v >>> 8) & 0x00FF00FF) | ((v & 0x00FF00FF) << 8); // swap bytes
+        v = ((v >>> 16) & 0x0000FFFF) | ((v & 0x0000FFFF) << 16); // swap 2-byte long pairs
         return v;
     };
     BitUtils.rotr = function (value, offset) {
@@ -2104,7 +2255,7 @@ var BitUtils = (function () {
         return data;
     };
     return BitUtils;
-})();
+}());
 var MathVfpu = (function () {
     function MathVfpu() {
     }
@@ -2118,6 +2269,7 @@ var MathVfpu = (function () {
     MathVfpu.vuc2i = function (index, value) {
         return ((((value >>> (index * 8)) & 0xFF) * 0x01010101) >> 1) & ~0x80000000;
     };
+    // @TODO
     MathVfpu.vs2i = function (index, value) {
         if ((index % 2) == 0)
             value <<= 16;
@@ -2148,13 +2300,15 @@ var MathVfpu = (function () {
         return isNaN(DoubleValue) ? 0x7FFFFFFF : DoubleValue;
     };
     MathVfpu.vf2h = function () {
+        //debugger;
         return 0;
     };
     MathVfpu.vh2f = function () {
+        //debugger;
         return 0;
     };
     return MathVfpu;
-})();
+}());
 var MathFloat = (function () {
     function MathFloat() {
     }
@@ -2176,6 +2330,7 @@ var MathFloat = (function () {
     MathFloat.isnanorinf = function (n) { return MathFloat.isnan(n) || MathFloat.isinf(n); };
     MathFloat.abs = function (value) { return Math.abs(value); };
     MathFloat.neg = function (value) {
+        //return MathFloat.reinterpretIntAsFloat(MathFloat.reinterpretFloatAsInt(value) ^ 0x80000000);
         return -value;
     };
     MathFloat.ocp = function (value) { return 1 - value; };
@@ -2238,11 +2393,11 @@ var MathFloat = (function () {
             return max;
         return v;
     };
-    MathFloat.reinterpretBuffer = new ArrayBuffer(4);
-    MathFloat.floatArray = new Float32Array(MathFloat.reinterpretBuffer);
-    MathFloat.intArray = new Int32Array(MathFloat.reinterpretBuffer);
     return MathFloat;
-})();
+}());
+MathFloat.reinterpretBuffer = new ArrayBuffer(4);
+MathFloat.floatArray = new Float32Array(MathFloat.reinterpretBuffer);
+MathFloat.intArray = new Int32Array(MathFloat.reinterpretBuffer);
 window.BitUtils = BitUtils;
 window.MathUtils = MathUtils;
 window.MathFloat = MathFloat;
@@ -2270,6 +2425,7 @@ var MathUtils = (function () {
     }
     MathUtils.sextend16 = function (value) {
         return (((value & 0xFFFF) << 16) >> 16);
+        //value >>= 0; if (value & 0x8000) return value | 0xFFFF0000; else return value;
     };
     MathUtils.interpolate = function (a, b, ratio) {
         return a * (1 - ratio) + b * ratio;
@@ -2311,7 +2467,7 @@ var MathUtils = (function () {
         return v;
     };
     return MathUtils;
-})();
+}());
 var IntUtils = (function () {
     function IntUtils() {
     }
@@ -2322,7 +2478,7 @@ var IntUtils = (function () {
         return str;
     };
     return IntUtils;
-})();
+}());
 var StringUtils = (function () {
     function StringUtils() {
     }
@@ -2332,7 +2488,7 @@ var StringUtils = (function () {
         return text;
     };
     return StringUtils;
-})();
+}());
 function ToUint32(x) { return x >>> 0; }
 function ToInt32(x) { return x | 0; }
 var ArrayUtils = (function () {
@@ -2364,7 +2520,7 @@ var ArrayUtils = (function () {
         return keys;
     };
     return ArrayUtils;
-})();
+}());
 function xrange(start, end) {
     return ArrayUtils.range(start, end);
 }
@@ -2400,14 +2556,15 @@ var ProxyAsyncStream = (function () {
     });
     ProxyAsyncStream.prototype.readChunkAsync = function (offset, count) { return this.stream.readChunkAsync(offset, count); };
     return ProxyAsyncStream;
-})();
+}());
 var BufferedAsyncStream = (function (_super) {
     __extends(BufferedAsyncStream, _super);
     function BufferedAsyncStream(stream, bufferSize) {
         if (bufferSize === void 0) { bufferSize = 131072; }
-        _super.call(this, stream);
-        this.bufferSize = bufferSize;
-        this.cache = { start: 0, end: 0, data: new ArrayBuffer(0) };
+        var _this = _super.call(this, stream) || this;
+        _this.bufferSize = bufferSize;
+        _this.cache = { start: 0, end: 0, data: new ArrayBuffer(0) };
+        return _this;
     }
     Object.defineProperty(BufferedAsyncStream.prototype, "name", {
         get: function () { return this.stream.name + '+buffered'; },
@@ -2433,6 +2590,7 @@ var BufferedAsyncStream = (function (_super) {
         var start = offset;
         var end = offset + count;
         var cache = this.getCachedEntry(start, end);
+        //return this.stream.readChunkAsync(start, count);
         if (cache) {
             return Promise2.resolve(cache.data.slice(start - cache.start, end - cache.start));
         }
@@ -2447,7 +2605,7 @@ var BufferedAsyncStream = (function (_super) {
         }
     };
     return BufferedAsyncStream;
-})(ProxyAsyncStream);
+}(ProxyAsyncStream));
 var MemoryAsyncStream = (function () {
     function MemoryAsyncStream(data, name, date) {
         if (name === void 0) { name = 'memory'; }
@@ -2468,7 +2626,7 @@ var MemoryAsyncStream = (function () {
         return Promise2.resolve(this.data.slice(offset, offset + count));
     };
     return MemoryAsyncStream;
-})();
+}());
 var UrlAsyncStream = (function () {
     function UrlAsyncStream(url, stat) {
         this.url = url;
@@ -2484,6 +2642,7 @@ var UrlAsyncStream = (function () {
                 console.error("Invalid file with size '" + stat.size + "'", stat);
                 throw (new Error("Invalid file with size '" + stat.size + "'"));
             }
+            // If file is less  than 5MB, then download it completely
             if (stat.size < 5 * 1024 * 1024) {
                 return downloadFileAsync(url).then(function (data) { return MemoryAsyncStream.fromArrayBuffer(data); });
             }
@@ -2498,11 +2657,12 @@ var UrlAsyncStream = (function () {
         configurable: true
     });
     UrlAsyncStream.prototype.readChunkAsync = function (offset, count) {
+        //console.error();
         console.info('download chunk', this.url, offset + '-' + (offset + count), '(' + count + ')');
         return downloadFileChunkAsync(this.url, offset, count);
     };
     return UrlAsyncStream;
-})();
+}());
 var FileAsyncStream = (function () {
     function FileAsyncStream(file) {
         this.file = file;
@@ -2528,7 +2688,7 @@ var FileAsyncStream = (function () {
         });
     };
     return FileAsyncStream;
-})();
+}());
 var Stream = (function () {
     function Stream(data, offset) {
         if (offset === void 0) { offset = 0; }
@@ -2814,9 +2974,9 @@ var Stream = (function () {
         }
         return str;
     };
-    Stream.INVALID = Stream.fromArray([]);
     return Stream;
-})();
+}());
+Stream.INVALID = Stream.fromArray([]);
 
 ///<reference path="./utils.ts" />
 ///<reference path="./stream.ts" />
@@ -2853,7 +3013,7 @@ var Int64Type = (function () {
         configurable: true
     });
     return Int64Type;
-})();
+}());
 var Integer64Type = (function () {
     function Integer64Type(endian) {
         this.endian = endian;
@@ -2887,7 +3047,7 @@ var Integer64Type = (function () {
         configurable: true
     });
     return Integer64Type;
-})();
+}());
 var Int32Type = (function () {
     function Int32Type(endian) {
         this.endian = endian;
@@ -2900,7 +3060,7 @@ var Int32Type = (function () {
         configurable: true
     });
     return Int32Type;
-})();
+}());
 var Int16Type = (function () {
     function Int16Type(endian) {
         this.endian = endian;
@@ -2913,7 +3073,7 @@ var Int16Type = (function () {
         configurable: true
     });
     return Int16Type;
-})();
+}());
 var Int8Type = (function () {
     function Int8Type(endian) {
         this.endian = endian;
@@ -2926,7 +3086,7 @@ var Int8Type = (function () {
         configurable: true
     });
     return Int8Type;
-})();
+}());
 var UInt32Type = (function () {
     function UInt32Type(endian) {
         this.endian = endian;
@@ -2939,7 +3099,7 @@ var UInt32Type = (function () {
         configurable: true
     });
     return UInt32Type;
-})();
+}());
 var UInt16Type = (function () {
     function UInt16Type(endian) {
         this.endian = endian;
@@ -2952,7 +3112,7 @@ var UInt16Type = (function () {
         configurable: true
     });
     return UInt16Type;
-})();
+}());
 var UInt8Type = (function () {
     function UInt8Type(endian) {
         this.endian = endian;
@@ -2965,7 +3125,7 @@ var UInt8Type = (function () {
         configurable: true
     });
     return UInt8Type;
-})();
+}());
 var UIntReference = (function () {
     function UIntReference(stream) {
         this.stream = stream;
@@ -2981,7 +3141,7 @@ var UIntReference = (function () {
         configurable: true
     });
     return UIntReference;
-})();
+}());
 var StructClass = (function () {
     function StructClass(_class, items) {
         this._class = _class;
@@ -3088,7 +3248,7 @@ var StructClass = (function () {
         configurable: true
     });
     return StructClass;
-})();
+}());
 var StructArrayClass = (function () {
     function StructArrayClass(elementType, count) {
         this.elementType = elementType;
@@ -3113,7 +3273,7 @@ var StructArrayClass = (function () {
         configurable: true
     });
     return StructArrayClass;
-})();
+}());
 function StructArray(elementType, count) {
     return new StructArrayClass(elementType, count);
 }
@@ -3139,7 +3299,7 @@ var StructStringn = (function () {
         configurable: true
     });
     return StructStringn;
-})();
+}());
 var StructStringz = (function () {
     function StructStringz(count, readTransformer, writeTransformer) {
         this.count = count;
@@ -3172,7 +3332,7 @@ var StructStringz = (function () {
         configurable: true
     });
     return StructStringz;
-})();
+}());
 var StructStringzVariable = (function () {
     function StructStringzVariable() {
     }
@@ -3191,7 +3351,7 @@ var StructStringzVariable = (function () {
         configurable: true
     });
     return StructStringzVariable;
-})();
+}());
 var UInt32_2lbStruct = (function () {
     function UInt32_2lbStruct() {
     }
@@ -3210,7 +3370,7 @@ var UInt32_2lbStruct = (function () {
         configurable: true
     });
     return UInt32_2lbStruct;
-})();
+}());
 var UInt16_2lbStruct = (function () {
     function UInt16_2lbStruct() {
     }
@@ -3229,7 +3389,7 @@ var UInt16_2lbStruct = (function () {
         configurable: true
     });
     return UInt16_2lbStruct;
-})();
+}());
 var StructStringWithSize = (function () {
     function StructStringWithSize(getStringSize) {
         this.getStringSize = getStringSize;
@@ -3248,7 +3408,7 @@ var StructStringWithSize = (function () {
         configurable: true
     });
     return StructStringWithSize;
-})();
+}());
 var Int16 = new Int16Type(Endian.LITTLE);
 var Int32 = new Int32Type(Endian.LITTLE);
 var Int64 = new Int64Type(Endian.LITTLE);
@@ -3264,10 +3424,12 @@ var Int8_b = new Int8Type(Endian.BIG);
 var UInt8 = new UInt8Type(Endian.LITTLE);
 var UInt16 = new UInt16Type(Endian.LITTLE);
 var UInt32 = new UInt32Type(Endian.LITTLE);
+//var UInt64 = new UInt64Type(Endian.LITTLE);
 var UInt16_l = new UInt16Type(Endian.LITTLE);
 var UInt32_l = new UInt32Type(Endian.LITTLE);
 var UInt16_b = new UInt16Type(Endian.BIG);
 var UInt32_b = new UInt32Type(Endian.BIG);
+//var UInt64_b = new UInt64Type(Endian.BIG);
 var UInt32_2lb = new UInt32_2lbStruct();
 var UInt16_2lb = new UInt16_2lbStruct();
 var Integer64_l = new Integer64Type(Endian.LITTLE);
@@ -3299,7 +3461,7 @@ var StructPointerStruct = (function () {
         configurable: true
     });
     return StructPointerStruct;
-})();
+}());
 function StructPointer(type) {
     return new StructPointerStruct(type);
 }
@@ -3326,7 +3488,3499 @@ var Pointer = (function () {
         this.type.write(this.stream.clone(), value);
     };
     return Pointer;
-})();
+}());
+
+///<reference path="./array.ts" />
+///<reference path="./math.ts" />
+var __extends = (this && this.__extends) || function (d, b) {
+    for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
+    function __() { this.constructor = d; }
+    d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
+};
+if (typeof global != 'undefined')
+    window = global;
+if (typeof self != 'undefined')
+    window = self;
+if (typeof self == 'undefined')
+    window = self = global;
+if (typeof navigator == 'undefined')
+    navigator = {};
+function sprintf() {
+    //  discuss at: http://phpjs.org/functions/sprintf/
+    // original by: Ash Searle (http://hexmen.com/blog/)
+    // improved by: Michael White (http://getsprink.com)
+    // improved by: Jack
+    // improved by: Kevin van Zonneveld (http://kevin.vanzonneveld.net)
+    // improved by: Kevin van Zonneveld (http://kevin.vanzonneveld.net)
+    // improved by: Kevin van Zonneveld (http://kevin.vanzonneveld.net)
+    // improved by: Dj
+    // improved by: Allidylls
+    //    input by: Paulo Freitas
+    //    input by: Brett Zamir (http://brett-zamir.me)
+    //   example 1: sprintf("%01.2f", 123.1);
+    //   returns 1: 123.10
+    //   example 2: sprintf("[%10s]", 'monkey');
+    //   returns 2: '[    monkey]'
+    //   example 3: sprintf("[%'#10s]", 'monkey');
+    //   returns 3: '[####monkey]'
+    //   example 4: sprintf("%d", 123456789012345);
+    //   returns 4: '123456789012345'
+    //   example 5: sprintf('%-03s', 'E');
+    //   returns 5: 'E00'
+    var args = [];
+    for (var _i = 0; _i < arguments.length; _i++) {
+        args[_i - 0] = arguments[_i];
+    }
+    var regex = /%%|%(\d+\$)?([-+\'#0 ]*)(\*\d+\$|\*|\d+)?(\.(\*\d+\$|\*|\d+))?([scboxXuideEfFgG])/g;
+    var a = arguments;
+    var i = 0;
+    var format = a[i++];
+    // pad()
+    var pad = function (str, len, chr, leftJustify) {
+        if (!chr) {
+            chr = ' ';
+        }
+        var padding = (str.length >= len) ? '' : new Array(1 + len - str.length >>> 0)
+            .join(chr);
+        return leftJustify ? str + padding : padding + str;
+    };
+    // justify()
+    var justify = function (value, prefix, leftJustify, minWidth, zeroPad, customPadChar) {
+        if (customPadChar === void 0) { customPadChar = undefined; }
+        var diff = minWidth - value.length;
+        if (diff > 0) {
+            if (leftJustify || !zeroPad) {
+                value = pad(value, minWidth, customPadChar, leftJustify);
+            }
+            else {
+                value = value.slice(0, prefix.length) + pad('', diff, '0', true) + value.slice(prefix.length);
+            }
+        }
+        return value;
+    };
+    // formatBaseX()
+    var formatBaseX = function (value, base, prefix, leftJustify, minWidth, precision, zeroPad) {
+        // Note: casts negative numbers to positive ones
+        var number = value >>> 0;
+        prefix = prefix && number && {
+            '2': '0b',
+            '8': '0',
+            '16': '0x'
+        }[base] || '';
+        var valueStr = prefix + pad(number.toString(base), precision || 0, '0', false);
+        return justify(valueStr, prefix, leftJustify, minWidth, zeroPad);
+    };
+    // formatString()
+    var formatString = function (value, leftJustify, minWidth, precision, zeroPad, customPadChar) {
+        if (customPadChar === void 0) { customPadChar = undefined; }
+        if (precision != null) {
+            value = value.slice(0, precision);
+        }
+        return justify(value, '', leftJustify, minWidth, zeroPad, customPadChar);
+    };
+    // doFormat()
+    var doFormat = function (substring, valueIndex, flags, minWidth, _, precision, type) {
+        var number, prefix, method, textTransform, value;
+        if (substring === '%%') {
+            return '%';
+        }
+        // parse flags
+        var leftJustify = false;
+        var positivePrefix = '';
+        var zeroPad = false;
+        var prefixBaseX = false;
+        var customPadChar = ' ';
+        var flagsl = flags.length;
+        for (var j = 0; flags && j < flagsl; j++) {
+            switch (flags.charAt(j)) {
+                case ' ':
+                    positivePrefix = ' ';
+                    break;
+                case '+':
+                    positivePrefix = '+';
+                    break;
+                case '-':
+                    leftJustify = true;
+                    break;
+                case "'":
+                    customPadChar = flags.charAt(j + 1);
+                    break;
+                case '0':
+                    zeroPad = true;
+                    customPadChar = '0';
+                    break;
+                case '#':
+                    prefixBaseX = true;
+                    break;
+            }
+        }
+        // parameters may be null, undefined, empty-string or real valued
+        // we want to ignore null, undefined and empty-string values
+        if (!minWidth) {
+            minWidth = 0;
+        }
+        else if (minWidth === '*') {
+            minWidth = +a[i++];
+        }
+        else if (minWidth.charAt(0) == '*') {
+            minWidth = +a[minWidth.slice(1, -1)];
+        }
+        else {
+            minWidth = +minWidth;
+        }
+        // Note: undocumented perl feature:
+        if (minWidth < 0) {
+            minWidth = -minWidth;
+            leftJustify = true;
+        }
+        if (!isFinite(minWidth)) {
+            throw new Error('sprintf: (minimum-)width must be finite');
+        }
+        if (!precision) {
+            precision = 'fFeE'.indexOf(type) > -1 ? 6 : (type === 'd') ? 0 : undefined;
+        }
+        else if (precision === '*') {
+            precision = +a[i++];
+        }
+        else if (precision.charAt(0) == '*') {
+            precision = +a[precision.slice(1, -1)];
+        }
+        else {
+            precision = +precision;
+        }
+        // grab value using valueIndex if required?
+        value = valueIndex ? a[valueIndex.slice(0, -1)] : a[i++];
+        switch (type) {
+            case 's':
+                return formatString(String(value), leftJustify, minWidth, precision, zeroPad, customPadChar);
+            case 'c':
+                return formatString(String.fromCharCode(+value), leftJustify, minWidth, precision, zeroPad);
+            case 'b':
+                return formatBaseX(value, 2, prefixBaseX, leftJustify, minWidth, precision, zeroPad);
+            case 'o':
+                return formatBaseX(value, 8, prefixBaseX, leftJustify, minWidth, precision, zeroPad);
+            case 'x':
+                return formatBaseX(value, 16, prefixBaseX, leftJustify, minWidth, precision, zeroPad);
+            case 'X':
+                return formatBaseX(value, 16, prefixBaseX, leftJustify, minWidth, precision, zeroPad)
+                    .toUpperCase();
+            case 'u':
+                return formatBaseX(value, 10, prefixBaseX, leftJustify, minWidth, precision, zeroPad);
+            case 'i':
+            case 'd':
+                number = +value || 0;
+                number = Math.round(number - number % 1); // Plain Math.round doesn't just truncate
+                prefix = number < 0 ? '-' : positivePrefix;
+                value = prefix + pad(String(Math.abs(number)), precision, '0', false);
+                return justify(value, prefix, leftJustify, minWidth, zeroPad);
+            case 'e':
+            case 'E':
+            case 'f': // Should handle locales (as per setlocale)
+            case 'F':
+            case 'g':
+            case 'G':
+                number = +value;
+                prefix = number < 0 ? '-' : positivePrefix;
+                method = ['toExponential', 'toFixed', 'toPrecision']['efg'.indexOf(type.toLowerCase())];
+                textTransform = ['toString', 'toUpperCase']['eEfFgG'.indexOf(type) % 2];
+                value = prefix + Math.abs(number)[method](precision);
+                return justify(value, prefix, leftJustify, minWidth, zeroPad)[textTransform]();
+            default:
+                return substring;
+        }
+    };
+    return format.replace(regex, doFormat);
+}
+function printf() {
+    var args = [];
+    for (var _i = 0; _i < arguments.length; _i++) {
+        args[_i - 0] = arguments[_i];
+    }
+    console.log(sprintf.apply(sprintf, arguments));
+}
+function String_repeat(str, num) {
+    return new Array(num + 1).join(str);
+}
+var Endian;
+(function (Endian) {
+    Endian[Endian["LITTLE"] = 0] = "LITTLE";
+    Endian[Endian["BIG"] = 1] = "BIG";
+})(Endian || (Endian = {}));
+var AsyncEntry = (function () {
+    function AsyncEntry(id, size, usageCount, value, lastUsedTime) {
+        this.id = id;
+        this.size = size;
+        this.usageCount = usageCount;
+        this.value = value;
+        this.lastUsedTime = lastUsedTime;
+    }
+    return AsyncEntry;
+}());
+var AsyncCache = (function () {
+    function AsyncCache(maxSize, measure) {
+        if (maxSize === void 0) { maxSize = 16; }
+        this.maxSize = maxSize;
+        this.measure = measure;
+        this.itemsMap = {};
+        if (!measure)
+            measure = (function (item) { return 1; });
+    }
+    Object.defineProperty(AsyncCache.prototype, "items", {
+        get: function () {
+            var items = [];
+            for (var key in this.itemsMap) {
+                var item = this.itemsMap[key];
+                if (item instanceof AsyncEntry)
+                    items.push(item);
+            }
+            return items;
+        },
+        enumerable: true,
+        configurable: true
+    });
+    Object.defineProperty(AsyncCache.prototype, "usedSize", {
+        get: function () {
+            return this.items.sum(function (item) { return item.size; });
+        },
+        enumerable: true,
+        configurable: true
+    });
+    Object.defineProperty(AsyncCache.prototype, "availableSize", {
+        get: function () {
+            return this.maxSize - this.usedSize;
+        },
+        enumerable: true,
+        configurable: true
+    });
+    AsyncCache.prototype.freeUntilAvailable = function (size) {
+        if (size > this.maxSize)
+            throw (new Error("Element too big"));
+        //console.log('count => ', size, this.availableSize, this.usedSize, this.maxSize, this.items.length);
+        while (this.availableSize < size) {
+            var itemToDelete = this.items.min(function (item) { return item.lastUsedTime; });
+            delete this.itemsMap[itemToDelete.id];
+        }
+    };
+    AsyncCache.prototype.getOrGenerateAsync = function (id, generator) {
+        var _this = this;
+        var item = this.itemsMap[id];
+        if (item) {
+            item.lastUsedTime = Date.now();
+            return Promise2.resolve(item.value);
+        }
+        else {
+            return generator().then(function (value) {
+                var size = _this.measure(value);
+                _this.freeUntilAvailable(size);
+                _this.itemsMap[id] = new AsyncEntry(id, size, 1, value, Date.now());
+                return value;
+            });
+        }
+    };
+    return AsyncCache;
+}());
+var SortedSet = (function () {
+    function SortedSet() {
+        this.elements = [];
+    }
+    SortedSet.prototype.has = function (element) {
+        return this.elements.indexOf(element) >= 0;
+    };
+    SortedSet.prototype.add = function (element) {
+        if (!this.has(element))
+            this.elements.push(element);
+        return element;
+    };
+    Object.defineProperty(SortedSet.prototype, "length", {
+        get: function () { return this.elements.length; },
+        enumerable: true,
+        configurable: true
+    });
+    SortedSet.prototype.delete = function (element) {
+        this.elements.remove(element);
+    };
+    SortedSet.prototype.filter = function (callback) {
+        return this.elements.filter(callback);
+    };
+    SortedSet.prototype.forEach = function (callback) {
+        this.elements.forEach(callback);
+    };
+    return SortedSet;
+}());
+var DSet = (function (_super) {
+    __extends(DSet, _super);
+    function DSet() {
+        return _super.apply(this, arguments) || this;
+    }
+    return DSet;
+}(SortedSet));
+var Pool = (function () {
+    function Pool() {
+    }
+    return Pool;
+}());
+var UidCollection = (function () {
+    function UidCollection(lastId) {
+        if (lastId === void 0) { lastId = 1; }
+        this.lastId = lastId;
+        this.items = {};
+    }
+    UidCollection.prototype.allocate = function (item) {
+        var id = this.lastId++;
+        this.items[id] = item;
+        return id;
+    };
+    UidCollection.prototype.has = function (id) {
+        return (this.items[id] !== undefined);
+    };
+    UidCollection.prototype.get = function (id) {
+        return this.items[id];
+    };
+    UidCollection.prototype.list = function () {
+        var out = [];
+        for (var key in this.items)
+            out.push(this.items[key]);
+        return out;
+    };
+    UidCollection.prototype.remove = function (id) {
+        delete this.items[id];
+    };
+    return UidCollection;
+}());
+String.prototype.startsWith = function (value) {
+    var string = this;
+    return string.substr(0, value.length) == value;
+};
+String.prototype.endsWith = function (value) {
+    var string = this;
+    return string.substr(-value.length) == value;
+};
+String.prototype.rstrip = function () {
+    var string = this;
+    return string.replace(/\s+$/, '');
+};
+String.prototype.contains = function (value) {
+    var string = this;
+    return string.indexOf(value) >= 0;
+};
+var Microtask = (function () {
+    function Microtask() {
+    }
+    Microtask.queue = function (callback) {
+        Microtask.callbacks.push(callback);
+        if (!Microtask.queued) {
+            Microtask.queued = true;
+            setTimeout(Microtask.execute, 0);
+        }
+    };
+    Microtask.execute = function () {
+        var start = performance.now();
+        while (Microtask.callbacks.length > 0) {
+            var callback = Microtask.callbacks.shift();
+            callback();
+            var end = performance.now();
+            if ((end - start) >= 20) {
+                setTimeout(Microtask.execute, 0);
+                return;
+            }
+        }
+        Microtask.queued = false;
+    };
+    return Microtask;
+}());
+Microtask.queued = false;
+Microtask.callbacks = [];
+var _self = self;
+_self['polyfills'] = _self['polyfills'] || {};
+_self['polyfills']['ArrayBuffer_slice'] = !ArrayBuffer.prototype.slice;
+_self['polyfills']['performance'] = !self.performance;
+if (!_self['performance']) {
+    _self['performance'] = {};
+    _self['performance']['now'] = function () {
+        return Date.now();
+    };
+}
+var Utf8 = (function () {
+    function Utf8() {
+    }
+    Utf8.decode = function (input) {
+        try {
+            return decodeURIComponent(escape(input));
+        }
+        catch (e) {
+            console.error(e);
+            return input;
+        }
+    };
+    Utf8.encode = function (input) {
+        return unescape(encodeURIComponent(input));
+    };
+    return Utf8;
+}());
+if (!ArrayBuffer.prototype.slice) {
+    ArrayBuffer.prototype.slice = function (begin, end) {
+        var that = new Uint8Array(this);
+        if (end == undefined)
+            end = that.length;
+        var result = new ArrayBuffer(end - begin);
+        var resultArray = new Uint8Array(result);
+        for (var i = 0; i < resultArray.length; i++)
+            resultArray[i] = that[i + begin];
+        return result;
+    };
+}
+var _self = (typeof window != 'undefined') ? window : self;
+_self['AudioContext'] = _self['AudioContext'] || _self['webkitAudioContext'];
+_self.navigator['getGamepads'] = _self.navigator['getGamepads'] || _self.navigator['webkitGetGamepads'];
+if (!_self.requestAnimationFrame) {
+    _self.requestAnimationFrame = function (callback) {
+        var start = Date.now();
+        return setTimeout(function () {
+            callback(Date.now());
+        }, 20);
+    };
+    _self.cancelAnimationFrame = function (id) {
+        clearTimeout(id);
+    };
+}
+var ArrayBufferUtils = (function () {
+    function ArrayBufferUtils() {
+    }
+    ArrayBufferUtils.copyUint8ToArrayBuffer = function (input) {
+        var out = new ArrayBuffer(input.length);
+        new Uint8Array(out).set(input);
+        return out;
+    };
+    ArrayBufferUtils.hashWordCount = function (data) {
+        var count = data.length, result = 0;
+        for (var n = 0; n < count; n++)
+            result = (result + data[n] ^ n) | 0;
+        return result;
+    };
+    ArrayBufferUtils.hashFast = function (data) {
+        return this.hashWordCount(new Uint32Array(data.buffer, data.byteOffset, data.byteLength / 4));
+    };
+    ArrayBufferUtils.hash = function (data) {
+        var result = 0;
+        var address = 0;
+        var count = data.length;
+        while (((address + data.byteOffset) & 3) != 0) {
+            result += data[address++];
+            count--;
+        }
+        var count2 = MathUtils.prevAligned(count, 4);
+        result += this.hashWordCount(new Uint32Array(data.buffer, data.byteOffset + address, count2 / 4));
+        address += count2;
+        count -= count2;
+        while (((address + data.byteOffset) & 3) != 0) {
+            result += data[address++] * 7;
+            count--;
+        }
+        return result;
+    };
+    ArrayBufferUtils.fromUInt8Array = function (input) {
+        return input.buffer.slice(input.byteOffset, input.byteOffset + input.byteLength);
+    };
+    ArrayBufferUtils.uint16ToUint8 = function (input) {
+        return new Uint8Array(input.buffer, input.byteOffset, input.byteLength);
+    };
+    ArrayBufferUtils.uint32ToUint8 = function (input) {
+        return new Uint8Array(input.buffer, input.byteOffset, input.byteLength);
+    };
+    ArrayBufferUtils.uint8ToUint32 = function (input, offset, length) {
+        if (offset === void 0) { offset = 0; }
+        if (length === undefined)
+            length = (input.length - offset) >>> 2;
+        return new Uint32Array(input.buffer, input.byteOffset + offset, length);
+    };
+    ArrayBufferUtils.uint8ToUint16 = function (input, offset, length) {
+        if (offset === void 0) { offset = 0; }
+        if (length === undefined)
+            length = (input.length - offset) >>> 1;
+        return new Uint16Array(input.buffer, input.byteOffset + offset, length);
+    };
+    ArrayBufferUtils.uint8ToUint8 = function (input, offset, length) {
+        if (offset === void 0) { offset = 0; }
+        if (length === undefined)
+            length = (input.length - offset);
+        return new Uint8Array(input.buffer, input.byteOffset + offset, length);
+    };
+    // http://jsperf.com/test-memory-copying
+    ArrayBufferUtils.copy = function (input, inputPosition, output, outputPosition, length) {
+        //new Uint8Array(output.buffer, output.byteOffset + outputPosition, length).set(new Uint8Array(input.buffer, input.byteOffset + inputPosition, length));
+        output.subarray(outputPosition, outputPosition + length).set(input.subarray(inputPosition, inputPosition + length));
+        //for (var n = 0; n < length; n++) output[outputPosition + n] = input[inputPosition + n];
+    };
+    ArrayBufferUtils.copyUint8ToUint32 = function (from) {
+        var to = new Uint32Array(from.length);
+        for (var n = 0; n < to.length; n++)
+            to[n] = from[n];
+        return to;
+    };
+    ArrayBufferUtils.copyUint8ToUint32_rep = function (from) {
+        var to = new Uint32Array(from.length);
+        for (var n = 0; n < to.length; n++)
+            to[n] = from[n] | (from[n] << 8) | (from[n] << 16) | (from[n] << 24);
+        return to;
+    };
+    ArrayBufferUtils.cloneUint8Array = function (input) { var out = new Uint8Array(input.length); out.set(input); return out; };
+    ArrayBufferUtils.cloneUint16Array = function (input) { var out = new Uint16Array(input.length); out.set(input); return out; };
+    ArrayBufferUtils.cloneInt16Array = function (input) { var out = new Int16Array(input.length); out.set(input); return out; };
+    ArrayBufferUtils.cloneUint32Array = function (input) { var out = new Uint32Array(input.length); out.set(input); return out; };
+    ArrayBufferUtils.concatU8 = function (chunks) {
+        var out = new Uint8Array(chunks.sum(function (chunk) { return chunk.length; }));
+        var offset = 0;
+        chunks.forEach(function (chunk) {
+            out.set(chunk, offset);
+            offset += chunk.length;
+        });
+        return out;
+    };
+    ArrayBufferUtils.concatI16 = function (chunks) {
+        var out = new Int16Array(chunks.sum(function (chunk) { return chunk.length; }));
+        var offset = 0;
+        chunks.forEach(function (chunk) {
+            out.set(chunk, offset);
+            offset += chunk.length;
+        });
+        return out;
+    };
+    return ArrayBufferUtils;
+}());
+var PromiseUtils = (function () {
+    function PromiseUtils() {
+    }
+    PromiseUtils.sequence = function (generators) {
+        return new Promise2(function (resolve, reject) {
+            generators = generators.slice(0);
+            function step() {
+                if (generators.length > 0) {
+                    var generator = generators.shift();
+                    var promise = generator();
+                    promise.then(step);
+                }
+                else {
+                    resolve();
+                }
+            }
+            step();
+        });
+    };
+    PromiseUtils.delayAsync = function (ms) {
+        if (ms <= 0)
+            return Promise2.resolve(null);
+        return new Promise2(function (resolve, reject) { return setTimeout(resolve, ms); });
+    };
+    PromiseUtils.delaySecondsAsync = function (seconds) {
+        return PromiseUtils.delayAsync(seconds * 1000);
+    };
+    return PromiseUtils;
+}());
+_self['requestFileSystem'] = _self['requestFileSystem'] || _self['webkitRequestFileSystem'];
+function setToString(Enum, value) {
+    var items = [];
+    for (var key in Enum) {
+        if (Enum[key] & value && (Enum[key] & value) == Enum[key]) {
+            items.push(key);
+        }
+    }
+    return items.join(' | ');
+}
+var AcceptCallbacks;
+(function (AcceptCallbacks) {
+    AcceptCallbacks[AcceptCallbacks["NO"] = 0] = "NO";
+    AcceptCallbacks[AcceptCallbacks["YES"] = 1] = "YES";
+})(AcceptCallbacks || (AcceptCallbacks = {}));
+var Compensate;
+(function (Compensate) {
+    Compensate[Compensate["NO"] = 0] = "NO";
+    Compensate[Compensate["YES"] = 1] = "YES";
+})(Compensate || (Compensate = {}));
+var WaitingThreadInfo = (function () {
+    function WaitingThreadInfo(name, object, promise, callbacks, compensate) {
+        if (compensate === void 0) { compensate = Compensate.YES; }
+        this.name = name;
+        this.object = object;
+        this.promise = promise;
+        this.callbacks = callbacks;
+        this.compensate = compensate;
+    }
+    return WaitingThreadInfo;
+}());
+window.WaitingThreadInfo = WaitingThreadInfo;
+var DebugOnceArray = {};
+function DebugOnce(name, times) {
+    if (times === void 0) { times = 1; }
+    if (DebugOnceArray[name] >= times)
+        return false;
+    if (DebugOnceArray[name]) {
+        DebugOnceArray[name]++;
+    }
+    else {
+        DebugOnceArray[name] = 1;
+    }
+    return true;
+}
+function isTouchDevice() {
+    return 'ontouchstart' in window;
+}
+var HalfFloat = (function () {
+    function HalfFloat() {
+    }
+    HalfFloat.fromFloat = function (Float) {
+        var i = MathFloat.reinterpretFloatAsInt(Float);
+        var s = ((i >> 16) & 0x00008000); // sign
+        var e = ((i >> 23) & 0x000000ff) - (127 - 15); // exponent
+        var f = ((i >> 0) & 0x007fffff); // fraction
+        // need to handle NaNs and Inf?
+        if (e <= 0) {
+            if (e < -10) {
+                if (s != 0) {
+                    // handle -0.0
+                    return 0x8000;
+                }
+                return 0;
+            }
+            f = (f | 0x00800000) >> (1 - e);
+            return s | (f >> 13);
+        }
+        else if (e == 0xff - (127 - 15)) {
+            if (f == 0) {
+                // Inf
+                return s | 0x7c00;
+            }
+            // NAN
+            f >>= 13;
+            return s | 0x7c00 | f | ((f == 0) ? 1 : 0);
+        }
+        if (e > 30) {
+            // Overflow
+            return s | 0x7c00;
+        }
+        return s | (e << 10) | (f >> 13);
+    };
+    HalfFloat.toFloat = function (imm16) {
+        var s = (imm16 >> 15) & 0x00000001; // Sign
+        var e = (imm16 >> 10) & 0x0000001f; // Exponent
+        var f = (imm16 >> 0) & 0x000003ff; // Fraction
+        // Need to handle 0x7C00 INF and 0xFC00 -INF?
+        if (e == 0) {
+            // Need to handle +-0 case f==0 or f=0x8000?
+            if (f == 0) {
+                // Plus or minus zero
+                return MathFloat.reinterpretIntAsFloat(s << 31);
+            }
+            // Denormalized number -- renormalize it
+            while ((f & 0x00000400) == 0) {
+                f <<= 1;
+                e -= 1;
+            }
+            e += 1;
+            f &= ~0x00000400;
+        }
+        else if (e == 31) {
+            if (f == 0) {
+                // Inf
+                return MathFloat.reinterpretIntAsFloat((s << 31) | 0x7f800000);
+            }
+            // NaN
+            return MathFloat.reinterpretIntAsFloat((s << 31) | 0x7f800000 | (f << 13));
+        }
+        e = e + (127 - 15);
+        f = f << 13;
+        return MathFloat.reinterpretIntAsFloat((s << 31) | (e << 23) | f);
+    };
+    return HalfFloat;
+}());
+function htmlspecialchars(str) {
+    return str.replace(/[&<>]/g, function (tag) {
+        switch (tag) {
+            case '&': return '&amp;';
+            case '<': return '&lt;';
+            case '>': return '&gt;';
+        }
+        return tag;
+    });
+}
+function mac2string(mac) {
+    return sprintf("%02x:%02x:%02x:%02x:%02x:%02x", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+}
+function string2mac(string) {
+    var array = String(string).split(':').map(function (item) { return parseInt(item, 16); });
+    while (array.length < 6)
+        array.push(0);
+    return new Uint8Array(array);
+}
+var Signal0Cancelable = (function () {
+    function Signal0Cancelable(signal, callback) {
+        this.signal = signal;
+        this.callback = callback;
+    }
+    Signal0Cancelable.prototype.cancel = function () {
+        this.signal.remove(this.callback);
+    };
+    return Signal0Cancelable;
+}());
+var Signal1Cancelable = (function () {
+    function Signal1Cancelable(signal, callback) {
+        this.signal = signal;
+        this.callback = callback;
+    }
+    Signal1Cancelable.prototype.cancel = function () {
+        this.signal.remove(this.callback);
+    };
+    return Signal1Cancelable;
+}());
+var Signal2Cancelable = (function () {
+    function Signal2Cancelable(signal, callback) {
+        this.signal = signal;
+        this.callback = callback;
+    }
+    Signal2Cancelable.prototype.cancel = function () {
+        this.signal.remove(this.callback);
+    };
+    return Signal2Cancelable;
+}());
+var WatchValue = (function () {
+    function WatchValue(value) {
+        this.onChanged = new Signal1();
+        this._value = value;
+    }
+    WatchValue.prototype.waitUntilValueAsync = function (expectedValue) {
+        var _this = this;
+        if (this.value == expectedValue)
+            return Promise2.resolve();
+        return new Promise2(function (resolve, reject) {
+            var cancelable = _this.onChanged.add(function (changed) {
+                if (changed == expectedValue) {
+                    cancelable.cancel();
+                    resolve();
+                }
+            });
+        });
+    };
+    Object.defineProperty(WatchValue.prototype, "value", {
+        get: function () {
+            return this._value;
+        },
+        set: function (value) {
+            if (this._value == value)
+                return;
+            this._value = value;
+            this.onChanged.dispatch(value);
+        },
+        enumerable: true,
+        configurable: true
+    });
+    return WatchValue;
+}());
+var Signal0 = (function () {
+    function Signal0() {
+        this.callbacks = [];
+    }
+    Object.defineProperty(Signal0.prototype, "length", {
+        get: function () { return this.callbacks.length; },
+        enumerable: true,
+        configurable: true
+    });
+    Signal0.prototype.clear = function () { this.callbacks = []; };
+    Signal0.prototype.pipeTo = function (other) {
+        return this.add(function () { return other.dispatch(); });
+    };
+    Signal0.prototype.add = function (callback) {
+        this.callbacks.push(callback);
+        return new Signal0Cancelable(this, callback);
+    };
+    Signal0.prototype.remove = function (callback) {
+        var index = this.callbacks.indexOf(callback);
+        if (index >= 0) {
+            this.callbacks.splice(index, 1);
+        }
+    };
+    Signal0.prototype.once = function (callback) {
+        var _this = this;
+        var once = function () {
+            _this.remove(once);
+            callback();
+        };
+        this.add(once);
+        return new Signal0Cancelable(this, once);
+    };
+    Signal0.prototype.dispatch = function () {
+        this.callbacks.forEach(function (callback) {
+            callback();
+        });
+    };
+    return Signal0;
+}());
+var Signal1 = (function () {
+    function Signal1() {
+        this.callbacks = [];
+    }
+    Object.defineProperty(Signal1.prototype, "length", {
+        get: function () { return this.callbacks.length; },
+        enumerable: true,
+        configurable: true
+    });
+    Signal1.prototype.clear = function () { this.callbacks = []; };
+    Signal1.prototype.pipeTo = function (other) {
+        return this.add(function (v) { return other.dispatch(v); });
+    };
+    Signal1.prototype.add = function (callback) {
+        this.callbacks.push(callback);
+        return new Signal1Cancelable(this, callback);
+    };
+    Signal1.prototype.remove = function (callback) {
+        var index = this.callbacks.indexOf(callback);
+        if (index >= 0) {
+            this.callbacks.splice(index, 1);
+        }
+    };
+    Signal1.prototype.once = function (callback) {
+        var _this = this;
+        var once = function (v1) {
+            _this.remove(once);
+            callback(v1);
+        };
+        this.add(once);
+        return new Signal1Cancelable(this, once);
+    };
+    Signal1.prototype.dispatch = function (v1) {
+        this.callbacks.forEach(function (callback) {
+            callback(v1);
+        });
+    };
+    return Signal1;
+}());
+var Signal2 = (function () {
+    function Signal2() {
+        this.callbacks = [];
+    }
+    Object.defineProperty(Signal2.prototype, "length", {
+        get: function () { return this.callbacks.length; },
+        enumerable: true,
+        configurable: true
+    });
+    Signal2.prototype.clear = function () { this.callbacks = []; };
+    Signal2.prototype.pipeTo = function (other) {
+        return this.add(function (v1, v2) { return other.dispatch(v1, v2); });
+    };
+    Signal2.prototype.add = function (callback) {
+        this.callbacks.push(callback);
+        return new Signal2Cancelable(this, callback);
+    };
+    Signal2.prototype.remove = function (callback) {
+        var index = this.callbacks.indexOf(callback);
+        if (index >= 0) {
+            this.callbacks.splice(index, 1);
+        }
+    };
+    Signal2.prototype.once = function (callback) {
+        var _this = this;
+        var once = function (v1, v2) {
+            _this.remove(once);
+            callback(v1, v2);
+        };
+        this.add(once);
+        return new Signal2Cancelable(this, once);
+    };
+    Signal2.prototype.dispatch = function (v1, v2) {
+        this.callbacks.forEach(function (callback) {
+            callback(v1, v2);
+        });
+    };
+    return Signal2;
+}());
+var SignalPromise = (function () {
+    function SignalPromise() {
+        this.callbacks = [];
+    }
+    Object.defineProperty(SignalPromise.prototype, "length", {
+        get: function () { return this.callbacks.length; },
+        enumerable: true,
+        configurable: true
+    });
+    SignalPromise.prototype.clear = function () { this.callbacks = []; };
+    SignalPromise.prototype.add = function (callback) {
+        this.callbacks.push(callback);
+        return this;
+    };
+    SignalPromise.prototype.dispatchAsync = function (v1, v2, v3, v4, v5) {
+        var promises = [];
+        this.callbacks.forEach(function (callback) {
+            promises.push(callback(v1, v2, v3, v4, v5));
+        });
+        return Promise2.all(promises);
+    };
+    return SignalPromise;
+}());
+var Logger = (function () {
+    function Logger(policy, console, name) {
+        this.policy = policy;
+        this.console = console;
+        this.name = name;
+    }
+    Logger.prototype.named = function (name) {
+        return new Logger(this.policy, this.console, (this.name + '.' + name).replace(/^\.+/, ''));
+    };
+    Logger.prototype._log = function (type, level, args) {
+        if (this.policy.canLog(this.name, level)) {
+            args.unshift(this.name + ':');
+            if (this.console[type])
+                this.console[type].apply(this.console, args);
+        }
+    };
+    Logger.prototype.debug = function () {
+        var args = [];
+        for (var _i = 0; _i < arguments.length; _i++) {
+            args[_i - 0] = arguments[_i];
+        }
+        this._log('debug', 0, args);
+    };
+    Logger.prototype.log = function () {
+        var args = [];
+        for (var _i = 0; _i < arguments.length; _i++) {
+            args[_i - 0] = arguments[_i];
+        }
+        this._log('log', 1, args);
+    };
+    Logger.prototype.info = function () {
+        var args = [];
+        for (var _i = 0; _i < arguments.length; _i++) {
+            args[_i - 0] = arguments[_i];
+        }
+        this._log('info', 2, args);
+    };
+    Logger.prototype.warn = function () {
+        var args = [];
+        for (var _i = 0; _i < arguments.length; _i++) {
+            args[_i - 0] = arguments[_i];
+        }
+        this._log('warn', 3, args);
+    };
+    Logger.prototype.error = function () {
+        var args = [];
+        for (var _i = 0; _i < arguments.length; _i++) {
+            args[_i - 0] = arguments[_i];
+        }
+        this._log('error', 4, args);
+    };
+    Logger.prototype.groupCollapsed = function () {
+        var args = [];
+        for (var _i = 0; _i < arguments.length; _i++) {
+            args[_i - 0] = arguments[_i];
+        }
+        this._log('groupCollapsed', 5, args);
+    };
+    Logger.prototype.groupEnd = function () {
+        var args = [];
+        for (var _i = 0; _i < arguments.length; _i++) {
+            args[_i - 0] = arguments[_i];
+        }
+        this._log('groupEnd', 5, args);
+    };
+    return Logger;
+}());
+var LoggerPolicies = (function () {
+    function LoggerPolicies() {
+        this.disableAll = false;
+        this.minLogLevel = 1;
+    }
+    LoggerPolicies.prototype.canLog = function (name, level) {
+        if (this.disableAll)
+            return false;
+        if (level < this.minLogLevel)
+            return false;
+        return true;
+    };
+    return LoggerPolicies;
+}());
+if (typeof global == 'undefined')
+    global = window;
+var loggerPolicies = new LoggerPolicies();
+var logger = new Logger(loggerPolicies, console, '');
+global.loggerPolicies = loggerPolicies;
+global.logger = logger;
+/*
+declare var executeCommandAsync: (code: string, args: ArrayBuffer[]) => Promise2<ArrayBuffer[]>;
+
+if (typeof window.document != 'undefined') {
+    var workers: Worker[] = [];
+    var workersJobs: number[] = [];
+    var lastRequestId: number = 0;
+    var resolvers: any = {};
+    [0, 1].forEach((index: number) => {
+        var ww = workers[index] = new Worker('jspspemu.js');
+        workersJobs[index] = 0;
+        console.log('created worker!');
+        ww.onmessage = function(event: any) {
+            var requestId = event.data.requestId;
+            workersJobs[index]--;
+            resolvers[requestId](event.data.args);
+            delete resolvers[requestId];
+        }
+    });
+
+    executeCommandAsync = (code: string, args: ArrayBuffer[]) => {
+        return new Promise2<ArrayBuffer[]>((resolve, reject) => {
+            var requestId = lastRequestId++;
+            resolvers[requestId] = resolve;
+            if (workersJobs[0] <= workersJobs[1]) {
+                //console.log('sent to worker0');
+                workersJobs[0]++;
+                workers[0].postMessage({ code: code, args: args, requestId: requestId }, args);
+            } else {
+                //console.log('sent to worker1');
+                workersJobs[1]++;
+                workers[1].postMessage({ code: code, args: args, requestId: requestId }, args);
+            }
+        });
+    };
+} else {
+    //console.log('inside worker!');
+    this.onmessage = function(event: any) {
+        var requestId = event.data.requestId;
+        var args = event.data.args;
+        try {
+            eval(event.data.code);
+        } catch (e) {
+            console.error(e);
+            args = [];
+        }
+        this.postMessage({ requestId: requestId, args: args }, args);
+    }
+
+    executeCommandAsync = (code: string, args: ArrayBuffer[]) => {
+        return new Promise2<ArrayBuffer[]>((resolve, reject) => {
+            try {
+                eval(code);
+            } catch (e) {
+                console.error(e);
+                args = [];
+            }
+            resolve(args);
+        });
+    };
+}
+
+function inflateRawArrayBufferAsync(data: ArrayBuffer): Promise2<ArrayBuffer> {
+    return inflateRawAsync(new Uint8Array(data)).then(data => data.buffer);
+}
+
+function inflateRawAsync(data: Uint8Array): Promise2<Uint8Array> {
+    return executeCommandAsync(`
+        var zlib = require("src/format/zlib");
+        args[0] = ArrayBufferUtils.fromUInt8Array(zlib.inflate_raw(new Uint8Array(args[0])));
+    `, [ArrayBufferUtils.fromUInt8Array(data)]).then(function(args: ArrayBuffer[]) {
+        if (args.length == 0) throw new Error("Can't decode");
+        return new Uint8Array(args[0]);
+    });
+}
+*/
+function numberToSeparator(value) {
+    return (+value).toLocaleString();
+}
+function numberToFileSize(value) {
+    var KB = 1024;
+    var MB = 1024 * KB;
+    var GB = 1024 * MB;
+    var TB = 1024 * GB;
+    if (value >= GB * 0.5)
+        return (value / GB).toFixed(2) + " GB";
+    if (value >= MB * 0.5)
+        return (value / MB).toFixed(2) + " MB";
+    if (value >= KB * 0.5)
+        return (value / KB).toFixed(2) + " KB";
+    return value + " B";
+}
+function addressToHex(address) {
+    return '0x' + addressToHex2(address);
+}
+function addressToHex2(address) {
+    return ('00000000' + (address >>> 0).toString(16)).substr(-8);
+}
+var Promise2 = (function () {
+    function Promise2(callback) {
+        this._resolvedValue = null;
+        this._rejectedValue = null;
+        this._solved = false;
+        this._resolvedCallbacks = [];
+        this._rejectedCallbacks = [];
+        this._rejectedPropagated = false;
+        callback(this._resolve.bind(this), this._reject.bind(this));
+    }
+    Promise2.resolve = function (value) {
+        if (value instanceof Promise2)
+            return value;
+        return new Promise2(function (resolve, reject) { return resolve(value); });
+    };
+    Promise2.reject = function (error) { return new Promise2(function (resolve, reject) { return reject(error); }); };
+    Promise2.all = function (promises) {
+        return new Promise2(function (resolve, reject) {
+            if (promises.length == 0)
+                return resolve();
+            var total = promises.length;
+            var one = function () {
+                total--;
+                if (total <= 0)
+                    resolve();
+            };
+            var oneError = function (e) {
+                reject(e);
+            };
+            for (var _i = 0, promises_1 = promises; _i < promises_1.length; _i++) {
+                var p = promises_1[_i];
+                if (p instanceof Promise2) {
+                    p.then(one, oneError);
+                }
+                else {
+                    one();
+                }
+            }
+        });
+    };
+    Promise2.race = function (promises) {
+        return new Promise2(function (resolve, reject) {
+            if (promises.length == 0)
+                return resolve();
+            for (var _i = 0, promises_2 = promises; _i < promises_2.length; _i++) {
+                var p = promises_2[_i];
+                if (p instanceof Promise2) {
+                    p.then(resolve, reject);
+                }
+                else {
+                    resolve();
+                    return;
+                }
+            }
+        });
+    };
+    Promise2.fromThenable = function (thenable) {
+        return new Promise2(function (resolve, reject) {
+            thenable.then(function (v) { return resolve(v); }, function (error) { return reject(error); });
+        });
+    };
+    Promise2.prototype._resolve = function (value) {
+        if (this._solved)
+            return;
+        this._resolvedValue = value;
+        this._solved = true;
+        this._queueCheck();
+    };
+    Promise2.prototype._reject = function (error) {
+        if (this._solved)
+            return;
+        this._rejectedValue = error;
+        this._solved = true;
+        this._queueCheck();
+    };
+    Promise2.prototype.then = function (resolved, rejected) {
+        var _this = this;
+        var promise = new Promise2(function (resolve, reject) {
+            if (resolved) {
+                _this._resolvedCallbacks.push(function (a) {
+                    try {
+                        var result = resolved(a);
+                        if (result instanceof Promise2) {
+                            result.then(resolve, reject);
+                        }
+                        else {
+                            resolve(result);
+                        }
+                    }
+                    catch (e) {
+                        reject(e);
+                    }
+                });
+            }
+            else {
+                _this._resolvedCallbacks.push(resolve);
+            }
+            if (rejected) {
+                _this._rejectedCallbacks.push(function (a) {
+                    try {
+                        var result = rejected(a);
+                        if (result instanceof Promise2) {
+                            result.then(resolve, reject);
+                        }
+                        else {
+                            resolve(result);
+                        }
+                    }
+                    catch (e) {
+                        reject(e);
+                    }
+                });
+            }
+            else {
+                _this._rejectedCallbacks.push(reject);
+            }
+        });
+        this._queueCheck();
+        return promise;
+    };
+    Promise2.prototype.catch = function (rejected) {
+        return this.then(null, rejected);
+    };
+    Promise2.prototype._queueCheck = function () {
+        var _this = this;
+        Microtask.queue(function () { return _this._check(); });
+    };
+    Promise2.prototype._check = function () {
+        if (!this._solved)
+            return;
+        if (this._rejectedValue != null) {
+            while (this._rejectedCallbacks.length > 0) {
+                this._rejectedPropagated = true;
+                this._rejectedCallbacks.shift()(this._rejectedValue);
+            }
+            if (!this._rejectedPropagated) {
+            }
+        }
+        else {
+            while (this._resolvedCallbacks.length > 0)
+                this._resolvedCallbacks.shift()(this._resolvedValue);
+        }
+    };
+    return Promise2;
+}());
+var DomHelp = (function () {
+    function DomHelp(e) {
+        this.e = e;
+    }
+    Object.defineProperty(DomHelp.prototype, "e2", {
+        get: function () { return this.e; },
+        enumerable: true,
+        configurable: true
+    });
+    DomHelp.fromId = function (e) {
+        return new DomHelp(document.getElementById(e));
+    };
+    DomHelp.prototype.mousedown = function (callback) { return this.on('mousedown', callback); };
+    DomHelp.prototype.mouseup = function (callback) { return this.on('mouseup', callback); };
+    DomHelp.prototype.mousemove = function (callback) { return this.on('mousemove', callback); };
+    DomHelp.prototype.click = function (callback) {
+        if (callback == null)
+            this.e.click();
+        return this.on('click', callback);
+    };
+    DomHelp.prototype.showToggle = function () {
+        if (this.e.style.visibility == 'visible') {
+            this.hide();
+        }
+        else {
+            this.show();
+        }
+    };
+    DomHelp.prototype.hide = function () { if (this.e)
+        this.e.style.visibility = 'hidden'; };
+    DomHelp.prototype.show = function () { if (this.e)
+        this.e.style.visibility = 'visible'; };
+    Object.defineProperty(DomHelp.prototype, "width", {
+        get: function () { return this.e.offsetWidth || this.e2.innerWidth; },
+        set: function (value) { if (this.e)
+            this.e.style.width = value + 'px'; },
+        enumerable: true,
+        configurable: true
+    });
+    Object.defineProperty(DomHelp.prototype, "height", {
+        get: function () { return this.e.offsetHeight || this.e2.innerHeight; },
+        set: function (value) { if (this.e)
+            this.e.style.height = value + 'px'; },
+        enumerable: true,
+        configurable: true
+    });
+    Object.defineProperty(DomHelp.prototype, "top", {
+        get: function () { return this.e.offsetTop; },
+        set: function (value) { if (this.e)
+            this.e.style.top = value + 'px'; },
+        enumerable: true,
+        configurable: true
+    });
+    Object.defineProperty(DomHelp.prototype, "left", {
+        get: function () { return this.e.offsetLeft; },
+        set: function (value) { if (this.e)
+            this.e.style.left = value + 'px'; },
+        enumerable: true,
+        configurable: true
+    });
+    Object.defineProperty(DomHelp.prototype, "position", {
+        get: function () { return { top: this.top, left: this.left }; },
+        enumerable: true,
+        configurable: true
+    });
+    Object.defineProperty(DomHelp.prototype, "size", {
+        get: function () { return { width: this.width, height: this.height }; },
+        enumerable: true,
+        configurable: true
+    });
+    Object.defineProperty(DomHelp.prototype, "html", {
+        get: function () { return this.e ? this.e.innerHTML : ''; },
+        set: function (value) { if (this.e)
+            this.e.innerHTML = value; },
+        enumerable: true,
+        configurable: true
+    });
+    DomHelp.prototype.val = function () {
+        return this.e.innerText;
+    };
+    DomHelp.prototype.css = function (key, value) {
+        this.e.style[key] = value;
+        return this;
+    };
+    //on(event:'mousedown', callback: (e:MouseEvent) => void):void;
+    DomHelp.prototype.on = function (event, callback) {
+        if (this.e)
+            this.e.addEventListener(event, callback);
+    };
+    DomHelp.prototype.removeClass = function (clazz) { if (this.e)
+        this.e.className = this.e.className.replace(clazz, ''); };
+    DomHelp.prototype.addClass = function (clazz) { if (this.e)
+        this.e.className = this.e.className + " " + clazz; };
+    DomHelp.prototype.toggleClass = function (clazz, value) { if (value)
+        this.addClass(clazz);
+    else
+        this.removeClass(clazz); };
+    return DomHelp;
+}());
+function throwEndCycles() {
+    throw new Error("CpuBreakException");
+}
+function throwWaitPromise(promise) {
+    var error = new Error('WaitPromise');
+    //var error:any = new Error('WaitPromise');
+    error.promise = promise;
+    return error;
+}
+function isInsideWorker() {
+    return typeof window.document == 'undefined';
+}
+window.throwEndCycles = throwEndCycles;
+window.throwWaitPromise = throwWaitPromise;
+window.Promise2 = Promise2;
+window.DomHelp = DomHelp;
+
+///<reference path="./math.ts" />
+if (typeof global != 'undefined')
+    window = global;
+if (typeof self != 'undefined')
+    window = self;
+function identity(a) { return a; }
+function funcTrue(a) { return true; }
+function compareNumbers(a, b) {
+    if (a < b)
+        return -1;
+    if (a > b)
+        return +1;
+    return 0;
+}
+Array.prototype.contains = function (item) {
+    return this.indexOf(item) >= 0;
+};
+Array.prototype.binarySearchValue = function (selector) {
+    var array = this;
+    var index = array.binarySearchIndex(selector);
+    if (index < 0)
+        return null;
+    return array[index];
+};
+Array.prototype.binarySearchIndex = function (selector) {
+    var array = this;
+    var min = 0;
+    var max = array.length - 1;
+    var step = 0;
+    if (array.length == 0)
+        return -1;
+    //console.log('--------');
+    while (true) {
+        var current = Math.floor((min + max) / 2);
+        var item = array[current];
+        var result = selector(item);
+        if (result == 0) {
+            //console.log('->', current);
+            return current;
+        }
+        //console.log(min, current, max);
+        if (((current == min) || (current == max))) {
+            if (min != max) {
+                //console.log('*');
+                min = max = current = (current != min) ? min : max;
+            }
+            else {
+                //console.log('#');
+                break;
+            }
+        }
+        else {
+            if (result < 0) {
+                max = current;
+            }
+            else if (result > 0) {
+                min = current;
+            }
+        }
+        step++;
+        if (step >= 64)
+            throw (new Error("Too much steps"));
+    }
+    return -1;
+};
+Array.prototype.min = (function (selector) {
+    var array = this;
+    if (!selector)
+        selector = function (a) { return a; };
+    if (array.length == 0)
+        return null;
+    return array.reduce(function (previous, current) { return (selector(previous) < selector(current) ? previous : current); }, array[0]);
+});
+Array.prototype.max = (function (selector) {
+    var array = this;
+    if (!selector)
+        selector = function (a) { return a; };
+    if (array.length == 0)
+        return null;
+    return array.reduce(function (previous, current) { return (selector(previous) > selector(current) ? previous : current); }, array[0]);
+});
+Array.prototype.sortBy = function (selector) {
+    return this.slice(0).sort(function (a, b) { return compare(selector(a), selector(b)); });
+};
+Array.prototype.cast = (function () {
+    return this;
+});
+Array.prototype.count = (function (selector) {
+    var array = this;
+    if (!selector)
+        selector = funcTrue;
+    var result = 0;
+    for (var n = 0; n < array.length; n++)
+        if (selector(array[n]))
+            result++;
+    return result;
+});
+Array.prototype.any = (function (selector) {
+    var array = this;
+    if (!selector)
+        selector = funcTrue;
+    for (var n = 0; n < array.length; n++)
+        if (selector(array[n]))
+            return true;
+    return false;
+});
+Array.prototype.first = (function (selector) {
+    var array = this;
+    if (!selector)
+        selector = identity;
+    for (var n = 0; n < array.length; n++)
+        if (selector(array[n]))
+            return array[n];
+    return undefined;
+});
+Array.prototype.sum = (function (selector) {
+    var array = this;
+    if (!selector)
+        selector = function (a) { return a; };
+    return array.reduce(function (previous, current) { return previous + selector(current); }, 0);
+});
+Array.prototype.remove = function (item) {
+    var array = this;
+    var index = array.indexOf(item);
+    if (index >= 0)
+        array.splice(index, 1);
+};
+Array.prototype.toLookupMap = function () {
+    var array = this;
+    var lookup = {};
+    for (var n = 0; n < array.length; n++) {
+        lookup[array[n]] = n;
+    }
+    return lookup;
+};
+Object.defineProperty(Array.prototype, "contains", { enumerable: false });
+Object.defineProperty(Array.prototype, "toLookupMap", { enumerable: false });
+Object.defineProperty(Array.prototype, "cast", { enumerable: false });
+Object.defineProperty(Array.prototype, "count", { enumerable: false });
+Object.defineProperty(Array.prototype, "any", { enumerable: false });
+Object.defineProperty(Array.prototype, "sum", { enumerable: false });
+Object.defineProperty(Array.prototype, "min", { enumerable: false });
+Object.defineProperty(Array.prototype, "max", { enumerable: false });
+Object.defineProperty(Array.prototype, "sortBy", { enumerable: false });
+Object.defineProperty(Array.prototype, "first", { enumerable: false });
+Object.defineProperty(Array.prototype, "remove", { enumerable: false });
+Object.defineProperty(Array.prototype, "binarySearchValue", { enumerable: false });
+Object.defineProperty(Array.prototype, "binarySearchIndex", { enumerable: false });
+
+if (typeof global != 'undefined')
+    window = global;
+if (typeof self != 'undefined')
+    window = self;
+function waitAsync(timems) {
+    return new Promise2(function (resolve, reject) {
+        setTimeout(resolve, timems);
+    });
+}
+function immediateAsync() {
+    return new Promise2(function (resolve, reject) {
+        Microtask.queue(resolve);
+    });
+}
+function _downloadFileAsync(method, url, headers) {
+    return new Promise2(function (resolve, reject) {
+        var request = new XMLHttpRequest();
+        request.open(method, url, true);
+        request.overrideMimeType("text/plain; charset=x-user-defined");
+        if (headers) {
+            for (var headerKey in headers) {
+                request.setRequestHeader(headerKey, headers[headerKey]);
+            }
+        }
+        request.responseType = "arraybuffer";
+        request.onerror = function (e) { reject(e['error']); };
+        request.onload = function (e) {
+            if (request.status < 400) {
+                resolve(request);
+            }
+            else {
+                reject(new Error("HTTP " + request.status));
+            }
+        };
+        request.send();
+    });
+}
+function toArrayBuffer(buffer) {
+    var ab = new ArrayBuffer(buffer.length);
+    var view = new Uint8Array(ab);
+    for (var i = 0; i < buffer.length; ++i) {
+        view[i] = buffer[i];
+    }
+    return ab;
+}
+function downloadFileAsync(url, headers) {
+    if (typeof XMLHttpRequest == 'undefined') {
+        return new Promise2(function (resolve, reject) {
+            fs.readFile(url, function (err, data) {
+                if (err) {
+                    reject(err);
+                }
+                else {
+                    resolve(toArrayBuffer(data));
+                }
+            });
+        });
+    }
+    else {
+        return _downloadFileAsync('GET', url, headers).then(function (request) {
+            var arraybuffer = request.response; // not responseText
+            return arraybuffer;
+        });
+    }
+}
+function downloadFileChunkAsync(url, from, count) {
+    var to = (from + count) - 1;
+    return downloadFileAsync(url, {
+        'Range': 'bytes=' + from + '-' + to
+    });
+}
+function statFileAsync(url) {
+    return _downloadFileAsync('HEAD', url).then(function (request) {
+        //console.error('content-type', request.getResponseHeader('content-type'));
+        //console.log(request.getAllResponseHeaders());
+        var size = parseInt(request.getResponseHeader('content-length'));
+        var date = new Date(Date.parse(request.getResponseHeader('last-modified')));
+        return { size: size, date: date };
+    });
+}
+/*
+function storePersistentKeyAsync(name:string, value:any) {
+}
+*/ 
+
+// Code from: http://docs.closure-library.googlecode.com/git/local_closure_goog_math_long.js.source.html
+var Integer64 = (function () {
+    function Integer64(low, high) {
+        this._low = low | 0;
+        this._high = high | 0;
+    }
+    Integer64.fromInt = function (value) {
+        return new Integer64(value | 0, value < 0 ? -1 : 0);
+    };
+    Integer64.fromUnsignedInt = function (value) {
+        return new Integer64(value | 0, 0);
+    };
+    Integer64.fromBits = function (low, high) {
+        return new Integer64(low, high);
+    };
+    Integer64.fromNumber = function (value) {
+        if (isNaN(value) || !isFinite(value)) {
+            return Integer64.ZERO;
+        }
+        else if (value <= -Integer64._TWO_PWR_63_DBL) {
+            return Integer64.MIN_VALUE;
+        }
+        else if (value + 1 >= Integer64._TWO_PWR_63_DBL) {
+            return Integer64.MAX_VALUE;
+        }
+        else if (value < 0) {
+            return Integer64.fromNumber(-value).negate();
+        }
+        else {
+            return new Integer64((value % Integer64._TWO_PWR_32_DBL) | 0, (value / Integer64._TWO_PWR_32_DBL) | 0);
+        }
+    };
+    Object.defineProperty(Integer64.prototype, "low", {
+        get: function () { return this._low; },
+        enumerable: true,
+        configurable: true
+    });
+    Object.defineProperty(Integer64.prototype, "lowUnsigned", {
+        get: function () { return (this._low >= 0) ? (this._low) : (Integer64._TWO_PWR_32_DBL + this._low); },
+        enumerable: true,
+        configurable: true
+    });
+    Object.defineProperty(Integer64.prototype, "high", {
+        get: function () { return this._high; },
+        enumerable: true,
+        configurable: true
+    });
+    Object.defineProperty(Integer64.prototype, "number", {
+        get: function () {
+            return this._high * Integer64._TWO_PWR_32_DBL + this.lowUnsigned;
+        },
+        enumerable: true,
+        configurable: true
+    });
+    Integer64.prototype.getNumber = function () {
+        return this._high * Integer64._TWO_PWR_32_DBL + this.lowUnsigned;
+    };
+    Integer64.prototype.equals = function (other) {
+        return (this._high == other._high) && (this._low == other._low);
+    };
+    Integer64.prototype.negate = function () {
+        if (this.equals(Integer64.MIN_VALUE))
+            return Integer64.MIN_VALUE;
+        return this.not().add(Integer64.ONE);
+    };
+    Integer64.prototype.not = function () {
+        return Integer64.fromBits(~this._low, ~this._high);
+    };
+    Integer64.prototype.isZero = function () {
+        return this._high == 0 && this._low == 0;
+    };
+    Integer64.prototype.isNegative = function () {
+        return this._high < 0;
+    };
+    Integer64.prototype.isOdd = function () {
+        return (this._low & 1) == 1;
+    };
+    Integer64.prototype.sub = function (other) {
+        return this.add(other.negate());
+    };
+    Integer64.prototype.add = function (other) {
+        var a48 = this._high >>> 16;
+        var a32 = this._high & 0xFFFF;
+        var a16 = this._low >>> 16;
+        var a00 = this._low & 0xFFFF;
+        var b48 = other._high >>> 16;
+        var b32 = other._high & 0xFFFF;
+        var b16 = other._low >>> 16;
+        var b00 = other._low & 0xFFFF;
+        var c48 = 0, c32 = 0, c16 = 0, c00 = 0;
+        c00 += a00 + b00;
+        c16 += c00 >>> 16;
+        c00 &= 0xFFFF;
+        c16 += a16 + b16;
+        c32 += c16 >>> 16;
+        c16 &= 0xFFFF;
+        c32 += a32 + b32;
+        c48 += c32 >>> 16;
+        c32 &= 0xFFFF;
+        c48 += a48 + b48;
+        c48 &= 0xFFFF;
+        return Integer64.fromBits((c16 << 16) | c00, (c48 << 16) | c32);
+    };
+    Integer64.prototype.lessThan = function (other) {
+        return this.compare(other) < 0;
+    };
+    Integer64.prototype.compare = function (other) {
+        if (this.equals(other)) {
+            return 0;
+        }
+        var thisNeg = this.isNegative();
+        var otherNeg = other.isNegative();
+        if (thisNeg && !otherNeg) {
+            return -1;
+        }
+        if (!thisNeg && otherNeg) {
+            return 1;
+        }
+        // at this point, the signs are the same, so subtraction will not overflow
+        if (this.sub(other).isNegative()) {
+            return -1;
+        }
+        else {
+            return 1;
+        }
+    };
+    Integer64.prototype.isLowEnoughForMul = function () {
+        if (this._high == 0 && (this._low >>> 0) < Integer64._TWO_PWR_23_DBL)
+            return true;
+        if (this._high == -1 && ((-this._low) >>> 0) < Integer64._TWO_PWR_23_DBL)
+            return true;
+        return false;
+    };
+    Integer64.prototype.multiply = function (other) {
+        if (this.isZero())
+            return Integer64.ZERO;
+        if (other.isZero())
+            return Integer64.ZERO;
+        if (this.isLowEnoughForMul() && other.isLowEnoughForMul()) {
+            return Integer64.fromNumber(this.getNumber() * other.getNumber());
+        }
+        if (this.equals(Integer64.MIN_VALUE))
+            return other.isOdd() ? Integer64.MIN_VALUE : Integer64.ZERO;
+        if (other.equals(Integer64.MIN_VALUE))
+            return this.isOdd() ? Integer64.MIN_VALUE : Integer64.ZERO;
+        if (this.isNegative()) {
+            if (other.isNegative())
+                return this.negate().multiply(other.negate());
+            return this.negate().multiply(other).negate();
+        }
+        if (other.isNegative())
+            return this.multiply(other.negate()).negate();
+        var a48 = this._high >>> 16;
+        var a32 = this._high & 0xFFFF;
+        var a16 = this._low >>> 16;
+        var a00 = this._low & 0xFFFF;
+        var b48 = other._high >>> 16;
+        var b32 = other._high & 0xFFFF;
+        var b16 = other._low >>> 16;
+        var b00 = other._low & 0xFFFF;
+        var c48 = 0, c32 = 0, c16 = 0, c00 = 0;
+        c00 += a00 * b00;
+        c16 += c00 >>> 16;
+        c00 &= 0xFFFF;
+        c16 += a16 * b00;
+        c32 += c16 >>> 16;
+        c16 &= 0xFFFF;
+        c16 += a00 * b16;
+        c32 += c16 >>> 16;
+        c16 &= 0xFFFF;
+        c32 += a32 * b00;
+        c48 += c32 >>> 16;
+        c32 &= 0xFFFF;
+        c32 += a16 * b16;
+        c48 += c32 >>> 16;
+        c32 &= 0xFFFF;
+        c32 += a00 * b32;
+        c48 += c32 >>> 16;
+        c32 &= 0xFFFF;
+        c48 += a48 * b00 + a32 * b16 + a16 * b32 + a00 * b48;
+        c48 &= 0xFFFF;
+        return Integer64.fromBits((c16 << 16) | c00, (c48 << 16) | c32);
+    };
+    return Integer64;
+}());
+Integer64.ZERO = Integer64.fromInt(0);
+Integer64.ONE = Integer64.fromInt(1);
+Integer64.MIN_VALUE = Integer64.fromBits(0, 0x80000000 | 0);
+Integer64.MAX_VALUE = Integer64.fromBits(0xFFFFFFFF | 0, 0x7FFFFFFF | 0);
+Integer64._TWO_PWR_16_DBL = Math.pow(2, 16);
+Integer64._TWO_PWR_23_DBL = Math.pow(2, 23);
+Integer64._TWO_PWR_24_DBL = Math.pow(2, 24);
+Integer64._TWO_PWR_32_DBL = Math.pow(2, 32);
+Integer64._TWO_PWR_63_DBL = Math.pow(2, 63);
+Integer64._TWO_PWR_24 = Integer64.fromInt(1 << 24);
+
+if (typeof global != 'undefined')
+    window = global;
+if (typeof self != 'undefined')
+    window = self;
+var MAT4_3_IDX = new Uint32Array([
+    0, 1, 2,
+    4, 5, 6,
+    8, 9, 10,
+    12, 13, 14
+]);
+var mat4x3 = (function () {
+    function mat4x3() {
+    }
+    mat4x3.create = function () {
+        return new Float32Array([
+            1, 0, 0,
+            0, 1, 0,
+            0, 0, 1,
+            0, 0, 0,
+        ]);
+    };
+    mat4x3.identity = function (data) {
+        data[0] = 1;
+        data[1] = 0;
+        data[2] = 0;
+        data[3] = 0;
+        data[4] = 1;
+        data[5] = 0;
+        data[6] = 0;
+        data[7] = 0;
+        data[8] = 1;
+        data[9] = 0;
+        data[10] = 0;
+        data[11] = 0;
+    };
+    return mat4x3;
+}());
+var mat4 = (function () {
+    function mat4() {
+    }
+    mat4.create = function () {
+        return new Float32Array([
+            1, 0, 0, 0,
+            0, 1, 0, 0,
+            0, 0, 1, 0,
+            0, 0, 0, 1
+        ]);
+    };
+    mat4.from4x3 = function (out, mat4x3) {
+        for (var n = 0; n < 12; n++)
+            out[MAT4_3_IDX[n]] = mat4x3[n];
+        out[3] = 0.0;
+        out[7] = 0.0;
+        out[11] = 0.0;
+        out[15] = 1.0;
+    };
+    mat4.from4x4 = function (out, mat4x4) {
+        out.set(mat4x4);
+    };
+    mat4.identity = function (data) {
+        data[0] = 1;
+        data[1] = 0;
+        data[2] = 0;
+        data[3] = 0;
+        data[4] = 0;
+        data[5] = 1;
+        data[6] = 0;
+        data[7] = 0;
+        data[8] = 0;
+        data[9] = 0;
+        data[10] = 1;
+        data[11] = 0;
+        data[12] = 0;
+        data[13] = 0;
+        data[14] = 0;
+        data[15] = 1;
+    };
+    mat4.ortho = function (out, left, right, bottom, top, near, far) {
+        var lr = 1 / (left - right), bt = 1 / (bottom - top), nf = 1 / (near - far);
+        out[0] = -2 * lr;
+        out[1] = 0;
+        out[2] = 0;
+        out[3] = 0;
+        out[4] = 0;
+        out[5] = -2 * bt;
+        out[6] = 0;
+        out[7] = 0;
+        out[8] = 0;
+        out[9] = 0;
+        out[10] = 2 * nf;
+        out[11] = 0;
+        out[12] = (left + right) * lr;
+        out[13] = (top + bottom) * bt;
+        out[14] = (far + near) * nf;
+        out[15] = 1;
+        return out;
+    };
+    mat4.multiply = function (out, a, b) {
+        var a00 = a[0], a01 = a[1], a02 = a[2], a03 = a[3], a10 = a[4], a11 = a[5], a12 = a[6], a13 = a[7], a20 = a[8], a21 = a[9], a22 = a[10], a23 = a[11], a30 = a[12], a31 = a[13], a32 = a[14], a33 = a[15];
+        // Cache only the current line of the second matrix
+        var b0 = b[0], b1 = b[1], b2 = b[2], b3 = b[3];
+        out[0] = b0 * a00 + b1 * a10 + b2 * a20 + b3 * a30;
+        out[1] = b0 * a01 + b1 * a11 + b2 * a21 + b3 * a31;
+        out[2] = b0 * a02 + b1 * a12 + b2 * a22 + b3 * a32;
+        out[3] = b0 * a03 + b1 * a13 + b2 * a23 + b3 * a33;
+        b0 = b[4];
+        b1 = b[5];
+        b2 = b[6];
+        b3 = b[7];
+        out[4] = b0 * a00 + b1 * a10 + b2 * a20 + b3 * a30;
+        out[5] = b0 * a01 + b1 * a11 + b2 * a21 + b3 * a31;
+        out[6] = b0 * a02 + b1 * a12 + b2 * a22 + b3 * a32;
+        out[7] = b0 * a03 + b1 * a13 + b2 * a23 + b3 * a33;
+        b0 = b[8];
+        b1 = b[9];
+        b2 = b[10];
+        b3 = b[11];
+        out[8] = b0 * a00 + b1 * a10 + b2 * a20 + b3 * a30;
+        out[9] = b0 * a01 + b1 * a11 + b2 * a21 + b3 * a31;
+        out[10] = b0 * a02 + b1 * a12 + b2 * a22 + b3 * a32;
+        out[11] = b0 * a03 + b1 * a13 + b2 * a23 + b3 * a33;
+        b0 = b[12];
+        b1 = b[13];
+        b2 = b[14];
+        b3 = b[15];
+        out[12] = b0 * a00 + b1 * a10 + b2 * a20 + b3 * a30;
+        out[13] = b0 * a01 + b1 * a11 + b2 * a21 + b3 * a31;
+        out[14] = b0 * a02 + b1 * a12 + b2 * a22 + b3 * a32;
+        out[15] = b0 * a03 + b1 * a13 + b2 * a23 + b3 * a33;
+        return out;
+    };
+    mat4.scale = function (out, a, v) {
+        var x = v[0], y = v[1], z = v[2];
+        out[0] = a[0] * x;
+        out[1] = a[1] * x;
+        out[2] = a[2] * x;
+        out[3] = a[3] * x;
+        out[4] = a[4] * y;
+        out[5] = a[5] * y;
+        out[6] = a[6] * y;
+        out[7] = a[7] * y;
+        out[8] = a[8] * z;
+        out[9] = a[9] * z;
+        out[10] = a[10] * z;
+        out[11] = a[11] * z;
+        out[12] = a[12];
+        out[13] = a[13];
+        out[14] = a[14];
+        out[15] = a[15];
+        return out;
+    };
+    mat4.translate = function (out, a, v) {
+        var x = v[0], y = v[1], z = v[2], a00, a01, a02, a03, a10, a11, a12, a13, a20, a21, a22, a23;
+        if (a === out) {
+            out[12] = a[0] * x + a[4] * y + a[8] * z + a[12];
+            out[13] = a[1] * x + a[5] * y + a[9] * z + a[13];
+            out[14] = a[2] * x + a[6] * y + a[10] * z + a[14];
+            out[15] = a[3] * x + a[7] * y + a[11] * z + a[15];
+        }
+        else {
+            a00 = a[0];
+            a01 = a[1];
+            a02 = a[2];
+            a03 = a[3];
+            a10 = a[4];
+            a11 = a[5];
+            a12 = a[6];
+            a13 = a[7];
+            a20 = a[8];
+            a21 = a[9];
+            a22 = a[10];
+            a23 = a[11];
+            out[0] = a00;
+            out[1] = a01;
+            out[2] = a02;
+            out[3] = a03;
+            out[4] = a10;
+            out[5] = a11;
+            out[6] = a12;
+            out[7] = a13;
+            out[8] = a20;
+            out[9] = a21;
+            out[10] = a22;
+            out[11] = a23;
+            out[12] = a00 * x + a10 * y + a20 * z + a[12];
+            out[13] = a01 * x + a11 * y + a21 * z + a[13];
+            out[14] = a02 * x + a12 * y + a22 * z + a[14];
+            out[15] = a03 * x + a13 * y + a23 * z + a[15];
+        }
+        return out;
+    };
+    return mat4;
+}());
+if (typeof self == 'undefined')
+    window = self = global;
+if (typeof navigator == 'undefined')
+    navigator = {};
+var _self = self;
+_self['polyfills'] = _self['polyfills'] || {};
+_self['polyfills']['log2'] = !Math['log2'];
+if (!Math.log2) {
+    Math.log2 = function (x) { return Math.log(x) / Math.LN2; };
+}
+_self['polyfills']['log10'] = !Math['log10'];
+if (!Math.log10) {
+    Math.log10 = function (x) { return Math.log(x) / Math.LN10; };
+}
+_self['polyfills']['sign'] = !Math['sign'];
+if (!Math['sign']) {
+    Math['sign'] = function (x) {
+        if (x < 0)
+            return -1;
+        if (x > 0)
+            return +1;
+        return 0;
+    };
+}
+_self['polyfills']['rint'] = !Math['rint'];
+if (!Math['rint']) {
+    Math['rint'] = function (value) {
+        var twoToThe52 = Math.pow(2, 52); // 2^52
+        var sign = Math.sign(value); // preserve sign info
+        value = Math.abs(value);
+        if (value < twoToThe52)
+            value = ((twoToThe52 + value) - twoToThe52);
+        return sign * value; // restore original sign
+    };
+}
+_self['polyfills']['clz32'] = !Math['clz32'];
+if (!Math['clz32']) {
+    Math['clz32'] = function (x) {
+        x >>>= 0;
+        if (x == 0)
+            return 32;
+        var result = 0;
+        // Binary search.
+        if ((x & 0xFFFF0000) === 0) {
+            x <<= 16;
+            result += 16;
+        }
+        if ((x & 0xFF000000) === 0) {
+            x <<= 8;
+            result += 8;
+        }
+        if ((x & 0xF0000000) === 0) {
+            x <<= 4;
+            result += 4;
+        }
+        if ((x & 0xC0000000) === 0) {
+            x <<= 2;
+            result += 2;
+        }
+        if ((x & 0x80000000) === 0) {
+            x <<= 1;
+            result += 1;
+        }
+        return result;
+    };
+}
+_self['polyfills']['trunc'] = !Math['trunc'];
+if (!Math['trunc']) {
+    Math['trunc'] = function (x) {
+        if (x < 0) {
+            return Math.ceil(x) | 0;
+        }
+        else {
+            return Math.floor(x) | 0;
+        }
+    };
+}
+_self['polyfills']['imul'] = !Math['imul'];
+if (!Math['imul']) {
+    Math['imul'] = function (a, b) {
+        var ah = (a >>> 16) & 0xffff;
+        var al = a & 0xffff;
+        var bh = (b >>> 16) & 0xffff;
+        var bl = b & 0xffff;
+        // the shift by 0 fixes the sign on the high part
+        // the final |0 converts the unsigned value into a signed value
+        return ((al * bl) + (((ah * bl + al * bh) << 16) >>> 0) | 0);
+    };
+}
+//function testMultiply64_Base(a: number, b: number) {
+//	var result = Integer64.fromInt(a).multiply(Integer64.fromInt(b));
+//	var result2 = Math.imul32_64(a, b, [1, 1]);
+//	return {
+//		int64: result,
+//		fast: result2,
+//		compare: (result.low == result2[0]) && (result.high == result2[1]),
+//	};
+//}
+//
+//function testMultiply64_Base_u(a: number, b: number) {
+//	var result = Integer64.fromUnsignedInt(a).multiply(Integer64.fromUnsignedInt(b));
+//	var result2 = Math.umul32_64(a, b, [1, 1]);
+//	return {
+//		int64: result,
+//		fast: result2,
+//		compare: (result.low == result2[0]) && (result.high == result2[1]),
+//	};
+//}
+//
+//function testMultiply64() {
+//	var values = [0, -1, -2147483648, 2147483647, 777, 1234567, -999999, 99999, 65536, -65536, 65535, -65535, -32768, 32768, -32767, 32767];
+//	values.forEach((v1) => {
+//		values.forEach((v2) => {
+//			var result = testMultiply64_Base(v1, v2);
+//			if (!result.compare) console.log('signed', v1, v2, [result.int64.low, result.int64.high], result.fast);
+//
+//			var result = testMultiply64_Base_u(v1, v2);
+//			if (!result.compare) console.log('unsigned', v1, v2, [result.int64.low, result.int64.high], result.fast);
+//		});
+//	});
+//}
+_self['polyfills']['umul32_64'] = !Math['umul32_64'];
+if (!Math.umul32_64) {
+    Math.umul32_64 = function (a, b, result) {
+        if (result === undefined)
+            result = [0, 0];
+        a >>>= 0;
+        b >>>= 0;
+        if (a < 32767 && b < 65536) {
+            result[0] = a * b;
+            result[1] = (result[0] < 0) ? -1 : 0;
+            return result;
+        }
+        var a00 = a & 0xFFFF, a16 = a >>> 16;
+        var b00 = b & 0xFFFF, b16 = b >>> 16;
+        var c00 = a00 * b00;
+        var c16 = (c00 >>> 16) + (a16 * b00);
+        var c32 = c16 >>> 16;
+        c16 = (c16 & 0xFFFF) + (a00 * b16);
+        c32 += c16 >>> 16;
+        var c48 = c32 >>> 16;
+        c32 = (c32 & 0xFFFF) + (a16 * b16);
+        c48 += c32 >>> 16;
+        result[0] = ((c16 & 0xFFFF) << 16) | (c00 & 0xFFFF);
+        result[1] = ((c48 & 0xFFFF) << 16) | (c32 & 0xFFFF);
+        return result;
+    };
+}
+_self['polyfills']['imul32_64'] = !Math['imul32_64'];
+if (!Math.imul32_64) {
+    Math.imul32_64 = function (a, b, result) {
+        if (result === undefined)
+            result = [0, 0];
+        if (a == 0) {
+            result[0] = result[1] = 0;
+            return result;
+        }
+        if (b == 0) {
+            result[0] = result[1] = 0;
+            return result;
+        }
+        a |= 0;
+        b |= 0;
+        if ((a >= -32768 && a <= 32767) && (b >= -32768 && b <= 32767)) {
+            result[0] = a * b;
+            result[1] = (result[0] < 0) ? -1 : 0;
+            return result;
+        }
+        var doNegate = (a < 0) ^ (b < 0);
+        Math.umul32_64(Math.abs(a), Math.abs(b), result);
+        if (doNegate) {
+            result[0] = ~result[0];
+            result[1] = ~result[1];
+            result[0] = (result[0] + 1) | 0;
+            if (result[0] == 0)
+                result[1] = (result[1] + 1) | 0;
+        }
+        return result;
+    };
+}
+_self['polyfills']['fround'] = !Math['fround'];
+if (!Math['fround']) {
+    Math['fround'] = function (x) {
+        var f32 = new Float32Array(1);
+        f32[0] = x;
+        return f32[0];
+    };
+}
+var BitUtils = (function () {
+    function BitUtils() {
+    }
+    BitUtils.mask = function (value) {
+        return (1 << value) - 1;
+    };
+    BitUtils.bitrev32 = function (v) {
+        v = ((v >>> 1) & 0x55555555) | ((v & 0x55555555) << 1); // swap odd and even bits
+        v = ((v >>> 2) & 0x33333333) | ((v & 0x33333333) << 2); // swap consecutive pairs
+        v = ((v >>> 4) & 0x0F0F0F0F) | ((v & 0x0F0F0F0F) << 4); // swap nibbles ... 
+        v = ((v >>> 8) & 0x00FF00FF) | ((v & 0x00FF00FF) << 8); // swap bytes
+        v = ((v >>> 16) & 0x0000FFFF) | ((v & 0x0000FFFF) << 16); // swap 2-byte long pairs
+        return v;
+    };
+    BitUtils.rotr = function (value, offset) {
+        return (value >>> offset) | (value << (32 - offset));
+    };
+    BitUtils.clo = function (x) {
+        return Math['clz32'](~x);
+    };
+    BitUtils.clz = function (x) {
+        return Math['clz32'](x);
+    };
+    BitUtils.seb = function (x) {
+        return (x << 24) >> 24;
+    };
+    BitUtils.seh = function (x) {
+        return (x << 16) >> 16;
+    };
+    BitUtils.wsbh = function (v) {
+        return ((v & 0xFF00FF00) >>> 8) | ((v & 0x00FF00FF) << 8);
+    };
+    BitUtils.wsbw = function (v) {
+        return (((v & 0xFF000000) >>> 24) |
+            ((v & 0x00FF0000) >>> 8) |
+            ((v & 0x0000FF00) << 8) |
+            ((v & 0x000000FF) << 24));
+    };
+    BitUtils.extract = function (data, offset, length) {
+        return (data >> offset) & ((1 << length) - 1);
+    };
+    BitUtils.extractBool = function (data, offset) {
+        return (this.extract(data, offset, 1) != 0);
+    };
+    BitUtils.extractSigned = function (data, offset, length) {
+        var mask = this.mask(length);
+        var value = this.extract(data, offset, length);
+        var signBit = (1 << (offset + (length - 1)));
+        if ((value & signBit) != 0)
+            value |= ~mask;
+        return value;
+    };
+    BitUtils.extractScale1f = function (data, offset, length) {
+        var mask = (1 << length) - 1;
+        return (((data >>> offset) & mask) / mask);
+    };
+    BitUtils.extractScalef = function (data, offset, length, scale) {
+        return BitUtils.extractScale1f(data, offset, length) * scale;
+    };
+    BitUtils.extractScalei = function (data, offset, length, scale) {
+        return this.extractScalef(data, offset, length, scale) | 0;
+    };
+    BitUtils.extractEnum = function (data, offset, length) {
+        return this.extract(data, offset, length);
+    };
+    BitUtils.clear = function (data, offset, length) {
+        data &= ~(BitUtils.mask(length) << offset);
+        return data;
+    };
+    BitUtils.insert = function (data, offset, length, value) {
+        value &= BitUtils.mask(length);
+        data = BitUtils.clear(data, offset, length);
+        data |= value << offset;
+        return data;
+    };
+    return BitUtils;
+}());
+var MathVfpu = (function () {
+    function MathVfpu() {
+    }
+    MathVfpu.vqmul0 = function (s0, s1, s2, s3, t0, t1, t2, t3) { return +(s0 * t3) + (s1 * t2) - (s2 * t1) + (s3 * t0); };
+    MathVfpu.vqmul1 = function (s0, s1, s2, s3, t0, t1, t2, t3) { return -(s0 * t2) + (s1 * t3) + (s2 * t0) + (s3 * t1); };
+    MathVfpu.vqmul2 = function (s0, s1, s2, s3, t0, t1, t2, t3) { return +(s0 * t1) - (s1 * t0) + (s2 * t3) + (s3 * t2); };
+    MathVfpu.vqmul3 = function (s0, s1, s2, s3, t0, t1, t2, t3) { return -(s0 * t0) - (s1 * t1) - (s2 * t2) + (s3 * t3); };
+    MathVfpu.vc2i = function (index, value) {
+        return (value << ((3 - index) * 8)) & 0xFF000000;
+    };
+    MathVfpu.vuc2i = function (index, value) {
+        return ((((value >>> (index * 8)) & 0xFF) * 0x01010101) >> 1) & ~0x80000000;
+    };
+    // @TODO
+    MathVfpu.vs2i = function (index, value) {
+        if ((index % 2) == 0)
+            value <<= 16;
+        return value & 0xFFFF0000;
+    };
+    MathVfpu.vi2f = function (value, count) {
+        return MathFloat.scalb(value, count);
+    };
+    MathVfpu.vi2uc = function (x, y, z, w) {
+        return (0
+            | ((x < 0) ? 0 : ((x >>> 23) << 0))
+            | ((y < 0) ? 0 : ((y >>> 23) << 8))
+            | ((z < 0) ? 0 : ((z >>> 23) << 16))
+            | ((w < 0) ? 0 : ((w >>> 23) << 24)));
+    };
+    MathVfpu.vf2id = function (value, count) {
+        return MathFloat.floor(MathFloat.scalb(value, count));
+    };
+    MathVfpu.vf2in = function (value, count) {
+        return MathFloat.rint(MathFloat.scalb(value, count));
+    };
+    MathVfpu.vf2iu = function (value, count) {
+        return MathFloat.ceil(MathFloat.scalb(value, count));
+    };
+    MathVfpu.vf2iz = function (Value, count) {
+        var ScalabValue = MathFloat.scalb(Value, count);
+        var DoubleValue = (Value >= 0) ? MathFloat.floor(ScalabValue) : MathFloat.ceil(ScalabValue);
+        return isNaN(DoubleValue) ? 0x7FFFFFFF : DoubleValue;
+    };
+    MathVfpu.vf2h = function () {
+        //debugger;
+        return 0;
+    };
+    MathVfpu.vh2f = function () {
+        //debugger;
+        return 0;
+    };
+    return MathVfpu;
+}());
+var MathFloat = (function () {
+    function MathFloat() {
+    }
+    MathFloat.reinterpretFloatAsInt = function (floatValue) {
+        MathFloat.floatArray[0] = floatValue;
+        return MathFloat.intArray[0];
+    };
+    MathFloat.reinterpretIntAsFloat = function (integerValue) {
+        MathFloat.intArray[0] = integerValue;
+        return MathFloat.floatArray[0];
+    };
+    MathFloat.scalb = function (value, count) {
+        return value * Math.pow(2, count);
+    };
+    MathFloat.min = function (a, b) { return (a < b) ? a : b; };
+    MathFloat.max = function (a, b) { return (a > b) ? a : b; };
+    MathFloat.isnan = function (n) { return isNaN(n); };
+    MathFloat.isinf = function (n) { return n === n / 0; };
+    MathFloat.isnanorinf = function (n) { return MathFloat.isnan(n) || MathFloat.isinf(n); };
+    MathFloat.abs = function (value) { return Math.abs(value); };
+    MathFloat.neg = function (value) {
+        //return MathFloat.reinterpretIntAsFloat(MathFloat.reinterpretFloatAsInt(value) ^ 0x80000000);
+        return -value;
+    };
+    MathFloat.ocp = function (value) { return 1 - value; };
+    MathFloat.nrcp = function (value) { return -(1 / value); };
+    MathFloat.sat0 = function (value) { return MathUtils.clamp(value, 0, +1); };
+    MathFloat.sat1 = function (value) { return MathUtils.clamp(value, -1, +1); };
+    MathFloat.rsq = function (value) { return 1 / Math.sqrt(value); };
+    MathFloat.sqrt = function (value) { return Math.sqrt(value); };
+    MathFloat.rint = function (value) {
+        if (!isFinite(value))
+            return handleCastInfinite(value);
+        return Math.rint(value);
+    };
+    MathFloat.cast = function (value) {
+        if (!isFinite(value))
+            return handleCastInfinite(value);
+        return (value < 0) ? Math.ceil(value) : Math.floor(value);
+    };
+    MathFloat.trunc = function (value) {
+        if (!isFinite(value))
+            return handleCastInfinite(value);
+        return Math.trunc(value);
+    };
+    MathFloat.round = function (value) {
+        if (!isFinite(value))
+            return handleCastInfinite(value);
+        return Math.round(value);
+    };
+    MathFloat.floor = function (value) {
+        if (!isFinite(value))
+            return handleCastInfinite(value);
+        return Math.floor(value);
+    };
+    MathFloat.ceil = function (value) {
+        if (!isFinite(value))
+            return handleCastInfinite(value);
+        return Math.ceil(value);
+    };
+    MathFloat.cosv1 = function (value) { return Math.cos(value * Math.PI * 0.5); };
+    MathFloat.sinv1 = function (value) { return Math.sin(value * Math.PI * 0.5); };
+    MathFloat.nsinv1 = function (value) { return -Math.sin(value * Math.PI * 0.5); };
+    MathFloat.asinv1 = function (value) { return Math.asin(value) / (Math.PI * 0.5); };
+    MathFloat.exp2 = function (value) { return Math.pow(2.0, value); };
+    MathFloat.rexp2 = function (value) { return 1 / Math.pow(2.0, value); };
+    MathFloat.log2 = function (value) { return Math.log2(value); };
+    MathFloat.sign = function (value) { return Math.sign(value); };
+    MathFloat.sign2 = function (left, right) { var a = left - right; return (((0.0 < a) ? 1 : 0) - ((a < 0.0) ? 1 : 0)); };
+    MathFloat.vslt = function (a, b) { if (isNaN(a) || isNaN(b))
+        return 0; return (a < b) ? 1 : 0; };
+    MathFloat.vsle = function (a, b) { if (isNaN(a) || isNaN(b))
+        return 0; return (a <= b) ? 1 : 0; };
+    MathFloat.vsgt = function (a, b) { if (isNaN(a) || isNaN(b))
+        return 0; return (a > b) ? 1 : 0; };
+    MathFloat.vsge = function (a, b) { if (isNaN(a) || isNaN(b))
+        return 0; return (a >= b) ? 1 : 0; };
+    MathFloat.clamp = function (v, min, max) {
+        if (v < min)
+            return min;
+        if (v > max)
+            return max;
+        return v;
+    };
+    return MathFloat;
+}());
+MathFloat.reinterpretBuffer = new ArrayBuffer(4);
+MathFloat.floatArray = new Float32Array(MathFloat.reinterpretBuffer);
+MathFloat.intArray = new Int32Array(MathFloat.reinterpretBuffer);
+window.BitUtils = BitUtils;
+window.MathUtils = MathUtils;
+window.MathFloat = MathFloat;
+window.MathVfpu = MathVfpu;
+function handleCastInfinite(value) {
+    return (value < 0) ? -2147483648 : 2147483647;
+}
+function compare(a, b) {
+    if (a < b)
+        return -1;
+    if (a > b)
+        return +1;
+    return 0;
+}
+function parseIntFormat(str) {
+    str = str.replace(/_/g, '');
+    if (str.substr(0, 2) == '0b')
+        return parseInt(str.substr(2), 2);
+    if (str.substr(0, 2) == '0x')
+        return parseInt(str.substr(2), 16);
+    return parseInt(str, 10);
+}
+var MathUtils = (function () {
+    function MathUtils() {
+    }
+    MathUtils.sextend16 = function (value) {
+        return (((value & 0xFFFF) << 16) >> 16);
+        //value >>= 0; if (value & 0x8000) return value | 0xFFFF0000; else return value;
+    };
+    MathUtils.interpolate = function (a, b, ratio) {
+        return a * (1 - ratio) + b * ratio;
+    };
+    MathUtils.prevAligned = function (value, alignment) {
+        return Math.floor(value / alignment) * alignment;
+    };
+    MathUtils.isAlignedTo = function (value, alignment) {
+        return (value % alignment) == 0;
+    };
+    MathUtils.requiredBlocks = function (size, blockSize) {
+        if ((size % blockSize) != 0) {
+            return (size / blockSize) + 1;
+        }
+        else {
+            return size / blockSize;
+        }
+    };
+    MathUtils.isPowerOfTwo = function (x) {
+        return (x != 0) && ((x & (x - 1)) == 0);
+    };
+    MathUtils.nextAligned = function (value, alignment) {
+        if (alignment <= 1)
+            return value;
+        return value + ((alignment - (value % alignment)) % alignment);
+    };
+    MathUtils.clamp01 = function (v) {
+        if (v < 0.0)
+            return 0.0;
+        if (v > 1.0)
+            return 1.0;
+        return v;
+    };
+    MathUtils.clamp = function (v, min, max) {
+        if (v < min)
+            return min;
+        if (v > max)
+            return max;
+        return v;
+    };
+    return MathUtils;
+}());
+var IntUtils = (function () {
+    function IntUtils() {
+    }
+    IntUtils.toHexString = function (value, padCount) {
+        var str = (value >>> 0).toString(16);
+        while (str.length < padCount)
+            str = '0' + str;
+        return str;
+    };
+    return IntUtils;
+}());
+var StringUtils = (function () {
+    function StringUtils() {
+    }
+    StringUtils.padLeft = function (text, padchar, length) {
+        while (text.length < length)
+            text = padchar + text;
+        return text;
+    };
+    return StringUtils;
+}());
+function ToUint32(x) { return x >>> 0; }
+function ToInt32(x) { return x | 0; }
+var ArrayUtils = (function () {
+    function ArrayUtils() {
+    }
+    ArrayUtils.create2D = function (w, h, generator) {
+        if (!generator)
+            generator = function (x, y) { return null; };
+        var matrix = [];
+        for (var y = 0; y < h; y++) {
+            var row = [];
+            for (var x = 0; x < w; x++) {
+                row.push(generator(x, y));
+            }
+            matrix.push(row);
+        }
+        return matrix;
+    };
+    ArrayUtils.range = function (start, end) {
+        var array = [];
+        for (var n = start; n < end; n++)
+            array.push(n);
+        return array;
+    };
+    ArrayUtils.keys = function (object) {
+        var keys = [];
+        for (var key in object)
+            keys.push(key);
+        return keys;
+    };
+    return ArrayUtils;
+}());
+function xrange(start, end) {
+    return ArrayUtils.range(start, end);
+}
+
+undefined
+///<reference path="./utils.ts" />
+///<reference path="./int64.ts" />
+///<reference path="./async.ts" />
+///<reference path="./struct.ts" />
+var __extends = (this && this.__extends) || function (d, b) {
+    for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
+    function __() { this.constructor = d; }
+    d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
+};
+var ProxyAsyncStream = (function () {
+    function ProxyAsyncStream(stream) {
+        this.stream = stream;
+    }
+    Object.defineProperty(ProxyAsyncStream.prototype, "name", {
+        get: function () { return this.stream.name; },
+        enumerable: true,
+        configurable: true
+    });
+    Object.defineProperty(ProxyAsyncStream.prototype, "date", {
+        get: function () { return this.stream.date; },
+        enumerable: true,
+        configurable: true
+    });
+    Object.defineProperty(ProxyAsyncStream.prototype, "size", {
+        get: function () { return this.stream.size; },
+        enumerable: true,
+        configurable: true
+    });
+    ProxyAsyncStream.prototype.readChunkAsync = function (offset, count) { return this.stream.readChunkAsync(offset, count); };
+    return ProxyAsyncStream;
+}());
+var BufferedAsyncStream = (function (_super) {
+    __extends(BufferedAsyncStream, _super);
+    function BufferedAsyncStream(stream, bufferSize) {
+        if (bufferSize === void 0) { bufferSize = 131072; }
+        var _this = _super.call(this, stream) || this;
+        _this.bufferSize = bufferSize;
+        _this.cache = { start: 0, end: 0, data: new ArrayBuffer(0) };
+        return _this;
+    }
+    Object.defineProperty(BufferedAsyncStream.prototype, "name", {
+        get: function () { return this.stream.name + '+buffered'; },
+        enumerable: true,
+        configurable: true
+    });
+    BufferedAsyncStream.prototype.getCachedEntry = function (start, end) {
+        if (start >= this.cache.start && end <= this.cache.end) {
+            return this.cache;
+        }
+        else {
+            return null;
+        }
+    };
+    BufferedAsyncStream.prototype.putCacheEntry = function (start, data) {
+        this.cache.start = start;
+        this.cache.end = start + data.byteLength;
+        this.cache.data = data;
+    };
+    BufferedAsyncStream.prototype.readChunkAsync = function (offset, count) {
+        var _this = this;
+        var availableFromOffset = this.size - offset;
+        var start = offset;
+        var end = offset + count;
+        var cache = this.getCachedEntry(start, end);
+        //return this.stream.readChunkAsync(start, count);
+        if (cache) {
+            return Promise2.resolve(cache.data.slice(start - cache.start, end - cache.start));
+        }
+        else {
+            var bigCount = Math.max(count, this.bufferSize);
+            bigCount = Math.min(bigCount, availableFromOffset);
+            end = start + bigCount;
+            return this.stream.readChunkAsync(offset, bigCount).then(function (data) {
+                _this.putCacheEntry(start, data);
+                return _this.readChunkAsync(offset, count);
+            });
+        }
+    };
+    return BufferedAsyncStream;
+}(ProxyAsyncStream));
+var MemoryAsyncStream = (function () {
+    function MemoryAsyncStream(data, name, date) {
+        if (name === void 0) { name = 'memory'; }
+        if (date === void 0) { date = new Date(); }
+        this.data = data;
+        this.name = name;
+        this.date = date;
+    }
+    MemoryAsyncStream.fromArrayBuffer = function (data) {
+        return new MemoryAsyncStream(data);
+    };
+    Object.defineProperty(MemoryAsyncStream.prototype, "size", {
+        get: function () { return this.data.byteLength; },
+        enumerable: true,
+        configurable: true
+    });
+    MemoryAsyncStream.prototype.readChunkAsync = function (offset, count) {
+        return Promise2.resolve(this.data.slice(offset, offset + count));
+    };
+    return MemoryAsyncStream;
+}());
+var UrlAsyncStream = (function () {
+    function UrlAsyncStream(url, stat) {
+        this.url = url;
+        this.stat = stat;
+        this.name = url;
+        this.date = stat.date;
+    }
+    UrlAsyncStream.fromUrlAsync = function (url) {
+        console.info('open ', url);
+        return statFileAsync(url).then(function (stat) {
+            console.info('fromUrlAsync', stat);
+            if (stat.size == 0) {
+                console.error("Invalid file with size '" + stat.size + "'", stat);
+                throw (new Error("Invalid file with size '" + stat.size + "'"));
+            }
+            // If file is less  than 5MB, then download it completely
+            if (stat.size < 5 * 1024 * 1024) {
+                return downloadFileAsync(url).then(function (data) { return MemoryAsyncStream.fromArrayBuffer(data); });
+            }
+            else {
+                return Promise2.resolve(new BufferedAsyncStream(new UrlAsyncStream(url, stat)));
+            }
+        });
+    };
+    Object.defineProperty(UrlAsyncStream.prototype, "size", {
+        get: function () { return this.stat.size; },
+        enumerable: true,
+        configurable: true
+    });
+    UrlAsyncStream.prototype.readChunkAsync = function (offset, count) {
+        //console.error();
+        console.info('download chunk', this.url, offset + '-' + (offset + count), '(' + count + ')');
+        return downloadFileChunkAsync(this.url, offset, count);
+    };
+    return UrlAsyncStream;
+}());
+var FileAsyncStream = (function () {
+    function FileAsyncStream(file) {
+        this.file = file;
+        this.date = file.lastModifiedDate;
+    }
+    Object.defineProperty(FileAsyncStream.prototype, "name", {
+        get: function () { return this.file.name; },
+        enumerable: true,
+        configurable: true
+    });
+    Object.defineProperty(FileAsyncStream.prototype, "size", {
+        get: function () { return this.file.size; },
+        enumerable: true,
+        configurable: true
+    });
+    FileAsyncStream.prototype.readChunkAsync = function (offset, count) {
+        var _this = this;
+        return new Promise2(function (resolve, reject) {
+            var fileReader = new FileReader();
+            fileReader.onload = function (e) { resolve(fileReader.result); };
+            fileReader.onerror = function (e) { reject(e['error']); };
+            fileReader.readAsArrayBuffer(_this.file.slice(offset, offset + count));
+        });
+    };
+    return FileAsyncStream;
+}());
+var Stream = (function () {
+    function Stream(data, offset) {
+        if (offset === void 0) { offset = 0; }
+        this.data = data;
+        this.offset = offset;
+    }
+    Stream.fromArrayBuffer = function (data) {
+        return new Stream(new DataView(data));
+    };
+    Stream.fromDataView = function (data, offset) {
+        if (offset === void 0) { offset = 0; }
+        return new Stream(data);
+    };
+    Stream.fromBase64 = function (data) {
+        var outstr = atob(data);
+        var out = new ArrayBuffer(outstr.length);
+        var ia = new Uint8Array(out);
+        for (var n = 0; n < outstr.length; n++)
+            ia[n] = outstr.charCodeAt(n);
+        return new Stream(new DataView(out));
+    };
+    Stream.fromUint8Array = function (array) {
+        return Stream.fromArray(array);
+    };
+    Stream.fromSize = function (size) {
+        return Stream.fromUint8Array(new Uint8Array(size));
+    };
+    Stream.fromArray = function (array) {
+        var buffer = new ArrayBuffer(array.length);
+        var w8 = new Uint8Array(buffer);
+        for (var n = 0; n < array.length; n++)
+            w8[n] = array[n];
+        return new Stream(new DataView(buffer));
+    };
+    Stream.prototype.toImageUrl = function () {
+        try {
+            var urlCreator = window['URL'] || window['webkitURL'];
+            var blob = new Blob([this.toUInt8Array()], { type: "image/jpeg" });
+            return urlCreator.createObjectURL(blob);
+        }
+        catch (e) {
+            return 'data:image/png;base64,' + this.toBase64();
+        }
+    };
+    Stream.prototype.toBase64 = function () {
+        var out = '';
+        var array = this.toUInt8Array();
+        for (var n = 0; n < array.length; n++) {
+            out += String.fromCharCode(array[n]);
+        }
+        return btoa(out);
+    };
+    Stream.prototype.toStringAll = function () {
+        return this.sliceWithLength(0).readString(this.length);
+    };
+    Stream.prototype.toUInt8Array = function () {
+        return new Uint8Array(this.toArrayBuffer());
+    };
+    Stream.prototype.toArrayBuffer = function () {
+        return this.data.buffer.slice(this.data.byteOffset, this.data.byteOffset + this.data.byteLength);
+    };
+    Stream.prototype.clone = function () {
+        return this.sliceWithLowHigh(this.position, this.length);
+    };
+    Stream.prototype.slice = function () {
+        return this.clone();
+    };
+    Stream.prototype.sliceFrom = function (low) {
+        return this.sliceWithLength(low);
+    };
+    Stream.prototype.sliceWithLength = function (low, count) {
+        if (count === undefined)
+            count = this.length - low;
+        return new Stream(new DataView(this.data.buffer, this.data.byteOffset + low, count));
+    };
+    Stream.prototype.sliceWithLowHigh = function (low, high) {
+        return new Stream(new DataView(this.data.buffer, this.data.byteOffset + low, high - low));
+    };
+    Object.defineProperty(Stream.prototype, "available", {
+        get: function () {
+            return this.length - this.offset;
+        },
+        enumerable: true,
+        configurable: true
+    });
+    Object.defineProperty(Stream.prototype, "length", {
+        get: function () {
+            return this.data.byteLength;
+        },
+        enumerable: true,
+        configurable: true
+    });
+    Object.defineProperty(Stream.prototype, "position", {
+        get: function () {
+            return this.offset;
+        },
+        set: function (value) {
+            this.offset = value;
+        },
+        enumerable: true,
+        configurable: true
+    });
+    Stream.prototype.skip = function (count, pass) {
+        this.offset += count;
+        return pass;
+    };
+    Stream.prototype.set = function (index, value) {
+        this.data.setInt8(index, value);
+        return this;
+    };
+    Stream.prototype.get = function (index) {
+        return this.data.getUint8(index);
+    };
+    Stream.prototype.readInt8 = function (endian) {
+        if (endian === void 0) { endian = Endian.LITTLE; }
+        return this.skip(1, this.data.getInt8(this.offset));
+    };
+    Stream.prototype.readInt16 = function (endian) {
+        if (endian === void 0) { endian = Endian.LITTLE; }
+        return this.skip(2, this.data.getInt16(this.offset, (endian == Endian.LITTLE)));
+    };
+    Stream.prototype.readInt32 = function (endian) {
+        if (endian === void 0) { endian = Endian.LITTLE; }
+        return this.skip(4, this.data.getInt32(this.offset, (endian == Endian.LITTLE)));
+    };
+    Stream.prototype.readInt64 = function (endian) {
+        if (endian === void 0) { endian = Endian.LITTLE; }
+        var items = [this.readUInt32(endian), this.readUInt32(endian)];
+        var low = items[(endian == Endian.LITTLE) ? 0 : 1];
+        var high = items[(endian == Endian.LITTLE) ? 1 : 0];
+        return Integer64.fromBits(low, high);
+    };
+    Stream.prototype.readFloat32 = function (endian) {
+        if (endian === void 0) { endian = Endian.LITTLE; }
+        return this.skip(4, this.data.getFloat32(this.offset, (endian == Endian.LITTLE)));
+    };
+    Stream.prototype.readUInt8 = function (endian) {
+        if (endian === void 0) { endian = Endian.LITTLE; }
+        return this.skip(1, this.data.getUint8(this.offset));
+    };
+    Stream.prototype.readUInt16 = function (endian) {
+        if (endian === void 0) { endian = Endian.LITTLE; }
+        return this.skip(2, this.data.getUint16(this.offset, (endian == Endian.LITTLE)));
+    };
+    Stream.prototype.readUInt32 = function (endian) {
+        if (endian === void 0) { endian = Endian.LITTLE; }
+        return this.skip(4, this.data.getUint32(this.offset, (endian == Endian.LITTLE)));
+    };
+    Stream.prototype.readStruct = function (struct) {
+        return struct.read(this);
+    };
+    Stream.prototype.copyTo = function (other) {
+        other.writeBytes(this.readBytes(this.available));
+    };
+    Stream.prototype.writeByteRepeated = function (value, count) {
+        if (count === void 0) { count = -1; }
+        if (count < 0)
+            count = this.available;
+        for (var n = 0; n < count; n++)
+            this.data.setInt8(this.offset + n, value);
+        this.skip(n);
+        return this;
+    };
+    Stream.prototype.writeInt8 = function (value, endian) {
+        if (endian === void 0) { endian = Endian.LITTLE; }
+        this.data.setInt8(this.offset, value);
+        return this.skip(1, this);
+    };
+    Stream.prototype.writeInt16 = function (value, endian) {
+        if (endian === void 0) { endian = Endian.LITTLE; }
+        this.data.setInt16(this.offset, value, (endian == Endian.LITTLE));
+        return this.skip(2, this);
+    };
+    Stream.prototype.writeInt32 = function (value, endian) {
+        if (endian === void 0) { endian = Endian.LITTLE; }
+        this.data.setInt32(this.offset, value, (endian == Endian.LITTLE));
+        return this.skip(4, this);
+    };
+    Stream.prototype.writeInt64 = function (value, endian) {
+        if (endian === void 0) { endian = Endian.LITTLE; }
+        return this._writeUInt64(value, endian);
+    };
+    Stream.prototype.writeFloat32 = function (value, endian) {
+        if (endian === void 0) { endian = Endian.LITTLE; }
+        this.data.setFloat32(this.offset, value, (endian == Endian.LITTLE));
+        return this.skip(4, this);
+    };
+    Stream.prototype.writeUInt8 = function (value, endian) {
+        if (endian === void 0) { endian = Endian.LITTLE; }
+        this.data.setUint8(this.offset, value);
+        return this.skip(1, this);
+    };
+    Stream.prototype.writeUInt16 = function (value, endian) {
+        if (endian === void 0) { endian = Endian.LITTLE; }
+        this.data.setUint16(this.offset, value, (endian == Endian.LITTLE));
+        return this.skip(2, this);
+    };
+    Stream.prototype.writeUInt32 = function (value, endian) {
+        if (endian === void 0) { endian = Endian.LITTLE; }
+        this.data.setUint32(this.offset, value, (endian == Endian.LITTLE));
+        return this.skip(4, this);
+    };
+    Stream.prototype.writeUInt64 = function (value, endian) {
+        if (endian === void 0) { endian = Endian.LITTLE; }
+        return this._writeUInt64(value, endian);
+    };
+    Stream.prototype._writeUInt64 = function (value, endian) {
+        if (endian === void 0) { endian = Endian.LITTLE; }
+        this.writeUInt32((endian == Endian.LITTLE) ? value.low : value.high, endian);
+        this.writeUInt32((endian == Endian.LITTLE) ? value.high : value.low, endian);
+        return this;
+    };
+    Stream.prototype.writeStruct = function (struct, value) {
+        struct.write(this, value);
+    };
+    Stream.prototype.writeStream = function (stream) {
+        return this.writeBytes(stream.slice().readBytes(stream.available));
+    };
+    Stream.prototype.writeString = function (str) {
+        var _this = this;
+        try {
+            str.split('').forEach(function (char) {
+                _this.writeUInt8(char.charCodeAt(0));
+            });
+        }
+        catch (e) {
+            console.log("Can't write string '" + str + "'");
+            debugger;
+            console.warn(this.data);
+            console.error(e);
+            throw (e);
+        }
+    };
+    Stream.prototype.writeStringz = function (str) {
+        return this.writeString(str + String.fromCharCode(0));
+    };
+    Stream.prototype.writeBytes = function (data) {
+        var out = new Uint8Array(this.data.buffer, this.data.byteOffset, this.data.byteLength);
+        out.set(data, this.offset);
+        this.skip(data.length);
+    };
+    Stream.prototype.readBytes = function (count) {
+        return this.skip(count, new Uint8Array(this.data.buffer, this.data.byteOffset + this.offset, count));
+    };
+    Stream.prototype.readAllBytes = function () {
+        return this.readBytes(this.available);
+    };
+    Stream.prototype.readInt16Array = function (count) {
+        return this.skip(count, new Int16Array(this.data.buffer, this.data.byteOffset + this.offset, count));
+    };
+    Stream.prototype.readFloat32Array = function (count) {
+        return new Float32Array(this.readBytes(count));
+    };
+    Stream.prototype.readStream = function (count) {
+        return Stream.fromUint8Array(this.readBytes(count));
+    };
+    Stream.prototype.readUtf8String = function (count) {
+        return Utf8.decode(this.readString(count));
+    };
+    Stream.prototype.readString = function (count) {
+        if (count > 1 * 1024 * 1024)
+            throw (new Error("Trying to read a string larger than 128KB"));
+        var str = '';
+        for (var n = 0; n < count; n++) {
+            str += String.fromCharCode(this.readUInt8());
+        }
+        return str;
+    };
+    Stream.prototype.readUtf8Stringz = function (maxCount) {
+        if (maxCount === void 0) { maxCount = 131072; }
+        return Utf8.decode(this.readStringz(maxCount));
+    };
+    Stream.prototype.readStringz = function (maxCount) {
+        if (maxCount === void 0) { maxCount = 131072; }
+        var str = '';
+        for (var n = 0; n < maxCount; n++) {
+            if (this.available <= 0)
+                break;
+            var char = this.readUInt8();
+            if (char == 0)
+                break;
+            str += String.fromCharCode(char);
+        }
+        return str;
+    };
+    return Stream;
+}());
+Stream.INVALID = Stream.fromArray([]);
+
+///<reference path="./utils.ts" />
+///<reference path="./stream.ts" />
+var Int64Type = (function () {
+    function Int64Type(endian) {
+        this.endian = endian;
+    }
+    Int64Type.prototype.read = function (stream) {
+        if (this.endian == Endian.LITTLE) {
+            var low = stream.readUInt32(this.endian);
+            var high = stream.readUInt32(this.endian);
+        }
+        else {
+            var high = stream.readUInt32(this.endian);
+            var low = stream.readUInt32(this.endian);
+        }
+        return high * Math.pow(2, 32) + low;
+    };
+    Int64Type.prototype.write = function (stream, value) {
+        var low = Math.floor(value % Math.pow(2, 32));
+        var high = Math.floor(value / Math.pow(2, 32));
+        if (this.endian == Endian.LITTLE) {
+            stream.writeInt32(low, this.endian);
+            stream.writeInt32(high, this.endian);
+        }
+        else {
+            stream.writeInt32(high, this.endian);
+            stream.writeInt32(low, this.endian);
+        }
+    };
+    Object.defineProperty(Int64Type.prototype, "length", {
+        get: function () { return 8; },
+        enumerable: true,
+        configurable: true
+    });
+    return Int64Type;
+}());
+var Integer64Type = (function () {
+    function Integer64Type(endian) {
+        this.endian = endian;
+    }
+    Integer64Type.prototype.read = function (stream) {
+        if (this.endian == Endian.LITTLE) {
+            var low = stream.readUInt32(this.endian);
+            var high = stream.readUInt32(this.endian);
+        }
+        else {
+            var high = stream.readUInt32(this.endian);
+            var low = stream.readUInt32(this.endian);
+        }
+        return new Integer64(low, high);
+    };
+    Integer64Type.prototype.write = function (stream, value) {
+        var low = value.low;
+        var high = value.high;
+        if (this.endian == Endian.LITTLE) {
+            stream.writeInt32(low, this.endian);
+            stream.writeInt32(high, this.endian);
+        }
+        else {
+            stream.writeInt32(high, this.endian);
+            stream.writeInt32(low, this.endian);
+        }
+    };
+    Object.defineProperty(Integer64Type.prototype, "length", {
+        get: function () { return 8; },
+        enumerable: true,
+        configurable: true
+    });
+    return Integer64Type;
+}());
+var Int32Type = (function () {
+    function Int32Type(endian) {
+        this.endian = endian;
+    }
+    Int32Type.prototype.read = function (stream) { return stream.readInt32(this.endian); };
+    Int32Type.prototype.write = function (stream, value) { stream.writeInt32(value, this.endian); };
+    Object.defineProperty(Int32Type.prototype, "length", {
+        get: function () { return 4; },
+        enumerable: true,
+        configurable: true
+    });
+    return Int32Type;
+}());
+var Int16Type = (function () {
+    function Int16Type(endian) {
+        this.endian = endian;
+    }
+    Int16Type.prototype.read = function (stream) { return stream.readInt16(this.endian); };
+    Int16Type.prototype.write = function (stream, value) { stream.writeInt16(value, this.endian); };
+    Object.defineProperty(Int16Type.prototype, "length", {
+        get: function () { return 2; },
+        enumerable: true,
+        configurable: true
+    });
+    return Int16Type;
+}());
+var Int8Type = (function () {
+    function Int8Type(endian) {
+        this.endian = endian;
+    }
+    Int8Type.prototype.read = function (stream) { return stream.readInt8(this.endian); };
+    Int8Type.prototype.write = function (stream, value) { stream.writeInt8(value, this.endian); };
+    Object.defineProperty(Int8Type.prototype, "length", {
+        get: function () { return 1; },
+        enumerable: true,
+        configurable: true
+    });
+    return Int8Type;
+}());
+var UInt32Type = (function () {
+    function UInt32Type(endian) {
+        this.endian = endian;
+    }
+    UInt32Type.prototype.read = function (stream) { return stream.readUInt32(this.endian); };
+    UInt32Type.prototype.write = function (stream, value) { stream.writeUInt32(value, this.endian); };
+    Object.defineProperty(UInt32Type.prototype, "length", {
+        get: function () { return 4; },
+        enumerable: true,
+        configurable: true
+    });
+    return UInt32Type;
+}());
+var UInt16Type = (function () {
+    function UInt16Type(endian) {
+        this.endian = endian;
+    }
+    UInt16Type.prototype.read = function (stream) { return stream.readUInt16(this.endian); };
+    UInt16Type.prototype.write = function (stream, value) { stream.writeUInt16(value, this.endian); };
+    Object.defineProperty(UInt16Type.prototype, "length", {
+        get: function () { return 2; },
+        enumerable: true,
+        configurable: true
+    });
+    return UInt16Type;
+}());
+var UInt8Type = (function () {
+    function UInt8Type(endian) {
+        this.endian = endian;
+    }
+    UInt8Type.prototype.read = function (stream) { return stream.readUInt8(this.endian); };
+    UInt8Type.prototype.write = function (stream, value) { stream.writeUInt8(value, this.endian); };
+    Object.defineProperty(UInt8Type.prototype, "length", {
+        get: function () { return 1; },
+        enumerable: true,
+        configurable: true
+    });
+    return UInt8Type;
+}());
+var UIntReference = (function () {
+    function UIntReference(stream) {
+        this.stream = stream;
+    }
+    Object.defineProperty(UIntReference.prototype, "value", {
+        get: function () {
+            return this.stream.clone().readUInt32();
+        },
+        set: function (value) {
+            this.stream.clone().writeUInt32(value);
+        },
+        enumerable: true,
+        configurable: true
+    });
+    return UIntReference;
+}());
+var StructClass = (function () {
+    function StructClass(_class, items) {
+        this._class = _class;
+        this.items = items;
+        this.processedItems = [];
+        this.processedItems = items.map(function (item) {
+            for (var key in item)
+                return { name: key, type: item[key] };
+            throw (new Error("Entry must have one item"));
+        });
+    }
+    StructClass.create = function (_class, items) {
+        return new StructClass(_class, items);
+    };
+    StructClass.prototype.readWrite = function (stream, callback) {
+        var _this = this;
+        var p = this.read(stream.clone());
+        var result = callback(p);
+        if (result instanceof Promise2) {
+            return result.then(function (result) {
+                _this.write(stream.clone(), p);
+                return result;
+            });
+        }
+        else {
+            this.write(stream.clone(), p);
+            return result;
+        }
+    };
+    StructClass.prototype.createProxy = function (stream) {
+        var _this = this;
+        stream = stream.clone();
+        var objectf = function (stream) {
+        };
+        var object = new objectf(stream);
+        this.processedItems.forEach(function (item) {
+            var getOffset = function () { return _this.offsetOfField(item.name); };
+            if (item.type instanceof StructClass) {
+                object[item.name] = item.type.createProxy(stream.sliceFrom(getOffset()));
+            }
+            else {
+                Object.defineProperty(objectf.prototype, item.name, {
+                    enumerable: true,
+                    configurable: true,
+                    get: function () { return item.type.read(stream.sliceFrom(getOffset())); },
+                    set: function (value) { item.type.write(stream.sliceFrom(getOffset()), value); }
+                });
+            }
+        });
+        return object;
+    };
+    StructClass.prototype.readWriteAsync = function (stream, callback, process) {
+        var _this = this;
+        var p = this.read(stream.clone());
+        var result = callback(p);
+        return Promise2.resolve(result).then(function (v) {
+            if (process != null)
+                process(p, v);
+            _this.write(stream.clone(), p);
+            return v;
+        });
+    };
+    StructClass.prototype.read = function (stream) {
+        var _class = this._class;
+        var out = new _class();
+        for (var n = 0; n < this.processedItems.length; n++) {
+            var item = this.processedItems[n];
+            out[item.name] = item.type.read(stream, out);
+        }
+        return out;
+    };
+    StructClass.prototype.write = function (stream, value) {
+        for (var n = 0; n < this.processedItems.length; n++) {
+            var item = this.processedItems[n];
+            item.type.write(stream, value[item.name], value);
+        }
+    };
+    StructClass.prototype.offsetOfField = function (name) {
+        var offset = 0;
+        for (var n = 0; n < this.processedItems.length; n++) {
+            var item = this.processedItems[n];
+            if (item.name == name)
+                return offset;
+            offset += item.type.length;
+        }
+        return -1;
+    };
+    Object.defineProperty(StructClass.prototype, "length", {
+        get: function () {
+            var sum = 0;
+            for (var n = 0; n < this.processedItems.length; n++) {
+                var item = this.processedItems[n];
+                if (!item)
+                    throw ("Invalid item!!");
+                if (!item.type) {
+                    console.log(item);
+                    throw ("Invalid item type!!");
+                }
+                sum += item.type.length;
+            }
+            return sum;
+        },
+        enumerable: true,
+        configurable: true
+    });
+    return StructClass;
+}());
+var StructArrayClass = (function () {
+    function StructArrayClass(elementType, count) {
+        this.elementType = elementType;
+        this.count = count;
+    }
+    StructArrayClass.prototype.read = function (stream) {
+        var out = [];
+        for (var n = 0; n < this.count; n++) {
+            out.push(this.elementType.read(stream, out));
+        }
+        return out;
+    };
+    StructArrayClass.prototype.write = function (stream, value) {
+        for (var n = 0; n < this.count; n++)
+            this.elementType.write(stream, value[n], value);
+    };
+    Object.defineProperty(StructArrayClass.prototype, "length", {
+        get: function () {
+            return this.elementType.length * this.count;
+        },
+        enumerable: true,
+        configurable: true
+    });
+    return StructArrayClass;
+}());
+function StructArray(elementType, count) {
+    return new StructArrayClass(elementType, count);
+}
+var StructStringn = (function () {
+    function StructStringn(count) {
+        this.count = count;
+    }
+    StructStringn.prototype.read = function (stream) {
+        var out = '';
+        for (var n = 0; n < this.count; n++) {
+            out += String.fromCharCode(stream.readUInt8());
+        }
+        return out;
+    };
+    StructStringn.prototype.write = function (stream, value) {
+        throw ("Not implemented StructStringn.write");
+    };
+    Object.defineProperty(StructStringn.prototype, "length", {
+        get: function () {
+            return this.count;
+        },
+        enumerable: true,
+        configurable: true
+    });
+    return StructStringn;
+}());
+var StructStringz = (function () {
+    function StructStringz(count, readTransformer, writeTransformer) {
+        this.count = count;
+        this.readTransformer = readTransformer;
+        this.writeTransformer = writeTransformer;
+        this.stringn = new StructStringn(count);
+    }
+    StructStringz.prototype.read = function (stream) {
+        var value = this.stringn.read(stream).split(String.fromCharCode(0))[0];
+        if (this.readTransformer)
+            value = this.readTransformer(value);
+        return value;
+    };
+    StructStringz.prototype.write = function (stream, value) {
+        if (this.writeTransformer)
+            value = this.writeTransformer(value);
+        if (!value)
+            value = '';
+        var items = value.split('').map(function (char) { return char.charCodeAt(0); });
+        while (items.length < this.count)
+            items.push(0);
+        for (var n = 0; n < items.length; n++)
+            stream.writeUInt8(items[n]);
+    };
+    Object.defineProperty(StructStringz.prototype, "length", {
+        get: function () {
+            return this.count;
+        },
+        enumerable: true,
+        configurable: true
+    });
+    return StructStringz;
+}());
+var StructStringzVariable = (function () {
+    function StructStringzVariable() {
+    }
+    StructStringzVariable.prototype.read = function (stream) {
+        return stream.readStringz();
+    };
+    StructStringzVariable.prototype.write = function (stream, value) {
+        stream.writeString(value);
+        stream.writeUInt8(0);
+    };
+    Object.defineProperty(StructStringzVariable.prototype, "length", {
+        get: function () {
+            return 0;
+        },
+        enumerable: true,
+        configurable: true
+    });
+    return StructStringzVariable;
+}());
+var UInt32_2lbStruct = (function () {
+    function UInt32_2lbStruct() {
+    }
+    UInt32_2lbStruct.prototype.read = function (stream) {
+        var l = stream.readUInt32(Endian.LITTLE);
+        var b = stream.readUInt32(Endian.BIG);
+        return l;
+    };
+    UInt32_2lbStruct.prototype.write = function (stream, value) {
+        stream.writeUInt32(value, Endian.LITTLE);
+        stream.writeUInt32(value, Endian.BIG);
+    };
+    Object.defineProperty(UInt32_2lbStruct.prototype, "length", {
+        get: function () { return 8; },
+        enumerable: true,
+        configurable: true
+    });
+    return UInt32_2lbStruct;
+}());
+var UInt16_2lbStruct = (function () {
+    function UInt16_2lbStruct() {
+    }
+    UInt16_2lbStruct.prototype.read = function (stream) {
+        var l = stream.readUInt16(Endian.LITTLE);
+        var b = stream.readUInt16(Endian.BIG);
+        return l;
+    };
+    UInt16_2lbStruct.prototype.write = function (stream, value) {
+        stream.writeUInt16(value, Endian.LITTLE);
+        stream.writeUInt16(value, Endian.BIG);
+    };
+    Object.defineProperty(UInt16_2lbStruct.prototype, "length", {
+        get: function () { return 4; },
+        enumerable: true,
+        configurable: true
+    });
+    return UInt16_2lbStruct;
+}());
+var StructStringWithSize = (function () {
+    function StructStringWithSize(getStringSize) {
+        this.getStringSize = getStringSize;
+    }
+    StructStringWithSize.prototype.read = function (stream, context) {
+        return stream.readString(this.getStringSize(context));
+    };
+    StructStringWithSize.prototype.write = function (stream, value, context) {
+        stream.writeString(value);
+    };
+    Object.defineProperty(StructStringWithSize.prototype, "length", {
+        get: function () {
+            return 0;
+        },
+        enumerable: true,
+        configurable: true
+    });
+    return StructStringWithSize;
+}());
+var Int16 = new Int16Type(Endian.LITTLE);
+var Int32 = new Int32Type(Endian.LITTLE);
+var Int64 = new Int64Type(Endian.LITTLE);
+var Int8 = new Int8Type(Endian.LITTLE);
+var Int16_l = new Int16Type(Endian.LITTLE);
+var Int32_l = new Int32Type(Endian.LITTLE);
+var Int64_l = new Int64Type(Endian.LITTLE);
+var Int8_l = new Int8Type(Endian.LITTLE);
+var Int16_b = new Int16Type(Endian.BIG);
+var Int32_b = new Int32Type(Endian.BIG);
+var Int64_b = new Int64Type(Endian.BIG);
+var Int8_b = new Int8Type(Endian.BIG);
+var UInt8 = new UInt8Type(Endian.LITTLE);
+var UInt16 = new UInt16Type(Endian.LITTLE);
+var UInt32 = new UInt32Type(Endian.LITTLE);
+//var UInt64 = new UInt64Type(Endian.LITTLE);
+var UInt16_l = new UInt16Type(Endian.LITTLE);
+var UInt32_l = new UInt32Type(Endian.LITTLE);
+var UInt16_b = new UInt16Type(Endian.BIG);
+var UInt32_b = new UInt32Type(Endian.BIG);
+//var UInt64_b = new UInt64Type(Endian.BIG);
+var UInt32_2lb = new UInt32_2lbStruct();
+var UInt16_2lb = new UInt16_2lbStruct();
+var Integer64_l = new Integer64Type(Endian.LITTLE);
+var Integer64_b = new Integer64Type(Endian.BIG);
+var StringzVariable = new StructStringzVariable();
+function Stringn(count) { return new StructStringn(count); }
+function Stringz(count) { return new StructStringz(count); }
+function Utf8Stringz(count) { return new StructStringz(count, function (s) { return Utf8.decode(s); }, function (s) { return Utf8.encode(s); }); }
+function StringWithSize(callback) {
+    return new StructStringWithSize(callback);
+}
+var StructPointerStruct = (function () {
+    function StructPointerStruct(elementType) {
+        this.elementType = elementType;
+    }
+    StructPointerStruct.prototype.read = function (stream, context) {
+        var address = stream.readInt32(Endian.LITTLE);
+        return new Pointer(this.elementType, context['memory'], address);
+    };
+    StructPointerStruct.prototype.write = function (stream, value, context) {
+        var address = value.address;
+        stream.writeInt32(address, Endian.LITTLE);
+    };
+    Object.defineProperty(StructPointerStruct.prototype, "length", {
+        get: function () {
+            return 4;
+        },
+        enumerable: true,
+        configurable: true
+    });
+    return StructPointerStruct;
+}());
+function StructPointer(type) {
+    return new StructPointerStruct(type);
+}
+var Pointer = (function () {
+    function Pointer(type, memory, address) {
+        this.type = type;
+        this.memory = memory;
+        this.address = address;
+        this.stream = memory.getPointerStream(this.address);
+    }
+    Pointer.prototype.readWrite = function (callback) {
+        var value = this.read();
+        try {
+            callback(value);
+        }
+        finally {
+            this.write(value);
+        }
+    };
+    Pointer.prototype.read = function () {
+        return this.type.read(this.stream.clone());
+    };
+    Pointer.prototype.write = function (value) {
+        this.type.write(this.stream.clone(), value);
+    };
+    return Pointer;
+}());
 
 var require = (function() {
 function requireModules(moduleFiles) {
@@ -3375,7 +7029,155 @@ function requireModules(moduleFiles) {
 "src/app": function(module, exports, require) {
 ///<reference path="global.d.ts" />
 ///<reference path="emulator_worker.ts" />
-var emulator_controller_1 = require('./emulator_controller');
+"use strict";
+var emulator_controller_1 = require("./emulator_controller");
+/*
+var touch_overlay = document.getElementById('touch_overlay');
+
+class ControllerPlugin {
+    static use() {
+        var rects: Rect[] = [];
+
+        var generateRects = (() => {
+            var overlay_pos = { top: touch_overlay.offsetTop, left: touch_overlay.offsetLeft };
+            var overlay_width = touch_overlay.offsetWidth, overlay_height = touch_overlay.offsetHeight;
+            [
+                { query: 'button_menu', button: 0 },
+                { query: 'button_select', button: PspCtrlButtons.select },
+                { query: 'button_start', button: PspCtrlButtons.start },
+                { query: 'button_up', button: PspCtrlButtons.up },
+                { query: 'button_left', button: PspCtrlButtons.left },
+                { query: 'button_down', button: PspCtrlButtons.down },
+                { query: 'button_right', button: PspCtrlButtons.right },
+                { query: 'button_l', button: PspCtrlButtons.leftTrigger },
+                { query: 'button_r', button: PspCtrlButtons.rightTrigger },
+                { query: 'button_cross', button: PspCtrlButtons.cross },
+                { query: 'button_circle', button: PspCtrlButtons.circle },
+                { query: 'button_square', button: PspCtrlButtons.square },
+                { query: 'button_triangle', button: PspCtrlButtons.triangle },
+            ].forEach(button => {
+                var query = document.getElementById(button.query);
+                var item_pos = { top: query.offsetTop, left: query.offsetLeft };
+                var query_width = query.offsetWidth, query_height = query.offsetHeight;
+
+                var item_left = (item_pos.left - overlay_pos.left) / overlay_width;
+                var item_right = (item_pos.left - overlay_pos.left + query_width) / overlay_width;
+                var item_top = (item_pos.top - overlay_pos.top) / overlay_height;
+                var item_bottom = (item_pos.top - overlay_pos.top + query_height) / overlay_height;
+
+                rects.push({
+                    left: item_left,
+                    right: item_right,
+                    top: item_top,
+                    bottom: item_bottom,
+                    name: button.query,
+                    button: button.button
+                });
+            });
+        });
+
+        generateRects();
+
+        var locateRect = ((screenX: number, screenY: number) => {
+            var overlay_pos = { top: touch_overlay.offsetTop, left: touch_overlay.offsetLeft };
+            var overlay_width = touch_overlay.offsetWidth, overlay_height = touch_overlay.offsetHeight;
+
+            var x = (screenX - overlay_pos.left) / overlay_width;
+            var y = (screenY - overlay_pos.top) / overlay_height;
+
+            for (let rect of rects) {
+                if (((x >= rect.left) && (x < rect.right)) && ((y >= rect.top && y < rect.bottom))) {
+                    return rect;
+                }
+            }
+            return null;
+        });
+
+        var touchesState: {
+            [key: number]: { rect: Rect }
+        } = {};
+
+        function simulateButtonDown(button: number) {
+            if (emulator.controller) emulator.controller.simulateButtonDown(button);
+        }
+
+        function simulateButtonUp(button: number) {
+            if (emulator.controller) emulator.controller.simulateButtonUp(button);
+        }
+
+        function touchStart(touches: Touch[]) {
+            for (var touch of touches) touchesState[touch.identifier] = { rect: null };
+            touchMove(touches);
+        }
+
+        function touchMove(touches: Touch[]) {
+            for (var touch of touches) {
+                var rect = locateRect(touch.clientX, touch.clientY);
+                var touchState = touchesState[touch.identifier];
+
+                if (touchState.rect) {
+                    DomHelp.fromId(touchState.rect.name).removeClass('pressed');
+                    simulateButtonUp(touchState.rect.button);
+                }
+
+                touchState.rect = rect;
+
+                if (rect) {
+                    DomHelp.fromId(rect.name).addClass('pressed');
+                    simulateButtonDown(rect.button);
+                }
+            }
+        }
+
+        function touchEnd(touches: Touch[]) {
+            for (var touch of touches) {
+                var touchState = touchesState[touch.identifier];
+
+                if (touchState && touchState.rect) {
+                    DomHelp.fromId(touchState.rect.name).removeClass('pressed');
+                    simulateButtonUp(touchState.rect.button);
+                }
+
+                delete touchesState[touch.identifier];
+            }
+        }
+
+        DomHelp.fromId('touch_overlay').on('touchstart', (e: any) => {
+            touchStart(e.originalEvent['changedTouches']);
+            e.preventDefault();
+        });
+
+        DomHelp.fromId('touch_overlay').on('touchmove', (e: any) => {
+            touchMove(e.originalEvent['changedTouches']);
+            e.preventDefault();
+        });
+
+        DomHelp.fromId('touch_overlay').on('touchend', (e: any) => {
+            touchEnd(e.originalEvent['changedTouches']);
+            e.preventDefault();
+        });
+
+        //$('#touch_overlay').mouseover((e) => { updatePos(e.clientX, e.clientY); });
+        var pressing = false;
+
+        function generateTouchEvent(x: number, y: number) { return { clientX: x, clientY: y, identifier: 0 }; }
+
+        DomHelp.fromId('touch_overlay').mousedown((e) => {
+            pressing = true;
+            touchStart([generateTouchEvent(e.clientX, e.clientY)]);
+        });
+        DomHelp.fromId('touch_overlay').mouseup((e) => {
+            pressing = false;
+            touchEnd([generateTouchEvent(e.clientX, e.clientY)]);
+        });
+        DomHelp.fromId('touch_overlay').mousemove((e) => {
+            if (pressing) {
+                touchMove([generateTouchEvent(e.clientX, e.clientY)]);
+            }
+        });
+    }
+}
+*/
 var demos = [
     "-CPU",
     "data/benchmark/benchmark.prx",
@@ -3443,28 +7245,58 @@ var demos = [
 ];
 DomHelp.fromId('demo_list').html = '';
 DomHelp.fromId('files').html = '';
+//$('#files').append('<option value="">-- DEMOS --</option>');
 demos.forEach(function (fileName) {
+    /*
+    if (fileName.substr(0, 1) == '-') {
+        $('#files').append($('<option disabled style="background:#eee;">' + fileName.substr(1) + '</option>'));
+        $('#demo_list').append($('<li><label class="control-label">' + fileName.substr(1) + '</label></li>'));
+    } else {
+        var path = (fileName.indexOf('/') >= 0) ? fileName : ('samples/' + fileName);
+
+        //<li class="active"><a href="#">Home</a></li>
+        //<li><a href="#">Profile</a></li>
+        //<li><a href="#">Messages</a></li>
+
+        $('#demo_list').append($('<li class="' + ((selectedItem == path) ? 'active' : '') + '"><a href="javascript:void(0)" onclick="selectFile(\'' + path + '\')">' + fileName + '</a></li>'));
+
+        var item = $('<option value="' + path + '">' + fileName + '</option>');
+        if (selectedItem == path) item.attr('selected', 'selected')
+        $('#files').append(item);
+    }
+    */
 });
+//$(document.body).click(function (e) { e.preventDefault() });
+//$(document.body).mousedown(function (e) { e.preventDefault() });
+//$(document.body).mouseup(function (e) { e.preventDefault() });
+//$(window).on('select', function (e) { e.preventDefault() });
+//<a href="index.html?' + fileName + '" style="color:white;">
+//$('#touch_buttons_font').css('display', 'block');
 var FillScreenPlugin = (function () {
     function FillScreenPlugin() {
     }
     FillScreenPlugin.use = function () {
         function updateScaleWith(scale) {
             var width = 480 * scale, height = 272 * scale;
+            //console.info(sprintf('updateScale: %f, %dx%d', scale, width, height));
             DomHelp.fromId('body').width = width;
             DomHelp.fromId('canvas').css('width', width + 'px').css('height', height + 'px');
             DomHelp.fromId('webgl_canvas').css('width', width + 'px').css('height', height + 'px');
             DomHelp.fromId('touch_buttons').css('width', width + 'px').css('height', height + 'px').css('font-size', scale + 'em');
+            //DomHelp.fromId('touch_overlay').css('width', width + 'px').css('height', height + 'px').css('font-size', scale + 'em');
+            //$('#touch_buttons').css('transform', 'scale(' + scale + ')').css('-webkit-transform', 'scale(' + scale + ')');
         }
         function onResize() {
             var position = DomHelp.fromId('canvas_container').position;
             var windowSize = new DomHelp(window).size;
+            //var availableHeight = $(window).height() - position.top * 2;
             var availableHeight = windowSize.height - position.top;
             var availableWidth = windowSize.width;
             var scale1 = availableHeight / 272;
             var scale2 = availableWidth / 480;
             var steps = 0.5;
             var scale = Math.min(scale1, scale2);
+            //scale = Math.floor(scale * (1 / steps)) / (1 / steps);
             if (scale < steps)
                 scale = steps;
             updateScaleWith(scale);
@@ -3485,7 +7317,7 @@ var FillScreenPlugin = (function () {
         onResize();
     };
     return FillScreenPlugin;
-})();
+}());
 function requestFullScreen() {
     var _document = document;
     if (_document.body['requestFullScreen']) {
@@ -3498,6 +7330,11 @@ function requestFullScreen() {
         _document.body['mozRequestFullScreen']();
     }
 }
+/*
+interface Window {
+    URL: any;
+}
+*/
 window.addEventListener('load', function () {
     var _window = window;
     var sampleDemo = undefined;
@@ -3505,6 +7342,7 @@ window.addEventListener('load', function () {
         sampleDemo = document.location.hash.substr(1);
     }
     if (sampleDemo) {
+        //emulator.downloadAndExecuteAsync(sampleDemo);
         emulator_controller_1.EmulatorController.executeUrl(sampleDemo);
     }
     var selectedItem = document.location.hash.substr(1);
@@ -3518,7 +7356,9 @@ window.addEventListener('load', function () {
     });
     new DomHelp(window).on('hashchange', function () {
         console.clear();
+        //emulator.downloadAndExecuteAsync(document.location.hash.substr(1));
     });
+    //ControllerPlugin.use();
     FillScreenPlugin.use();
     DomHelp.fromId('load_file').on('change', function (e) {
         var target = e.target;
@@ -3532,8 +7372,11 @@ window.addEventListener('load', function () {
 
 },
 "src/codegen/relooper": function(module, exports, require) {
-var simplerelooper = require('./simplerelooper');
+"use strict";
+//import advancedrelooper = require('./advancedrelooper');
+var simplerelooper = require("./simplerelooper");
 function processAdvance(callback) {
+    //var sr = new simplerelooper.SimpleRelooper();
     throw new Error("Not implemented relooper advanced");
 }
 exports.processAdvance = processAdvance;
@@ -3555,15 +7398,18 @@ function processType(type, callback) {
         case 'advanced': return processAdvance(callback);
         default: throw new Error("Invalid relooper process type " + type);
     }
+    //var sr = new simplerelooper.SimpleRelooper();
 }
 exports.processType = processType;
 function process(callback) {
+    //var sr = new simplerelooper.SimpleRelooper();
     return processSimple(callback);
 }
 exports.process = process;
 
 },
 "src/codegen/simplerelooper": function(module, exports, require) {
+"use strict";
 var RelooperBlock = (function () {
     function RelooperBlock(index, code) {
         this.index = index;
@@ -3573,7 +7419,7 @@ var RelooperBlock = (function () {
         this.conditionalReferences = [];
     }
     return RelooperBlock;
-})();
+}());
 var RelooperBranch = (function () {
     function RelooperBranch(to, cond, onjumpCode) {
         this.to = to;
@@ -3581,7 +7427,7 @@ var RelooperBranch = (function () {
         this.onjumpCode = onjumpCode;
     }
     return RelooperBranch;
-})();
+}());
 var IndentWriter = (function () {
     function IndentWriter() {
         this.i = '';
@@ -3590,6 +7436,24 @@ var IndentWriter = (function () {
     }
     IndentWriter.prototype.write = function (chunk) {
         this.chunks.push(chunk);
+        /*
+        if (chunk == '') return;
+        console.log(chunk);
+        if (this.startline) {
+            this.chunks.push(this.i);
+            this.startline = false;
+        }
+        var parts = chunk.split('\n').join();
+        var jumpIndex = chunk.indexOf('\n');
+        if (jumpIndex >= 0) {
+            this.chunks.push(chunk.substr(0, jumpIndex));
+            this.chunks.push('\n');
+            this.startline = true;
+            this.write(chunk.substr(jumpIndex + 1));
+        } else {
+            this.chunks.push(chunk);
+        }
+        */
     };
     IndentWriter.prototype.indent = function () { this.i += '\t'; };
     IndentWriter.prototype.unindent = function () { this.i = this.i.substr(0, -1); };
@@ -3599,7 +7463,7 @@ var IndentWriter = (function () {
         configurable: true
     });
     return IndentWriter;
-})();
+}());
 var SimpleRelooper = (function () {
     function SimpleRelooper() {
         this.blocks = [];
@@ -3676,13 +7540,14 @@ var SimpleRelooper = (function () {
         return writer.output;
     };
     return SimpleRelooper;
-})();
+}());
 exports.SimpleRelooper = SimpleRelooper;
 
 },
 "src/context": function(module, exports, require) {
 ///<reference path="global.ts" />
 ///<reference path="global.d.ts" />
+"use strict";
 var EmulatorContext = (function () {
     function EmulatorContext() {
         this.onStdout = new Signal1();
@@ -3725,12 +7590,13 @@ var EmulatorContext = (function () {
         this.battery = battery;
     };
     return EmulatorContext;
-})();
+}());
 exports.EmulatorContext = EmulatorContext;
 
 },
 "src/core/audio": function(module, exports, require) {
 ///<reference path="../global.d.ts" />
+"use strict";
 var Sample = (function () {
     function Sample(left, right) {
         this.left = left;
@@ -3752,7 +7618,7 @@ var Sample = (function () {
     Sample.prototype.GetNextSample = function () {
     };
     return Sample;
-})();
+}());
 exports.Sample = Sample;
 var PspAudioChannel = (function () {
     function PspAudioChannel(id, audio) {
@@ -3769,12 +7635,29 @@ var PspAudioChannel = (function () {
         return this.audio.onPlayDataAsync.dispatchAsync(this.id, channels, data, leftVolume, rightVolume);
     };
     return PspAudioChannel;
-})();
+}());
 exports.PspAudioChannel = PspAudioChannel;
 var PspAudio = (function () {
     function PspAudio() {
+        //private context: AudioContext = null;
         this.lastId = 0;
         this.playingChannels = new SortedSet();
+        /*
+        static convertS16ToF32(channels: number, input: Int16Array) {
+            var output = new Float32Array(input.length * 2 / channels);
+            switch (channels) {
+                case 2:
+                    for (var n = 0; n < output.length; n++) output[n] = input[n] / 32767.0;
+                    break;
+                case 1:
+                    for (var n = 0, m = 0; n < input.length; n++) {
+                        output[m++] = output[m++] = (input[n] / 32767.0);
+                    }
+                    break;
+            }
+            return output;
+        }
+        */
         this.onPlayDataAsync = new SignalPromise();
         this.onStart = new Signal1();
         this.onStop = new Signal1();
@@ -3794,11 +7677,12 @@ var PspAudio = (function () {
         return Promise2.resolve();
     };
     return PspAudio;
-})();
+}());
 exports.PspAudio = PspAudio;
 
 },
 "src/core/battery": function(module, exports, require) {
+"use strict";
 var Battery = (function () {
     function Battery() {
     }
@@ -3831,28 +7715,29 @@ var Battery = (function () {
         configurable: true
     });
     return Battery;
-})();
+}());
 exports.Battery = Battery;
+var ChargingEnum;
 (function (ChargingEnum) {
     ChargingEnum[ChargingEnum["NotCharging"] = 0] = "NotCharging";
     ChargingEnum[ChargingEnum["Charging"] = 1] = "Charging";
-})(exports.ChargingEnum || (exports.ChargingEnum = {}));
-var ChargingEnum = exports.ChargingEnum;
+})(ChargingEnum = exports.ChargingEnum || (exports.ChargingEnum = {}));
+var BatteryStatusEnum;
 (function (BatteryStatusEnum) {
     BatteryStatusEnum[BatteryStatusEnum["VeryLow"] = 0] = "VeryLow";
     BatteryStatusEnum[BatteryStatusEnum["Low"] = 1] = "Low";
     BatteryStatusEnum[BatteryStatusEnum["PartiallyFilled"] = 2] = "PartiallyFilled";
     BatteryStatusEnum[BatteryStatusEnum["FullyFilled"] = 3] = "FullyFilled";
-})(exports.BatteryStatusEnum || (exports.BatteryStatusEnum = {}));
-var BatteryStatusEnum = exports.BatteryStatusEnum;
+})(BatteryStatusEnum = exports.BatteryStatusEnum || (exports.BatteryStatusEnum = {}));
 
 },
 "src/core/controller": function(module, exports, require) {
 ///<reference path="../global.d.ts" />
+"use strict";
 var SceCtrlData = (function () {
     function SceCtrlData() {
         this.timeStamp = 0;
-        this.buttons = 0;
+        this.buttons = 0 /* none */;
         this.lx = 0;
         this.ly = 0;
         this._rsrv = [0, 0, 0, 0, 0];
@@ -3871,15 +7756,15 @@ var SceCtrlData = (function () {
         enumerable: true,
         configurable: true
     });
-    SceCtrlData.struct = StructClass.create(SceCtrlData, [
-        { timeStamp: UInt32 },
-        { buttons: UInt32 },
-        { lx: Int8 },
-        { ly: Int8 },
-        { _rsrv: StructArray(Int8, 6) },
-    ]);
     return SceCtrlData;
-})();
+}());
+SceCtrlData.struct = StructClass.create(SceCtrlData, [
+    { timeStamp: UInt32 },
+    { buttons: UInt32 },
+    { lx: Int8 },
+    { ly: Int8 },
+    { _rsrv: StructArray(Int8, 6) },
+]);
 exports.SceCtrlData = SceCtrlData;
 var PspController = (function () {
     function PspController() {
@@ -3897,22 +7782,23 @@ var PspController = (function () {
         this.addY = 0;
         this.animationTimeId = 0;
         this.buttonMapping = {};
-        this.buttonMapping[38] = 16;
-        this.buttonMapping[37] = 128;
-        this.buttonMapping[39] = 32;
-        this.buttonMapping[40] = 64;
-        this.buttonMapping[13] = 8;
-        this.buttonMapping[32] = 1;
-        this.buttonMapping[81] = 256;
-        this.buttonMapping[69] = 512;
-        this.buttonMapping[87] = 4096;
-        this.buttonMapping[83] = 16384;
-        this.buttonMapping[65] = 32768;
-        this.buttonMapping[68] = 8192;
-        this.fieldMapping[73] = 'analogUp';
-        this.fieldMapping[75] = 'analogDown';
-        this.fieldMapping[74] = 'analogLeft';
-        this.fieldMapping[76] = 'analogRight';
+        this.buttonMapping[38 /* up */] = 16 /* up */;
+        this.buttonMapping[37 /* left */] = 128 /* left */;
+        this.buttonMapping[39 /* right */] = 32 /* right */;
+        this.buttonMapping[40 /* down */] = 64 /* down */;
+        this.buttonMapping[13 /* enter */] = 8 /* start */;
+        this.buttonMapping[32 /* space */] = 1 /* select */;
+        this.buttonMapping[81 /* q */] = 256 /* leftTrigger */;
+        this.buttonMapping[69 /* e */] = 512 /* rightTrigger */;
+        this.buttonMapping[87 /* w */] = 4096 /* triangle */;
+        this.buttonMapping[83 /* s */] = 16384 /* cross */;
+        this.buttonMapping[65 /* a */] = 32768 /* square */;
+        this.buttonMapping[68 /* d */] = 8192 /* circle */;
+        //this.buttonMapping[KeyCodes.Down] = PspCtrlButtons.Down;
+        this.fieldMapping[73 /* i */] = 'analogUp';
+        this.fieldMapping[75 /* k */] = 'analogDown';
+        this.fieldMapping[74 /* j */] = 'analogLeft';
+        this.fieldMapping[76 /* l */] = 'analogRight';
     }
     PspController.prototype.setKeyDown = function (keyCode) {
         var button = this.buttonMapping[keyCode];
@@ -3957,6 +7843,7 @@ var PspController = (function () {
         this.frame(0);
         return Promise2.resolve();
     };
+    //private gamepadsButtons = [];
     PspController.prototype.frame = function (timestamp) {
         var _this = this;
         if (this.analogUp) {
@@ -3990,15 +7877,16 @@ var PspController = (function () {
         return Promise2.resolve();
     };
     return PspController;
-})();
+}());
 exports.PspController = PspController;
 
 },
 "src/core/cpu": function(module, exports, require) {
 ///<reference path="../global.d.ts" />
-var _assembler = require('./cpu/cpu_assembler');
-var _core = require('./cpu/cpu_core');
-var _instructions = require('./cpu/cpu_instructions');
+"use strict";
+var _assembler = require("./cpu/cpu_assembler");
+var _core = require("./cpu/cpu_core");
+var _instructions = require("./cpu/cpu_instructions");
 exports.MipsAssembler = _assembler.MipsAssembler;
 exports.MipsDisassembler = _assembler.MipsDisassembler;
 exports.CpuState = _core.CpuState;
@@ -4011,7 +7899,8 @@ exports.createNativeFunction = _core.createNativeFunction;
 },
 "src/core/cpu/cpu_assembler": function(module, exports, require) {
 ///<reference path="../../global.d.ts" />
-var instructions = require('./cpu_instructions');
+"use strict";
+var instructions = require("./cpu_instructions");
 var Instructions = instructions.Instructions;
 var Instruction = instructions.Instruction;
 var Labels = (function () {
@@ -4019,13 +7908,13 @@ var Labels = (function () {
         this.labels = {};
     }
     return Labels;
-})();
+}());
 var MipsAssemblerResult = (function () {
     function MipsAssemblerResult(entrypoint) {
         this.entrypoint = entrypoint;
     }
     return MipsAssemblerResult;
-})();
+}());
 exports.MipsAssemblerResult = MipsAssemblerResult;
 var MipsAssembler = (function () {
     function MipsAssembler() {
@@ -4036,8 +7925,8 @@ var MipsAssembler = (function () {
         var entryPoint = startPC;
         for (var n = 0; n < 2; n++) {
             var PC = startPC;
-            for (var _i = 0; _i < lines.length; _i++) {
-                var line = lines[_i];
+            for (var _i = 0, lines_1 = lines; _i < lines_1.length; _i++) {
+                var line = lines_1[_i];
                 switch (line.substr(0, 1)) {
                     case '.':
                         switch (line) {
@@ -4052,8 +7941,8 @@ var MipsAssembler = (function () {
                         break;
                     default:
                         var instructions = this.assemble(PC, line, labels);
-                        for (var _a = 0; _a < instructions.length; _a++) {
-                            var instruction = instructions[_a];
+                        for (var _a = 0, instructions_1 = instructions; _a < instructions_1.length; _a++) {
+                            var instruction = instructions_1[_a];
                             memory.writeInt32(PC, instruction.data);
                             PC += 4;
                         }
@@ -4066,6 +7955,7 @@ var MipsAssembler = (function () {
     MipsAssembler.prototype.assemble = function (PC, line, labels) {
         if (labels == null)
             labels = new Labels();
+        //console.log(line);
         var matches = line.match(/^\s*(\w+)(.*)$/);
         var instructionName = matches[1];
         var instructionArguments = matches[2].replace(/^\s+/, '').replace(/\s+$/, '');
@@ -4073,6 +7963,7 @@ var MipsAssembler = (function () {
             case 'nop': return this.assemble(PC, 'sll r0, r0, 0');
             case 'li':
                 var parts = instructionArguments.split(',');
+                //console.log(parts);
                 return this.assemble(PC, 'addiu ' + parts[0] + ', r0, ' + parts[1]);
         }
         var instructionType = this.instructions.findByName(instructionName);
@@ -4084,16 +7975,19 @@ var MipsAssembler = (function () {
             .replace(/(%\w+)/g, function (type) {
             types.push(type);
             switch (type) {
+                // Register
                 case '%J':
                 case '%s':
                 case '%d':
                 case '%t':
                     return '([$r]\\d+)';
+                // Immediate
                 case '%i':
                 case '%C':
                 case '%c':
                 case '%a':
                     return '((?:0b|0x|\\-)?[0-9A-Fa-f_]+)';
+                // Label
                 case '%j':
                 case '%O':
                     return '(\\w+)';
@@ -4101,19 +7995,28 @@ var MipsAssembler = (function () {
             }
         })
             .replace(/\s+/g, '\\s*');
+        //console.log(formatPattern);
         var regex = new RegExp('^' + formatPattern + '$', '');
+        //console.log(line);
+        //console.log(formatPattern);
         var matches = instructionArguments.match(regex);
+        //console.log(matches);
+        //console.log(types);
         if (matches === null) {
             throw ('Not matching ' + instructionArguments + ' : ' + regex + ' : ' + instructionType.format);
         }
         for (var n = 0; n < types.length; n++) {
             var type = types[n];
             var match = matches[n + 1];
+            //console.log(type + ' = ' + match);
             this.update(instruction, type, match, labels);
         }
+        //console.log(instructionType);
+        //console.log(matches);
         return [instruction];
     };
     MipsAssembler.prototype.decodeRegister = function (name) {
+        //console.log(name);
         if (name.charAt(0) == '$')
             return parseInt(name.substr(1));
         if (name.charAt(0) == 'r')
@@ -4160,7 +8063,7 @@ var MipsAssembler = (function () {
         }
     };
     return MipsAssembler;
-})();
+}());
 exports.MipsAssembler = MipsAssembler;
 var MipsDisassembler = (function () {
     function MipsDisassembler() {
@@ -4174,57 +8077,53 @@ var MipsDisassembler = (function () {
         var instructionType = this.instructions.findByData(instruction.data);
         var args = instructionType.format.replace(/(\%\w+)/g, function (type) {
             switch (type) {
-                case '%s':
-                    return _this.encodeRegister(instruction.rs);
-                    break;
-                case '%d':
-                    return _this.encodeRegister(instruction.rd);
-                    break;
-                case '%t':
-                    return _this.encodeRegister(instruction.rt);
-                    break;
+                case '%s': return _this.encodeRegister(instruction.rs);
+                case '%d': return _this.encodeRegister(instruction.rd);
+                case '%t': return _this.encodeRegister(instruction.rt);
                 default: throw ("MipsDisassembler.Disassemble: Unknown type '" + type + "'");
             }
         });
         return instructionType.name + ' ' + args;
     };
     return MipsDisassembler;
-})();
+}());
 exports.MipsDisassembler = MipsDisassembler;
 
 },
 "src/core/cpu/cpu_ast": function(module, exports, require) {
 ///<reference path="../../global.d.ts" />
+"use strict";
 var __extends = (this && this.__extends) || function (d, b) {
     for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
     function __() { this.constructor = d; }
     d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
 };
-var relooper = require('../../codegen/relooper');
+var relooper = require("../../codegen/relooper");
 var ANode = (function () {
     function ANode() {
     }
     ANode.prototype.toJs = function () { return ''; };
     ANode.prototype.optimize = function () { return this; };
     return ANode;
-})();
+}());
 exports.ANode = ANode;
 var ANodeStm = (function (_super) {
     __extends(ANodeStm, _super);
     function ANodeStm() {
-        _super.apply(this, arguments);
+        return _super.apply(this, arguments) || this;
     }
     return ANodeStm;
-})(ANode);
+}(ANode));
 exports.ANodeStm = ANodeStm;
 var ANodeStmLabel = (function (_super) {
     __extends(ANodeStmLabel, _super);
     function ANodeStmLabel(address) {
-        _super.call(this);
-        this.address = 0;
-        this.references = [];
-        this.type = 'normal';
-        this.address = address;
+        var _this = _super.call(this) || this;
+        _this.address = 0;
+        _this.references = [];
+        _this.type = 'normal';
+        _this.address = address;
+        return _this;
     }
     ANodeStmLabel.prototype.toJs = function () {
         switch (this.type) {
@@ -4237,16 +8136,17 @@ var ANodeStmLabel = (function (_super) {
         }
     };
     return ANodeStmLabel;
-})(ANodeStm);
+}(ANodeStm));
 exports.ANodeStmLabel = ANodeStmLabel;
 var ANodeStmStaticJump = (function (_super) {
     __extends(ANodeStmStaticJump, _super);
     function ANodeStmStaticJump(cond, address, branchCode) {
-        _super.call(this);
-        this.cond = cond;
-        this.address = address;
-        this.branchCode = branchCode;
-        this.type = 'normal';
+        var _this = _super.call(this) || this;
+        _this.cond = cond;
+        _this.address = address;
+        _this.branchCode = branchCode;
+        _this.type = 'normal';
+        return _this;
     }
     Object.defineProperty(ANodeStmStaticJump.prototype, "branchCodeJs", {
         get: function () { return this.branchCode ? this.branchCode.toJs() : ''; },
@@ -4260,22 +8160,23 @@ var ANodeStmStaticJump = (function (_super) {
         }
     };
     return ANodeStmStaticJump;
-})(ANodeStm);
+}(ANodeStm));
 exports.ANodeStmStaticJump = ANodeStmStaticJump;
 var ANodeStmReturn = (function (_super) {
     __extends(ANodeStmReturn, _super);
     function ANodeStmReturn() {
-        _super.apply(this, arguments);
+        return _super.apply(this, arguments) || this;
     }
     ANodeStmReturn.prototype.toJs = function () { return 'return;'; };
     return ANodeStmReturn;
-})(ANodeStm);
+}(ANodeStm));
 exports.ANodeStmReturn = ANodeStmReturn;
 var ANodeStmList = (function (_super) {
     __extends(ANodeStmList, _super);
     function ANodeStmList(childs) {
-        _super.call(this);
-        this.childs = childs;
+        var _this = _super.call(this) || this;
+        _this.childs = childs;
+        return _this;
     }
     ANodeStmList.prototype.add = function (node) {
         this.childs.push(node);
@@ -4284,7 +8185,7 @@ var ANodeStmList = (function (_super) {
         return this.childs.map(function (c) { return c.toJs(); }).join("\n");
     };
     return ANodeStmList;
-})(ANodeStm);
+}(ANodeStm));
 exports.ANodeStmList = ANodeStmList;
 var ABlock = (function () {
     function ABlock(index, label, jump) {
@@ -4300,14 +8201,15 @@ var ABlock = (function () {
         this.code += node.toJs() + '\n';
     };
     return ABlock;
-})();
+}());
 var ANodeFunction = (function (_super) {
     __extends(ANodeFunction, _super);
     function ANodeFunction(address, prefix, sufix, childs) {
-        _super.call(this, childs);
-        this.address = address;
-        this.prefix = prefix;
-        this.sufix = sufix;
+        var _this = _super.call(this, childs) || this;
+        _this.address = address;
+        _this.prefix = prefix;
+        _this.sufix = sufix;
+        return _this;
     }
     ANodeFunction.prototype.toJs = function () {
         var block = new ABlock(0, null);
@@ -4329,8 +8231,9 @@ var ANodeFunction = (function (_super) {
         var text = null;
         if (text === null) {
             text = relooper.process(function (relooper) {
-                for (var _i = 0; _i < blocks.length; _i++) {
-                    var block_1 = blocks[_i];
+                //Relooper.setDebug(true);
+                for (var _i = 0, blocks_1 = blocks; _i < blocks_1.length; _i++) {
+                    var block_1 = blocks_1[_i];
                     block_1.rblock = relooper.addBlock(block_1.code);
                 }
                 for (var n = 0; n < blocks.length; n++) {
@@ -4344,66 +8247,71 @@ var ANodeFunction = (function (_super) {
                 }
             });
         }
+        //console.log(text);		
         return this.prefix.toJs() + '\n' + text + this.sufix.toJs() + '\n';
     };
     return ANodeFunction;
-})(ANodeStmList);
+}(ANodeStmList));
 exports.ANodeFunction = ANodeFunction;
 var ANodeStmRaw = (function (_super) {
     __extends(ANodeStmRaw, _super);
     function ANodeStmRaw(content) {
-        _super.call(this);
-        this.content = content;
+        var _this = _super.call(this) || this;
+        _this.content = content;
+        return _this;
     }
     ANodeStmRaw.prototype.toJs = function () { return this.content; };
     return ANodeStmRaw;
-})(ANodeStm);
+}(ANodeStm));
 exports.ANodeStmRaw = ANodeStmRaw;
 var ANodeStmExpr = (function (_super) {
     __extends(ANodeStmExpr, _super);
     function ANodeStmExpr(expr) {
-        _super.call(this);
-        this.expr = expr;
+        var _this = _super.call(this) || this;
+        _this.expr = expr;
+        return _this;
     }
     ANodeStmExpr.prototype.toJs = function () { return this.expr.toJs() + ';'; };
     return ANodeStmExpr;
-})(ANodeStm);
+}(ANodeStm));
 exports.ANodeStmExpr = ANodeStmExpr;
 var ANodeAllocVarStm = (function (_super) {
     __extends(ANodeAllocVarStm, _super);
     function ANodeAllocVarStm(name, initialValue) {
-        _super.call(this);
-        this.name = name;
-        this.initialValue = initialValue;
+        var _this = _super.call(this) || this;
+        _this.name = name;
+        _this.initialValue = initialValue;
+        return _this;
     }
     ANodeAllocVarStm.prototype.toJs = function () { return 'var ' + this.name + ' = ' + this.initialValue.toJs() + ';'; };
     return ANodeAllocVarStm;
-})(ANodeStm);
+}(ANodeStm));
 exports.ANodeAllocVarStm = ANodeAllocVarStm;
 var ANodeExpr = (function (_super) {
     __extends(ANodeExpr, _super);
     function ANodeExpr() {
-        _super.apply(this, arguments);
+        return _super.apply(this, arguments) || this;
     }
     return ANodeExpr;
-})(ANode);
+}(ANode));
 exports.ANodeExpr = ANodeExpr;
 var ANodeExprLValue = (function (_super) {
     __extends(ANodeExprLValue, _super);
     function ANodeExprLValue() {
-        _super.apply(this, arguments);
+        return _super.apply(this, arguments) || this;
     }
     ANodeExprLValue.prototype.toAssignJs = function (right) { return ''; };
     return ANodeExprLValue;
-})(ANodeExpr);
+}(ANodeExpr));
 exports.ANodeExprLValue = ANodeExprLValue;
 var ANodeExprLValueSetGet = (function (_super) {
     __extends(ANodeExprLValueSetGet, _super);
     function ANodeExprLValueSetGet(setTemplate, getTemplate, replacements) {
-        _super.call(this);
-        this.setTemplate = setTemplate;
-        this.getTemplate = getTemplate;
-        this.replacements = replacements;
+        var _this = _super.call(this) || this;
+        _this.setTemplate = setTemplate;
+        _this.getTemplate = getTemplate;
+        _this.replacements = replacements;
+        return _this;
     }
     ANodeExprLValueSetGet.prototype._toJs = function (template, right) {
         var _this = this;
@@ -4423,34 +8331,37 @@ var ANodeExprLValueSetGet = (function (_super) {
         return this._toJs(this.getTemplate);
     };
     return ANodeExprLValueSetGet;
-})(ANodeExpr);
+}(ANodeExpr));
 exports.ANodeExprLValueSetGet = ANodeExprLValueSetGet;
 var ANodeExprLValueVar = (function (_super) {
     __extends(ANodeExprLValueVar, _super);
     function ANodeExprLValueVar(name) {
-        _super.call(this);
-        this.name = name;
+        var _this = _super.call(this) || this;
+        _this.name = name;
+        return _this;
     }
     ANodeExprLValueVar.prototype.toAssignJs = function (right) { return this.name + ' = ' + right.toJs(); };
     ANodeExprLValueVar.prototype.toJs = function () { return this.name; };
     return ANodeExprLValueVar;
-})(ANodeExprLValue);
+}(ANodeExprLValue));
 exports.ANodeExprLValueVar = ANodeExprLValueVar;
 var ANodeExprI32 = (function (_super) {
     __extends(ANodeExprI32, _super);
     function ANodeExprI32(value) {
-        _super.call(this);
-        this.value = value;
+        var _this = _super.call(this) || this;
+        _this.value = value;
+        return _this;
     }
     ANodeExprI32.prototype.toJs = function () { return String(this.value); };
     return ANodeExprI32;
-})(ANodeExpr);
+}(ANodeExpr));
 exports.ANodeExprI32 = ANodeExprI32;
 var ANodeExprFloat = (function (_super) {
     __extends(ANodeExprFloat, _super);
     function ANodeExprFloat(value) {
-        _super.call(this);
-        this.value = value;
+        var _this = _super.call(this) || this;
+        _this.value = value;
+        return _this;
     }
     ANodeExprFloat.prototype.toJs = function () {
         var rfloat = MathFloat.reinterpretFloatAsInt(this.value);
@@ -4462,96 +8373,103 @@ var ANodeExprFloat = (function (_super) {
         }
     };
     return ANodeExprFloat;
-})(ANodeExpr);
+}(ANodeExpr));
 exports.ANodeExprFloat = ANodeExprFloat;
 var ANodeExprU32 = (function (_super) {
     __extends(ANodeExprU32, _super);
     function ANodeExprU32(value) {
-        _super.call(this);
-        this.value = value;
+        var _this = _super.call(this) || this;
+        _this.value = value;
+        return _this;
     }
     ANodeExprU32.prototype.toJs = function () {
         return addressToHex(this.value);
     };
     return ANodeExprU32;
-})(ANodeExpr);
+}(ANodeExpr));
 exports.ANodeExprU32 = ANodeExprU32;
 var ANodeExprBinop = (function (_super) {
     __extends(ANodeExprBinop, _super);
     function ANodeExprBinop(left, op, right) {
-        _super.call(this);
-        this.left = left;
-        this.op = op;
-        this.right = right;
-        if (!this.left || !this.left.toJs)
+        var _this = _super.call(this) || this;
+        _this.left = left;
+        _this.op = op;
+        _this.right = right;
+        if (!_this.left || !_this.left.toJs)
             debugger;
-        if (!this.right || !this.right.toJs)
+        if (!_this.right || !_this.right.toJs)
             debugger;
+        return _this;
     }
     ANodeExprBinop.prototype.toJs = function () { return '(' + this.left.toJs() + ' ' + this.op + ' ' + this.right.toJs() + ')'; };
     return ANodeExprBinop;
-})(ANodeExpr);
+}(ANodeExpr));
 exports.ANodeExprBinop = ANodeExprBinop;
 var ANodeExprUnop = (function (_super) {
     __extends(ANodeExprUnop, _super);
     function ANodeExprUnop(op, right) {
-        _super.call(this);
-        this.op = op;
-        this.right = right;
+        var _this = _super.call(this) || this;
+        _this.op = op;
+        _this.right = right;
+        return _this;
     }
     ANodeExprUnop.prototype.toJs = function () { return '(' + this.op + '(' + this.right.toJs() + '))'; };
     return ANodeExprUnop;
-})(ANodeExpr);
+}(ANodeExpr));
 exports.ANodeExprUnop = ANodeExprUnop;
 var ANodeExprAssign = (function (_super) {
     __extends(ANodeExprAssign, _super);
     function ANodeExprAssign(left, right) {
-        _super.call(this);
-        this.left = left;
-        this.right = right;
-        if (!this.left || !this.left.toAssignJs)
+        var _this = _super.call(this) || this;
+        _this.left = left;
+        _this.right = right;
+        if (!_this.left || !_this.left.toAssignJs)
             debugger;
-        if (!this.right)
+        if (!_this.right)
             debugger;
+        return _this;
     }
     ANodeExprAssign.prototype.toJs = function () { return this.left.toAssignJs(this.right); };
     return ANodeExprAssign;
-})(ANodeExpr);
+}(ANodeExpr));
 exports.ANodeExprAssign = ANodeExprAssign;
 var ANodeExprArray = (function (_super) {
     __extends(ANodeExprArray, _super);
     function ANodeExprArray(_items) {
-        _super.call(this);
-        this._items = _items;
+        var _this = _super.call(this) || this;
+        _this._items = _items;
+        return _this;
     }
     ANodeExprArray.prototype.toJs = function () { return '[' + this._items.map(function (item) { return item.toJs(); }).join(', ') + ']'; };
     return ANodeExprArray;
-})(ANodeExpr);
+}(ANodeExpr));
 exports.ANodeExprArray = ANodeExprArray;
 var ANodeExprCall = (function (_super) {
     __extends(ANodeExprCall, _super);
     function ANodeExprCall(name, _arguments) {
-        _super.call(this);
-        this.name = name;
-        this._arguments = _arguments;
+        var _this = _super.call(this) || this;
+        _this.name = name;
+        _this._arguments = _arguments;
         if (!_arguments)
             debugger;
-        this._arguments.forEach(function (argument) {
+        _this._arguments.forEach(function (argument) {
             if (!argument || !(argument instanceof ANodeExpr))
                 debugger;
         });
+        return _this;
     }
     ANodeExprCall.prototype.toJs = function () { return this.name + '(' + this._arguments.map(function (argument) { return argument.toJs(); }).join(', ') + ')'; };
     return ANodeExprCall;
-})(ANodeExpr);
+}(ANodeExpr));
 exports.ANodeExprCall = ANodeExprCall;
 var ANodeStmIf = (function (_super) {
     __extends(ANodeStmIf, _super);
     function ANodeStmIf(cond, codeTrue, codeFalse) {
-        _super.call(this);
-        this.cond = cond;
-        this.codeTrue = codeTrue;
-        this.codeFalse = codeFalse;
+        var _this = _super.call(this) || this;
+        _this.cond = cond;
+        _this.codeTrue = codeTrue;
+        _this.codeFalse = codeFalse;
+        return _this;
     }
     ANodeStmIf.prototype.toJs = function () {
         var result = '';
@@ -4562,7 +8480,7 @@ var ANodeStmIf = (function (_super) {
         return result;
     };
     return ANodeStmIf;
-})(ANodeStm);
+}(ANodeStm));
 exports.ANodeStmIf = ANodeStmIf;
 var AstBuilder = (function () {
     function AstBuilder() {
@@ -4585,18 +8503,20 @@ var AstBuilder = (function () {
     };
     AstBuilder.prototype.call = function (name, exprList) { return new ANodeExprCall(name, exprList); };
     AstBuilder.prototype.label = function (address) { return new ANodeStmLabel(address); };
+    //jump(label: ANodeStmLabel) { return new ANodeStmJump(label); }
+    //djump(node: ANodeExpr) { return new ANodeStmDynamicJump(node); }
     AstBuilder.prototype.sjump = function (cond, value, branchCode) { return new ANodeStmStaticJump(cond, value, branchCode); };
     AstBuilder.prototype._return = function () { return new ANodeStmReturn(); };
     AstBuilder.prototype.raw_stm = function (content) { return new ANodeStmRaw(content); };
     AstBuilder.prototype.raw = function (content) { return new ANodeExprLValueVar(content); };
     AstBuilder.prototype.allocVar = function (name, initialValue) { return new ANodeAllocVarStm(name, initialValue); };
     return AstBuilder;
-})();
+}());
 exports.AstBuilder = AstBuilder;
 var MipsAstBuilder = (function (_super) {
     __extends(MipsAstBuilder, _super);
     function MipsAstBuilder() {
-        _super.apply(this, arguments);
+        return _super.apply(this, arguments) || this;
     }
     MipsAstBuilder.prototype.debugger = function (comment) {
         if (comment === void 0) { comment = '-'; }
@@ -4640,19 +8560,20 @@ var MipsAstBuilder = (function (_super) {
     MipsAstBuilder.prototype.assignFpr = function (index, expr) { return this.stm(this.assign(this.fpr(index), expr)); };
     MipsAstBuilder.prototype.assignFpr_I = function (index, expr) { return this.stm(this.assign(this.fpr_i(index), expr)); };
     return MipsAstBuilder;
-})(AstBuilder);
+}(AstBuilder));
 exports.MipsAstBuilder = MipsAstBuilder;
 
 },
 "src/core/cpu/cpu_codegen": function(module, exports, require) {
 ///<reference path="../../global.d.ts" />
+"use strict";
 var __extends = (this && this.__extends) || function (d, b) {
     for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
     function __() { this.constructor = d; }
     d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
 };
-var _ast = require('./cpu_ast');
-var _cpu = require('./cpu_core');
+var _ast = require("./cpu_ast");
+var _cpu = require("./cpu_core");
 var ast = new _ast.MipsAstBuilder();
 function assignGpr(index, expr) { return ast.assignGpr(index, expr); }
 function assignFpr(index, expr) { return ast.assignFpr(index, expr); }
@@ -4696,6 +8617,7 @@ var VMatRegClass = (function () {
         this.reg = reg;
     }
     VMatRegClass.prototype._setMatrix = function (generator) {
+        // @TODO
         var array = [];
         for (var column = 0; column < 4; column++) {
             for (var row = 0; row < 4; row++) {
@@ -4717,15 +8639,16 @@ var VMatRegClass = (function () {
         ]);
     };
     return VMatRegClass;
-})();
+}());
 var VVecRegClass = (function () {
     function VVecRegClass(reg, size) {
         this.reg = reg;
     }
     VVecRegClass.prototype._setVector = function (generator) {
+        // @TODO
         var array = [];
         var statements = [];
-        var regs = getVectorRegs(this.reg, 4);
+        var regs = getVectorRegs(this.reg, 4 /* Quad */);
         statements.push(stm(ast.call('state.vfpuStore', [
             ast.array(regs.map(function (item) { return imm32(item); })),
             ast.array([0, 1, 2, 3].map(function (index) { return generator(index); }))
@@ -4739,7 +8662,7 @@ var VVecRegClass = (function () {
         ]);
     };
     return VVecRegClass;
-})();
+}());
 function VMatReg(index) {
     return new VMatRegClass(index);
 }
@@ -4747,6 +8670,8 @@ function VVecReg(index, size) {
     return new VVecRegClass(index, size);
 }
 ;
+//function getVectorRegsValues(vectorReg: number, N: VectorSize) {
+//}
 function getVectorRegs(vectorReg, N) {
     var mtx = (vectorReg >>> 2) & 7;
     var col = vectorReg & 3;
@@ -4754,20 +8679,20 @@ function getVectorRegs(vectorReg, N) {
     var length = 0;
     var transpose = (vectorReg >>> 5) & 1;
     switch (N) {
-        case 1:
+        case 1 /* Single */:
             transpose = 0;
             row = (vectorReg >>> 5) & 3;
             length = 1;
             break;
-        case 2:
+        case 2 /* Pair */:
             row = (vectorReg >>> 5) & 2;
             length = 2;
             break;
-        case 3:
+        case 3 /* Triple */:
             row = (vectorReg >>> 6) & 1;
             length = 3;
             break;
-        case 4:
+        case 4 /* Quad */:
             row = (vectorReg >>> 5) & 2;
             length = 4;
             break;
@@ -4792,15 +8717,15 @@ function getMatrixRegs(matrixReg, N) {
     var row = 0;
     var side = 0;
     switch (N) {
-        case 2:
+        case 2 /* M_2x2 */:
             row = (matrixReg >> 5) & 2;
             side = 2;
             break;
-        case 3:
+        case 3 /* M_3x3 */:
             row = (matrixReg >> 6) & 1;
             side = 3;
             break;
-        case 4:
+        case 4 /* M_4x4 */:
             row = (matrixReg >> 5) & 2;
             side = 4;
             break;
@@ -4835,6 +8760,7 @@ function readMatrix(vectorReg, N) {
     return getMatrixRegs(vectorReg, N).map(function (index) { return vfpr(index); });
 }
 function setMemoryVector(offset, items) {
+    //return call_stm('state.storeFloats', [offset, ast.array(items)]);
     var out = [];
     for (var n = 0; n < items.length; n++) {
         var item = items[n];
@@ -4844,7 +8770,9 @@ function setMemoryVector(offset, items) {
 }
 function memoryRef(type, address) {
     switch (type) {
-        case 'float': return new _ast.ANodeExprLValueSetGet('memory.swc1($0, #)', 'memory.lwc1($0)', [address]);
+        case 'float': return new _ast.ANodeExprLValueSetGet('memory.swc1($0, #)', 
+        //'memory.swc1(#, $0)',
+        'memory.lwc1($0)', [address]);
         default: throw (new Error("Not implemented memoryRef type '" + type + "'"));
     }
 }
@@ -4877,6 +8805,12 @@ function setVector_i(leftList, generator) {
         ast.array(ArrayUtils.range(0, leftList.length).map(function (index) { return generator(index); }))
     ]);
 }
+/*
+private AstNodeExpr Address_RS_IMM14(int Offset = 0)
+{
+return ast.Cast<uint>(ast.Binary(ast.GPR_s(RS), "+", Instruction.IMM14 * 4 + Offset), false);
+}
+*/
 var VfpuConstants = [
     { name: "VFPU_ZERO", value: 0.0 },
     { name: "VFPU_HUGE", value: 340282346638528859811704183484516925440 },
@@ -4925,9 +8859,7 @@ var VfpuPrefixes = (function () {
                 case 3:
                     value = imm_f(sourceAbsolute ? (1 / 6) : (1 / 2));
                     break;
-                default:
-                    throw (new Error("Invalid operation"));
-                    break;
+                default: throw new Error("Invalid operation");
             }
         }
         else {
@@ -4943,7 +8875,7 @@ var VfpuPrefixes = (function () {
         var destinationSaturation = (info >> (0 + n * 2)) & 3;
         var destinationMask = (info >> (8 + n * 1)) & 1;
         if (destinationMask) {
-            return ast.stm();
+            return ast.stm(); // Masked. No write value.
         }
         else {
             var value = value;
@@ -4960,7 +8892,7 @@ var VfpuPrefixes = (function () {
         }
     };
     return VfpuPrefixes;
-})();
+}());
 var PrefixPrediction = (function () {
     function PrefixPrediction(default_value) {
         this.default_value = default_value;
@@ -4969,6 +8901,7 @@ var PrefixPrediction = (function () {
     }
     PrefixPrediction.prototype.reset = function () {
         this.set(this.default_value);
+        //this.setUnknown();
     };
     PrefixPrediction.prototype.eat = function () {
         this.set(this.default_value);
@@ -4981,22 +8914,24 @@ var PrefixPrediction = (function () {
         this.known = false;
         this.value = this.default_value;
     };
-    PrefixPrediction.DEFAULT_LOAD_VALUE = 0xDC0000E4;
-    PrefixPrediction.DEFAULT_STORE_VALUE = 0x00000000;
     return PrefixPrediction;
-})();
+}());
+PrefixPrediction.DEFAULT_LOAD_VALUE = 0xDC0000E4;
+PrefixPrediction.DEFAULT_STORE_VALUE = 0x00000000;
 var BranchFlagStm = (function (_super) {
     __extends(BranchFlagStm, _super);
     function BranchFlagStm(cond, pc) {
-        _super.call(this);
-        this.cond = cond;
-        this.pc = pc;
+        var _this = _super.call(this) || this;
+        _this.cond = cond;
+        _this.pc = pc;
+        return _this;
     }
     BranchFlagStm.prototype.toJs = function () {
+        //return `BRANCHFLAG = ${this.cond.toJs()}; BRANCHPC = ${addressToHex(this.pc)};`;
         return "BRANCHFLAG = " + this.cond.toJs() + ";";
     };
     return BranchFlagStm;
-})(_ast.ANodeStm);
+}(_ast.ANodeStm));
 exports.BranchFlagStm = BranchFlagStm;
 var InstructionAst = (function () {
     function InstructionAst() {
@@ -5005,6 +8940,7 @@ var InstructionAst = (function () {
         this._vpfxd = new PrefixPrediction(PrefixPrediction.DEFAULT_STORE_VALUE);
         this.enableStaticPrefixVfpuOptimization = true;
     }
+    //private enableStaticPrefixVfpuOptimization = false;
     InstructionAst.prototype.reset = function () {
         this._vpfxs.reset();
         this._vpfxt.reset();
@@ -5064,6 +9000,7 @@ var InstructionAst = (function () {
                 out.push(ast.raw(vname));
                 st.push(ast.allocVar(vname, VfpuPrefixes.transformRead(n, prefix.value, regs)));
             }
+            //if (prefix.value != PrefixPrediction.DEFAULT_LOAD_VALUE) st.push(ast.debugger());
             return out;
         }
         else {
@@ -5088,8 +9025,10 @@ var InstructionAst = (function () {
             ]));
         }
         st.push(call_stm('state.eatPrefixes', []));
+        //st.push(ast.debugger());
         this.eatPrefixes();
     };
+    // Prefixes
     InstructionAst.prototype.vpfxs = function (i) {
         this._vpfxs.set(i.data);
         return stms([
@@ -5108,14 +9047,17 @@ var InstructionAst = (function () {
             call_stm('state.setVpfxd', [imm32(i.data)]),
         ]);
     };
+    // Memory read/write
     InstructionAst.prototype["lv.s"] = function (i) { return assign_stm(vfpr(i.VT5_2), call('memory.lwc1', [address_RS_IMM14(i, 0)])); };
     InstructionAst.prototype["sv.s"] = function (i) { return call_stm('memory.swc1', [address_RS_IMM14(i, 0), vfpr(i.VT5_2)]); };
-    InstructionAst.prototype["lv.q"] = function (i) { return setItems(readVector_f(i.VT5_1, 4), getMemoryVector(address_RS_IMM14(i), 4)); };
-    InstructionAst.prototype["lvl.q"] = function (i) { return call_stm('state.lvl_q', [address_RS_IMM14(i, 0), ast.array(getVectorRegs(i.VT5_1, 4).map(function (item) { return imm32(item); }))]); };
-    InstructionAst.prototype["lvr.q"] = function (i) { return call_stm('state.lvr_q', [address_RS_IMM14(i, 0), ast.array(getVectorRegs(i.VT5_1, 4).map(function (item) { return imm32(item); }))]); };
-    InstructionAst.prototype["sv.q"] = function (i) { return setMemoryVector(address_RS_IMM14(i), readVector_f(i.VT5_1, 4)); };
-    InstructionAst.prototype["svl.q"] = function (i) { return call_stm('state.svl_q', [address_RS_IMM14(i, 0), ast.array(getVectorRegs(i.VT5_1, 4).map(function (item) { return imm32(item); }))]); };
-    InstructionAst.prototype["svr.q"] = function (i) { return call_stm('state.svr_q', [address_RS_IMM14(i, 0), ast.array(getVectorRegs(i.VT5_1, 4).map(function (item) { return imm32(item); }))]); };
+    InstructionAst.prototype["lv.q"] = function (i) { return setItems(readVector_f(i.VT5_1, 4 /* Quad */), getMemoryVector(address_RS_IMM14(i), 4)); };
+    InstructionAst.prototype["lvl.q"] = function (i) { return call_stm('state.lvl_q', [address_RS_IMM14(i, 0), ast.array(getVectorRegs(i.VT5_1, 4 /* Quad */).map(function (item) { return imm32(item); }))]); };
+    InstructionAst.prototype["lvr.q"] = function (i) { return call_stm('state.lvr_q', [address_RS_IMM14(i, 0), ast.array(getVectorRegs(i.VT5_1, 4 /* Quad */).map(function (item) { return imm32(item); }))]); };
+    InstructionAst.prototype["sv.q"] = function (i) { return setMemoryVector(address_RS_IMM14(i), readVector_f(i.VT5_1, 4 /* Quad */)); };
+    InstructionAst.prototype["svl.q"] = function (i) { return call_stm('state.svl_q', [address_RS_IMM14(i, 0), ast.array(getVectorRegs(i.VT5_1, 4 /* Quad */).map(function (item) { return imm32(item); }))]); };
+    InstructionAst.prototype["svr.q"] = function (i) { return call_stm('state.svr_q', [address_RS_IMM14(i, 0), ast.array(getVectorRegs(i.VT5_1, 4 /* Quad */).map(function (item) { return imm32(item); }))]); };
+    // Constants
+    // @TODO: d-prefix in vt register
     InstructionAst.prototype.viim = function (i) { return assign_stm(vfpr(i.VT), imm32(i.imm16)); };
     InstructionAst.prototype.vfim = function (i) { return assign_stm(vfpr(i.VT), imm_f(i.IMM_HF)); };
     InstructionAst.prototype.vcst = function (i) { return assign_stm(vfpr(i.VD), imm_f(VfpuConstants[i.IMM5].value)); };
@@ -5142,6 +9084,7 @@ var InstructionAst = (function () {
                 return _this._aggregateV(imm_f(0), vectorSize, function (aggregated, m) { return binop(aggregated, '+', binop(srcMat[n * vectorSize + m], '*', ast.vector_vt(m))); });
             })),
         ]));
+        //if (vectorSize == 3) st.push(ast.debugger());
         this.eatPrefixes();
         return stms(st);
     };
@@ -5167,12 +9110,13 @@ var InstructionAst = (function () {
     InstructionAst.prototype.vhtfm4 = function (i) { return this._vhtfm_x(i, 4); };
     InstructionAst.prototype.vmscl = function (i) {
         var vectorSize = i.ONE_TWO;
+        //return ast.stm(ast.debugger('not implemented'));
         var src = readMatrix(i.VS, vectorSize);
         return setMatrix(getMatrixRegsVD(i), function (c, r, index) { return binop(src[index], '*', vfpr(i.VT)); });
     };
     InstructionAst.prototype.vzero = function (i) { return this._vset1(i, function (i) { return imm_f(0); }); };
     InstructionAst.prototype.vone = function (i) { return this._vset1(i, function (i) { return imm_f(1); }); };
-    InstructionAst.prototype.vmov = function (i) { return this._vset3(i, function (i, s, t) { return s[i]; }); };
+    InstructionAst.prototype.vmov = function (i) { return this._vset3(i, function (i, s, t) { return s[i]; }); }; // vset3 in order to eat prefixes
     InstructionAst.prototype.vrcp = function (i) { return this._vset2(i, function (i, s) { return binop(imm_f(1.0), '/', s[i]); }); };
     InstructionAst.prototype.vmul = function (i) { return this._vset3(i, function (i, s, t) { return binop(s[i], '*', t[i]); }); };
     InstructionAst.prototype.vbfy1 = function (i) {
@@ -5257,6 +9201,12 @@ var InstructionAst = (function () {
     InstructionAst.prototype.vrndi = function (i) { return this._vset1(i, function (i) { return call('state.vrndi', []); }, undefined, 'int'); };
     InstructionAst.prototype.vrndf1 = function (i) { return this._vset1(i, function (i) { return call('state.vrndf1', []); }); };
     InstructionAst.prototype.vrndf2 = function (i) { return this._vset1(i, function (i) { return call('state.vrndf2', []); }); };
+    /*
+    public AstNodeStm vrnds(i: Instruction) { return ast.Statement(ast.CallStatic((Action < CpuThreadState, int>) CpuEmitterUtils._vrnds, ast.CpuThreadState)); }
+    public AstNodeStm vrndi(i: Instruction) { return VEC_VD_i.SetVector(Index => ast.CallStatic((Func < CpuThreadState, int>) CpuEmitterUtils._vrndi, ast.CpuThreadState), PC); }
+    public AstNodeStm vrndf1(i: Instruction) { return VEC_VD.SetVector(Index => ast.CallStatic((Func < CpuThreadState, float>) CpuEmitterUtils._vrndf1, ast.CpuThreadState), PC); }
+    public AstNodeStm vrndf2(i: Instruction) { return VEC_VD.SetVector(Index => ast.CallStatic((Func < CpuThreadState, float>) CpuEmitterUtils._vrndf2, ast.CpuThreadState), PC); }
+    */
     InstructionAst.prototype._aggregateV = function (val, size, generator) {
         for (var n = 0; n < size; n++)
             val = generator(val, n);
@@ -5385,6 +9335,7 @@ var InstructionAst = (function () {
         */
         var out = [];
         var vectorSize = ins.ONE_TWO;
+        //out.push(ast.raw_stm(`debugger;`));
         this._vset_readVS(out, ins, 'float', vectorSize);
         this._vset_readVT(out, ins, 'float', vectorSize);
         var conds = [];
@@ -5392,66 +9343,70 @@ var InstructionAst = (function () {
             var c = false;
             var cond = '';
             switch (ins.IMM4) {
-                case 0:
+                case 0 /* FL */:
                     cond = "false";
                     break;
-                case 1:
+                case 1 /* EQ */:
                     cond = "s" + i + " == t" + i;
                     break;
-                case 2:
+                case 2 /* LT */:
                     cond = "s" + i + " < t" + i;
                     break;
-                case 3:
+                case 3 /* LE */:
                     cond = "s" + i + " <= t" + i;
                     break;
-                case 4:
+                case 4 /* TR */:
                     cond = "true";
                     break;
-                case 5:
+                case 5 /* NE */:
                     cond = "s" + i + " != t" + i;
                     break;
-                case 6:
+                case 6 /* GE */:
                     cond = "s" + i + " >= t" + i;
                     break;
-                case 7:
+                case 7 /* GT */:
                     cond = "s" + i + " > t" + i;
                     break;
-                case 8:
+                case 8 /* EZ */:
                     cond = "(s" + i + " == 0.0) || (s" + i + " == -0.0)";
                     break;
-                case 9:
+                case 9 /* EN */:
                     cond = "MathFloat.isnan(s" + i + ")";
                     break;
-                case 10:
+                case 10 /* EI */:
                     cond = "MathFloat.isinf(s" + i + ")";
                     break;
-                case 11:
+                case 11 /* ES */:
                     cond = "MathFloat.isnanorinf(s" + i + ")";
-                    break;
-                case 12:
+                    break; // Tekken Dark Resurrection
+                case 12 /* NZ */:
                     cond = "s" + i + " != 0;";
                     break;
-                case 13:
+                case 13 /* NN */:
                     cond = "!MathFloat.isnan(s" + i + ")";
                     break;
-                case 14:
+                case 14 /* NI */:
                     cond = "!MathFloat.isinf(s" + i + ")";
                     break;
-                case 15:
+                case 15 /* NS */:
                     cond = "!(MathFloat.isnanorinf(s" + i + "))";
-                    break;
+                    break; // How about t[i] ?	
             }
             conds.push("((" + cond + ") << " + i + ")");
         }
         var mask = (1 << vectorSize) - 1;
         var inv_affected_bits = ~(mask | (1 << 4) | (1 << 5));
+        //out.push(ast.raw_stm(`debugger;`));
         out.push(ast.raw_stm("var cc = " + conds.join(' | ') + ";"));
         out.push(ast.raw_stm("cc |= ((cc & " + mask + ") != 0) << 4;"));
         out.push(ast.raw_stm("cc |= ((cc & " + mask + ") == " + mask + ") << 5;"));
-        out.push(ast.raw_stm("state.vfprc[" + 3 + "] = (state.vfprc[" + 3 + "] & " + inv_affected_bits + ") | cc;"));
+        out.push(ast.raw_stm("state.vfprc[" + 3 /* CC */ + "] = (state.vfprc[" + 3 /* CC */ + "] & " + inv_affected_bits + ") | cc;"));
         this.eatPrefixes();
         return ast.stms(out);
     };
+    // @TODO:
+    //vwbn(i: Instruction) { return ast.stm(ast.debugger('not implemented')); }
+    //vsbn(i: Instruction) { return ast.stm(ast.debugger('not implemented')); }
     InstructionAst.prototype.vwbn = function (i) { return ast.stm(); };
     InstructionAst.prototype.vsbn = function (i) { return ast.stm(); };
     InstructionAst.prototype.vabs = function (i) { return this._vset2(i, function (i, src) { return call('MathFloat.abs', [src[i]]); }); };
@@ -5468,6 +9423,7 @@ var InstructionAst = (function () {
     InstructionAst.prototype.vlog2 = function (i) { return this._vset2(i, function (i, src) { return call('MathFloat.log2', [src[i]]); }); };
     InstructionAst.prototype.vsqrt = function (i) { return this._vset2(i, function (i, src) { return call('MathFloat.sqrt', [src[i]]); }); };
     InstructionAst.prototype.vasin = function (i) {
+        //return this._vset2(i, (i, src) => call('MathFloat.asinv1', [src[i]]));
         return stms([
             this._vset2(i, function (i, src) { return call('MathFloat.asinv1', [src[i]]); }),
         ]);
@@ -5510,6 +9466,7 @@ var InstructionAst = (function () {
         var vectorSize = i.ONE_TWO;
         var dest = getMatrixRegs(i.VD, vectorSize);
         var src = readMatrix(i.VS, vectorSize);
+        //var target = readMatrix(i.VT, i.ONE_TWO);
         var result = setMatrix(dest, function (column, row, index) { return src[index]; });
         this.eatPrefixes();
         return result;
@@ -5520,6 +9477,7 @@ var InstructionAst = (function () {
         var src = readMatrix(i.VS, VectorSize);
         var target = readMatrix(i.VT, VectorSize);
         var st = [];
+        //st.push(ast.debugger());
         st.push(setMatrix(dest, function (Column, Row, Index) {
             var sum = imm_f(0);
             for (var n = 0; n < VectorSize; n++) {
@@ -5544,6 +9502,7 @@ var InstructionAst = (function () {
         this.eatPrefixes();
         return result;
     };
+    // CPU
     InstructionAst.prototype.add = function (i) { return this.addu(i); };
     InstructionAst.prototype.addu = function (i) { return assignGpr(i.rd, binop(gpr(i.rs), '+', gpr(i.rt))); };
     InstructionAst.prototype.addi = function (i) { return this.addiu(i); };
@@ -5557,6 +9516,7 @@ var InstructionAst = (function () {
     InstructionAst.prototype.sllv = function (i) { return assignGpr(i.rd, binop(gpr(i.rt), '<<', binop(gpr(i.rs), '&', imm32(31)))); };
     InstructionAst.prototype.srav = function (i) { return assignGpr(i.rd, binop(gpr(i.rt), '>>', binop(gpr(i.rs), '&', imm32(31)))); };
     InstructionAst.prototype.srlv = function (i) { return assignGpr(i.rd, binop(gpr(i.rt), '>>>', binop(gpr(i.rs), '&', imm32(31)))); };
+    //srlv(i: Instruction) { return assignGpr(i.rd, call('BitUtils.srl', [gpr(i.rt), gpr(i.rs)])); }
     InstructionAst.prototype.rotrv = function (i) { return assignGpr(i.rd, call('BitUtils.rotr', [gpr(i.rt), gpr(i.rs)])); };
     InstructionAst.prototype.bitrev = function (i) { return assignGpr(i.rd, call('BitUtils.bitrev32', [gpr(i.rt)])); };
     InstructionAst.prototype.and = function (i) { return assignGpr(i.rd, binop(gpr(i.rs), '&', gpr(i.rt))); };
@@ -5645,6 +9605,9 @@ var InstructionAst = (function () {
     InstructionAst.prototype["floor.w.s"] = function (i) { return assignFpr_I(i.fd, call('MathFloat.floor', [fpr(i.fs)])); };
     InstructionAst.prototype["cvt.s.w"] = function (i) { return assignFpr(i.fd, fpr_i(i.fs)); };
     InstructionAst.prototype["cvt.w.s"] = function (i) { return assignFpr_I(i.fd, call('state._cvt_w_s_impl', [fpr(i.fs)])); };
+    ///////////////////////////////////////////////////////////////////////////////
+    // MEMORY
+    ///////////////////////////////////////////////////////////////////////////////
     InstructionAst.prototype.sb = function (i) { return stm(call('memory.sb', [rs_imm16(i), gpr(i.rt)])); };
     InstructionAst.prototype.sh = function (i) { return stm(call('memory.sh', [rs_imm16(i), gpr(i.rt)])); };
     InstructionAst.prototype.sw = function (i) { return stm(call('memory.sw', [rs_imm16(i), gpr(i.rt)])); };
@@ -5660,9 +9623,11 @@ var InstructionAst = (function () {
     InstructionAst.prototype.lwl = function (i) { return assignGpr(i.rt, call('memory.lwl', [rs_imm16(i), gpr(i.rt)])); };
     InstructionAst.prototype.lwr = function (i) { return assignGpr(i.rt, call('memory.lwr', [rs_imm16(i), gpr(i.rt)])); };
     InstructionAst.prototype._callstackPush = function (i) {
+        //return stm(call('state.callstackPush', [imm32(i.PC)]));
         return ast.stm();
     };
     InstructionAst.prototype._callstackPop = function (i) {
+        //return stm(call('state.callstackPop', []));
         return ast.stm();
     };
     InstructionAst.prototype.j = function (i) {
@@ -5689,7 +9654,8 @@ var InstructionAst = (function () {
         var fc_unordererd = ((fc02 & 1) != 0);
         var fc_equal = ((fc02 & 2) != 0);
         var fc_less = ((fc02 & 4) != 0);
-        var fc_inv_qnan = (fc3 != 0);
+        var fc_inv_qnan = (fc3 != 0); // TODO -- Only used for detecting invalid operations?
+        //return stm(call('state._comp_impl', [fpr(i.fs), fpr(i.ft), immBool(fc_unordererd), immBool(fc_equal), immBool(fc_less), immBool(fc_inv_qnan)]));
         var s = fpr(i.fs).toJs();
         var t = fpr(i.ft).toJs();
         var parts = [];
@@ -5718,24 +9684,27 @@ var InstructionAst = (function () {
     InstructionAst.prototype["c.le.s"] = function (i) { return this._comp(i, 6, 1); };
     InstructionAst.prototype["c.ngt.s"] = function (i) { return this._comp(i, 7, 1); };
     return InstructionAst;
-})();
+}());
 exports.InstructionAst = InstructionAst;
 
 },
 "src/core/cpu/cpu_core": function(module, exports, require) {
 ///<reference path="../../global.d.ts" />
+"use strict";
 var __extends = (this && this.__extends) || function (d, b) {
     for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
     function __() { this.constructor = d; }
     d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
 };
-var _memory = require('../memory');
-var _ast = require('./cpu_ast');
-var _instructions = require('./cpu_instructions');
-var _codegen = require('./cpu_codegen');
+var _memory = require("../memory");
+var _ast = require("./cpu_ast");
+var _instructions = require("./cpu_instructions");
+var _codegen = require("./cpu_codegen");
 var Memory = _memory.Memory;
+//const DEBUG_FUNCGEN = true;
 var DEBUG_FUNCGEN = false;
 var DEBUG_NATIVEFUNC = false;
+//const DEBUG_NATIVEFUNC = true;
 var BUILD_FUNC_ON_REFERENCED = true;
 var VfpuPrefixBase = (function () {
     function VfpuPrefixBase(vfrc, index) {
@@ -5751,12 +9720,12 @@ var VfpuPrefixBase = (function () {
         this.enabled = true;
     };
     return VfpuPrefixBase;
-})();
+}());
 var NativeFunction = (function () {
     function NativeFunction() {
     }
     return NativeFunction;
-})();
+}());
 exports.NativeFunction = NativeFunction;
 var SyscallManager = (function () {
     function SyscallManager(context) {
@@ -5790,13 +9759,17 @@ var SyscallManager = (function () {
         nativeFunction.call(this.context, state);
     };
     return SyscallManager;
-})();
+}());
 exports.SyscallManager = SyscallManager;
 var VfpuPrefixRead = (function (_super) {
     __extends(VfpuPrefixRead, _super);
     function VfpuPrefixRead() {
-        _super.apply(this, arguments);
+        return _super.apply(this, arguments) || this;
     }
+    //private getSourceIndex(i: number) { return BitUtils.extract(this._info, 0 + i * 2, 2); }
+    //private getSourceAbsolute(i: number) { return BitUtils.extractBool(this._info, 8 + i * 1); }
+    //private getSourceConstant(i: number) { return BitUtils.extractBool(this._info, 12 + i * 1); }
+    //private getSourceNegate(i: number) { return BitUtils.extractBool(this._info, 16 + i * 1); }
     VfpuPrefixRead.prototype.transformValues = function (input, output) {
         this._readInfo();
         var info = this._info;
@@ -5806,6 +9779,10 @@ var VfpuPrefixRead = (function (_super) {
         }
         else {
             for (var n = 0; n < input.length; n++) {
+                //var sourceIndex = this.getSourceIndex(n);
+                //var sourceAbsolute = this.getSourceAbsolute(n);
+                //var sourceConstant = this.getSourceConstant(n);
+                //var sourceNegate = this.getSourceNegate(n);
                 var sourceIndex = (info >> (0 + n * 2)) & 3;
                 var sourceAbsolute = (info >> (8 + n * 1)) & 1;
                 var sourceConstant = (info >> (12 + n * 1)) & 1;
@@ -5825,12 +9802,11 @@ var VfpuPrefixRead = (function (_super) {
                         case 3:
                             value = sourceAbsolute ? (1 / 6) : (1 / 2);
                             break;
-                        default:
-                            throw (new Error("Invalid operation"));
-                            break;
+                        default: throw new Error("Invalid operation");
                     }
                 }
                 else {
+                    //debugger;
                     value = input[sourceIndex];
                     if (sourceAbsolute)
                         value = Math.abs(value);
@@ -5842,12 +9818,14 @@ var VfpuPrefixRead = (function (_super) {
         }
     };
     return VfpuPrefixRead;
-})(VfpuPrefixBase);
+}(VfpuPrefixBase));
 var VfpuPrefixWrite = (function (_super) {
     __extends(VfpuPrefixWrite, _super);
     function VfpuPrefixWrite() {
-        _super.apply(this, arguments);
+        return _super.apply(this, arguments) || this;
     }
+    //getDestinationSaturation(i: number) { return (this._info >> (0 + i * 2)) & 3; }
+    //getDestinationMask(i: number) { return (this._info >> (8 + i * 1)) & 1; }
     VfpuPrefixWrite.prototype.storeTransformedValues = function (vfpr, indices, values) {
         this._readInfo();
         var info = this._info;
@@ -5857,7 +9835,10 @@ var VfpuPrefixWrite = (function (_super) {
             }
         }
         else {
+            //debugger;
             for (var n = 0; n < indices.length; n++) {
+                //var destinationSaturation = this.getDestinationSaturation(n);
+                //var destinationMask = this.getDestinationMask(n);
                 var destinationSaturation = (info >> (0 + n * 2)) & 3;
                 var destinationMask = (info >> (8 + n * 1)) & 1;
                 if (destinationMask) {
@@ -5879,7 +9860,7 @@ var VfpuPrefixWrite = (function (_super) {
         }
     };
     return VfpuPrefixWrite;
-})(VfpuPrefixBase);
+}(VfpuPrefixBase));
 var CpuState = (function () {
     function CpuState(memory, syscallManager) {
         this.memory = memory;
@@ -5894,13 +9875,14 @@ var CpuState = (function () {
         this.fpr_Buffer = new ArrayBuffer(32 * 4);
         this.fpr = new Float32Array(this.fpr_Buffer);
         this.fpr_i = new Int32Array(this.fpr_Buffer);
+        //fpr: Float32Array = new Float32Array(32);
         this.vfpr_Buffer = new ArrayBuffer(128 * 4);
         this.vfpr = new Float32Array(this.vfpr_Buffer);
         this.vfpr_i = new Int32Array(this.vfpr_Buffer);
         this.vfprc = [0, 0, 0, 0xFF, 0, 0, 0, 0, 0x3F800000, 0x3F800000, 0x3F800000, 0x3F800000, 0x3F800000, 0x3F800000, 0x3F800000, 0x3F800000];
-        this.vpfxs = new VfpuPrefixRead(this.vfprc, 0);
-        this.vpfxt = new VfpuPrefixRead(this.vfprc, 1);
-        this.vpfxd = new VfpuPrefixWrite(this.vfprc, 2);
+        this.vpfxs = new VfpuPrefixRead(this.vfprc, 0 /* SPREFIX */);
+        this.vpfxt = new VfpuPrefixRead(this.vfprc, 1 /* TPREFIX */);
+        this.vpfxd = new VfpuPrefixWrite(this.vfprc, 2 /* DPREFIX */);
         this.vector_vs = [0, 0, 0, 0];
         this.vector_vt = [0, 0, 0, 0];
         this.vector_vd = [0, 0, 0, 0];
@@ -5934,10 +9916,10 @@ var CpuState = (function () {
     };
     CpuState.prototype.setVfrCc = function (index, value) {
         if (value) {
-            this.vfprc[3] |= (1 << index);
+            this.vfprc[3 /* CC */] |= (1 << index);
         }
         else {
-            this.vfprc[3] &= ~(1 << index);
+            this.vfprc[3 /* CC */] &= ~(1 << index);
         }
     };
     CpuState.prototype.vrnds = function () { };
@@ -5952,7 +9934,7 @@ var CpuState = (function () {
     CpuState.prototype.vrndf1 = function () { return Math.random() * 2; };
     CpuState.prototype.vrndf2 = function () { return Math.random() * 4; };
     CpuState.prototype.getVfrCc = function (index) {
-        return ((this.vfprc[3] & (1 << index)) != 0);
+        return ((this.vfprc[3 /* CC */] & (1 << index)) != 0);
     };
     CpuState.prototype.vcmovtf = function (register, _true, vdRegs, vsRegs) {
         var _this = this;
@@ -5960,7 +9942,7 @@ var CpuState = (function () {
         this.loadVs_prefixed(vsRegs.map(function (reg) { return _this.vfpr[reg]; }));
         this.loadVdRegs(vdRegs);
         var compare = _true ? 1 : 0;
-        var cc = this.vfprc[3];
+        var cc = this.vfprc[3 /* CC */];
         if (register < 6) {
             if (((cc >> register) & 1) == compare) {
                 for (var n = 0; n < vectorSize; n++) {
@@ -6137,6 +10119,7 @@ var CpuState = (function () {
     CpuState.prototype.vfpuStore_i = function (indices, values) { for (var n = 0; n < indices.length; n++)
         this.vfpr_i[indices[n]] = values[n]; };
     CpuState.prototype.vfpuSetMatrix = function (m, values) {
+        // @TODO
         this.vfpr[0] = 0;
         throw new Error("Not implemented vfpuSetMatrix!");
     };
@@ -6149,58 +10132,58 @@ var CpuState = (function () {
         var cc = 0;
         var or_val = 0;
         var and_val = 1;
-        var affected_bits = (1 << 4) | (1 << 5);
+        var affected_bits = (1 << 4) | (1 << 5); // 4 and 5
         for (var i = 0; i < vectorSize; i++) {
             var c = false;
             switch (cond) {
-                case 0:
+                case 0 /* FL */:
                     c = false;
                     break;
-                case 1:
+                case 1 /* EQ */:
                     c = s[i] == t[i];
                     break;
-                case 2:
+                case 2 /* LT */:
                     c = s[i] < t[i];
                     break;
-                case 3:
+                case 3 /* LE */:
                     c = s[i] <= t[i];
                     break;
-                case 4:
+                case 4 /* TR */:
                     c = true;
                     break;
-                case 5:
+                case 5 /* NE */:
                     c = s[i] != t[i];
                     break;
-                case 6:
+                case 6 /* GE */:
                     c = s[i] >= t[i];
                     break;
-                case 7:
+                case 7 /* GT */:
                     c = s[i] > t[i];
                     break;
-                case 8:
+                case 8 /* EZ */:
                     c = s[i] == 0.0 || s[i] == -0.0;
                     break;
-                case 9:
+                case 9 /* EN */:
                     c = MathFloat.isnan(s[i]);
                     break;
-                case 10:
+                case 10 /* EI */:
                     c = MathFloat.isinf(s[i]);
                     break;
-                case 11:
+                case 11 /* ES */:
                     c = MathFloat.isnanorinf(s[i]);
-                    break;
-                case 12:
+                    break; // Tekken Dark Resurrection
+                case 12 /* NZ */:
                     c = s[i] != 0;
                     break;
-                case 13:
+                case 13 /* NN */:
                     c = !MathFloat.isnan(s[i]);
                     break;
-                case 14:
+                case 14 /* NI */:
                     c = !MathFloat.isinf(s[i]);
                     break;
-                case 15:
+                case 15 /* NS */:
                     c = !(MathFloat.isnanorinf(s[i]));
-                    break;
+                    break; // How about t[i] ?    
             }
             var c_i = (c ? 1 : 0);
             cc |= (c_i << i);
@@ -6208,7 +10191,7 @@ var CpuState = (function () {
             and_val &= c_i;
             affected_bits |= 1 << i;
         }
-        this.vfprc[3] = (this.vfprc[3] & ~affected_bits) | ((cc | (or_val << 4) | (and_val << 5)) & affected_bits);
+        this.vfprc[3 /* CC */] = (this.vfprc[3 /* CC */] & ~affected_bits) | ((cc | (or_val << 4) | (and_val << 5)) & affected_bits);
         this.eatPrefixes();
     };
     CpuState.prototype.preserveRegisters = function (callback) {
@@ -6277,8 +10260,10 @@ var CpuState = (function () {
     CpuState.prototype.getRA = function () { return this.gpr[31]; };
     CpuState.prototype.setRA = function (value) { this.gpr[31] = value; };
     CpuState.prototype.callstackPush = function (PC) {
+        //this.callstack.push(PC);
     };
     CpuState.prototype.callstackPop = function () {
+        //this.callstack.pop();
     };
     CpuState.prototype.printCallstack = function (symbolLookup) {
         if (symbolLookup === void 0) { symbolLookup = null; }
@@ -6352,21 +10337,27 @@ var CpuState = (function () {
             this.fcr31_cc = fc_unordererd;
         }
         else {
+            //bool cc = false;
+            //if (fc_equal) cc = cc || (s == t);
+            //if (fc_less) cc = cc || (s < t);
+            //return cc;
             var equal = (fc_equal) && (s == t);
             var less = (fc_less) && (s < t);
             this.fcr31_cc = (less || equal);
         }
     };
     CpuState.prototype._cvt_w_s_impl = function (FS) {
+        //Console.WriteLine("_cvt_w_s_impl: {0}", CpuThreadState.FPR[FS]);
         switch (this.fcr31_rm) {
-            case 0: return MathFloat.rint(FS);
-            case 1: return MathFloat.cast(FS);
-            case 2: return MathFloat.ceil(FS);
-            case 3: return MathFloat.floor(FS);
+            case 0: return MathFloat.rint(FS); // rint: round nearest
+            case 1: return MathFloat.cast(FS); // round to zero
+            case 2: return MathFloat.ceil(FS); // round up (ceil)
+            case 3: return MathFloat.floor(FS); // round down (floor)
         }
         throw ("RM has an invalid value!!");
     };
     CpuState.prototype.cache = function (rs, type, offset) {
+        //if (DebugOnce('state.cache', 100)) console.warn(sprintf('cache opcode! %08X+%d, type: %d', rs, offset, type));
     };
     CpuState.prototype.syscall = function (id) {
         this.syscallManager.call(this, id);
@@ -6377,14 +10368,14 @@ var CpuState = (function () {
     CpuState.prototype.slt = function (a, b) { return ((a | 0) < (b | 0)) ? 1 : 0; };
     CpuState.prototype.sltu = function (a, b) { return ((a >>> 0) < (b >>> 0)) ? 1 : 0; };
     CpuState.prototype.div = function (rs, rt) {
-        rs |= 0;
-        rt |= 0;
+        rs |= 0; // signed
+        rt |= 0; // signed
         this.LO = (rs / rt) | 0;
         this.HI = (rs % rt) | 0;
     };
     CpuState.prototype.divu = function (rs, rt) {
-        rs >>>= 0;
-        rt >>>= 0;
+        rs >>>= 0; // unsigned
+        rt >>>= 0; // unsigned
         this.LO = (rs / rt) | 0;
         this.HI = (rs % rt) | 0;
     };
@@ -6431,6 +10422,8 @@ var CpuState = (function () {
     };
     CpuState.prototype.executeAtPC = function () {
         this.startThreadStep();
+        //var expectedRA = this.RA;
+        //while (this.PC != this.RA) {
         while (true) {
             if (this.PC == 0x1234)
                 break;
@@ -6451,42 +10444,66 @@ var CpuState = (function () {
         throwEndCycles();
     };
     CpuState.prototype.startThreadStep = function () {
+        //this.time = performance.now();
         this.cycles = 0;
         this.cycles2 = 0;
         this.syscallCount = 0;
         this.lastSyscallCalled = '';
     };
     CpuState.prototype.checkCycles = function (cycles) {
+        /*
+        this.cycles += cycles;
+        if (this.cycles >= 1000000) {
+            console.info('syscallCount:', this.syscallCount);
+            console.info('last syscall called:', this.lastSyscallCalled);
+            this.startThreadStep();
+            debugger;
+            //if (!this.insideInterrupt) throwEndCycles();
+        }
+        */
     };
     CpuState.prototype.checkCyclesSyscall = function (id) {
+        /*
+        this.syscallCount++;
+        this.lastSyscallCalled = this.syscallManager.getName(id);
+        this.cycles2 += 1;
+        */
+        /*
+        if (this.cycles2 >= 1000) {
+            this.cycles2 = 0;
+            if (!this.insideInterrupt) throwEndCycles();
+        }
+        */
     };
-    CpuState.lastId = 0;
-    CpuState._mult_temp = [0, 0];
     return CpuState;
-})();
+}());
+CpuState.lastId = 0;
+CpuState._mult_temp = [0, 0];
 exports.CpuState = CpuState;
 var ast = new _ast.MipsAstBuilder();
 var PspInstructionStm = (function (_super) {
     __extends(PspInstructionStm, _super);
     function PspInstructionStm(di, code) {
-        _super.call(this);
-        this.di = di;
-        this.code = code;
-        this.PC = di.PC;
+        var _this = _super.call(this) || this;
+        _this.di = di;
+        _this.code = code;
+        _this.PC = di.PC;
+        return _this;
     }
     PspInstructionStm.prototype.toJs = function () {
         return this.code.toJs() + " /* " + this.di.type.name + " */";
+        //return "/*" + addressToHex(this.PC) + "*/ /* " + StringUtils.padLeft(this.di.type.name, ' ', 6) + " */  " + this.code.toJs();
     };
     PspInstructionStm.prototype.optimize = function () { return new PspInstructionStm(this.di, this.code.optimize()); };
     return PspInstructionStm;
-})(_ast.ANodeStm);
+}(_ast.ANodeStm));
 var CpuFunctionWithArgs = (function () {
     function CpuFunctionWithArgs(func, args) {
         this.func = func;
         this.args = args;
     }
     return CpuFunctionWithArgs;
-})();
+}());
 var InvalidatableCpuFunction = (function () {
     function InvalidatableCpuFunction(PC, generator) {
         this.PC = PC;
@@ -6501,7 +10518,7 @@ var InvalidatableCpuFunction = (function () {
         this.func.func(state);
     };
     return InvalidatableCpuFunction;
-})();
+}());
 exports.InvalidatableCpuFunction = InvalidatableCpuFunction;
 var InstructionCache = (function () {
     function InstructionCache(memory, syscallManager) {
@@ -6532,9 +10549,13 @@ var InstructionCache = (function () {
     };
     InstructionCache.prototype.create = function (address, level) {
         this.examinedAddress[address] = true;
+        // @TODO: check if we have a function in this range already range already!
         var info = this.functionGenerator.getFunctionInfo(address, level);
+        //var func = this.functions[info.min];
         var func = this.functions[info.start];
         if (func === undefined) {
+            //console.log(`Creating function ${addressToHex(address)}`);
+            //this.functions[info.min] = func = this.functionGenerator.getFunction(info);
             this.functions[info.start] = null;
             this.functions[info.start] = func = this.functionGenerator.getFunction(info, level);
             if (DEBUG_FUNCGEN) {
@@ -6556,7 +10577,7 @@ var InstructionCache = (function () {
         return this.cache[address];
     };
     return InstructionCache;
-})();
+}());
 exports.InstructionCache = InstructionCache;
 var FunctionGeneratorResult = (function () {
     function FunctionGeneratorResult(func, code, info, fargs) {
@@ -6566,21 +10587,25 @@ var FunctionGeneratorResult = (function () {
         this.fargs = fargs;
     }
     return FunctionGeneratorResult;
-})();
+}());
 var FunctionCode = (function () {
     function FunctionCode(code, args) {
         this.code = code;
         this.args = args;
     }
     return FunctionCode;
-})();
+}());
 var FunctionGenerator = (function () {
+    //enableJumpBranch = false;
+    //supportsTailCallOptimization = true;
+    //supportsTailCallOptimization = false;
     function FunctionGenerator(memory, syscallManager, instructionCache) {
         this.memory = memory;
         this.syscallManager = syscallManager;
         this.instructionCache = instructionCache;
         this.instructions = _instructions.Instructions.instance;
         this.instructionAst = new _codegen.InstructionAst();
+        //private instructionGenerartorsByName = <StringDictionary<Function>>{ };
         this.instructionUsageCount = {};
         this.enableJumpBranch = true;
     }
@@ -6619,6 +10644,7 @@ var FunctionGenerator = (function () {
         var start = performance.now();
         var code = this.getFunctionCode(info, level);
         try {
+            //var func = <ICpuFunction>(new Function('state', 'args', '"use strict";' + code.code));
             var startHex = addressToHex(info.start);
             var func = (new Function('args', "return function func_" + startHex + "(state) { \"use strict\"; " + code.code + " }")(code.args));
             var result = new FunctionGeneratorResult(func, code, info, new CpuFunctionWithArgs(func, code.args));
@@ -6636,7 +10662,7 @@ var FunctionGenerator = (function () {
         }
     };
     FunctionGenerator.prototype.getFunctionInfo = function (address, level) {
-        if (address == 268435455)
+        if (address == 268435455 /* EXIT_THREAD */)
             return { start: address, min: address, max: address + 4, labels: {} };
         if (address == 0x00000000)
             throw (new Error("Trying to execute 0x00000000"));
@@ -6656,17 +10682,20 @@ var FunctionGenerator = (function () {
             var di = this.decodeInstruction(PC);
             var type = di.type;
             info.min = Math.min(info.min, PC);
-            info.max = Math.max(info.max, PC + 4);
+            info.max = Math.max(info.max, PC + 4); // delayed branch
+            //printf("PC: %08X: %s", PC, di.type.name);
             if (++exploredCount >= MAX_EXPLORE)
                 throw new Error("Function too big " + exploredCount);
             var exploreNext = true;
             var exploreTarget = type.isBranch && !type.isRegister;
+            //if (this.enableJumpBranch && type.isFixedAddressJump && !explored[di.targetAddress]) exploreTarget = true;
             if (type.isBreak)
                 exploreNext = false;
             if (type.isJumpNoLink)
                 exploreNext = false;
             if (di.isUnconditional)
                 exploreNext = false;
+            // It is a local jump, a long loop for example
             if (exploreTarget) {
                 if (di.targetAddress >= info.min - 8) {
                     info.labels[di.targetAddress] = true;
@@ -6695,12 +10724,24 @@ var FunctionGenerator = (function () {
     };
     FunctionGenerator.prototype.getFunctionCode = function (info, level) {
         var args = {};
-        if (info.start == 268435455)
+        if (info.start == 268435455 /* EXIT_THREAD */)
             return new FunctionCode("state.thread.stop('CpuSpecialAddresses.EXIT_THREAD'); throw new Error('CpuBreakException');", args);
         var func = ast.func(info.start, ast.raw_stm('var label = 0, BRANCHPC = 0, BRANCHFLAG = false, expectedRA = 0, memory = state.memory, gpr = state.gpr, gpr_f = state.gpr_f;'), ast.raw_stm('state.jumpCall = null; return;'), []);
         var labels = {};
         for (var labelPC in info.labels)
             labels[labelPC] = ast.label(labelPC);
+        /*
+        if (info.start == 0x08806280) {
+            func.add(ast.raw(`console.log('**************************************************************************');`));
+            func.add(ast.raw(`console.log('**************************************************************************');`));
+            func.add(ast.raw(`console.log('**************************************************************************');`));
+            func.add(ast.raw(`console.log('**************************************************************************');`));
+            func.add(ast.raw(`console.log('**************************************************************************');`));
+            func.add(ast.raw(`console.log(args.code);`));
+        }
+        */
+        //func.add(ast.raw(sprintf(`console.log('MIN:%08X, PC:%08X');`, info.min, info.start)));
+        //func.add(ast.djump(ast.raw(`${info.start}`)));
         if (info.min != info.start) {
             func.add(ast.sjump(ast.raw('true'), info.start));
         }
@@ -6712,14 +10753,16 @@ var FunctionGenerator = (function () {
         }
         var cycles = 0;
         function createCycles(PC) {
-            return ast.raw("state.PC = " + addressToHex(PC) + "; state.checkCycles(" + cycles + ");");
+            var out = ast.raw("state.PC = " + addressToHex(PC) + "; state.checkCycles(" + cycles + ");");
             cycles = 0;
+            return out;
         }
         for (var PC = info.min; PC <= info.max; PC += 4) {
             var di = this.decodeInstruction(PC);
             var type = di.type;
             var ins = this.generatePspInstruction(di);
             var delayedSlotInstruction;
+            // @TODO: we should check the cycles per instruction			
             cycles++;
             if (labels[PC])
                 func.add(labels[PC]);
@@ -6739,6 +10782,19 @@ var FunctionGenerator = (function () {
                 var targetAddressHex = addressToHex(targetAddress);
                 var nextAddressHex = addressToHex(nextAddress);
                 if (type.name == 'jal' || type.name == 'j') {
+                    /*
+                    var syscallId = this.detectSyscallCall(targetAddress);
+                    if (type.name == 'jal' && syscallId >= 0) {
+                        //var cachefuncName = `syscall_${syscallId}`;
+                        //args[cachefuncName] = this.instructionCache.getFunction(targetAddress);
+                        //func.add(ast.raw(`debugger;`));
+                        func.add(delayedCode);
+                        func.add(ast.raw(`state.RA = state.PC = ${nextAddressHex};`));
+                        args['syscallContext'] = this.syscallManager.context;
+                        args[`syscall_${syscallId}`] = this.syscallManager.getNativeFunction(syscallId);
+                        func.add(ast.raw(`args.syscall_${syscallId}.call(args.syscallContext, state);`));
+                    } else
+                    */
                     {
                         var cachefuncName = "cache_" + addressToHex(targetAddress);
                         args[cachefuncName] = this.instructionCache.getFunction(targetAddress, level + 1);
@@ -6779,6 +10835,8 @@ var FunctionGenerator = (function () {
                 }
                 else if (type.isJumpNoLink) {
                     func.add(createCycles(PC));
+                    //func.add(createCycles(PC));
+                    //func.add(ast.raw('state.jumpCall = state.getFunction(state.PC = BRANCHPC);'));
                     if (type.name == 'jr') {
                         func.add(delayedCode);
                         func.add(ast.raw("state.PC = state.gpr[" + di.instruction.rs + "];"));
@@ -6799,6 +10857,8 @@ var FunctionGenerator = (function () {
                 else {
                     if (type.isFixedAddressJump && labels[targetAddress]) {
                         var bf = (ins.code);
+                        //console.log(ins);
+                        //console.log(bf.cond);
                         if (isLikely) {
                             func.add(ast.sjump(bf.cond, targetAddress, delayedSlotInstruction));
                         }
@@ -6828,19 +10888,23 @@ var FunctionGenerator = (function () {
         return new FunctionCode(code, args);
     };
     return FunctionGenerator;
-})();
+}());
 exports.FunctionGenerator = FunctionGenerator;
 function createNativeFunction(exportId, firmwareVersion, retval, argTypesString, that, internalFunc, options, classname, name) {
     options = options || {};
+    //var console = logger.named('createNativeFunction');
     var code = '';
+    //var code = 'debugger;';
     var V0 = "state.gpr[2]";
     var V1 = "state.gpr[3]";
     var args = [];
     var maxGprIndex = 12;
     var gprindex = 4;
     var fprindex = 0;
+    //var fprindex = 2;
     function _readGpr32() {
         if (gprindex >= maxGprIndex) {
+            //return ast.MemoryGetValue(Type, PspMemory, ast.GPR_u(29) + ((MaxGprIndex - Index) * 4));
             return 'memory.lw(state.gpr[29] + ' + ((maxGprIndex - gprindex++) * 4) + ')';
         }
         else {
@@ -6909,6 +10973,7 @@ function createNativeFunction(exportId, firmwareVersion, retval, argTypesString,
         }
     });
     if (options.disableInsideInterrupt) {
+        // ERROR_KERNEL_CANNOT_BE_CALLED_FROM_INTERRUPT
         code += "if (state.insideInterrupt) return 0x80020064; \n";
     }
     code += 'var error = false;\n';
@@ -6916,6 +10981,18 @@ function createNativeFunction(exportId, firmwareVersion, retval, argTypesString,
         code += "console.info(state.thread.name, nativeFunction.name);";
     }
     code += 'var result = internalFunc(' + args.join(', ') + ');\n';
+    /*
+    var debugSyscalls = false;
+    //var debugSyscalls = true;
+
+    if (debugSyscalls) {
+        code += "var info = 'calling:' + state.thread.name + ':RA=' + state.RA.toString(16) + ':' + nativeFunction.name;\n";
+        code += "if (DebugOnce(info, 10)) {\n";
+        code += "logger.warn('#######', info, 'args=', args, 'result=', " + ((retval == 'uint') ? "sprintf('0x%08X', result) " : "result") + ");\n";
+        code += "if (result instanceof Promise2) { result.then(function(value) { logger.warn('------> PROMISE: ',info,'args=', args, 'result-->', " + ((retval == 'uint') ? "sprintf('0x%08X', value) " : "value") + "); }); }\n";
+        code += "}\n";
+    }
+    */
     code += "\n\t\tif (result instanceof Promise2) {\n\t\t\t" + (DEBUG_NATIVEFUNC ? 'console.log("returned promise!");' : '') + "\n\t\t\tstate.thread.suspendUntilPromiseDone(result, nativeFunction);\n\t\t\tthrowEndCycles();\n\t\t\t//return state.thread.suspendUntilPromiseDone(result, nativeFunction);\n\t\t}\n\n\t";
     code += "\n\t\tif (result instanceof WaitingThreadInfo) {\n\t\t\t" + (DEBUG_NATIVEFUNC ? 'console.log("returned WaitingThreadInfo!");' : '') + "\n\t\t\tif (result.promise instanceof Promise2) {\n\t\t\t\tstate.thread.suspendUntilDone(result);\n\t\t\t\tthrowEndCycles();\n\t\t\t} else {\n\t\t\t\tresult = result.promise;\n\t\t\t}\n\t\t}\n\n\t";
     switch (retval) {
@@ -6956,7 +11033,8 @@ exports.createNativeFunction = createNativeFunction;
 },
 "src/core/cpu/cpu_instructions": function(module, exports, require) {
 ///<reference path="../../global.d.ts" />
-var IndentStringGenerator = require('../../util/IndentStringGenerator');
+"use strict";
+var IndentStringGenerator = require("../../util/IndentStringGenerator");
 var ADDR_TYPE_NONE = 0;
 var ADDR_TYPE_REG = 1;
 var ADDR_TYPE_16 = 2;
@@ -6993,6 +11071,7 @@ function VM(format) {
     var value = 0;
     var mask = 0;
     format.split(':').forEach(function (item) {
+        // normal chunk
         if (/^[01\-]+$/.test(item)) {
             for (var n = 0; n < item.length; n++) {
                 value <<= 1;
@@ -7093,7 +11172,7 @@ var InstructionType = (function () {
     });
     InstructionType.prototype.toString = function () { return "InstructionType('" + this.name + "', " + addressToHex(this.vm.value) + ", " + addressToHex(this.vm.mask) + ")"; };
     return InstructionType;
-})();
+}());
 exports.InstructionType = InstructionType;
 var Instructions = (function () {
     function Instructions() {
@@ -7101,12 +11180,14 @@ var Instructions = (function () {
         this.instructionTypeListByName = {};
         this.instructionTypeList = [];
         var ID = function (name, vm, format, addressType, instructionType) { _this.add(name, vm, format, addressType, instructionType); };
+        // Arithmetic operations.
         ID("add", VM("000000:rs:rt:rd:00000:100000"), "%d, %s, %t", ADDR_TYPE_NONE, 0);
         ID("addu", VM("000000:rs:rt:rd:00000:100001"), "%d, %s, %t", ADDR_TYPE_NONE, 0);
         ID("addi", VM("001000:rs:rt:imm16"), "%t, %s, %i", ADDR_TYPE_NONE, 0);
         ID("addiu", VM("001001:rs:rt:imm16"), "%t, %s, %i", ADDR_TYPE_NONE, 0);
         ID("sub", VM("000000:rs:rt:rd:00000:100010"), "%d, %s, %t", ADDR_TYPE_NONE, 0);
         ID("subu", VM("000000:rs:rt:rd:00000:100011"), "%d, %s, %t", ADDR_TYPE_NONE, 0);
+        // Logical Operations.
         ID("and", VM("000000:rs:rt:rd:00000:100100"), "%d, %s, %t", ADDR_TYPE_NONE, 0);
         ID("andi", VM("001100:rs:rt:imm16"), "%t, %s, %I", ADDR_TYPE_NONE, 0);
         ID("nor", VM("000000:rs:rt:rd:00000:100111"), "%d, %s, %t", ADDR_TYPE_NONE, 0);
@@ -7114,6 +11195,7 @@ var Instructions = (function () {
         ID("ori", VM("001101:rs:rt:imm16"), "%t, %s, %I", ADDR_TYPE_NONE, 0);
         ID("xor", VM("000000:rs:rt:rd:00000:100110"), "%d, %s, %t", ADDR_TYPE_NONE, 0);
         ID("xori", VM("001110:rs:rt:imm16"), "%t, %s, %I", ADDR_TYPE_NONE, 0);
+        // Shift Left/Right Logical/Arithmethic (Variable).
         ID("sll", VM("000000:00000:rt:rd:sa:000000"), "%d, %t, %a", ADDR_TYPE_NONE, 0);
         ID("sllv", VM("000000:rs:rt:rd:00000:000100"), "%d, %t, %s", ADDR_TYPE_NONE, 0);
         ID("sra", VM("000000:00000:rt:rd:sa:000011"), "%d, %t, %a", ADDR_TYPE_NONE, 0);
@@ -7122,56 +11204,77 @@ var Instructions = (function () {
         ID("srlv", VM("000000:rs:rt:rd:00000:000110"), "%d, %t, %s", ADDR_TYPE_NONE, 0);
         ID("rotr", VM("000000:00001:rt:rd:sa:000010"), "%d, %t, %a", ADDR_TYPE_NONE, 0);
         ID("rotrv", VM("000000:rs:rt:rd:00001:000110"), "%d, %t, %s", ADDR_TYPE_NONE, 0);
+        // Set Less Than (Immediate) (Unsigned).
         ID("slt", VM("000000:rs:rt:rd:00000:101010"), "%d, %s, %t", ADDR_TYPE_NONE, 0);
         ID("slti", VM("001010:rs:rt:imm16"), "%t, %s, %i", ADDR_TYPE_NONE, 0);
         ID("sltu", VM("000000:rs:rt:rd:00000:101011"), "%d, %s, %t", ADDR_TYPE_NONE, 0);
         ID("sltiu", VM("001011:rs:rt:imm16"), "%t, %s, %i", ADDR_TYPE_NONE, 0);
+        // Load Upper Immediate.
         ID("lui", VM("001111:00000:rt:imm16"), "%t, %I", ADDR_TYPE_NONE, 0);
+        // Sign Extend Byte/Half word.
         ID("seb", VM("011111:00000:rt:rd:10000:100000"), "%d, %t", ADDR_TYPE_NONE, 0);
         ID("seh", VM("011111:00000:rt:rd:11000:100000"), "%d, %t", ADDR_TYPE_NONE, 0);
+        // BIT REVerse.
         ID("bitrev", VM("011111:00000:rt:rd:10100:100000"), "%d, %t", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+        // MAXimum/MINimum.
         ID("max", VM("000000:rs:rt:rd:00000:101100"), "%d, %s, %t", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
         ID("min", VM("000000:rs:rt:rd:00000:101101"), "%d, %s, %t", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+        // DIVide (Unsigned).
         ID("div", VM("000000:rs:rt:00000:00000:011010"), "%s, %t", ADDR_TYPE_NONE, 0);
         ID("divu", VM("000000:rs:rt:00000:00000:011011"), "%s, %t", ADDR_TYPE_NONE, 0);
+        // MULTiply (Unsigned).
         ID("mult", VM("000000:rs:rt:00000:00000:011000"), "%s, %t", ADDR_TYPE_NONE, 0);
         ID("multu", VM("000000:rs:rt:00000:00000:011001"), "%s, %t", ADDR_TYPE_NONE, 0);
+        // Multiply ADD/SUBstract (Unsigned).
         ID("madd", VM("000000:rs:rt:00000:00000:011100"), "%s, %t", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
         ID("maddu", VM("000000:rs:rt:00000:00000:011101"), "%s, %t", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
         ID("msub", VM("000000:rs:rt:00000:00000:101110"), "%s, %t", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
         ID("msubu", VM("000000:rs:rt:00000:00000:101111"), "%s, %t", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+        // Move To/From HI/LO.
         ID("mfhi", VM("000000:00000:00000:rd:00000:010000"), "%d", ADDR_TYPE_NONE, 0);
         ID("mflo", VM("000000:00000:00000:rd:00000:010010"), "%d", ADDR_TYPE_NONE, 0);
         ID("mthi", VM("000000:rs:00000:00000:00000:010001"), "%s", ADDR_TYPE_NONE, 0);
         ID("mtlo", VM("000000:rs:00000:00000:00000:010011"), "%s", ADDR_TYPE_NONE, 0);
+        // Move if Zero/Non zero.
         ID("movz", VM("000000:rs:rt:rd:00000:001010"), "%d, %s, %t", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
         ID("movn", VM("000000:rs:rt:rd:00000:001011"), "%d, %s, %t", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+        // EXTract/INSert.
         ID("ext", VM("011111:rs:rt:msb:lsb:000000"), "%t, %s, %a, %ne", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
         ID("ins", VM("011111:rs:rt:msb:lsb:000100"), "%t, %s, %a, %ni", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+        // Count Leading Ones/Zeros in word.
         ID("clz", VM("000000:rs:00000:rd:00000:010110"), "%d, %s", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
         ID("clo", VM("000000:rs:00000:rd:00000:010111"), "%d, %s", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+        // Word Swap Bytes Within Halfwords/Words.
         ID("wsbh", VM("011111:00000:rt:rd:00010:100000"), "%d, %t", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
         ID("wsbw", VM("011111:00000:rt:rd:00011:100000"), "%d, %t", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+        // Branch Equal (Likely).
         ID("beq", VM("000100:rs:rt:imm16"), "%s, %t, %O", ADDR_TYPE_16, INSTR_TYPE_B);
         ID("beql", VM("010100:rs:rt:imm16"), "%s, %t, %O", ADDR_TYPE_16, INSTR_TYPE_B | INSTR_TYPE_LIKELY);
+        // Branch on Greater Equal Zero (And Link) (Likely).
         ID("bgez", VM("000001:rs:00001:imm16"), "%s, %O", ADDR_TYPE_16, INSTR_TYPE_B);
         ID("bgezl", VM("000001:rs:00011:imm16"), "%s, %O", ADDR_TYPE_16, INSTR_TYPE_B | INSTR_TYPE_LIKELY);
         ID("bgezal", VM("000001:rs:10001:imm16"), "%s, %O", ADDR_TYPE_16, INSTR_TYPE_JAL);
         ID("bgezall", VM("000001:rs:10011:imm16"), "%s, %O", ADDR_TYPE_16, INSTR_TYPE_JAL | INSTR_TYPE_LIKELY);
+        // Branch on Less Than Zero (And Link) (Likely).
         ID("bltz", VM("000001:rs:00000:imm16"), "%s, %O", ADDR_TYPE_16, INSTR_TYPE_B);
         ID("bltzl", VM("000001:rs:00010:imm16"), "%s, %O", ADDR_TYPE_16, INSTR_TYPE_B | INSTR_TYPE_LIKELY);
         ID("bltzal", VM("000001:rs:10000:imm16"), "%s, %O", ADDR_TYPE_16, INSTR_TYPE_JAL);
         ID("bltzall", VM("000001:rs:10010:imm16"), "%s, %O", ADDR_TYPE_16, INSTR_TYPE_JAL | INSTR_TYPE_LIKELY);
+        // Branch on Less Or Equals than Zero (Likely).
         ID("blez", VM("000110:rs:00000:imm16"), "%s, %O", ADDR_TYPE_16, INSTR_TYPE_B);
         ID("blezl", VM("010110:rs:00000:imm16"), "%s, %O", ADDR_TYPE_16, INSTR_TYPE_B | INSTR_TYPE_LIKELY);
+        // Branch on Great Than Zero (Likely).
         ID("bgtz", VM("000111:rs:00000:imm16"), "%s, %O", ADDR_TYPE_16, INSTR_TYPE_B);
         ID("bgtzl", VM("010111:rs:00000:imm16"), "%s, %O", ADDR_TYPE_16, INSTR_TYPE_B | INSTR_TYPE_LIKELY);
+        // Branch on Not Equals (Likely).
         ID("bne", VM("000101:rs:rt:imm16"), "%s, %t, %O", ADDR_TYPE_16, INSTR_TYPE_B);
         ID("bnel", VM("010101:rs:rt:imm16"), "%s, %t, %O", ADDR_TYPE_16, INSTR_TYPE_B | INSTR_TYPE_LIKELY);
+        // Jump (And Link) (Register).
         ID("j", VM("000010:imm26"), "%j", ADDR_TYPE_26, INSTR_TYPE_JUMP);
         ID("jr", VM("000000:rs:00000:00000:00000:001000"), "%J", ADDR_TYPE_REG, INSTR_TYPE_JUMP);
         ID("jalr", VM("000000:rs:00000:rd:00000:001001"), "%J, %d", ADDR_TYPE_REG, INSTR_TYPE_JAL);
         ID("jal", VM("000011:imm26"), "%j", ADDR_TYPE_26, INSTR_TYPE_JAL);
+        // Branch on C1 False/True (Likely).
         ID("bc1f", VM("010001:01000:00000:imm16"), "%O", ADDR_TYPE_16, INSTR_TYPE_B);
         ID("bc1t", VM("010001:01000:00001:imm16"), "%O", ADDR_TYPE_16, INSTR_TYPE_B);
         ID("bc1fl", VM("010001:01000:00010:imm16"), "%O", ADDR_TYPE_16, INSTR_TYPE_B | INSTR_TYPE_LIKELY);
@@ -7183,19 +11286,26 @@ var Instructions = (function () {
         ID("lwr", VM("100110:rs:rt:imm16"), "%t, %i(%s)", ADDR_TYPE_NONE, 0);
         ID("lbu", VM("100100:rs:rt:imm16"), "%t, %i(%s)", ADDR_TYPE_NONE, 0);
         ID("lhu", VM("100101:rs:rt:imm16"), "%t, %i(%s)", ADDR_TYPE_NONE, 0);
+        // Store Byte/Half word/Word (Left/Right).
         ID("sb", VM("101000:rs:rt:imm16"), "%t, %i(%s)", ADDR_TYPE_NONE, 0);
         ID("sh", VM("101001:rs:rt:imm16"), "%t, %i(%s)", ADDR_TYPE_NONE, 0);
         ID("sw", VM("101011:rs:rt:imm16"), "%t, %i(%s)", ADDR_TYPE_NONE, 0);
         ID("swl", VM("101010:rs:rt:imm16"), "%t, %i(%s)", ADDR_TYPE_NONE, 0);
         ID("swr", VM("101110:rs:rt:imm16"), "%t, %i(%s)", ADDR_TYPE_NONE, 0);
+        // Load Linked word.
+        // Store Conditional word.
         ID("ll", VM("110000:rs:rt:imm16"), "%t, %O", ADDR_TYPE_NONE, 0);
         ID("sc", VM("111000:rs:rt:imm16"), "%t, %O", ADDR_TYPE_NONE, 0);
+        // Load Word to Cop1 floating point.
+        // Store Word from Cop1 floating point.
         ID("lwc1", VM("110001:rs:ft:imm16"), "%T, %i(%s)", ADDR_TYPE_NONE, 0);
         ID("swc1", VM("111001:rs:ft:imm16"), "%T, %i(%s)", ADDR_TYPE_NONE, 0);
+        // Binary Floating Point Unit Operations
         ID("add.s", VM("010001:10000:ft:fs:fd:000000"), "%D, %S, %T", ADDR_TYPE_NONE, 0);
         ID("sub.s", VM("010001:10000:ft:fs:fd:000001"), "%D, %S, %T", ADDR_TYPE_NONE, 0);
         ID("mul.s", VM("010001:10000:ft:fs:fd:000010"), "%D, %S, %T", ADDR_TYPE_NONE, 0);
         ID("div.s", VM("010001:10000:ft:fs:fd:000011"), "%D, %S, %T", ADDR_TYPE_NONE, 0);
+        // Unary Floating Point Unit Operations
         ID("sqrt.s", VM("010001:10000:00000:fs:fd:000100"), "%D, %S", ADDR_TYPE_NONE, 0);
         ID("abs.s", VM("010001:10000:00000:fs:fd:000101"), "%D, %S", ADDR_TYPE_NONE, 0);
         ID("mov.s", VM("010001:10000:00000:fs:fd:000110"), "%D, %S", ADDR_TYPE_NONE, 0);
@@ -7204,12 +11314,16 @@ var Instructions = (function () {
         ID("trunc.w.s", VM("010001:10000:00000:fs:fd:001101"), "%D, %S", ADDR_TYPE_NONE, 0);
         ID("ceil.w.s", VM("010001:10000:00000:fs:fd:001110"), "%D, %S", ADDR_TYPE_NONE, 0);
         ID("floor.w.s", VM("010001:10000:00000:fs:fd:001111"), "%D, %S", ADDR_TYPE_NONE, 0);
+        // Convert
         ID("cvt.s.w", VM("010001:10100:00000:fs:fd:100000"), "%D, %S", ADDR_TYPE_NONE, 0);
         ID("cvt.w.s", VM("010001:10000:00000:fs:fd:100100"), "%D, %S", ADDR_TYPE_NONE, 0);
+        // Move float point registers
         ID("mfc1", VM("010001:00000:rt:c1dr:00000:000000"), "%t, %S", ADDR_TYPE_NONE, 0);
         ID("mtc1", VM("010001:00100:rt:c1dr:00000:000000"), "%t, %S", ADDR_TYPE_NONE, 0);
+        // CFC1 -- move Control word from/to floating point (C1)
         ID("cfc1", VM("010001:00010:rt:c1cr:00000:000000"), "%t, %p", ADDR_TYPE_NONE, 0);
         ID("ctc1", VM("010001:00110:rt:c1cr:00000:000000"), "%t, %p", ADDR_TYPE_NONE, 0);
+        // Compare <condition> Single.
         ID("c.f.s", VM("010001:10000:ft:fs:00000:11:0000"), "%S, %T", ADDR_TYPE_NONE, 0);
         ID("c.un.s", VM("010001:10000:ft:fs:00000:11:0001"), "%S, %T", ADDR_TYPE_NONE, 0);
         ID("c.eq.s", VM("010001:10000:ft:fs:00000:11:0010"), "%S, %T", ADDR_TYPE_NONE, 0);
@@ -7226,38 +11340,67 @@ var Instructions = (function () {
         ID("c.nge.s", VM("010001:10000:ft:fs:00000:11:1101"), "%S, %T", ADDR_TYPE_NONE, 0);
         ID("c.le.s", VM("010001:10000:ft:fs:00000:11:1110"), "%S, %T", ADDR_TYPE_NONE, 0);
         ID("c.ngt.s", VM("010001:10000:ft:fs:00000:11:1111"), "%S, %T", ADDR_TYPE_NONE, 0);
+        // Syscall
         ID("syscall", VM("000000:imm20:001100"), "%C", ADDR_TYPE_NONE, INSTR_TYPE_SYSCALL);
         ID("cache", VM("101111:rs:-----:imm16"), "%k, %o", ADDR_TYPE_NONE, 0);
+        //ID("icache_index_invalidate", VM("101111:rs:00100:imm16"), "%k, %o", ADDR_TYPE_NONE, 0);
+        //ID("icache_index_unlock", VM("101111:rs:00110:imm16"), "%k, %o", ADDR_TYPE_NONE, 0);
+        //ID("icache_hit_invalidate", VM("101111:rs:01000:imm16"), "%k, %o", ADDR_TYPE_NONE, 0);
+        //ID("icache_fill", VM("101111:rs:01010:imm16"), "%k, %o", ADDR_TYPE_NONE, 0);
+        //ID("icache_fill_with_lock", VM("101111:rs:01011:imm16"), "%k, %o", ADDR_TYPE_NONE, 0);
+        //
+        //ID("dcache_index_writeback_invalidate", VM("101111:rs:10100:imm16"), "%k, %o", ADDR_TYPE_NONE, 0);
+        //ID("dcache_index_unlock", VM("101111:rs:10110:imm16"), "%k, %o", ADDR_TYPE_NONE, 0);
+        //ID("dcache_create_dirty_exclusive", VM("101111:rs:11000:imm16"), "%k, %o", ADDR_TYPE_NONE, 0);
+        //ID("dcache_hit_invalidate", VM("101111:rs:11001:imm16"), "%k, %o", ADDR_TYPE_NONE, 0);
+        //ID("dcache_hit_writeback", VM("101111:rs:11010:imm16"), "%k, %o", ADDR_TYPE_NONE, 0);
+        //ID("dcache_hit_writeback_invalidate", VM("101111:rs:11011:imm16"), "%k, %o", ADDR_TYPE_NONE, 0);
+        //ID("dcache_create_dirty_exclusive_with_lock", VM("101111:rs:11100:imm16"), "%k, %o", ADDR_TYPE_NONE, 0);
+        //ID("dcache_fill", VM("101111:rs:11110:imm16"), "%k, %o", ADDR_TYPE_NONE, 0);
+        //ID("dcache_fill_with_lock", VM("101111:rs:11111:imm16"), "%k, %o", ADDR_TYPE_NONE, 0);
         ID("sync", VM("000000:00000:00000:00000:00000:001111"), "", ADDR_TYPE_NONE, 0);
         ID("break", VM("000000:imm20:001101"), "%c", ADDR_TYPE_NONE, INSTR_TYPE_BREAK);
         ID("dbreak", VM("011100:00000:00000:00000:00000:111111"), "", ADDR_TYPE_NONE, INSTR_TYPE_PSP | INSTR_TYPE_BREAK);
         ID("halt", VM("011100:00000:00000:00000:00000:000000"), "", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+        // (D?/Exception) RETurn
         ID("dret", VM("011100:00000:00000:00000:00000:111110"), "", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
         ID("eret", VM("010000:10000:00000:00000:00000:011000"), "", ADDR_TYPE_NONE, 0);
+        // Move (From/To) IC
         ID("mfic", VM("011100:rt:00000:00000:00000:100100"), "%t, %p", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
         ID("mtic", VM("011100:rt:00000:00000:00000:100110"), "%t, %p", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+        // Move (From/To) DR
         ID("mfdr", VM("011100:00000:----------:00000:111101"), "%t, %r", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
         ID("mtdr", VM("011100:00100:----------:00000:111101"), "%t, %r", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-        ID("cfc0", VM("010000:00010:----------:00000:000000"), "%t, %p", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-        ID("ctc0", VM("010000:00110:----------:00000:000000"), "%t, %p", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-        ID("mfc0", VM("010000:00000:----------:00000:000000"), "%t, %0", ADDR_TYPE_NONE, 0);
-        ID("mtc0", VM("010000:00100:----------:00000:000000"), "%t, %0", ADDR_TYPE_NONE, 0);
+        // C? (From/To) Cop0
+        ID("cfc0", VM("010000:00010:----------:00000:000000"), "%t, %p", ADDR_TYPE_NONE, INSTR_TYPE_PSP); // CFC0(010000:00010:rt:c0cr:00000:000000)
+        ID("ctc0", VM("010000:00110:----------:00000:000000"), "%t, %p", ADDR_TYPE_NONE, INSTR_TYPE_PSP); // CTC0(010000:00110:rt:c0cr:00000:000000)
+        // Move (From/To) Cop0
+        ID("mfc0", VM("010000:00000:----------:00000:000000"), "%t, %0", ADDR_TYPE_NONE, 0); // MFC0(010000:00000:rt:c0dr:00000:000000)
+        ID("mtc0", VM("010000:00100:----------:00000:000000"), "%t, %0", ADDR_TYPE_NONE, 0); // MTC0(010000:00100:rt:c0dr:00000:000000)
+        // Move From/to Vfpu (C?).
         ID("mfv", VM("010010:00:011:rt:0:0000000:0:vd"), "%t, %zs", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
         ID("mfvc", VM("010010:00:011:rt:0:0000000:1:vd"), "%t, %2d", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
         ID("mtv", VM("010010:00:111:rt:0:0000000:0:vd"), "%t, %zs", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
         ID("mtvc", VM("010010:00:111:rt:0:0000000:1:vd"), "%t, %2d", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+        // Load/Store Vfpu (Left/Right).
         ID("lv.s", VM("110010:rs:vt5:imm14:vt2"), "%Xs, %Y", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
         ID("lv.q", VM("110110:rs:vt5:imm14:0:vt1"), "%Xq, %Y", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
         ID("lvl.q", VM("110101:rs:vt5:imm14:0:vt1"), "%Xq, %Y", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
         ID("lvr.q", VM("110101:rs:vt5:imm14:1:vt1"), "%Xq, %Y", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
         ID("sv.q", VM("111110:rs:vt5:imm14:0:vt1"), "%Xq, %Y", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+        // Vfpu DOT product
+        // Vfpu SCaLe/ROTate
         ID("vdot", VM("011001:001:vt:two:vs:one:vd"), "%zs, %yp, %xp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
         ID("vscl", VM("011001:010:vt:two:vs:one:vd"), "%zp, %yp, %xs", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
         ID("vsge", VM("011011:110:vt:two:vs:one:vd"), "%zp, %yp, %xp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
-        ID("vslt", VM("011011:111:vt:two:vs:one:vd"), "%zp, %yp, %xp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+        //ID("vslt",        VM("011011:100:vt:two:vs:one:vd"), "%zp, %yp, %xp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+        ID("vslt", VM("011011:111:vt:two:vs:one:vd"), "%zp, %yp, %xp", ADDR_TYPE_NONE, INSTR_TYPE_PSP); // FIXED 2013-07-14
+        // ROTate
         ID("vrot", VM("111100:111:01:imm5:two:vs:one:vd"), "%zp, %ys, %vr", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+        // Vfpu ZERO/ONE
         ID("vzero", VM("110100:00:000:0:0110:two:0000000:one:vd"), "%zp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
         ID("vone", VM("110100:00:000:0:0111:two:0000000:one:vd"), "%zp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+        // Vfpu MOVe/SiGN/Reverse SQuare root/COSine/Arc SINe/LOG2
         ID("vmov", VM("110100:00:000:0:0000:two:vs:one:vd"), "%zp, %yp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
         ID("vabs", VM("110100:00:000:0:0001:two:vs:one:vd"), "%zp, %yp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
         ID("vneg", VM("110100:00:000:0:0010:two:vs:one:vd"), "%zp, %yp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
@@ -7276,13 +11419,18 @@ var Instructions = (function () {
         ID("vrexp2", VM("110100:00:000:1:1100:two:vs:one:vd"), "%zp, %yp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
         ID("vsat0", VM("110100:00:000:0:0100:two:vs:one:vd"), "%zp, %yp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
         ID("vsat1", VM("110100:00:000:0:0101:two:vs:one:vd"), "%zp, %yp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+        // Vfpu ConSTant
         ID("vcst", VM("110100:00:011:imm5:two:0000000:one:vd"), "%zp, %vk", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+        // Vfpu Matrix MULtiplication
         ID("vmmul", VM("111100:000:vt:two:vs:one:vd"), "%zm, %tym, %xm", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+        // -
         ID("vhdp", VM("011001:100:vt:two:vs:one:vd"), "%zs, %yp, %xp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
         ID("vcrs.t", VM("011001:101:vt:1:vs:0:vd"), "%zt, %yt, %xt", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
         ID("vcrsp.t", VM("111100:101:vt:1:vs:0:vd"), "%zt, %yt, %xt", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+        // Vfpu Integer to(2) Color
         ID("vi2c", VM("110100:00:001:11:101:two:vs:one:vd"), "%zs, %yq", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
         ID("vi2uc", VM("110100:00:001:11:100:two:vs:one:vd"), "%zq, %yq", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+        // -
         ID("vtfm2", VM("111100:001:vt:0:vs:1:vd"), "%zp, %ym, %xp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
         ID("vtfm3", VM("111100:010:vt:1:vs:0:vd"), "%zt, %yn, %xt", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
         ID("vtfm4", VM("111100:011:vt:1:vs:1:vd"), "%zq, %yo, %xq", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
@@ -7291,12 +11439,14 @@ var Instructions = (function () {
         ID("vhtfm4", VM("111100:011:vt:1:vs:0:vd"), "%zq, %yo, %xq", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
         ID("vsrt3", VM("110100:00:010:01000:two:vs:one:vd"), "%zq, %yq", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
         ID("vfad", VM("110100:00:010:00110:two:vs:one:vd"), "%zp, %yp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+        // Vfpu MINimum/MAXium/ADD/SUB/DIV/MUL
         ID("vmin", VM("011011:010:vt:two:vs:one:vd"), "%zp, %yp, %xp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
         ID("vmax", VM("011011:011:vt:two:vs:one:vd"), "%zp, %yp, %xp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
         ID("vadd", VM("011000:000:vt:two:vs:one:vd"), "%zp, %yp, %xp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
         ID("vsub", VM("011000:001:vt:two:vs:one:vd"), "%zp, %yp, %xp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
         ID("vdiv", VM("011000:111:vt:two:vs:one:vd"), "%zp, %yp, %xp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
         ID("vmul", VM("011001:000:vt:two:vs:one:vd"), "%zp, %yp, %xp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+        // Vfpu (Matrix) IDenTity
         ID("vidt", VM("110100:00:000:0:0011:two:0000000:one:vd"), "%zp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
         ID("vmidt", VM("111100:111:00:00011:two:0000000:one:vd"), "%zm", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
         ID("viim", VM("110111:11:0:vd:imm16"), "%xs, %vi", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
@@ -7345,6 +11495,8 @@ var Instructions = (function () {
         ID("vlgb", VM("110100:00:001:10:111:two:vs:one:vd"), "%zs, %ys", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
         ID("vqmul", VM("111100:101:vt:1:vs:1:vd"), "%zq, %yq, %xq", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
         ID("vs2i", VM("110100:00:001:11:011:two:vs:one:vd"), "%zq, %yp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+        // Working on it.
+        //"110100:00:001:11:000:1000000010000001"
         ID("vc2i", VM("110100:00:001:11:001:two:vs:one:vd"), "%zs, %ys, %xs", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
         ID("vuc2i", VM("110100:00:001:11:000:two:vs:one:vd"), "%zq, %yp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
         ID("vsbn", VM("011000:010:vt:two:vs:one:vd"), "%zs, %ys, %xs", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
@@ -7355,6 +11507,8 @@ var Instructions = (function () {
         ID("vsrt4", VM("110100:00:010:01001:two:vs:one:vd"), "%zq, %yq", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
         ID("vus2i", VM("110100:00:001:11010:two:vs:one:vd"), "%zq, %yp", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
         ID("vwbn", VM("110100:11:imm8:two:vs:one:vd"), "%zs, %xs, %I", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+        //ID("vwb.q",       VM("111110------------------------1-"), "%Xq, %Y", ADDR_TYPE_NONE, INSTR_TYPE_PSP);
+        // Branch Vfpu (True/False) (Likely)
         ID("bvf", VM("010010:01:000:imm3:00:imm16"), "%Zc, %O", ADDR_TYPE_16, INSTR_TYPE_PSP | INSTR_TYPE_B);
         ID("bvt", VM("010010:01:000:imm3:01:imm16"), "%Zc, %O", ADDR_TYPE_16, INSTR_TYPE_PSP | INSTR_TYPE_B);
         ID("bvfl", VM("010010:01:000:imm3:10:imm16"), "%Zc, %O", ADDR_TYPE_16, INSTR_TYPE_PSP | INSTR_TYPE_B | INSTR_TYPE_LIKELY);
@@ -7387,6 +11541,7 @@ var Instructions = (function () {
     };
     Instructions.prototype.findByData = function (i32, pc) {
         if (pc === void 0) { pc = 0; }
+        //return this.slowFindByData(i32, pc);
         return this.fastFindByData(i32, pc);
     };
     Instructions.prototype.fastFindByData = function (i32, pc) {
@@ -7396,9 +11551,19 @@ var Instructions = (function () {
             this.decoder = (new Function('instructionsByName', 'value', 'pc', '"use strict";' + switchCode));
         }
         return this.decoder(this.instructionTypeListByName, i32, pc);
+        /*
+        try {
+        } catch (e) {
+            console.log(this.decoder);
+            console.log(this.instructionTypeListByName);
+            console.log(this.instructionTypeList);
+            throw (e);
+        }
+        */
     };
     Instructions.prototype.slowFindByData = function (i32, pc) {
         if (pc === void 0) { pc = 0; }
+        //printf("%08X", i32);
         for (var n = 0; n < this.instructionTypeList.length; n++) {
             var instructionType = this.instructionTypeList[n];
             if (instructionType.match(i32))
@@ -7407,7 +11572,7 @@ var Instructions = (function () {
         throw (sprintf("Cannot find instruction 0x%08X at 0x%08X", i32, pc));
     };
     return Instructions;
-})();
+}());
 exports.Instructions = Instructions;
 var DecodingTable = (function () {
     function DecodingTable() {
@@ -7458,7 +11623,7 @@ var DecodingTable = (function () {
         writer.write('}\n');
     };
     return DecodingTable;
-})();
+}());
 var Instruction = (function () {
     function Instruction(PC, data) {
         this.PC = PC;
@@ -7696,7 +11861,7 @@ var Instruction = (function () {
         configurable: true
     });
     return Instruction;
-})();
+}());
 exports.Instruction = Instruction;
 var DecodedInstruction = (function () {
     function DecodedInstruction(instruction, type) {
@@ -7740,20 +11905,21 @@ var DecodedInstruction = (function () {
         configurable: true
     });
     return DecodedInstruction;
-})();
+}());
 exports.DecodedInstruction = DecodedInstruction;
 
 },
 "src/core/display": function(module, exports, require) {
 ///<reference path="../global.d.ts" />
+"use strict";
 var __extends = (this && this.__extends) || function (d, b) {
     for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
     function __() { this.constructor = d; }
     d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
 };
-var memory = require('./memory');
-var pixelformat = require('./pixelformat');
-var _interrupt = require('./interrupt');
+var memory = require("./memory");
+var pixelformat = require("./pixelformat");
+var _interrupt = require("./interrupt");
 var PspInterrupts = _interrupt.PspInterrupts;
 var Memory = memory.Memory;
 var PixelFormat = pixelformat.PixelFormat;
@@ -7766,17 +11932,18 @@ var BasePspDisplay = (function () {
         this.sync = 1;
     }
     return BasePspDisplay;
-})();
+}());
 exports.BasePspDisplay = BasePspDisplay;
 var DummyPspDisplay = (function (_super) {
     __extends(DummyPspDisplay, _super);
     function DummyPspDisplay() {
-        _super.call(this);
-        this.vblankCount = 0;
-        this.hcountTotal = 0;
-        this.secondsLeftForVblank = 0.1;
-        this.secondsLeftForVblankStart = 0.1;
-        this.vblank = new Signal1();
+        var _this = _super.call(this) || this;
+        _this.vblankCount = 0;
+        _this.hcountTotal = 0;
+        _this.secondsLeftForVblank = 0.1;
+        _this.secondsLeftForVblankStart = 0.1;
+        _this.vblank = new Signal1();
+        return _this;
     }
     DummyPspDisplay.prototype.updateTime = function () {
     };
@@ -7795,39 +11962,42 @@ var DummyPspDisplay = (function (_super) {
         return Promise2.resolve();
     };
     return DummyPspDisplay;
-})(BasePspDisplay);
+}(BasePspDisplay));
 exports.DummyPspDisplay = DummyPspDisplay;
 var PspDisplay = (function (_super) {
     __extends(PspDisplay, _super);
     function PspDisplay(memory, interruptManager, canvas, webglcanvas) {
-        _super.call(this);
-        this.memory = memory;
-        this.interruptManager = interruptManager;
-        this.canvas = canvas;
-        this.webglcanvas = webglcanvas;
-        this.vblank = new Signal1();
-        this.interval = -1;
-        this.enabled = true;
-        this._hcount = 0;
-        this.hcountTotal = 0;
-        this.hcountCurrent = 0;
-        this.vblankCount = 0;
-        this.isInVblank = false;
-        this.rowsLeftForVblank = 0;
-        this.secondsLeftForVblank = 0;
-        this.rowsLeftForVblankStart = 0;
-        this.secondsLeftForVblankStart = 0;
-        this.mustWaitVBlank = true;
-        this.lastTimeVblank = 0;
-        if (this.canvas) {
-            this.context = this.canvas.getContext('2d');
-            this.imageData = this.context.createImageData(512, 272);
-            this.setEnabledDisplay(true);
+        var _this = _super.call(this) || this;
+        _this.memory = memory;
+        _this.interruptManager = interruptManager;
+        _this.canvas = canvas;
+        _this.webglcanvas = webglcanvas;
+        _this.vblank = new Signal1();
+        _this.interval = -1;
+        _this.enabled = true;
+        _this._hcount = 0;
+        _this.hcountTotal = 0;
+        _this.hcountCurrent = 0;
+        _this.vblankCount = 0;
+        _this.isInVblank = false;
+        _this.rowsLeftForVblank = 0;
+        _this.secondsLeftForVblank = 0;
+        _this.rowsLeftForVblankStart = 0;
+        _this.secondsLeftForVblankStart = 0;
+        _this.mustWaitVBlank = true;
+        _this.lastTimeVblank = 0;
+        if (_this.canvas) {
+            console.warn('Canvas');
+            _this.context = _this.canvas.getContext('2d');
+            _this.imageData = _this.context.createImageData(512, 272);
+            _this.setEnabledDisplay(true);
         }
         else {
-            this.context = null;
-            this.setEnabledDisplay(false);
+            console.warn('NO Canvas');
+            _this.context = null;
+            _this.setEnabledDisplay(false);
         }
+        return _this;
     }
     PspDisplay.prototype.getCurrentMs = function () {
         return performance.now();
@@ -7838,6 +12008,7 @@ var PspDisplay = (function (_super) {
         this.hcountTotal = (this.elapsedSeconds * PspDisplay.HORIZONTAL_SYNC_HZ) | 0;
         this.hcountCurrent = (((this.elapsedSeconds % 1.00002) * PspDisplay.HORIZONTAL_SYNC_HZ) | 0) % PspDisplay.NUMBER_OF_ROWS;
         this.vblankCount = (this.elapsedSeconds * PspDisplay.VERTICAL_SYNC_HZ) | 0;
+        //console.log(this.elapsedSeconds);
         if (this.hcountCurrent >= PspDisplay.VSYNC_ROW) {
             this.isInVblank = true;
             this.rowsLeftForVblank = 0;
@@ -7857,6 +12028,7 @@ var PspDisplay = (function (_super) {
         if (!this.enabled)
             return;
         var imageData = this.imageData;
+        //var w8 = <Uint8ClampedArray><any>imageData.data;
         var w8 = imageData.data;
         var w32 = ArrayBufferUtils.uint8ToUint32(w8);
         var baseAddress = this.address & 0x0FFFFFFF;
@@ -7864,11 +12036,14 @@ var PspDisplay = (function (_super) {
         this.context.putImageData(imageData, 0, 0);
     };
     PspDisplay.prototype.setEnabledDisplay = function (enable) {
+        //console.log('display.setEnabledDisplay:' + enable);
         this.enabled = enable;
         if (this.canvas)
             this.canvas.style.display = enable ? 'block' : 'none';
         if (this.webglcanvas)
             this.webglcanvas.style.display = !enable ? 'block' : 'none';
+        //this.canvas.style.display = 'none';
+        //this.webglcanvas.style.display = 'block';
     };
     PspDisplay.prototype.startAsync = function () {
         var _this = this;
@@ -7888,6 +12063,7 @@ var PspDisplay = (function (_super) {
         this.interval = -1;
         return Promise2.resolve();
     };
+    //mustWaitVBlank = false;
     PspDisplay.prototype.checkVblankThrottle = function () {
         var currentTime = performance.now();
         if ((currentTime - this.lastTimeVblank) >= (PspDisplay.VERTICAL_SECONDS * 1000)) {
@@ -7912,27 +12088,29 @@ var PspDisplay = (function (_super) {
             return Promise2.resolve(0);
         return waiter.delayMicrosecondsAsync(this.secondsLeftForVblankStart * 1000000, true);
     };
-    PspDisplay.PROCESSED_PIXELS_PER_SECOND = 9000000;
-    PspDisplay.CYCLES_PER_PIXEL = 1;
-    PspDisplay.PIXELS_IN_A_ROW = 525;
-    PspDisplay.VSYNC_ROW = 272;
-    PspDisplay.NUMBER_OF_ROWS = 286;
-    PspDisplay.HCOUNT_PER_VBLANK = 285.72;
-    PspDisplay.HORIZONTAL_SYNC_HZ = (PspDisplay.PROCESSED_PIXELS_PER_SECOND * PspDisplay.CYCLES_PER_PIXEL) / PspDisplay.PIXELS_IN_A_ROW;
-    PspDisplay.HORIZONTAL_SECONDS = 1 / PspDisplay.HORIZONTAL_SYNC_HZ;
-    PspDisplay.VERTICAL_SYNC_HZ = PspDisplay.HORIZONTAL_SYNC_HZ / PspDisplay.HCOUNT_PER_VBLANK;
-    PspDisplay.VERTICAL_SECONDS = 1 / PspDisplay.VERTICAL_SYNC_HZ;
     return PspDisplay;
-})(BasePspDisplay);
+}(BasePspDisplay));
+PspDisplay.PROCESSED_PIXELS_PER_SECOND = 9000000; // hz
+PspDisplay.CYCLES_PER_PIXEL = 1;
+PspDisplay.PIXELS_IN_A_ROW = 525;
+PspDisplay.VSYNC_ROW = 272;
+//static VSYNC_ROW = 100;
+PspDisplay.NUMBER_OF_ROWS = 286;
+PspDisplay.HCOUNT_PER_VBLANK = 285.72;
+PspDisplay.HORIZONTAL_SYNC_HZ = (PspDisplay.PROCESSED_PIXELS_PER_SECOND * PspDisplay.CYCLES_PER_PIXEL) / PspDisplay.PIXELS_IN_A_ROW; // 17142.85714285714
+PspDisplay.HORIZONTAL_SECONDS = 1 / PspDisplay.HORIZONTAL_SYNC_HZ; // 5.8333333333333E-5
+PspDisplay.VERTICAL_SYNC_HZ = PspDisplay.HORIZONTAL_SYNC_HZ / PspDisplay.HCOUNT_PER_VBLANK; // 59.998800024
+PspDisplay.VERTICAL_SECONDS = 1 / PspDisplay.VERTICAL_SYNC_HZ; // 0.016667
 exports.PspDisplay = PspDisplay;
 
 },
 "src/core/gpu": function(module, exports, require) {
 ///<reference path="../global.d.ts" />
-var _gpu = require('./gpu/gpu_core');
+"use strict";
+var _gpu = require("./gpu/gpu_core");
 _gpu.PspGpu;
-exports._gpu_vertex = require('./gpu/gpu_vertex');
-var _state = require('./gpu/gpu_state');
+exports._gpu_vertex = require("./gpu/gpu_vertex");
+var _state = require("./gpu/gpu_state");
 _state.AlphaTest;
 exports.PspGpuCallback = _gpu.PspGpuCallback;
 _gpu.PspGpuCallback;
@@ -7942,24 +12120,21 @@ exports.VertexState = _state.VertexState;
 },
 "src/core/gpu/gpu_core": function(module, exports, require) {
 ///<reference path="../../global.d.ts" />
-var _memory = require('../memory');
-var _opcodes = require('./gpu_opcodes');
-var _state = require('./gpu_state');
-var _vertex = require('./gpu_vertex');
-var _cpu = require('../cpu');
-_cpu.CpuState;
-var Memory = _memory.Memory;
-var Op = _opcodes.GpuOpCodes;
-var optimizedDrawBuffer = new _vertex.OptimizedDrawBuffer();
+"use strict";
+var memory_1 = require("../memory");
+var gpu_opcodes_1 = require("./gpu_opcodes");
+var gpu_state_1 = require("./gpu_state");
+var gpu_vertex_1 = require("./gpu_vertex");
+var optimizedDrawBuffer = new gpu_vertex_1.OptimizedDrawBuffer();
 var singleCallTest = false;
 var DRAW_TYPE_CONV = [
-    1,
-    1,
-    2,
-    1,
-    2,
-    0,
-    1,
+    1 /* BATCH_DRAW */,
+    1 /* BATCH_DRAW */,
+    2 /* BATCH_DRAW_DEGENERATE */,
+    1 /* BATCH_DRAW */,
+    2 /* BATCH_DRAW_DEGENERATE */,
+    0 /* SINGLE_DRAW */,
+    1 /* BATCH_DRAW */,
 ];
 function bool1(p) { return p != 0; }
 function param1(p, offset) { return (p >> offset) & 0x1; }
@@ -7975,24 +12150,26 @@ function float1(p) { return MathFloat.reinterpretIntAsFloat(p << 8); }
 var dumpFrameCommands = false;
 var dumpFrameCommandsList = [];
 var PspGpuList = (function () {
-    function PspGpuList(id, memory, runner, gpu, cpuExecutor, state) {
+    function PspGpuList(id, stats, memory, runner, gpu, cpuExecutor, state) {
         this.id = id;
+        this.stats = stats;
         this.memory = memory;
         this.runner = runner;
         this.gpu = gpu;
         this.cpuExecutor = cpuExecutor;
         this.state = state;
         this.completed = false;
-        this.status = 4;
+        this.status = 4 /* Paused */;
         this.errorCount = 0;
         this.callstack = new Int32Array(1024);
         this.callstackIndex = 0;
         this.primBatchPrimitiveType = -1;
         this.batchPrimCount = 0;
+        //private showOpcodes = true;
         this.showOpcodes = false;
         this.opcodes = [];
-        this.vertexInfo = new _state.VertexInfo();
-        this.vertexInfo2 = new _state.VertexInfo();
+        this.vertexInfo = new gpu_state_1.VertexInfo();
+        this.vertexInfo2 = new gpu_state_1.VertexInfo();
     }
     PspGpuList.prototype.complete = function () {
         this.completed = true;
@@ -8007,6 +12184,7 @@ var PspGpuList = (function () {
             if (dumpFrameCommands)
                 dumpFrameCommandsList.push("<BATCH:" + batch.indexCount + ">");
             this.primBatchPrimitiveType = -1;
+            this.stats.batchCount++;
         }
     };
     PspGpuList.prototype.finish = function () {
@@ -8021,6 +12199,7 @@ var PspGpuList = (function () {
     Object.defineProperty(PspGpuList.prototype, "hasMoreInstructions", {
         get: function () {
             return !this.completed && !this.isStalled;
+            //return !this.completed && ((this.stall == 0) || (this.current < this.stall));
         },
         enumerable: true,
         configurable: true
@@ -8031,11 +12210,14 @@ var PspGpuList = (function () {
     };
     PspGpuList.prototype.runUntilStallInner = function () {
         var memory = this.memory;
+        //let showOpcodes = this.showOpcodes;
         var stall4 = this.stall4;
         var state = this.state;
         var totalCommandsLocal = 0;
         var current4 = this.current4;
         var localPrimCount = 0;
+        var stats = this.stats;
+        //let startTime = 0;
         if (stall4 == 0)
             stall4 = 0x7FFFFFFF;
         loop: while (current4 < stall4) {
@@ -8050,58 +12232,59 @@ var PspGpuList = (function () {
                 break;
             }
             if (dumpFrameCommands) {
-                dumpFrameCommandsList.push(Op[op] + ":" + addressToHex(p));
+                dumpFrameCommandsList.push(gpu_opcodes_1.GpuOpCodes[op] + ":" + addressToHex(p));
             }
             switch (op) {
-                case Op.PRIM: {
+                case gpu_opcodes_1.GpuOpCodes.PRIM: {
                     var rprimCount = 0;
                     this.current4 = current4;
                     localPrimCount++;
                     var primitiveType = param3(p, 16);
                     if (this.primBatchPrimitiveType != primitiveType)
                         this.finishPrimBatch();
-                    if (this.prim(param24(p)) == 1) {
+                    if (this.prim(param24(p)) == 1 /* FLUSH_PRIM */) {
                         this.finishPrimBatch();
                     }
                     current4 = this.current4;
+                    //stats.primCount++;
                     break;
                 }
-                case Op.BEZIER:
+                case gpu_opcodes_1.GpuOpCodes.BEZIER:
                     this.finishPrimBatch();
                     this.bezier(param24(p));
                     break;
-                case Op.END:
+                case gpu_opcodes_1.GpuOpCodes.END:
                     this.finishPrimBatch();
                     this.gpu.end();
                     this.complete();
                     break loop;
-                case Op.TFLUSH:
+                case gpu_opcodes_1.GpuOpCodes.TFLUSH:
                     this.gpu.textureFlush(state);
                     this.finishPrimBatch();
                     break;
-                case Op.TSYNC:
+                case gpu_opcodes_1.GpuOpCodes.TSYNC:
                     this.gpu.textureSync(state);
                     break;
-                case Op.NOP: break;
-                case Op.DUMMY: break;
-                case Op.JUMP:
-                case Op.CALL:
-                    if (op == Op.CALL) {
+                case gpu_opcodes_1.GpuOpCodes.NOP: break;
+                case gpu_opcodes_1.GpuOpCodes.DUMMY: break;
+                case gpu_opcodes_1.GpuOpCodes.JUMP:
+                case gpu_opcodes_1.GpuOpCodes.CALL:
+                    if (op == gpu_opcodes_1.GpuOpCodes.CALL) {
                         this.callstack[this.callstackIndex++] = ((instructionPC4 << 2) + 4);
-                        this.callstack[this.callstackIndex++] = (((state.baseOffset >>> 2) & Memory.MASK));
+                        this.callstack[this.callstackIndex++] = (((state.baseOffset >>> 2) & memory_1.Memory.MASK));
                     }
-                    current4 = (((this.state.baseAddress + (param24(p) & ~3))) >> 2) & Memory.MASK;
+                    current4 = (((this.state.baseAddress + (param24(p) & ~3))) >> 2) & memory_1.Memory.MASK;
                     break;
-                case Op.RET:
+                case gpu_opcodes_1.GpuOpCodes.RET:
                     if (this.callstackIndex > 0 && this.callstackIndex < 1024) {
                         state.baseOffset = this.callstack[--this.callstackIndex];
-                        current4 = ((this.callstack[--this.callstackIndex] >>> 2) & Memory.MASK);
+                        current4 = ((this.callstack[--this.callstackIndex] >>> 2) & memory_1.Memory.MASK);
                     }
                     else {
                         console.info('gpu callstack empty or overflow');
                     }
                     break;
-                case Op.FINISH: {
+                case gpu_opcodes_1.GpuOpCodes.FINISH: {
                     this.finish();
                     var callback = this.gpu.callbacks.get(this.callbackId);
                     if (callback && callback.cpuState && callback.finishFunction) {
@@ -8109,28 +12292,30 @@ var PspGpuList = (function () {
                     }
                     break;
                 }
-                case Op.SIGNAL:
+                case gpu_opcodes_1.GpuOpCodes.SIGNAL:
                     console.warn('Not implemented: GPU SIGNAL');
                     break;
-                case Op.PROJMATRIXDATA:
-                    state.writeFloat(Op.PROJMATRIXNUMBER, Op.MAT_PROJ, float1(p));
+                //case Op.PROJMATRIXNUMBER: console.log(state.projectionMatrix); break;
+                case gpu_opcodes_1.GpuOpCodes.PROJMATRIXDATA:
+                    state.writeFloat(gpu_opcodes_1.GpuOpCodes.PROJMATRIXNUMBER, gpu_opcodes_1.GpuOpCodes.MAT_PROJ, float1(p));
                     break;
-                case Op.VIEWMATRIXDATA:
-                    state.writeFloat(Op.VIEWMATRIXNUMBER, Op.MAT_VIEW, float1(p));
+                case gpu_opcodes_1.GpuOpCodes.VIEWMATRIXDATA:
+                    state.writeFloat(gpu_opcodes_1.GpuOpCodes.VIEWMATRIXNUMBER, gpu_opcodes_1.GpuOpCodes.MAT_VIEW, float1(p));
                     break;
-                case Op.WORLDMATRIXDATA:
-                    state.writeFloat(Op.WORLDMATRIXNUMBER, Op.MAT_WORLD, float1(p));
+                case gpu_opcodes_1.GpuOpCodes.WORLDMATRIXDATA:
+                    state.writeFloat(gpu_opcodes_1.GpuOpCodes.WORLDMATRIXNUMBER, gpu_opcodes_1.GpuOpCodes.MAT_WORLD, float1(p));
                     break;
-                case Op.BONEMATRIXDATA:
-                    state.writeFloat(Op.BONEMATRIXNUMBER, Op.MAT_BONES, float1(p));
+                case gpu_opcodes_1.GpuOpCodes.BONEMATRIXDATA:
+                    state.writeFloat(gpu_opcodes_1.GpuOpCodes.BONEMATRIXNUMBER, gpu_opcodes_1.GpuOpCodes.MAT_BONES, float1(p));
                     break;
-                case Op.TGENMATRIXDATA:
-                    state.writeFloat(Op.TGENMATRIXNUMBER, Op.MAT_TEXTURE, float1(p));
+                case gpu_opcodes_1.GpuOpCodes.TGENMATRIXDATA:
+                    state.writeFloat(gpu_opcodes_1.GpuOpCodes.TGENMATRIXNUMBER, gpu_opcodes_1.GpuOpCodes.MAT_TEXTURE, float1(p));
                     break;
-                case Op.BASE:
-                case Op.IADDR:
-                case Op.VADDR:
-                case Op.OFFSETADDR:
+                // No invalidate prim
+                case gpu_opcodes_1.GpuOpCodes.BASE:
+                case gpu_opcodes_1.GpuOpCodes.IADDR:
+                case gpu_opcodes_1.GpuOpCodes.VADDR:
+                case gpu_opcodes_1.GpuOpCodes.OFFSETADDR:
                     break;
                 default:
                     if (state.data[op] != p)
@@ -8140,7 +12325,10 @@ var PspGpuList = (function () {
             state.data[op] = p;
         }
         this.current4 = current4;
-        this.status = (this.isStalled) ? 3 : 0;
+        this.stats.totalStalls++;
+        this.stats.primCount = localPrimCount;
+        this.stats.totalCommands += totalCommandsLocal;
+        this.status = (this.isStalled) ? 3 /* Stalling */ : 0 /* Completed */;
     };
     PspGpuList.prototype.prim = function (p) {
         var vertexCount = param16(p, 0);
@@ -8149,38 +12337,61 @@ var PspGpuList = (function () {
             return;
         var memory = this.memory;
         var state = this.state;
+        var stats = this.stats;
         var vertexInfo = this.vertexInfo.setState(this.state);
         var vertexSize = vertexInfo.size;
         var vertexAddress = state.getAddressRelativeToBaseOffset(vertexInfo.address);
         var indicesAddress = state.getAddressRelativeToBaseOffset(state.indexAddress);
-        var hasIndices = (vertexInfo.index != 0);
+        var hasIndices = (vertexInfo.index != 0 /* Void */);
+        if (hasIndices) {
+            stats.indexCount++;
+        }
+        else {
+            stats.nonIndexCount++;
+        }
         this.primBatchPrimitiveType = primitiveType;
+        //if (vertexState.realWeightCount > 0) debugger;
+        switch (primitiveType) {
+            case 3 /* Triangles */:
+                stats.trianglePrimCount++;
+                break;
+            case 4 /* TriangleStrip */:
+                stats.triangleStripPrimCountalue++;
+                break;
+            case 6 /* Sprites */:
+                stats.spritePrimCount++;
+                break;
+            default:
+                stats.otherPrimCount++;
+                break;
+        }
         var vertexInput = this.memory.getPointerU8Array(vertexAddress);
         var drawType = DRAW_TYPE_CONV[primitiveType];
         var optimized = (vertexInfo.realMorphingVertexCount == 1);
+        //var optimized = (vertexInfo.index == IndexEnum.Void) && (primitiveType != PrimitiveType.Sprites) && (vertexInfo.realMorphingVertexCount == 1);
         if (vertexInfo.realMorphingVertexCount != 1) {
             throw new Error('@TODO: Morphing not implemented!');
         }
         switch (vertexInfo.index) {
-            case 0:
-                this.primOptimizedNoIndex(primitiveType, (drawType == 2), vertexSize, vertexInfo, vertexInput);
+            case 0 /* Void */:
+                this.primOptimizedNoIndex(primitiveType, (drawType == 2 /* BATCH_DRAW_DEGENERATE */), vertexSize, vertexInfo, vertexInput);
                 break;
-            case 1:
-            case 2:
-                if (primitiveType == 6) {
+            case 1 /* Byte */:
+            case 2 /* Short */:
+                if (primitiveType == 6 /* Sprites */) {
                     throw new Error('@TODO: Sprites with indices not implemented!');
                 }
                 var totalVertices = 0;
-                if (vertexInfo.index == 1) {
+                if (vertexInfo.index == 1 /* Byte */) {
                     totalVertices = optimizedDrawBuffer.addVerticesIndicesList(this.memory.getPointerU8Array(indicesAddress, vertexCount));
                 }
                 else {
                     totalVertices = optimizedDrawBuffer.addVerticesIndicesList(this.memory.getPointerU16Array(indicesAddress, vertexCount * 2));
                 }
                 optimizedDrawBuffer.addVerticesData(vertexInput, totalVertices * vertexSize);
-                return 1;
+                return 1 /* FLUSH_PRIM */;
         }
-        return (drawType == 0) ? 1 : 0;
+        return (drawType == 0 /* SINGLE_DRAW */) ? 1 /* FLUSH_PRIM */ : 0 /* NOTHING */;
     };
     PspGpuList.prototype.primOptimizedNoIndex = function (primitiveType, drawTypeDegenerated, vertexSize, vertexInfo, vertexInput) {
         var current4 = (this.current4 - 1) | 0;
@@ -8190,12 +12401,12 @@ var PspGpuList = (function () {
         var vertex2Count = 0;
         var memory = this.memory;
         var totalVertexCount = 0;
-        var isSprite = (primitiveType == 6);
+        var isSprite = (primitiveType == 6 /* Sprites */);
         primitiveType |= 0;
         vertexSize |= 0;
         while (true) {
             p2 = memory.lw_2(current4) | 0;
-            if ((((p2 >> 24) & 0xFF) != Op.PRIM) || (param3(p2, 16) != primitiveType))
+            if ((((p2 >> 24) & 0xFF) != gpu_opcodes_1.GpuOpCodes.PRIM) || (param3(p2, 16) != primitiveType))
                 break;
             vertex2Count = param16(p2, 0) | 0;
             totalVertexCount += vertex2Count;
@@ -8210,6 +12421,7 @@ var PspGpuList = (function () {
             current4++;
             batchPrimCount++;
         }
+        this.stats.vertexCount += totalVertexCount;
         var totalVerticesSize = totalVertexCount * vertexSize;
         if (isSprite) {
             _optimizedDrawBuffer.addVerticesDataSprite(vertexInput, totalVerticesSize, totalVertexCount, vertexInfo);
@@ -8223,10 +12435,54 @@ var PspGpuList = (function () {
         this.current4 = current4;
     };
     PspGpuList.prototype.bezier = function (p) {
+        /*
+        let state = this.state;
+
+        let ucount = param8(p, 0);
+        let vcount = param8(p, 8);
+        let divs = state.patch.divs;
+        let divt = state.patch.divt;
+        let vertexState = state.vertex;
+        let vertexInfo2 = this.vertexInfo2.setState(state);
+        let vertexAddress = state.getAddressRelativeToBaseOffset(state.vertex.address);
+        let vertexInput8 = this.memory.getPointerU8Array(vertexAddress);
+
+        vertexInfo2.texture = _state.NumericEnum.Float;
+
+        let getBezierControlPoints = (ucount: number, vcount: number) => {
+            let controlPoints = ArrayUtils.create2D<_state.Vertex>(ucount, vcount);
+
+            let mipmap = state.texture.mipmaps[0];
+            let scale = mipmap.textureWidth / mipmap.bufferWidth;
+            for (let u = 0; u < ucount; u++) {
+                for (let v = 0; v < vcount; v++) {
+                    let vertex = vertexReader.readOne(vertexInput8, null, v * ucount + u);;
+                    controlPoints[u][v] = vertex;
+                    vertex.tx = (u / (ucount - 1)) * scale;
+                    vertex.ty = (v / (vcount - 1));
+                    //Console.WriteLine("getControlPoints({0}, {1}) : {2}", u, v, controlPoints[u, v]);
+                }
+            }
+            return controlPoints;
+        };
+
+        let controlPoints = getBezierControlPoints(ucount, vcount);
+        let vertices2: _state.Vertex[] = [];
+        vertices2.push(controlPoints[0][0]);
+        vertices2.push(controlPoints[ucount - 1][0]);
+        vertices2.push(controlPoints[0][vcount - 1]);
+
+        vertices2.push(controlPoints[ucount - 1][0]);
+        vertices2.push(controlPoints[ucount - 1][vcount - 1]);
+        vertices2.push(controlPoints[0][vcount - 1]);
+
+        this.drawDriver.queueBatch(new _vertex.UnoptimizedBatch(state, _state.PrimitiveType.Triangles, vertices2, vertexInfo2));
+        */
     };
     PspGpuList.prototype.runUntilStall = function () {
-        this.status = 2;
+        this.status = 2 /* Drawing */;
         while (this.hasMoreInstructions) {
+            //try {
             this.runUntilStallInner();
         }
     };
@@ -8237,12 +12493,12 @@ var PspGpuList = (function () {
         });
     };
     PspGpuList.prototype.updateStall = function (stall) {
-        this.stall4 = ((stall >>> 2) & Memory.MASK);
+        this.stall4 = ((stall >>> 2) & memory_1.Memory.MASK);
         this.enqueueRunUntilStall();
     };
     PspGpuList.prototype.start = function () {
         var _this = this;
-        this.status = 1;
+        this.status = 1 /* Queued */;
         this.promise = new Promise2(function (resolve, reject) {
             _this.promiseResolve = resolve;
             _this.promiseReject = reject;
@@ -8254,18 +12510,19 @@ var PspGpuList = (function () {
         return this.promise;
     };
     return PspGpuList;
-})();
+}());
 var PspGpuListRunner = (function () {
-    function PspGpuListRunner(memory, gpu, callbackManager) {
+    function PspGpuListRunner(memory, stats, gpu, callbackManager) {
         this.memory = memory;
+        this.stats = stats;
         this.gpu = gpu;
         this.callbackManager = callbackManager;
         this.lists = [];
         this.freeLists = [];
         this.runningLists = [];
-        this.state = new _state.GpuState();
+        this.state = new gpu_state_1.GpuState();
         for (var n = 0; n < 32; n++) {
-            var list = new PspGpuList(n, memory, this, gpu, callbackManager, this.state);
+            var list = new PspGpuList(n, stats, memory, this, gpu, callbackManager, this.state);
             this.lists.push(list);
             this.freeLists.push(list);
         }
@@ -8289,20 +12546,21 @@ var PspGpuListRunner = (function () {
         var _peek = (function () {
             for (var n = 0; n < _this.runningLists.length; n++) {
                 var list = _this.runningLists[n];
-                if (list.status != 0)
+                if (list.status != 0 /* Completed */)
                     return list.status;
             }
-            return 0;
+            return 0 /* Completed */;
         });
         var result = _peek();
+        //result = Math.floor(Math.random() * 4);
         console.warn('not implemented gpu list peeking -> ' + result);
         return result;
     };
     PspGpuListRunner.prototype.waitAsync = function () {
-        return Promise2.all(this.runningLists.map(function (list) { return list.waitAsync(); })).then(function () { return 0; });
+        return Promise2.all(this.runningLists.map(function (list) { return list.waitAsync(); })).then(function () { return 0 /* Completed */; });
     };
     return PspGpuListRunner;
-})();
+}());
 var PspGpuCallback = (function () {
     function PspGpuCallback(cpuState, signalFunction, signalArgument, finishFunction, finishArgument) {
         this.cpuState = cpuState;
@@ -8312,25 +12570,36 @@ var PspGpuCallback = (function () {
         this.finishArgument = finishArgument;
     }
     return PspGpuCallback;
-})();
+}());
 exports.PspGpuCallback = PspGpuCallback;
 var PspGpu = (function () {
-    function PspGpu(memory, display, cpuExecutor) {
+    function PspGpu(memory, display, cpuExecutor, stats) {
+        /*
+        try {
+            this.driver = new WebGlPspDrawDriver(memory, display, canvas);
+        } catch (e) {
+            this.driver = new _driver.BaseDrawDriver();
+        }
+        globalDriver = this.driver;
+        */
+        //this.driver = new Context2dPspDrawDriver(memory, canvas);
         this.memory = memory;
         this.display = display;
         this.cpuExecutor = cpuExecutor;
+        this.stats = stats;
         this.callbacks = new UidCollection(1);
         this.batches = [];
         this.onDrawBatches = new Signal2();
         this.wv = new WatchValue(false);
         this.freezing = new WatchValue(false);
         this.lastTime = 0;
-        this.listRunner = new PspGpuListRunner(memory, this, this.cpuExecutor);
+        this.listRunner = new PspGpuListRunner(memory, this.stats, this, this.cpuExecutor);
     }
     PspGpu.prototype.dumpCommands = function () {
         dumpFrameCommands = true;
     };
     PspGpu.prototype.startAsync = function () {
+        //return this.driver.initAsync();
         return Promise2.resolve();
     };
     PspGpu.prototype.stopAsync = function () {
@@ -8339,7 +12608,7 @@ var PspGpu = (function () {
     };
     PspGpu.prototype.listEnqueue = function (start, stall, callbackId, argsPtr) {
         var list = this.listRunner.allocate();
-        list.current4 = ((start >>> 2) & Memory.MASK);
+        list.current4 = ((start >>> 2) & memory_1.Memory.MASK);
         list.stall4 = stall;
         list.callbackId = callbackId;
         list.argsPtr = argsPtr;
@@ -8347,7 +12616,10 @@ var PspGpu = (function () {
         return list.id;
     };
     PspGpu.prototype.listSync = function (displayListId, syncType) {
+        //console.log('listSync');
+        //overlay.update();
         return this.listRunner.getById(displayListId).waitAsync();
+        //return 0;
     };
     PspGpu.prototype.updateStallAddr = function (displayListId, stall) {
         this.listRunner.getById(displayListId).updateStall(stall);
@@ -8374,8 +12646,8 @@ var PspGpu = (function () {
             console.log(list.join(', '));
             list.length = 0;
         }
-        for (var _i = 0; _i < dumpFrameCommandsList.length; _i++) {
-            var item = dumpFrameCommandsList[_i];
+        for (var _i = 0, dumpFrameCommandsList_1 = dumpFrameCommandsList; _i < dumpFrameCommandsList_1.length; _i++) {
+            var item = dumpFrameCommandsList_1[_i];
             if (item.startsWith('<BATCH')) {
                 flushBuffer();
                 console.warn(item);
@@ -8394,15 +12666,24 @@ var PspGpu = (function () {
     };
     PspGpu.prototype.drawSync = function (syncType) {
         var _this = this;
+        //console.log('drawSync');
+        //console.warn('Not implemented sceGe_user.sceGeDrawSync');
         return this.listRunner.waitAsync().then(function () {
             _this.flushCommands();
             try {
                 var end = performance.now();
+                _this.stats.timePerFrame = MathUtils.interpolate(_this.stats.timePerFrame, end - _this.lastTime, 0.5);
                 _this.lastTime = end;
+                //this.stats.batchCount = this.batches.length;
+                _this.stats.updateAndReset();
+                //this.onDrawBatches.dispatch(optimizedDrawBuffer, this.batches.slice(0, overlayBatchSlider.ratio));
+                //console.info('onDrawBatches:', this.batches.length);
                 _this.wv.value = false;
                 _this.onDrawBatches.dispatch(optimizedDrawBuffer, _this.batches);
+                //this.driver.drawBatches(optimizedDrawBuffer, );
                 optimizedDrawBuffer.reset();
                 _this.batches = [];
+                //return freezing.waitUntilValueAsync(false);
                 return _this.wv.waitUntilValueAsync(true).then(function () {
                     return _this.freezing.waitUntilValueAsync(false);
                 });
@@ -8413,19 +12694,22 @@ var PspGpu = (function () {
                 throw e;
             }
         });
-        switch (syncType) {
-            case 1: return this.listRunner.peek();
-            case 0: return this.listRunner.waitAsync();
-            default: throw (new Error("Not implemented SyncType." + syncType));
-        }
+        //switch (syncType) {
+        //	case _state.SyncType.Peek: return this.listRunner.peek();
+        //	case _state.SyncType.WaitForCompletion: return this.listRunner.waitAsync();
+        //	default: throw (new Error("Not implemented SyncType." + syncType));
+        //}
     };
     return PspGpu;
-})();
+}());
 exports.PspGpu = PspGpu;
+//overlay.update();
 
 },
 "src/core/gpu/gpu_opcodes": function(module, exports, require) {
 ///<reference path="../../global.d.ts" />
+"use strict";
+var GpuOpCodes;
 (function (GpuOpCodes) {
     GpuOpCodes[GpuOpCodes["NOP"] = 0] = "NOP";
     GpuOpCodes[GpuOpCodes["VADDR"] = 1] = "VADDR";
@@ -8683,19 +12967,20 @@ exports.PspGpu = PspGpu;
     GpuOpCodes[GpuOpCodes["Unknown0xFD"] = 253] = "Unknown0xFD";
     GpuOpCodes[GpuOpCodes["Unknown0xFE"] = 254] = "Unknown0xFE";
     GpuOpCodes[GpuOpCodes["DUMMY"] = 255] = "DUMMY";
+    // Rest of the struct
     GpuOpCodes[GpuOpCodes["MAT_TEXTURE"] = 272] = "MAT_TEXTURE";
     GpuOpCodes[GpuOpCodes["MAT_PROJ"] = 288] = "MAT_PROJ";
     GpuOpCodes[GpuOpCodes["MAT_VIEW"] = 304] = "MAT_VIEW";
     GpuOpCodes[GpuOpCodes["MAT_WORLD"] = 320] = "MAT_WORLD";
     GpuOpCodes[GpuOpCodes["MAT_BONES"] = 336] = "MAT_BONES";
-})(exports.GpuOpCodes || (exports.GpuOpCodes = {}));
-var GpuOpCodes = exports.GpuOpCodes;
+})(GpuOpCodes = exports.GpuOpCodes || (exports.GpuOpCodes = {}));
 
 },
 "src/core/gpu/gpu_state": function(module, exports, require) {
 ///<reference path="../../global.d.ts" />
-var _pixelformat = require('../pixelformat');
-var _opcodes = require('./gpu_opcodes');
+"use strict";
+var _pixelformat = require("../pixelformat");
+var _opcodes = require("./gpu_opcodes");
 var Op = _opcodes.GpuOpCodes;
 function bool1(p) { return p != 0; }
 function parambool(p, offset) { return ((p >> offset) & 0x1) != 0; }
@@ -8729,16 +13014,18 @@ var GpuFrameBufferState = (function () {
         configurable: true
     });
     return GpuFrameBufferState;
-})();
+}());
 exports.GpuFrameBufferState = GpuFrameBufferState;
 var VertexInfo = (function () {
     function VertexInfo() {
+        // Calculated
         this.weightOffset = 0;
         this.textureOffset = 0;
         this.colorOffset = 0;
         this.normalOffset = 0;
         this.positionOffset = 0;
         this.textureComponentsCount = 0;
+        // Extra	
         this.value = -1;
     }
     VertexInfo.prototype.clone = function () {
@@ -8831,32 +13118,32 @@ var VertexInfo = (function () {
         configurable: true
     });
     Object.defineProperty(VertexInfo.prototype, "hasTexture", {
-        get: function () { return this.texture != 0; },
+        get: function () { return this.texture != 0 /* Void */; },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(VertexInfo.prototype, "hasColor", {
-        get: function () { return this.color != 0; },
+        get: function () { return this.color != 0 /* Void */; },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(VertexInfo.prototype, "hasNormal", {
-        get: function () { return this.normal != 0; },
+        get: function () { return this.normal != 0 /* Void */; },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(VertexInfo.prototype, "hasPosition", {
-        get: function () { return this.position != 0; },
+        get: function () { return this.position != 0 /* Void */; },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(VertexInfo.prototype, "hasWeight", {
-        get: function () { return this.weight != 0; },
+        get: function () { return this.weight != 0 /* Void */; },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(VertexInfo.prototype, "hasIndex", {
-        get: function () { return this.index != 0; },
+        get: function () { return this.index != 0 /* Void */; },
         enumerable: true,
         configurable: true
     });
@@ -8886,6 +13173,7 @@ var VertexInfo = (function () {
         configurable: true
     });
     VertexInfo.prototype.read = function (memory, count) {
+        //console.log('read vertices ' + count);
         var vertices = [];
         for (var n = 0; n < count; n++)
             vertices.push(this.readOne(memory));
@@ -8894,6 +13182,7 @@ var VertexInfo = (function () {
     VertexInfo.prototype.readOne = function (memory) {
         var address = this.address;
         var vertex = {};
+        //console.log(vertex);
         this.address += this.size;
         return vertex;
     };
@@ -8911,10 +13200,10 @@ var VertexInfo = (function () {
             transform2D: this.transform2D,
         }) + ')';
     };
-    VertexInfo.NumericEnumSizes = [0, 1, 2, 4];
-    VertexInfo.ColorEnumSizes = [0, 0, 0, 0, 2, 2, 2, 4];
     return VertexInfo;
-})();
+}());
+VertexInfo.NumericEnumSizes = [0, 1, 2, 4];
+VertexInfo.ColorEnumSizes = [0, 0, 0, 0, 2, 2, 2, 4];
 exports.VertexInfo = VertexInfo;
 var VertexState = (function () {
     function VertexState(data) {
@@ -8982,7 +13271,7 @@ var VertexState = (function () {
         configurable: true
     });
     return VertexState;
-})();
+}());
 exports.VertexState = VertexState;
 function createMatrix4x4(data, offset) {
     return new Float32Array(data.buffer).subarray(offset, offset + 16);
@@ -9025,7 +13314,7 @@ var ViewPort = (function () {
         configurable: true
     });
     return ViewPort;
-})();
+}());
 exports.ViewPort = ViewPort;
 var Region = (function () {
     function Region(data) {
@@ -9052,7 +13341,7 @@ var Region = (function () {
         configurable: true
     });
     return Region;
-})();
+}());
 exports.Region = Region;
 var Light = (function () {
     function Light(data, index) {
@@ -9075,7 +13364,7 @@ var Light = (function () {
         configurable: true
     });
     Object.defineProperty(Light.prototype, "pw", {
-        get: function () { return (this.type == 2) ? 1 : 0; },
+        get: function () { return (this.type == 2 /* SpotLight */) ? 1 : 0; },
         enumerable: true,
         configurable: true
     });
@@ -9149,23 +13438,23 @@ var Light = (function () {
         enumerable: true,
         configurable: true
     });
-    Light.REG_TYPES = [Op.LIGHTTYPE0, Op.LIGHTTYPE1, Op.LIGHTTYPE2, Op.LIGHTTYPE3];
-    Light.REG_LCA = [Op.LCA0, Op.LCA1, Op.LCA2, Op.LCA3];
-    Light.REG_LLA = [Op.LLA0, Op.LLA1, Op.LLA2, Op.LLA3];
-    Light.REG_LQA = [Op.LQA0, Op.LQA1, Op.LQA2, Op.LQA3];
-    Light.REG_SPOTEXP = [Op.SPOTEXP0, Op.SPOTEXP1, Op.SPOTEXP2, Op.SPOTEXP3];
-    Light.REG_SPOTCUT = [Op.SPOTCUT0, Op.SPOTCUT1, Op.SPOTCUT2, Op.SPOTCUT3];
-    Light.LXP = [Op.LXP0, Op.LXP1, Op.LXP2, Op.LXP3];
-    Light.LYP = [Op.LYP0, Op.LYP1, Op.LYP2, Op.LYP3];
-    Light.LZP = [Op.LZP0, Op.LZP1, Op.LZP2, Op.LZP3];
-    Light.LXD = [Op.LXD0, Op.LXD1, Op.LXD2, Op.LXD3];
-    Light.LYD = [Op.LYD0, Op.LYD1, Op.LYD2, Op.LYD3];
-    Light.LZD = [Op.LZD0, Op.LZD1, Op.LZD2, Op.LZD3];
-    Light.ALC = [Op.ALC0, Op.ALC1, Op.ALC2, Op.ALC3];
-    Light.DLC = [Op.DLC0, Op.DLC1, Op.DLC2, Op.DLC3];
-    Light.SLC = [Op.SLC0, Op.SLC1, Op.SLC2, Op.SLC3];
     return Light;
-})();
+}());
+Light.REG_TYPES = [Op.LIGHTTYPE0, Op.LIGHTTYPE1, Op.LIGHTTYPE2, Op.LIGHTTYPE3];
+Light.REG_LCA = [Op.LCA0, Op.LCA1, Op.LCA2, Op.LCA3];
+Light.REG_LLA = [Op.LLA0, Op.LLA1, Op.LLA2, Op.LLA3];
+Light.REG_LQA = [Op.LQA0, Op.LQA1, Op.LQA2, Op.LQA3];
+Light.REG_SPOTEXP = [Op.SPOTEXP0, Op.SPOTEXP1, Op.SPOTEXP2, Op.SPOTEXP3];
+Light.REG_SPOTCUT = [Op.SPOTCUT0, Op.SPOTCUT1, Op.SPOTCUT2, Op.SPOTCUT3];
+Light.LXP = [Op.LXP0, Op.LXP1, Op.LXP2, Op.LXP3];
+Light.LYP = [Op.LYP0, Op.LYP1, Op.LYP2, Op.LYP3];
+Light.LZP = [Op.LZP0, Op.LZP1, Op.LZP2, Op.LZP3];
+Light.LXD = [Op.LXD0, Op.LXD1, Op.LXD2, Op.LXD3];
+Light.LYD = [Op.LYD0, Op.LYD1, Op.LYD2, Op.LYD3];
+Light.LZD = [Op.LZD0, Op.LZD1, Op.LZD2, Op.LZD3];
+Light.ALC = [Op.ALC0, Op.ALC1, Op.ALC2, Op.ALC3];
+Light.DLC = [Op.DLC0, Op.DLC1, Op.DLC2, Op.DLC3];
+Light.SLC = [Op.SLC0, Op.SLC1, Op.SLC2, Op.SLC3];
 exports.Light = Light;
 var Lightning = (function () {
     function Lightning(data) {
@@ -9198,7 +13487,7 @@ var Lightning = (function () {
         configurable: true
     });
     return Lightning;
-})();
+}());
 exports.Lightning = Lightning;
 var MipmapState = (function () {
     function MipmapState(texture, data, index) {
@@ -9242,7 +13531,7 @@ var MipmapState = (function () {
         configurable: true
     });
     return MipmapState;
-})();
+}());
 exports.MipmapState = MipmapState;
 var ClutState = (function () {
     function ClutState(data) {
@@ -9302,7 +13591,7 @@ var ClutState = (function () {
         configurable: true
     });
     return ClutState;
-})();
+}());
 exports.ClutState = ClutState;
 var TextureState = (function () {
     function TextureState(data) {
@@ -9340,6 +13629,7 @@ var TextureState = (function () {
             hash.push(this.clut.getHashFast());
             hash.push(ArrayBufferUtils.hashFast(clutData));
         }
+        //value += this.clut.getHashFast();
         return hash.join('_');
     };
     Object.defineProperty(TextureState.prototype, "mipmap", {
@@ -9403,7 +13693,7 @@ var TextureState = (function () {
         configurable: true
     });
     Object.defineProperty(TextureState.prototype, "hasAlpha", {
-        get: function () { return this.colorComponent == 1; },
+        get: function () { return this.colorComponent == 1 /* Rgba */; },
         enumerable: true,
         configurable: true
     });
@@ -9484,24 +13774,23 @@ var TextureState = (function () {
         get: function () {
             switch (this.textureMapMode) {
                 default: throw (new Error("Invalid textureMapMode"));
-                case 0: return 2;
-                case 1:
+                case 0 /* GU_TEXTURE_COORDS */: return 2;
+                case 1 /* GU_TEXTURE_MATRIX */:
                     switch (this.textureProjectionMapMode) {
-                        case 3: return 3;
-                        case 2: return 3;
-                        case 0: return 3;
-                        case 1: return 2;
-                        default: return 2;
+                        case 3 /* GU_NORMAL */: return 3;
+                        case 2 /* GU_NORMALIZED_NORMAL */: return 3;
+                        case 0 /* GU_POSITION */: return 3;
+                        case 1 /* GU_UV */: return 2;
                     }
-                    break;
-                case 2: return 2;
+                    return 2;
+                case 2 /* GU_ENVIRONMENT_MAP */: return 2;
             }
         },
         enumerable: true,
         configurable: true
     });
     return TextureState;
-})();
+}());
 exports.TextureState = TextureState;
 var CullingState = (function () {
     function CullingState(data) {
@@ -9518,7 +13807,7 @@ var CullingState = (function () {
         configurable: true
     });
     return CullingState;
-})();
+}());
 exports.CullingState = CullingState;
 var DepthTestState = (function () {
     function DepthTestState(data) {
@@ -9550,7 +13839,7 @@ var DepthTestState = (function () {
         configurable: true
     });
     return DepthTestState;
-})();
+}());
 exports.DepthTestState = DepthTestState;
 var Color = (function () {
     function Color(r, g, b, a) {
@@ -9597,7 +13886,7 @@ var Color = (function () {
         return (this.r == r) && (this.g == g) && (this.b == b) && (this.a == a);
     };
     return Color;
-})();
+}());
 exports.Color = Color;
 var Blending = (function () {
     function Blending(data) {
@@ -9641,7 +13930,7 @@ var Blending = (function () {
         configurable: true
     });
     return Blending;
-})();
+}());
 exports.Blending = Blending;
 var AlphaTest = (function () {
     function AlphaTest(data) {
@@ -9668,7 +13957,7 @@ var AlphaTest = (function () {
         configurable: true
     });
     return AlphaTest;
-})();
+}());
 exports.AlphaTest = AlphaTest;
 var Rectangle = (function () {
     function Rectangle(left, top, right, bottom) {
@@ -9688,7 +13977,7 @@ var Rectangle = (function () {
         configurable: true
     });
     return Rectangle;
-})();
+}());
 exports.Rectangle = Rectangle;
 var ClipPlane = (function () {
     function ClipPlane(data) {
@@ -9725,7 +14014,7 @@ var ClipPlane = (function () {
         configurable: true
     });
     return ClipPlane;
-})();
+}());
 exports.ClipPlane = ClipPlane;
 var SkinningState = (function () {
     function SkinningState(data) {
@@ -9743,7 +14032,7 @@ var SkinningState = (function () {
         ];
     }
     return SkinningState;
-})();
+}());
 exports.SkinningState = SkinningState;
 var StencilState = (function () {
     function StencilState(data) {
@@ -9785,7 +14074,7 @@ var StencilState = (function () {
         configurable: true
     });
     return StencilState;
-})();
+}());
 exports.StencilState = StencilState;
 var PatchState = (function () {
     function PatchState(data) {
@@ -9802,7 +14091,7 @@ var PatchState = (function () {
         configurable: true
     });
     return PatchState;
-})();
+}());
 exports.PatchState = PatchState;
 var Fog = (function () {
     function Fog(data) {
@@ -9829,7 +14118,7 @@ var Fog = (function () {
         configurable: true
     });
     return Fog;
-})();
+}());
 exports.Fog = Fog;
 var LogicOp = (function () {
     function LogicOp(data) {
@@ -9841,7 +14130,7 @@ var LogicOp = (function () {
         configurable: true
     });
     return LogicOp;
-})();
+}());
 exports.LogicOp = LogicOp;
 var LineSmoothState = (function () {
     function LineSmoothState(data) {
@@ -9853,7 +14142,7 @@ var LineSmoothState = (function () {
         configurable: true
     });
     return LineSmoothState;
-})();
+}());
 exports.LineSmoothState = LineSmoothState;
 var PatchCullingState = (function () {
     function PatchCullingState(data) {
@@ -9870,7 +14159,7 @@ var PatchCullingState = (function () {
         configurable: true
     });
     return PatchCullingState;
-})();
+}());
 exports.PatchCullingState = PatchCullingState;
 var OffsetState = (function () {
     function OffsetState(data) {
@@ -9887,7 +14176,7 @@ var OffsetState = (function () {
         configurable: true
     });
     return OffsetState;
-})();
+}());
 exports.OffsetState = OffsetState;
 var GpuState = (function () {
     function GpuState() {
@@ -9938,6 +14227,10 @@ var GpuState = (function () {
     });
     Object.defineProperty(GpuState.prototype, "baseOffset", {
         get: function () { return param24(this.data[Op.OFFSETADDR]) << 8; },
+        set: function (value) {
+            this.data[Op.OFFSETADDR] &= ~0x00FFFFFF;
+            this.data[Op.OFFSETADDR] |= (value >>> 8) & 0x00FFFFFF;
+        },
         enumerable: true,
         configurable: true
     });
@@ -9978,7 +14271,7 @@ var GpuState = (function () {
     GpuState.prototype.getAddressRelativeToBase = function (relativeAddress) { return (this.baseAddress | relativeAddress); };
     GpuState.prototype.getAddressRelativeToBaseOffset = function (relativeAddress) { return ((this.baseAddress | relativeAddress) + this.baseOffset); };
     return GpuState;
-})();
+}());
 exports.GpuState = GpuState;
 var ColorTestState = (function () {
     function ColorTestState(data) {
@@ -9990,7 +14283,7 @@ var ColorTestState = (function () {
         configurable: true
     });
     return ColorTestState;
-})();
+}());
 exports.ColorTestState = ColorTestState;
 var DitheringState = (function () {
     function DitheringState(data) {
@@ -10002,13 +14295,59 @@ var DitheringState = (function () {
         configurable: true
     });
     return DitheringState;
-})();
+}());
 exports.DitheringState = DitheringState;
+
+},
+"src/core/gpu/gpu_stats": function(module, exports, require) {
+"use strict";
+var GpuStats = (function () {
+    function GpuStats() {
+        this.onStats = new Signal1();
+        this.totalStalls = 0;
+        this.primCount = 0;
+        this.totalCommands = 0;
+        this.timePerFrame = 0;
+        this.vertexCount = 0;
+        this.batchCount = 0;
+        this.indexCount = 0;
+        this.nonIndexCount = 0;
+        this.trianglePrimCount = 0;
+        this.triangleStripPrimCountalue = 0;
+        this.spritePrimCount = 0;
+        this.otherPrimCount = 0;
+        this.hashMemoryCount = 0;
+        this.hashMemorySize = 0;
+    }
+    GpuStats.prototype.reset = function () {
+        this.totalStalls = 0;
+        this.primCount = 0;
+        this.totalCommands = 0;
+        this.timePerFrame = 0;
+        this.vertexCount = 0;
+        this.batchCount = 0;
+        this.indexCount = 0;
+        this.nonIndexCount = 0;
+        this.trianglePrimCount = 0;
+        this.triangleStripPrimCountalue = 0;
+        this.spritePrimCount = 0;
+        this.otherPrimCount = 0;
+        this.hashMemoryCount = 0;
+        this.hashMemorySize = 0;
+    };
+    GpuStats.prototype.updateAndReset = function () {
+        this.onStats.dispatch(this);
+        this.reset();
+    };
+    return GpuStats;
+}());
+exports.GpuStats = GpuStats;
 
 },
 "src/core/gpu/gpu_vertex": function(module, exports, require) {
 ///<reference path="../../global.d.ts" />
-var _memory = require('../memory');
+"use strict";
+var _memory = require("../memory");
 var memory = _memory.getInstance();
 var SpriteExpander = (function () {
     function SpriteExpander() {
@@ -10043,7 +14382,7 @@ var SpriteExpander = (function () {
         var vsize = vi.size;
         var CONVV = [null, 'o8', 'o16', 'o32'];
         var CONVS = [0, 0, 1, 2];
-        var COLV = [null, null, null, null, 'o16', 'o16', 'o16', 'o32'];
+        var COLV = [null, null, null, null, 'o16', 'o16', 'o16', 'o32']; // ColorEnum
         var COLS = [0, 0, 0, 0, 1, 1, 1, 2];
         function _get(vid, type, offset, component) {
             return CONVV[type] + "[((o + " + (offset + vsize * +vid) + ") >> " + CONVS[type] + ") + " + component + "]";
@@ -10065,24 +14404,43 @@ var SpriteExpander = (function () {
         function copyX(vidTo, vidFrom) { return copy_(vidTo, vidFrom, 0); }
         function copyY(vidTo, vidFrom) { return copy_(vidTo, vidFrom, 1); }
         function copyColor(vidTo, vidFrom) { return vi.hasColor ? getColor(vidTo) + " = " + getColor(vidFrom) + ";\n" : ''; }
+        /*
+        if ((vsize % 4) == 0) {
+            for (var n = 0; n < (vsize / 4) * 2; n++) {
+                code += `o32[(o >> 2) + ${n + vsize * 0}] = i32[(i >> 2) + ${n + (vsize * 0)}];\n`;
+                code += `o32[(o >> 2) + ${n + vsize * 2}] = i32[(i >> 2) + ${n + (vsize * 1)}];\n`;
+            }
+        } else if ((vsize % 2) == 0) {
+            for (var n = 0; n < (vsize / 2) * 2; n++) {
+                code += `o16[(o >> 1) + ${n + vsize * 0}] = i16[(i >> 1) + ${n + (vsize * 0)}];\n`;
+                code += `o16[(o >> 1) + ${n + vsize * 2}] = i16[(i >> 1) + ${n + (vsize * 1)}];\n`;
+            }
+        } else {
+            for (var n = 0; n < vsize * 2; n++) {
+                code += `o8[(o >> 0) + ${n + vsize * 0}] = i8[(i >> 0) + ${n + (vsize * 0)}];\n`;
+                code += `o8[(o >> 0) + ${n + vsize * 2}] = i8[(i >> 0) + ${n + (vsize * 1)}];\n`;
+            }
+        }
+        */
         code += "o8.subarray(o + " + vsize * 0 + ", o + " + vsize * 2 + ").set(i8.subarray(i, i + " + vsize * 2 + "));\n";
         code += "o8.subarray(o + " + vsize * 2 + ", o + " + vsize * 4 + ").set(i8.subarray(i, i + " + vsize * 2 + "));\n";
-        var TL = 0;
-        var BR = 1;
-        code += copyX(2, BR);
-        code += copyY(2, TL);
-        code += copyX(3, TL);
-        code += copyY(3, BR);
-        code += copyColor(0, BR);
-        code += copyColor(2, BR);
-        code += copyColor(3, BR);
+        var TL = 0 /* TL */;
+        var BR = 1 /* BR */;
+        code += copyX(2 /* TR */, BR);
+        code += copyY(2 /* TR */, TL);
+        code += copyX(3 /* BL */, TL);
+        code += copyY(3 /* BL */, BR);
+        code += copyColor(0 /* TL */, BR);
+        code += copyColor(2 /* TR */, BR);
+        code += copyColor(3 /* BL */, BR);
         code += "i += " + vsize * 2 + ";\n";
         code += "o += " + vsize * 4 + ";\n";
         return code;
+        //vertexInfo.size
     };
-    SpriteExpander.cache = new Map();
     return SpriteExpander;
-})();
+}());
+SpriteExpander.cache = new Map();
 var OptimizedDrawBufferTransfer = (function () {
     function OptimizedDrawBufferTransfer() {
     }
@@ -10113,8 +14471,8 @@ var OptimizedDrawBufferTransfer = (function () {
                 memorySegments.set(data.byteOffset, allocData(data));
             return memorySegments.get(data.byteOffset);
         }
-        for (var _i = 0; _i < batches2.length; _i++) {
-            var batch = batches2[_i];
+        for (var _i = 0, batches2_1 = batches2; _i < batches2_1.length; _i++) {
+            var batch = batches2_1[_i];
             var btl = allocMemoryData(batch.textureData);
             var bcl = allocMemoryData(batch.clutData);
             batches.push({
@@ -10132,8 +14490,8 @@ var OptimizedDrawBufferTransfer = (function () {
             });
         }
         var buffer = new ArrayBuffer(offset);
-        for (var _a = 0; _a < chunks.length; _a++) {
-            var chunk = chunks[_a];
+        for (var _a = 0, chunks_1 = chunks; _a < chunks_1.length; _a++) {
+            var chunk = chunks_1[_a];
             new Uint8Array(buffer, chunk.offset, chunk.size).set(new Uint8Array(chunk.data.buffer, chunk.data.byteOffset, chunk.size));
         }
         return {
@@ -10143,7 +14501,7 @@ var OptimizedDrawBufferTransfer = (function () {
         };
     };
     return OptimizedDrawBufferTransfer;
-})();
+}());
 exports.OptimizedDrawBufferTransfer = OptimizedDrawBufferTransfer;
 var OptimizedDrawBuffer = (function () {
     function OptimizedDrawBuffer() {
@@ -10223,7 +14581,7 @@ var OptimizedDrawBuffer = (function () {
         this.indices[this.indexOffset++] = this.vertexIndex;
     };
     return OptimizedDrawBuffer;
-})();
+}());
 exports.OptimizedDrawBuffer = OptimizedDrawBuffer;
 var OptimizedBatch = (function () {
     function OptimizedBatch(state, drawBuffer, primType, vertexInfo, dataLow, dataHigh, indexLow, indexHigh) {
@@ -10247,21 +14605,23 @@ var OptimizedBatch = (function () {
         }
     }
     return OptimizedBatch;
-})();
+}());
 exports.OptimizedBatch = OptimizedBatch;
 
 },
 "src/core/gpu/webgl/webgl_driver": function(module, exports, require) {
 ///<reference path="../../../global.d.ts" />
 ///<reference path="./webgl_enums.d.ts" />
-var gpu_state_1 = require('../gpu_state');
-var webgl_shader_1 = require('./webgl_shader');
-var webgl_texture_1 = require('./webgl_texture');
-var webgl_utils_1 = require('./webgl_utils');
+"use strict";
+var gpu_state_1 = require("../gpu_state");
+var webgl_shader_1 = require("./webgl_shader");
+var webgl_texture_1 = require("./webgl_texture");
+var webgl_utils_1 = require("./webgl_utils");
 var globalDriver = null;
 var WebGlPspDrawDriver = (function () {
-    function WebGlPspDrawDriver(canvas) {
+    function WebGlPspDrawDriver(canvas, stats) {
         this.canvas = canvas;
+        this.stats = stats;
         this.baseShaderFragString = '';
         this.baseShaderVertString = '';
         this.projectionMatrix = mat4.create();
@@ -10269,10 +14629,10 @@ var WebGlPspDrawDriver = (function () {
         this.worldMatrix = mat4.create();
         this.transformMatrix = mat4.create();
         this.transformMatrix2d = mat4.create();
-        this.equationTranslate = [32774, 32778, 32779, 32774, 32774, 32774];
-        this.opsConvertTable = [7680, 0, 7681, 5386, 7682, 7683];
-        this.testConvertTable = [512, 519, 514, 517, 513, 515, 516, 518];
-        this.testConvertTable_inv = [512, 519, 514, 517, 516, 518, 513, 515];
+        this.equationTranslate = [32774 /* FUNC_ADD */, 32778 /* FUNC_SUBTRACT */, 32779 /* FUNC_REVERSE_SUBTRACT */, 32774 /* FUNC_ADD */, 32774 /* FUNC_ADD */, 32774 /* FUNC_ADD */]; // Add, Subtract, ReverseSubtract, Min, Max, Abs
+        this.opsConvertTable = [7680 /* KEEP */, 0 /* ZERO */, 7681 /* REPLACE */, 5386 /* INVERT */, 7682 /* INCR */, 7683 /* DECR */];
+        this.testConvertTable = [512 /* NEVER */, 519 /* ALWAYS */, 514 /* EQUAL */, 517 /* NOTEQUAL */, 513 /* LESS */, 515 /* LEQUAL */, 516 /* GREATER */, 518 /* GEQUAL */];
+        this.testConvertTable_inv = [512 /* NEVER */, 519 /* ALWAYS */, 514 /* EQUAL */, 517 /* NOTEQUAL */, 516 /* GREATER */, 518 /* GEQUAL */, 513 /* LESS */, 515 /* LEQUAL */];
         this.optimizedDataBuffer = null;
         this.optimizedIndexBuffer = null;
         this.rehashSignal = new Signal1();
@@ -10320,6 +14680,7 @@ var WebGlPspDrawDriver = (function () {
             depth: true,
             stencil: true,
             antialias: glAntialiasing,
+            //premultipliedAlpha: false,
             preserveDrawingBuffer: false,
         };
         this.gl = this.canvas.getContext('webgl', webglOptions);
@@ -10348,7 +14709,7 @@ var WebGlPspDrawDriver = (function () {
                 var shaderVertString = Stream.fromArrayBuffer(shaderVert).readUtf8String(shaderVert.byteLength);
                 var shaderFragString = Stream.fromArrayBuffer(shaderFrag).readUtf8String(shaderFrag.byteLength);
                 _this.cache = new webgl_shader_1.ShaderCache(_this.gl, shaderVertString, shaderFragString);
-                _this.textureHandler = new webgl_texture_1.TextureHandler(_this.gl);
+                _this.textureHandler = new webgl_texture_1.TextureHandler(_this.gl, _this.stats);
                 _this.textureHandler.rehashSignal.pipeTo(_this.rehashSignal);
             });
         });
@@ -10356,6 +14717,7 @@ var WebGlPspDrawDriver = (function () {
     WebGlPspDrawDriver.prototype.setClearMode = function (clearing, flags) {
         this.clearing = clearing;
         this.clearingFlags = flags;
+        //console.log('clearing: ' + clearing + '; ' + flags);
     };
     WebGlPspDrawDriver.prototype.setMatrices = function (projectionMatrix, viewMatrix, worldMatrix) {
         mat4.from4x4(this.projectionMatrix, projectionMatrix);
@@ -10376,8 +14738,8 @@ var WebGlPspDrawDriver = (function () {
     WebGlPspDrawDriver.prototype.updateNormalState = function (program, vertexInfo, primitiveType) {
         var state = this.state;
         var gl = this.gl;
-        if (this.enableDisable(gl.CULL_FACE, state.culling.enabled && (primitiveType != 6))) {
-            gl.cullFace((state.culling.direction == 1) ? gl.FRONT : gl.BACK);
+        if (this.enableDisable(gl.CULL_FACE, state.culling.enabled && (primitiveType != 6 /* Sprites */))) {
+            gl.cullFace((state.culling.direction == 1 /* ClockWise */) ? gl.FRONT : gl.BACK);
         }
         if (this.enableDisable(gl.SCISSOR_TEST, state.clipPlane.enabled)) {
             var rect = state.clipPlane.scissor;
@@ -10395,10 +14757,10 @@ var WebGlPspDrawDriver = (function () {
             };
             var sfactor = gl.SRC_COLOR + blending.functionSource;
             var dfactor = gl.SRC_COLOR + blending.functionDestination;
-            if (blending.functionSource == 10) {
+            if (blending.functionSource == 10 /* GU_FIX */) {
                 sfactor = getBlendFix(blending.fixColorSource);
             }
-            if (blending.functionDestination == 10) {
+            if (blending.functionDestination == 10 /* GU_FIX */) {
                 if ((sfactor == gl.CONSTANT_COLOR) && ((gpu_state_1.Color.add(blending.fixColorSource, blending.fixColorDestination).equals(1, 1, 1, 1)))) {
                     dfactor = gl.ONE_MINUS_CONSTANT_COLOR;
                 }
@@ -10409,16 +14771,16 @@ var WebGlPspDrawDriver = (function () {
             gl.blendEquation(this.equationTranslate[blending.equation]);
             gl.blendFunc(sfactor, dfactor);
             switch (blending.equation) {
-                case 5:
-                case 4:
-                case 3:
-                case 0:
+                case 5 /* Abs */:
+                case 4 /* Max */:
+                case 3 /* Min */:
+                case 0 /* Add */:
                     gl.blendEquation(gl.FUNC_ADD);
                     break;
-                case 1:
+                case 1 /* Substract */:
                     gl.blendEquation(gl.FUNC_SUBTRACT);
                     break;
-                case 2:
+                case 2 /* ReverseSubstract */:
                     gl.blendEquation(gl.FUNC_REVERSE_SUBTRACT);
                     break;
             }
@@ -10431,6 +14793,7 @@ var WebGlPspDrawDriver = (function () {
             gl.stencilOp(this.opsConvertTable[stencil.fail], this.opsConvertTable[stencil.zfail], this.opsConvertTable[stencil.zpass]);
         }
         gl.depthRange(state.depthTest.rangeFar, state.depthTest.rangeNear);
+        //gl.depthRange(0, 1);
         gl.depthMask(state.depthTest.mask == 0);
         if (this.enableDisable(gl.DEPTH_TEST, state.depthTest.enabled && !state.vertex.transform2D)) {
             gl.depthFunc(this.testConvertTable_inv[state.depthTest.func]);
@@ -10453,22 +14816,24 @@ var WebGlPspDrawDriver = (function () {
         var gl = this.gl;
         var ccolorMask = false, calphaMask = false;
         var clearingFlags = this.clearingFlags;
+        //gl.disable(gl.TEXTURE_2D);
         gl.disable(gl.SCISSOR_TEST);
         gl.disable(gl.BLEND);
         gl.disable(gl.DEPTH_TEST);
         gl.disable(gl.STENCIL_TEST);
         gl.disable(gl.CULL_FACE);
         gl.depthMask(false);
-        if (clearingFlags & 1) {
+        if (clearingFlags & 1 /* ColorBuffer */) {
             ccolorMask = true;
         }
-        if (clearingFlags & 2) {
+        //calphaMask = false;
+        if (clearingFlags & 2 /* StencilBuffer */) {
             calphaMask = true;
             gl.enable(gl.STENCIL_TEST);
             gl.stencilFunc(gl.ALWAYS, 0x00, 0xFF);
             gl.stencilOp(gl.REPLACE, gl.REPLACE, gl.REPLACE);
         }
-        if (clearingFlags & 4) {
+        if (clearingFlags & 4 /* DepthBuffer */) {
             gl.enable(gl.DEPTH_TEST);
             gl.depthFunc(gl.ALWAYS);
             gl.depthMask(true);
@@ -10478,12 +14843,15 @@ var WebGlPspDrawDriver = (function () {
     };
     WebGlPspDrawDriver.prototype.updateCommonState = function (program, vertexInfo, primitiveType) {
         var viewport = this.state.viewport;
+        //var region = this.state.region;
         var x = 2048 - viewport.x;
         var y = 2048 - viewport.y;
         var width = Math.abs(viewport.width * 2);
         var height = Math.abs(-viewport.height * 2);
+        //debugger;
         var ratio = this.getScaleRatio();
         this.gl.viewport(x * ratio, y * ratio, width * ratio, height * ratio);
+        //this.gl.viewport(0, 0, 1440, 816);
     };
     WebGlPspDrawDriver.prototype.updateState = function (program, vertexInfo, primitiveType) {
         program.getUniform('u_enableColors').set1i(this.enableColors ? 1 : 0);
@@ -10505,6 +14873,7 @@ var WebGlPspDrawDriver = (function () {
         this.state.copyFrom(state);
         this.setClearMode(state.clearing, state.clearFlags);
         this.setMatrices(state.projectionMatrix, state.viewMatrix, state.worldMatrix);
+        //this.display.setEnabledDisplay(false);
     };
     WebGlPspDrawDriver.prototype.setAttribute = function (databuffer, attribPosition, componentCount, componentType, vertexSize, offset) {
         if (attribPosition.location < 0)
@@ -10512,7 +14881,9 @@ var WebGlPspDrawDriver = (function () {
         var gl = this.gl;
         gl.bindBuffer(gl.ARRAY_BUFFER, databuffer);
         gl.enableVertexAttribArray(attribPosition.location);
+        // vertexAttribPointer(this.texCoordLocation2, 2, gl.FLOAT, false, 0, 0);
         gl.vertexAttribPointer(attribPosition.location, componentCount, componentType, false, vertexSize, offset);
+        //console.log(`${enabled}, ${name}, ${componentCount}, ${componentType}, ${vertexSize}, ${offset}`);
     };
     WebGlPspDrawDriver.prototype.setFramebufferSize = function (width, height) {
         this.canvas.setAttribute('width', "" + width);
@@ -10559,7 +14930,7 @@ var WebGlPspDrawDriver = (function () {
             this.optimizedIndexBuffer = gl.createBuffer();
         var databuffer = this.optimizedDataBuffer;
         var indexbuffer = this.optimizedIndexBuffer;
-        var vs = this.vs;
+        var vs = this.vs; // required after serializing
         vs.setState(this.state);
         var primType = batch.primType;
         var globalVertexOffset = batch.dataLow;
@@ -10576,11 +14947,11 @@ var WebGlPspDrawDriver = (function () {
             this.setAttribute(databuffer, program.vTexcoord, vs.textureComponents, convertVertexNumericUnsignedEnum[vs.texture], vs.size, vs.textureOffset + globalVertexOffset);
         }
         if (vs.hasColor) {
-            if (vs.color == 7) {
-                this.setAttribute(databuffer, program.vColor, 4, 5121, vs.size, vs.colorOffset + globalVertexOffset);
+            if (vs.color == 7 /* Color8888 */) {
+                this.setAttribute(databuffer, program.vColor, 4, 5121 /* UNSIGNED_BYTE */, vs.size, vs.colorOffset + globalVertexOffset);
             }
             else {
-                this.setAttribute(databuffer, program.vColor, 1, 5123, vs.size, vs.colorOffset + globalVertexOffset);
+                this.setAttribute(databuffer, program.vColor, 1, 5123 /* UNSIGNED_SHORT */, vs.size, vs.colorOffset + globalVertexOffset);
             }
         }
         if (vs.hasNormal) {
@@ -10597,13 +14968,18 @@ var WebGlPspDrawDriver = (function () {
         }
         if (!vs.hasColor) {
             var ac = this.state.ambientModelColor;
+            //console.log(ac.r, ac.g, ac.b, ac.a);
             program.getUniform('uniformColor').set4f(ac.r, ac.g, ac.b, ac.a);
         }
+        //console.log(vs.hasPosition, vs.hasColor, vs.hasTexture, vs.hasNormal, vs.hasWeight, vs.position, vs.color, vs.texture);
         if (vs.hasTexture) {
             program.getUniform('tfx').set1i(state.texture.effect);
             program.getUniform('tcc').set1i(state.texture.colorComponent);
         }
         this.updateState(program, vs, batch.primType);
+        //this.setProgramParameters(gl, program, vs);
+        // vertex: VertexState({"address":5833460,"texture":2,"color":7,"normal":0,"position":3,"weight":0,"index":0,"realWeightCount":0,"morphingVertexCount":0,"transform2D":true})
+        // jspspemu.js:14054 [0, 1, 2, 3, 4, 5, 6, 7, 6, 7]
         if (this.clearing) {
             this.textureHandler.unbindTexture(program, state);
         }
@@ -10652,7 +15028,7 @@ var WebGlPspDrawDriver = (function () {
         }
         else {
             switch (texture.textureMapMode) {
-                case 0:
+                case 0 /* GU_TEXTURE_COORDS */:
                     t[0] = texture.offsetU;
                     t[1] = texture.offsetV;
                     t[2] = 0.0;
@@ -10661,6 +15037,10 @@ var WebGlPspDrawDriver = (function () {
                     t[1] = texture.scaleV;
                     t[2] = 1.0;
                     mat4.scale(this.texMat, this.texMat, t);
+                    //switch (vertexState.textureSize) {
+                    //	case 1: t[0] = 0x80; t[1] = 0x80; t[2] = 1.0; mat4.scale(this.texMat, this.texMat, t); break;
+                    //	case 2: t[0] = 0x8000; t[1] = 0x8000; t[2] = 1.0; mat4.scale(this.texMat, this.texMat, t); break;
+                    //}
                     break;
                 default:
                     break;
@@ -10679,6 +15059,7 @@ var WebGlPspDrawDriver = (function () {
             program.getAttrib("vNormal").setFloats(3, this.normalData.slice());
         }
         if (vertexInfo.realWeightCount > 0) {
+            //debugger;
             program.getAttrib('vertexWeight1').setFloats(4, this.vertexWeightData1.slice());
             if (vertexInfo.realWeightCount > 4) {
                 program.getAttrib('vertexWeight2').setFloats(4, this.vertexWeightData2.slice());
@@ -10692,6 +15073,7 @@ var WebGlPspDrawDriver = (function () {
         }
         else {
             var ac = this.state.ambientModelColor;
+            //console.log(ac.r, ac.g, ac.b, ac.a);
             program.getUniform('uniformColor').set4f(ac.r, ac.g, ac.b, ac.a);
         }
         if (vertexInfo.hasTexture) {
@@ -10713,18 +15095,19 @@ var WebGlPspDrawDriver = (function () {
             program.getAttrib('vertexWeight2').disable();
     };
     return WebGlPspDrawDriver;
-})();
+}());
 exports.WebGlPspDrawDriver = WebGlPspDrawDriver;
-var convertPrimitiveType = new Int32Array([0, 1, 3, 4, 5, 6, 4]);
-var convertVertexNumericEnum = new Int32Array([0, 5120, 5122, 5126]);
-var convertVertexNumericUnsignedEnum = new Int32Array([0, 5121, 5123, 5126]);
+var convertPrimitiveType = new Int32Array([0 /* POINTS */, 1 /* LINES */, 3 /* LINE_STRIP */, 4 /* TRIANGLES */, 5 /* TRIANGLE_STRIP */, 6 /* TRIANGLE_FAN */, 4 /* TRIANGLES */ /*sprites*/]);
+var convertVertexNumericEnum = new Int32Array([0, 5120 /* BYTE */, 5122 /* SHORT */, 5126 /* FLOAT */]);
+var convertVertexNumericUnsignedEnum = new Int32Array([0, 5121 /* UNSIGNED_BYTE */, 5123 /* UNSIGNED_SHORT */, 5126 /* FLOAT */]);
 
 },
 "src/core/gpu/webgl/webgl_shader": function(module, exports, require) {
 ///<reference path="../../../global.d.ts" />
 ///<reference path="./webgl_enums.d.ts" />
-var _utils = require('./webgl_utils');
-var _pixelformat = require('../../pixelformat');
+"use strict";
+var _utils = require("./webgl_utils");
+var _pixelformat = require("../../pixelformat");
 var PixelFormatUtils = _pixelformat.PixelFormatUtils;
 var WrappedWebGLProgram = _utils.WrappedWebGLProgram;
 var ShaderCache = (function () {
@@ -10793,15 +15176,16 @@ var ShaderCache = (function () {
         return new WrappedWebGLProgram(gl, prog, vs, fs);
     };
     return ShaderCache;
-})();
+}());
 exports.ShaderCache = ShaderCache;
 
 },
 "src/core/gpu/webgl/webgl_texture": function(module, exports, require) {
 ///<reference path="../../../global.d.ts" />
 ///<reference path="./webgl_enums.d.ts" />
-var _state = require('../gpu_state');
-var _pixelformat = require('../../pixelformat');
+"use strict";
+var _state = require("../gpu_state");
+var _pixelformat = require("../../pixelformat");
 var PixelFormatUtils = _pixelformat.PixelFormatUtils;
 var PixelConverter = _pixelformat.PixelConverter;
 var Texture = (function () {
@@ -10811,6 +15195,8 @@ var Texture = (function () {
         this.hash = '';
         this.recheckCount = 0;
         this.framesEqual = 0;
+        this._width = null;
+        this._height = null;
         this.texture = gl.createTexture();
         this.state = new _state.GpuState();
     }
@@ -10825,12 +15211,12 @@ var Texture = (function () {
         configurable: true
     });
     Object.defineProperty(Texture.prototype, "width", {
-        get: function () { return this.mipmap.textureWidth; },
+        get: function () { return this._width || this.mipmap.textureWidth; },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(Texture.prototype, "height", {
-        get: function () { return this.mipmap.textureHeight; },
+        get: function () { return this._height || this.mipmap.textureHeight; },
         enumerable: true,
         configurable: true
     });
@@ -10856,12 +15242,14 @@ var Texture = (function () {
     });
     Texture.prototype.updateFromState = function (state, textureData, clutData) {
         this.state.copyFrom(state);
+        //this.updatedTextures.add(texture);
         var textureState = state.texture;
         var clutState = state.texture.clut;
         var mipmap = textureState.mipmaps[0];
         var h = mipmap.textureHeight, w = mipmap.textureWidth, w2 = mipmap.bufferWidth;
         var data = new Uint8Array(PixelConverter.getSizeInBytes(state.texture.pixelFormat, w2 * h));
         data.set(textureData);
+        //data.set(new Uint8Array(this.memory.buffer, mipmap.address, data.length));
         if (state.texture.swizzled)
             PixelConverter.unswizzleInline(state.texture.pixelFormat, data, w2, h);
         var clut = null;
@@ -10869,6 +15257,7 @@ var Texture = (function () {
             clut = PixelConverter.decode(clutState.pixelFormat, clutData, new Uint32Array(256), textureState.hasAlpha, null);
         }
         this.fromBytesRGBA(PixelConverter.decode(textureState.pixelFormat, data, new Uint32Array(w2 * h), textureState.hasAlpha, clut, clutState.start, clutState.shift, clutState.mask), w2, h);
+        //console.log('texture updated!');
     };
     Texture.prototype._create = function (callbackTex2D) {
         var gl = this.gl;
@@ -10880,18 +15269,19 @@ var Texture = (function () {
     };
     Texture.prototype.fromBytesRGBA = function (data, width, height) {
         var gl = this.gl;
-        this.width = width;
-        this.height = height;
+        this._width = width;
+        this._height = height;
         this._create(function () {
             gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, width, height, 0, gl.RGBA, gl.UNSIGNED_BYTE, ArrayBufferUtils.uint32ToUint8(data));
         });
     };
     Texture.prototype.fromCanvas = function (canvas) {
         var gl = this.gl;
-        this.width = canvas.width;
-        this.height = canvas.height;
+        this._width = canvas.width;
+        this._height = canvas.height;
         this._create(function () {
             gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, canvas);
+            //gl.generateMipmap(gl.TEXTURE_2D);
         });
     };
     Texture.prototype.bind = function (textureUnit, min, mag, wraps, wrapt) {
@@ -10907,16 +15297,39 @@ var Texture = (function () {
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, wrapt);
     };
     Texture.createCanvas = function () {
+        /*
+        var canvas:HTMLCanvasElement = document.createElement('canvas');
+        canvas.style.border = '1px solid white';
+        canvas.width = w2;
+        canvas.height = h;
+        var ctx = <CanvasRenderingContext2D>canvas.getContext('2d');
+        var imageData = ctx.createImageData(w2, h);
+        var u8 = imageData.data;
+
+        ctx.clearRect(0, 0, w, h);
+        for (var n = 0; n < w2 * h * 4; n++) u8[n] = data2[n];
+        ctx.putImageData(imageData, 0, 0);
+
+        console.error('generated texture!' + texture.toString());
+        var div = document.createElement('div');
+        var textdiv = document.createElement('div');
+        textdiv.innerText = texture.toString() + 'w=' + w + ',w2=' + w2 + ',' + h;
+        div.appendChild(canvas);
+        div.appendChild(textdiv);
+        
+        document.body.appendChild(div);
+        */
     };
     Texture.prototype.toString = function () {
         return "Texture(address = " + this.addressStart + ", hash = " + this.hash + ", pixelFormat = " + this.pixelFormat + ", swizzled = " + this.swizzled;
     };
     return Texture;
-})();
+}());
 exports.Texture = Texture;
 var TextureHandler = (function () {
-    function TextureHandler(gl) {
+    function TextureHandler(gl, stats) {
         this.gl = gl;
+        this.stats = stats;
         this.rehashSignal = new Signal1();
         this.invalidateWithGl(gl);
     }
@@ -10933,6 +15346,7 @@ var TextureHandler = (function () {
         }
     };
     TextureHandler.prototype.invalidatedMemoryRange = function (low, high) {
+        //console.log('texture: invalidatedMemoryRange', low, high)
         for (var _i = 0, _a = this.textures; _i < _a.length; _i++) {
             var texture = _a[_i];
             if (texture.addressStart >= low && texture.addressEnd <= high)
@@ -10967,8 +15381,11 @@ var TextureHandler = (function () {
             this.textures.push(texture);
         }
         texture = this.texturesByAddress.get(fastHash);
+        //if (true) {
         if (!texture.valid) {
             var hash = textureState.getHashSlow(textureData, clutData);
+            this.stats.hashMemoryCount++;
+            this.stats.hashMemorySize += mipmap.sizeInBytes;
             this.rehashSignal.dispatch(mipmap.sizeInBytes);
             if (this.texturesByHash.has(hash)) {
                 texture = this.texturesByHash.get(hash);
@@ -10981,24 +15398,40 @@ var TextureHandler = (function () {
                 texture.updateFromState(state, textureData, clutData);
             }
         }
-        texture.bind(0, (enableBilinear && state.texture.filterMinification == 1) ? gl.LINEAR : gl.NEAREST, (enableBilinear && state.texture.filterMagnification == 1) ? gl.LINEAR : gl.NEAREST, convertWrapMode[state.texture.wrapU], convertWrapMode[state.texture.wrapV]);
+        texture.bind(0, (enableBilinear && state.texture.filterMinification == 1 /* Linear */) ? gl.LINEAR : gl.NEAREST, (enableBilinear && state.texture.filterMagnification == 1 /* Linear */) ? gl.LINEAR : gl.NEAREST, convertWrapMode[state.texture.wrapU], convertWrapMode[state.texture.wrapV]);
+        //texture.bind(0, gl.NEAREST, gl.NEAREST, gl.CLAMP_TO_EDGE, gl.CLAMP_TO_EDGE);
         prog.getUniform('textureSize').set2f(texture.width, texture.height);
         prog.getUniform('pixelSize').set2f(1.0 / texture.width, 1.0 / texture.height);
         prog.getUniform('uSampler').set1i(0);
     };
     TextureHandler.prototype.unbindTexture = function (program, state) {
         var gl = this.gl;
+        //gl.activeTexture(gl.TEXTURE1);
+        //gl.bindTexture(gl.TEXTURE_2D, null);
         gl.activeTexture(gl.TEXTURE0);
         gl.bindTexture(gl.TEXTURE_2D, null);
     };
     return TextureHandler;
-})();
+}());
 exports.TextureHandler = TextureHandler;
-var convertWrapMode = [10497, 33071];
+var convertWrapMode = [10497 /* REPEAT */, 33071 /* CLAMP_TO_EDGE */];
+//var convertTextureFilter = [GL.NEAREST, GL.LINEAR, GL.NEAREST, GL.LINEAR];
+//var convertTextureMimapFilter = [GL.NEAREST, GL.LINEAR, GL.NEAREST, GL.LINEAR, GL.NEAREST, GL.LINEAR, GL.NEAREST, GL.LINEAR];
+/*
+export const enum TextureFilter {
+    Nearest = 0,
+    Linear = 1,
+    NearestMipmapNearest = 4,
+    LinearMipmapNearest = 5,
+    NearestMipmapLinear = 6,
+    LinearMipmapLinear = 7,
+}
+*/
 
 },
 "src/core/gpu/webgl/webgl_utils": function(module, exports, require) {
 ///<reference path="../../../global.d.ts" />
+"use strict";
 var mat4x3 = mat4.create();
 var WrappedWebGLUniform = (function () {
     function WrappedWebGLUniform(gl, program, name) {
@@ -11019,7 +15452,7 @@ var WrappedWebGLUniform = (function () {
     WrappedWebGLUniform.prototype.set2f = function (x, y) { this.gl.uniform2f(this.location, x, y); };
     WrappedWebGLUniform.prototype.set4f = function (x, y, z, w) { this.gl.uniform4f(this.location, x, y, z, w); };
     return WrappedWebGLUniform;
-})();
+}());
 exports.WrappedWebGLUniform = WrappedWebGLUniform;
 var WrappedWebGLAttrib = (function () {
     function WrappedWebGLAttrib(gl, program, name) {
@@ -11050,7 +15483,7 @@ var WrappedWebGLAttrib = (function () {
         gl.vertexAttribPointer(this.location, rsize, gl.FLOAT, false, 0, 0);
     };
     return WrappedWebGLAttrib;
-})();
+}());
 exports.WrappedWebGLAttrib = WrappedWebGLAttrib;
 var WrappedWebGLProgram = (function () {
     function WrappedWebGLProgram(gl, program, vs, fs) {
@@ -11083,7 +15516,7 @@ var WrappedWebGLProgram = (function () {
         return attrib;
     };
     return WrappedWebGLProgram;
-})();
+}());
 exports.WrappedWebGLProgram = WrappedWebGLProgram;
 var FastFloat32Buffer = (function () {
     function FastFloat32Buffer() {
@@ -11116,12 +15549,14 @@ var FastFloat32Buffer = (function () {
         return new Float32Array(this.arrayBuffer, 0, this.index);
     };
     return FastFloat32Buffer;
-})();
+}());
 exports.FastFloat32Buffer = FastFloat32Buffer;
 
 },
 "src/core/interrupt": function(module, exports, require) {
 ///<reference path="../global.d.ts" />
+"use strict";
+//import CpuState from './cpu';
 var InterruptHandler = (function () {
     function InterruptHandler(no) {
         this.no = no;
@@ -11131,7 +15566,7 @@ var InterruptHandler = (function () {
         this.cpuState = null;
     }
     return InterruptHandler;
-})();
+}());
 exports.InterruptHandler = InterruptHandler;
 var InterruptHandlers = (function () {
     function InterruptHandlers(pspInterrupt) {
@@ -11150,7 +15585,7 @@ var InterruptHandlers = (function () {
         return (this.handlers[handlerIndex] !== undefined);
     };
     return InterruptHandlers;
-})();
+}());
 exports.InterruptHandlers = InterruptHandlers;
 var InterruptManager = (function () {
     function InterruptManager() {
@@ -11181,6 +15616,7 @@ var InterruptManager = (function () {
         for (var n in handlers) {
             var handler = handlers[n];
             if (handler.enabled) {
+                //debugger;
                 this.queue.push(handler);
                 this.execute(null);
             }
@@ -11198,12 +15634,23 @@ var InterruptManager = (function () {
                 state.PC = item.address;
                 state.startThreadStep();
                 state.executeAtPC();
+                //var RA = state.RA;
+                //// @FIXME! @TODO: this is probably wrong, since the CpuBreakException means that a promise was yielded and we should not continue until it has been resolved!!!
+                //while (state.PC != RA) {
+                //	try {
+                //		state.executeAtPC();
+                //	} catch (e) {
+                //		if (e.message != 'CpuBreakException') throw e;
+                //	}
+                //}
             });
         }
+        //state.callPCSafe();
     };
     return InterruptManager;
-})();
+}());
 exports.InterruptManager = InterruptManager;
+var PspInterrupts;
 (function (PspInterrupts) {
     PspInterrupts[PspInterrupts["PSP_GPIO_INT"] = 4] = "PSP_GPIO_INT";
     PspInterrupts[PspInterrupts["PSP_ATA_INT"] = 5] = "PSP_ATA_INT";
@@ -11232,25 +15679,26 @@ exports.InterruptManager = InterruptManager;
     PspInterrupts[PspInterrupts["PSP_THREAD1_INT"] = 65] = "PSP_THREAD1_INT";
     PspInterrupts[PspInterrupts["PSP_INTERRUPT_INT"] = 66] = "PSP_INTERRUPT_INT";
     PspInterrupts[PspInterrupts["PSP_NUMBER_INTERRUPTS"] = 67] = "PSP_NUMBER_INTERRUPTS";
-})(exports.PspInterrupts || (exports.PspInterrupts = {}));
-var PspInterrupts = exports.PspInterrupts;
+})(PspInterrupts = exports.PspInterrupts || (exports.PspInterrupts = {}));
 
 },
 "src/core/kirk": function(module, exports, require) {
 ///<reference path="../global.d.ts" />
-var _kirk = require('./kirk/kirk');
+"use strict";
+var _kirk = require("./kirk/kirk");
 _kirk.CMD7;
 exports.KIRK_AES128CBC_HEADER = _kirk.KIRK_AES128CBC_HEADER;
 exports.CommandEnum = _kirk.CommandEnum;
 exports.hleUtilsBufferCopyWithRange = _kirk.hleUtilsBufferCopyWithRange;
-var Cmd1 = 1;
+var Cmd1 = 1 /* Cmd1 */;
 var CERT_VERIFY = exports.CommandEnum.CERT_VERIFY;
 var KIRK_AES128CBC_HEADER_struct = exports.KIRK_AES128CBC_HEADER.struct;
 
 },
 "src/core/kirk/crypto": function(module, exports, require) {
 ///<reference path="../../global.d.ts" />
-var jsaes2 = require('./jsaes2');
+"use strict";
+var jsaes2 = require("./jsaes2");
 function cryptoToArray(info) {
     var words = info.words;
     var wordsLen = words.length;
@@ -11264,6 +15712,11 @@ function cryptoToArray(info) {
     }
     return data;
 }
+/*
+function fromCryptoArray(uint8View: Uint8Array) {
+    return CryptoJS.lib.WordArray.create(uint8View);
+}
+*/
 function ab2str(buf) {
     return String.fromCharCode.apply(null, buf);
 }
@@ -11284,6 +15737,21 @@ function str2ab(str) {
     }
     return bufView;
 }
+/*
+export function md5(data: Uint8Array) {
+    return cryptoToArray(CryptoJS.MD5(fromCryptoArray(data)));
+}
+
+export function sha1(data: Uint8Array) {
+    return cryptoToArray(CryptoJS.SHA1(fromCryptoArray(data)));
+}
+
+export function aes_encrypt(data: Uint8Array, key: Uint8Array, iv?: Uint8Array) {
+    var info = { mode: CryptoJS.mode.CFB, padding: CryptoJS.pad.AnsiX923 };
+    if (iv !== undefined) info['iv'] = fromCryptoArray(iv);
+    return cryptoToArray(CryptoJS.AES.encrypt(fromCryptoArray(data), fromCryptoArray(key), info));
+}
+*/
 function uint8array_to_array32(data) {
     var data2 = new Uint32Array(data.buffer);
     var out = new Array(data2.length / 4);
@@ -11330,6 +15798,7 @@ function aes_decrypt(data, key, iv) {
     var keyLength = key.length;
     if (iv === undefined)
         iv = new Uint8Array(keyLength);
+    //return jsaes.Decrypt_Blocks_CBC(data, key, iv);
     return jsaes2.decrypt_aes128_cbc(data, key);
 }
 exports.aes_decrypt = aes_decrypt;
@@ -11337,6 +15806,14 @@ exports.aes_decrypt = aes_decrypt;
 },
 "src/core/kirk/jsaes2": function(module, exports, require) {
 ///<reference path="../../global.d.ts" />
+"use strict";
+/*
+CryptoJS v3.1.2
+code.google.com/p/crypto-js
+(c) 2009-2013 by Jeff Mott. All rights reserved.
+code.google.com/p/crypto-js/wiki/License
+*/
+// Lookup tables
 var SBOX = new Uint8Array(256);
 var INV_SBOX = new Uint8Array(256);
 var SUB_MIX_0 = new Uint32Array(256);
@@ -11347,33 +15824,41 @@ var INV_SUB_MIX_0 = new Uint32Array(256);
 var INV_SUB_MIX_1 = new Uint32Array(256);
 var INV_SUB_MIX_2 = new Uint32Array(256);
 var INV_SUB_MIX_3 = new Uint32Array(256);
+// Compute lookup tables
 (function () {
+    // Compute double table
     var d = [];
     for (var i = 0; i < 256; i++) {
         d[i] = (i << 1);
         if (i >= 128)
             d[i] ^= 0x11b;
     }
+    // Walk GF(2^8)
     var x = 0;
     var xi = 0;
     for (var i = 0; i < 256; i++) {
+        // Compute sbox
         var sx = xi ^ (xi << 1) ^ (xi << 2) ^ (xi << 3) ^ (xi << 4);
         sx = (sx >>> 8) ^ (sx & 0xff) ^ 0x63;
         SBOX[x] = sx;
         INV_SBOX[sx] = x;
+        // Compute multiplication
         var x2 = d[x];
         var x4 = d[x2];
         var x8 = d[x4];
+        // Compute sub bytes, mix columns tables
         var t = (d[sx] * 0x101) ^ (sx * 0x1010100);
         SUB_MIX_0[x] = (t << 24) | (t >>> 8);
         SUB_MIX_1[x] = (t << 16) | (t >>> 16);
         SUB_MIX_2[x] = (t << 8) | (t >>> 24);
         SUB_MIX_3[x] = (t << 0);
+        // Compute inv sub bytes, inv mix columns tables
         var t = (x8 * 0x1010101) ^ (x4 * 0x10001) ^ (x2 * 0x101) ^ (x * 0x1010100);
         INV_SUB_MIX_0[sx] = (t << 24) | (t >>> 8);
         INV_SUB_MIX_1[sx] = (t << 16) | (t >>> 16);
         INV_SUB_MIX_2[sx] = (t << 8) | (t >>> 24);
         INV_SUB_MIX_3[sx] = (t << 0);
+        // Compute next counter
         if (!x) {
             x = xi = 1;
         }
@@ -11383,23 +15868,29 @@ var INV_SUB_MIX_3 = new Uint32Array(256);
         }
     }
 }());
+// Precomputed Rcon lookup
 var RCON = [0x00, 0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80, 0x1b, 0x36];
+/**
+ * AES block cipher algorithm.
+ */
 var AES = (function () {
     function AES(key) {
         this._key = new Uint32Array([0, 0, 0, 0]);
         this._nRounds = -1;
         this._keySchedule = [];
         this._invKeySchedule = [];
+        //this.keySize = key.length / 8;
         this._key = uint8array_to_words(key);
         this.reset();
     }
     AES.prototype.reset = function () {
+        // Shortcuts
         var key = this._key;
         var keyWords = key;
-        var keySize = key.length;
-        var nRounds = this._nRounds = keySize + 6;
-        var ksRows = (nRounds + 1) * 4;
-        var keySchedule = this._keySchedule = [];
+        var keySize = key.length; // number of words
+        var nRounds = this._nRounds = keySize + 6; // Compute number of rounds
+        var ksRows = (nRounds + 1) * 4; // Compute number of key schedule rows
+        var keySchedule = this._keySchedule = []; // Compute key schedule
         for (var ksRow = 0; ksRow < ksRows; ksRow++) {
             if (ksRow < keySize) {
                 keySchedule[ksRow] = keyWords[ksRow];
@@ -11407,16 +15898,17 @@ var AES = (function () {
             else {
                 var t = keySchedule[ksRow - 1];
                 if (!(ksRow % keySize)) {
-                    t = (t << 8) | (t >>> 24);
-                    t = (SBOX[t >>> 24] << 24) | (SBOX[(t >>> 16) & 0xff] << 16) | (SBOX[(t >>> 8) & 0xff] << 8) | SBOX[t & 0xff];
-                    t ^= RCON[(ksRow / keySize) | 0] << 24;
+                    t = (t << 8) | (t >>> 24); // Rot word
+                    t = (SBOX[t >>> 24] << 24) | (SBOX[(t >>> 16) & 0xff] << 16) | (SBOX[(t >>> 8) & 0xff] << 8) | SBOX[t & 0xff]; // Sub word
+                    t ^= RCON[(ksRow / keySize) | 0] << 24; // Mix Rcon
                 }
                 else if (keySize > 6 && ksRow % keySize == 4) {
-                    t = (SBOX[t >>> 24] << 24) | (SBOX[(t >>> 16) & 0xff] << 16) | (SBOX[(t >>> 8) & 0xff] << 8) | SBOX[t & 0xff];
+                    t = (SBOX[t >>> 24] << 24) | (SBOX[(t >>> 16) & 0xff] << 16) | (SBOX[(t >>> 8) & 0xff] << 8) | SBOX[t & 0xff]; // Sub word
                 }
                 keySchedule[ksRow] = keySchedule[ksRow - keySize] ^ t;
             }
         }
+        // Compute inv key schedule
         var invKeySchedule = this._invKeySchedule = [];
         for (var invKsRow = 0; invKsRow < ksRows; invKsRow++) {
             var ksRow = ksRows - invKsRow;
@@ -11439,10 +15931,12 @@ var AES = (function () {
         this._doCryptBlock(M, offset, this._keySchedule, SUB_MIX_0, SUB_MIX_1, SUB_MIX_2, SUB_MIX_3, SBOX);
     };
     AES.prototype.decryptBlock = function (M, offset) {
+        // Swap 2nd and 4th rows
         var t = M[offset + 1];
         M[offset + 1] = M[offset + 3];
         M[offset + 3] = t;
         this._doCryptBlock(M, offset, this._invKeySchedule, INV_SUB_MIX_0, INV_SUB_MIX_1, INV_SUB_MIX_2, INV_SUB_MIX_3, INV_SBOX);
+        // Inv swap 2nd and 4th rows
         var t = M[offset + 1];
         M[offset + 1] = M[offset + 3];
         M[offset + 3] = t;
@@ -11453,28 +15947,34 @@ var AES = (function () {
         var s1 = M[offset + 1] ^ keySchedule[1];
         var s2 = M[offset + 2] ^ keySchedule[2];
         var s3 = M[offset + 3] ^ keySchedule[3];
+        // Key schedule row counter
         var ksRow = 4;
+        // Rounds
         for (var round = 1; round < nRounds; round++) {
+            // Shift rows, sub bytes, mix columns, add round key
             var t0 = SUB_MIX_0[s0 >>> 24] ^ SUB_MIX_1[(s1 >>> 16) & 0xff] ^ SUB_MIX_2[(s2 >>> 8) & 0xff] ^ SUB_MIX_3[(s3 >>> 0) & 0xff] ^ keySchedule[ksRow++];
             var t1 = SUB_MIX_0[s1 >>> 24] ^ SUB_MIX_1[(s2 >>> 16) & 0xff] ^ SUB_MIX_2[(s3 >>> 8) & 0xff] ^ SUB_MIX_3[(s0 >>> 0) & 0xff] ^ keySchedule[ksRow++];
             var t2 = SUB_MIX_0[s2 >>> 24] ^ SUB_MIX_1[(s3 >>> 16) & 0xff] ^ SUB_MIX_2[(s0 >>> 8) & 0xff] ^ SUB_MIX_3[(s1 >>> 0) & 0xff] ^ keySchedule[ksRow++];
             var t3 = SUB_MIX_0[s3 >>> 24] ^ SUB_MIX_1[(s0 >>> 16) & 0xff] ^ SUB_MIX_2[(s1 >>> 8) & 0xff] ^ SUB_MIX_3[(s2 >>> 0) & 0xff] ^ keySchedule[ksRow++];
+            // Update state
             s0 = t0;
             s1 = t1;
             s2 = t2;
             s3 = t3;
         }
+        // Shift rows, sub bytes, add round key
         var t0 = ((SBOX[s0 >>> 24] << 24) | (SBOX[(s1 >>> 16) & 0xff] << 16) | (SBOX[(s2 >>> 8) & 0xff] << 8) | SBOX[(s3 >>> 0) & 0xff]) ^ keySchedule[ksRow++];
         var t1 = ((SBOX[s1 >>> 24] << 24) | (SBOX[(s2 >>> 16) & 0xff] << 16) | (SBOX[(s3 >>> 8) & 0xff] << 8) | SBOX[(s0 >>> 0) & 0xff]) ^ keySchedule[ksRow++];
         var t2 = ((SBOX[s2 >>> 24] << 24) | (SBOX[(s3 >>> 16) & 0xff] << 16) | (SBOX[(s0 >>> 8) & 0xff] << 8) | SBOX[(s1 >>> 0) & 0xff]) ^ keySchedule[ksRow++];
         var t3 = ((SBOX[s3 >>> 24] << 24) | (SBOX[(s0 >>> 16) & 0xff] << 16) | (SBOX[(s1 >>> 8) & 0xff] << 8) | SBOX[(s2 >>> 0) & 0xff]) ^ keySchedule[ksRow++];
+        // Set output
         M[offset + 0] = t0;
         M[offset + 1] = t1;
         M[offset + 2] = t2;
         M[offset + 3] = t3;
     };
     return AES;
-})();
+}());
 exports.AES = AES;
 function swap32(v) {
     return ((v & 0xFF) << 24) | ((v & 0xFF00) << 8) | ((v >> 8) & 0xFF00) | ((v >> 24) & 0xFF);
@@ -11521,7 +16021,8 @@ exports.decrypt_aes128_cbc = decrypt_aes128_cbc;
 },
 "src/core/kirk/kirk": function(module, exports, require) {
 ///<reference path="../../global.d.ts" />
-var crypto = require('./crypto');
+"use strict";
+var crypto = require("./crypto");
 var kirk1_key = new Uint8Array([0x98, 0xC9, 0x40, 0x97, 0x5C, 0x1D, 0x10, 0xE8, 0x7F, 0xE6, 0x0E, 0xA3, 0xFD, 0x03, 0xA8, 0xBA]);
 var kirk16_key = new Uint8Array([0x47, 0x5E, 0x09, 0xF4, 0xA2, 0x37, 0xDA, 0x9B, 0xEF, 0xFF, 0x3B, 0xC0, 0x77, 0x14, 0x3D, 0x8A]);
 var kirk7_keys = {
@@ -11548,62 +16049,550 @@ var kirk7_keys = {
     0x63: new Uint8Array([0x9C, 0x9B, 0x13, 0x72, 0xF8, 0xC6, 0x40, 0xCF, 0x1C, 0x62, 0xF5, 0xD5, 0x92, 0xDD, 0xB5, 0x82]),
     0x64: new Uint8Array([0x03, 0xB3, 0x02, 0xE8, 0x5F, 0xF3, 0x81, 0xB1, 0x3B, 0x8D, 0xAA, 0x2A, 0x90, 0xFF, 0x5E, 0x61]),
 };
+// ECC Curves for Kirk 1 and Kirk 0x11
+// Common Curve paramters p and a
 var ec_p = new Uint8Array([0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x01, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF]);
-var ec_a = new Uint8Array([0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x01, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFC]);
-var ec_b2 = new Uint8Array([0xA6, 0x8B, 0xED, 0xC3, 0x34, 0x18, 0x02, 0x9C, 0x1D, 0x3C, 0xE3, 0x3B, 0x9A, 0x32, 0x1F, 0xCC, 0xBB, 0x9E, 0x0F, 0x0B]);
+var ec_a = new Uint8Array([0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x01, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFC]); // mon
+// Kirk 0xC,0xD,0x10,0x11,(likely 0x12)- Unique curve parameters for b, N, and base point G for Kirk 0xC,0xD,0x10,0x11,(likely 0x12) service
+// Since public key is variable, it is not specified here
+var ec_b2 = new Uint8Array([0xA6, 0x8B, 0xED, 0xC3, 0x34, 0x18, 0x02, 0x9C, 0x1D, 0x3C, 0xE3, 0x3B, 0x9A, 0x32, 0x1F, 0xCC, 0xBB, 0x9E, 0x0F, 0x0B]); // mon
 var ec_N2 = new Uint8Array([0x00, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFE, 0xFF, 0xFF, 0xB5, 0xAE, 0x3C, 0x52, 0x3E, 0x63, 0x94, 0x4F, 0x21, 0x27]);
 var Gx2 = new Uint8Array([0x12, 0x8E, 0xC4, 0x25, 0x64, 0x87, 0xFD, 0x8F, 0xDF, 0x64, 0xE2, 0x43, 0x7B, 0xC0, 0xA1, 0xF6, 0xD5, 0xAF, 0xDE, 0x2C]);
 var Gy2 = new Uint8Array([0x59, 0x58, 0x55, 0x7E, 0xB1, 0xDB, 0x00, 0x12, 0x60, 0x42, 0x55, 0x24, 0xDB, 0xC3, 0x79, 0xD5, 0xAC, 0x5F, 0x4A, 0xDF]);
+// KIRK 1 - Unique curve parameters for b, N, and base point G
+// Since public key is hard coded, it is also included
 var ec_b1 = new Uint8Array([0x65, 0xD1, 0x48, 0x8C, 0x03, 0x59, 0xE2, 0x34, 0xAD, 0xC9, 0x5B, 0xD3, 0x90, 0x80, 0x14, 0xBD, 0x91, 0xA5, 0x25, 0xF9]);
 var ec_N1 = new Uint8Array([0x00, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0x01, 0xB5, 0xC6, 0x17, 0xF2, 0x90, 0xEA, 0xE1, 0xDB, 0xAD, 0x8F]);
 var Gx1 = new Uint8Array([0x22, 0x59, 0xAC, 0xEE, 0x15, 0x48, 0x9C, 0xB0, 0x96, 0xA8, 0x82, 0xF0, 0xAE, 0x1C, 0xF9, 0xFD, 0x8E, 0xE5, 0xF8, 0xFA]);
 var Gy1 = new Uint8Array([0x60, 0x43, 0x58, 0x45, 0x6D, 0x0A, 0x1C, 0xB2, 0x90, 0x8D, 0xE9, 0x0F, 0x27, 0xD7, 0x5C, 0x82, 0xBE, 0xC1, 0x08, 0xC0]);
 var Px1 = new Uint8Array([0xED, 0x9C, 0xE5, 0x82, 0x34, 0xE6, 0x1A, 0x53, 0xC6, 0x85, 0xD6, 0x4D, 0x51, 0xD0, 0x23, 0x6B, 0xC3, 0xB5, 0xD4, 0xB9]);
 var Py1 = new Uint8Array([0x04, 0x9D, 0xF1, 0xA0, 0x75, 0xC0, 0xE0, 0x4F, 0xB3, 0x44, 0x85, 0x8B, 0x61, 0xB7, 0x9B, 0x69, 0xA6, 0x3D, 0x2C, 0x39]);
+// ------------------------- KEY VAULT END -------------------------
+// ------------------------- INTERNAL STUFF -------------------------
 var KIRK_AES128CBC_HEADER = (function () {
     function KIRK_AES128CBC_HEADER() {
-        this.mode = 0;
+        this.mode = 0 /* Invalid0 */;
         this.unk_4 = 0;
         this.unk_8 = 0;
         this.keyseed = 0;
         this.data_size = 0;
     }
-    KIRK_AES128CBC_HEADER.struct = StructClass.create(KIRK_AES128CBC_HEADER, [
-        { mode: Int32 },
-        { unk_4: Int32 },
-        { unk_8: Int32 },
-        { keyseed: Int32 },
-        { data_size: Int32 },
-    ]);
     return KIRK_AES128CBC_HEADER;
-})();
+}());
+KIRK_AES128CBC_HEADER.struct = StructClass.create(KIRK_AES128CBC_HEADER, [
+    { mode: Int32 },
+    { unk_4: Int32 },
+    { unk_8: Int32 },
+    { keyseed: Int32 },
+    { data_size: Int32 },
+]);
 exports.KIRK_AES128CBC_HEADER = KIRK_AES128CBC_HEADER;
 var AES128CMACHeader = (function () {
     function AES128CMACHeader() {
     }
-    AES128CMACHeader.struct = StructClass.create(AES128CMACHeader, [
-        { AES_key: StructArray(UInt8, 16) },
-        { CMAC_key: StructArray(UInt8, 16) },
-        { CMAC_header_hash: StructArray(UInt8, 16) },
-        { CMAC_data_hash: StructArray(UInt8, 16) },
-        { Unknown1: StructArray(UInt8, 32) },
-        { Mode: UInt8 },
-        { UseECDSAhash: UInt8 },
-        { Unknown2: StructArray(UInt8, 14) },
-        { DataSize: UInt32 },
-        { DataOffset: UInt32 },
-        { Unknown3: StructArray(UInt8, 8) },
-        { Unknown4: StructArray(UInt8, 16) },
-    ]);
     return AES128CMACHeader;
-})();
+}());
+AES128CMACHeader.struct = StructClass.create(AES128CMACHeader, [
+    { AES_key: StructArray(UInt8, 16) },
+    { CMAC_key: StructArray(UInt8, 16) },
+    { CMAC_header_hash: StructArray(UInt8, 16) },
+    { CMAC_data_hash: StructArray(UInt8, 16) },
+    { Unknown1: StructArray(UInt8, 32) },
+    { Mode: UInt8 },
+    { UseECDSAhash: UInt8 },
+    { Unknown2: StructArray(UInt8, 14) },
+    { DataSize: UInt32 },
+    { DataOffset: UInt32 },
+    { Unknown3: StructArray(UInt8, 8) },
+    { Unknown4: StructArray(UInt8, 16) },
+]);
 exports.AES128CMACHeader = AES128CMACHeader;
+//interface KIRK_CMD1_HEADER
+//{
+//	/*
+//	u8  AES_key[16];            //0
+//	u8  CMAC_key[16];           //10
+//	u8  CMAC_header_hash[16];   //20
+//	u8  CMAC_data_hash[16];     //30
+//	u8  unused[32];             //40
+//	u32 mode;                   //60
+//	u8  ecdsa_hash;             //64
+//	u8  unk3[11];               //65
+//	u32 data_size;              //70
+//	u32 data_offset;            //74  
+//	u8  unk4[8];                //78
+//	u8  unk5[16];               //80
+//	//0x90
+//	*/
+//}
+//
+////typedef struct blah
+////{
+////  u8 fuseid[8]; //0
+////  u8 mesh[0x40];  //0x8
+////} kirk16_data; //0x48
+//// 
+////typedef struct header_keys
+////{
+////  u8 AES[16];
+////  u8 CMAC[16];
+////} header_keys;  //small struct for temporary keeping AES & CMAC key from CMD1 header
+////
+////
+////u32 g_fuse90;  // This is to match FuseID HW at BC100090 and BC100094
+////u32 g_fuse94;
+////
+////AES_ctx aes_kirk1; //global
+//var PRNG_DATA = new Uint8Array(0x14);
+//
+//var is_kirk_initialized:number; //"init" emulation
+//
+///* ------------------------- INTERNAL STUFF END ------------------------- */
+//
+//
+///* ------------------------- IMPLEMENTATION ------------------------- */
+//
+//function kirk_CMD0(outbuff: Uint8Array, inbuff: Uint8Array, size: number, generate_trash: number)
+//{
+//	KIRK_CMD1_HEADER * header = (KIRK_CMD1_HEADER*) outbuff;
+//	header_keys * keys = (header_keys *) outbuff; //0-15 AES key, 16-31 CMAC key
+//	var chk_size = 0;
+//	AES_ctx k1;
+//	AES_ctx cmac_key;
+//	u8 cmac_header_hash[16];
+//	u8 cmac_data_hash[16];
+//
+//	if (is_kirk_initialized == 0) return KIRK_NOT_INITIALIZED;
+//
+//	memcpy(outbuff, inbuff, size);
+//
+//	if (header- > mode != KIRK_MODE_CMD1) return KIRK_INVALID_MODE;
+//
+//	//FILL PREDATA WITH RANDOM DATA
+//	if (generate_trash) kirk_CMD14(outbuff + sizeof(KIRK_CMD1_HEADER), header- > data_offset);
+//
+//	//Make sure data is 16 aligned
+//	chk_size = header- > data_size;
+//	if (chk_size % 16) chk_size += 16 - (chk_size % 16);
+//
+//	//ENCRYPT DATA
+//	AES_set_key(&k1, keys- > AES, 128);
+//	AES_cbc_encrypt(&k1, inbuff + sizeof(KIRK_CMD1_HEADER) + header- > data_offset, (u8*) outbuff + sizeof(KIRK_CMD1_HEADER) + header- > data_offset, chk_size);
+//
+//	//CMAC HASHES
+//	AES_set_key(&cmac_key, keys- > CMAC, 128);
+//	AES_CMAC(&cmac_key, outbuff + 0x60, 0x30, cmac_header_hash);
+//	AES_CMAC(&cmac_key, outbuff + 0x60, 0x30 + chk_size + header- > data_offset, cmac_data_hash);
+//
+//	memcpy(header- > CMAC_header_hash, cmac_header_hash, 16);
+//	memcpy(header- > CMAC_data_hash, cmac_data_hash, 16);
+//
+//	//ENCRYPT KEYS
+//	AES_cbc_encrypt(&aes_kirk1, inbuff, outbuff, 16 * 2);
+//	return KIRK_OPERATION_SUCCESS;
+//}
+//
+//function kirk_CMD1(u8 * outbuff, u8 * inbuff, int size)
+//{
+//	KIRK_CMD1_HEADER * header = (KIRK_CMD1_HEADER*) inbuff;
+//  header_keys keys; //0-15 AES key, 16-31 CMAC key
+//  AES_ctx k1;
+//
+//	if (size < 0x90) return KIRK_INVALID_SIZE;
+//	if (is_kirk_initialized == 0) return KIRK_NOT_INITIALIZED;
+//	if (header- > mode != KIRK_MODE_CMD1) return KIRK_INVALID_MODE;
+//
+//	AES_cbc_decrypt(&aes_kirk1, inbuff, (u8*) & keys, 16 * 2); //decrypt AES & CMAC key to temp buffer
+//
+//	if (header- > ecdsa_hash == 1) {
+//        SHA_CTX sha;
+//		KIRK_CMD1_ECDSA_HEADER * eheader = (KIRK_CMD1_ECDSA_HEADER*) inbuff;
+//        u8 kirk1_pub[40];
+//        u8 header_hash[20];u8 data_hash[20];
+//		ecdsa_set_curve(ec_p, ec_a, ec_b1, ec_N1, Gx1, Gy1);
+//		memcpy(kirk1_pub, Px1, 20);
+//		memcpy(kirk1_pub + 20, Py1, 20);
+//		ecdsa_set_pub(kirk1_pub);
+//		//Hash the Header
+//		SHAInit(&sha);
+//		SHAUpdate(&sha, (u8*) eheader + 0x60, 0x30);
+//		SHAFinal(header_hash, &sha);
+//
+//		if (!ecdsa_verify(header_hash,eheader- > header_sig_r,eheader- > header_sig_s)) {
+//			return KIRK_HEADER_HASH_INVALID;
+//		}
+//		SHAInit(&sha);
+//		SHAUpdate(&sha, (u8*) eheader + 0x60, size - 0x60);
+//		SHAFinal(data_hash, &sha);
+//
+//		if (!ecdsa_verify(data_hash,eheader- > data_sig_r,eheader- > data_sig_s)) {
+//			return KIRK_DATA_HASH_INVALID;
+//		}
+//
+//	} else {
+//    int ret = kirk_CMD10(inbuff, size);
+//		if (ret != KIRK_OPERATION_SUCCESS) return ret;
+//	}
+//
+//	AES_set_key(&k1, keys.AES, 128);
+//	AES_cbc_decrypt(&k1, inbuff + sizeof(KIRK_CMD1_HEADER) + header- > data_offset, outbuff, header- > data_size);
+//
+//	return KIRK_OPERATION_SUCCESS;
+//}
+//
+//function kirk_CMD4(u8 * outbuff, u8 * inbuff, int size)
+//{
+//	KIRK_AES128CBC_HEADER * header = (KIRK_AES128CBC_HEADER*) inbuff;
+//	u8 * key;
+//  AES_ctx aesKey;
+//
+//	if (is_kirk_initialized == 0) return KIRK_NOT_INITIALIZED;
+//	if (header- > mode != KIRK_MODE_ENCRYPT_CBC) return KIRK_INVALID_MODE;
+//	if (header- > data_size == 0) return KIRK_DATA_SIZE_ZERO;
+//
+//	key = kirk_4_7_get_key(header- > keyseed);
+//  if(key == (u8*)KIRK_INVALID_SIZE) return KIRK_INVALID_SIZE;
+//
+//	//Set the key
+//	AES_set_key(&aesKey, key, 128);
+//	AES_cbc_encrypt(&aesKey, inbuff + sizeof(KIRK_AES128CBC_HEADER), outbuff + sizeof(KIRK_AES128CBC_HEADER), size);
+//
+//	return KIRK_OPERATION_SUCCESS;
+//}
+//
+//
+//function kirk_CMD10(u8 * inbuff, int insize)
+//{
+//	KIRK_CMD1_HEADER * header = (KIRK_CMD1_HEADER*) inbuff;
+//  header_keys keys; //0-15 AES key, 16-31 CMAC key
+//  u8 cmac_header_hash[16];
+//  u8 cmac_data_hash[16];
+//  AES_ctx cmac_key;
+//  int chk_size;
+//
+//	if (is_kirk_initialized == 0) return KIRK_NOT_INITIALIZED;
+//	if (!(header- > mode == KIRK_MODE_CMD1 || header- > mode == KIRK_MODE_CMD2 || header- > mode == KIRK_MODE_CMD3)) return KIRK_INVALID_MODE;
+//	if (header- > data_size == 0) return KIRK_DATA_SIZE_ZERO;
+//
+//	if (header- > mode == KIRK_MODE_CMD1) {
+//		AES_cbc_decrypt(&aes_kirk1, inbuff, (u8*) & keys, 32); //decrypt AES & CMAC key to temp buffer
+//		AES_set_key(&cmac_key, keys.CMAC, 128);
+//		AES_CMAC(&cmac_key, inbuff + 0x60, 0x30, cmac_header_hash);
+//
+//		//Make sure data is 16 aligned
+//		chk_size = header- > data_size;
+//		if (chk_size % 16) chk_size += 16 - (chk_size % 16);
+//		AES_CMAC(&cmac_key, inbuff + 0x60, 0x30 + chk_size + header- > data_offset, cmac_data_hash);
+//
+//		if (memcmp(cmac_header_hash, header- > CMAC_header_hash, 16) != 0) return KIRK_HEADER_HASH_INVALID;
+//		if (memcmp(cmac_data_hash, header- > CMAC_data_hash, 16) != 0) return KIRK_DATA_HASH_INVALID;
+//
+//		return KIRK_OPERATION_SUCCESS;
+//	}
+//	return KIRK_SIG_CHECK_INVALID; //Checks for cmd 2 & 3 not included right now
+//}
+//
+//function kirk_CMD11(u8 * outbuff, u8 * inbuff, int size)
+//{
+//	KIRK_SHA1_HEADER * header = (KIRK_SHA1_HEADER *) inbuff;
+//  SHA_CTX sha;
+//	if (is_kirk_initialized == 0) return KIRK_NOT_INITIALIZED;
+//	if (header- > data_size == 0 || size == 0) return KIRK_DATA_SIZE_ZERO;
+//
+//	SHAInit(&sha);
+//	SHAUpdate(&sha, inbuff + sizeof(KIRK_SHA1_HEADER), header- > data_size);
+//	SHAFinal(outbuff, &sha);
+//	return KIRK_OPERATION_SUCCESS;
+//}
+//
+//// Generate an ECDSA Key pair
+//// offset 0 = private key (0x14 len)
+//// offset 0x14 = public key point (0x28 len)
+//function kirk_CMD12(u8 * outbuff, int outsize) {
+//  u8 k[0x15];
+//	KIRK_CMD12_BUFFER * keypair = (KIRK_CMD12_BUFFER *) outbuff;
+//
+//	if (outsize != 0x3C) return KIRK_INVALID_SIZE;
+//	ecdsa_set_curve(ec_p, ec_a, ec_b2, ec_N2, Gx2, Gy2);
+//	k[0] = 0;
+//	kirk_CMD14(k + 1, 0x14);
+//	ec_priv_to_pub(k, (u8*)keypair- > public_key.x);
+//	memcpy(keypair- > private_key, k + 1, 0x14);
+//
+//	return KIRK_OPERATION_SUCCESS;
+//}
+//// Point multiplication
+//// offset 0 = mulitplication value (0x14 len)
+//// offset 0x14 = point to multiply (0x28 len)
+//function kirk_CMD13(u8 * outbuff, int outsize, u8 * inbuff, int insize) {
+//  u8 k[0x15];
+//	KIRK_CMD13_BUFFER * pointmult = (KIRK_CMD13_BUFFER *) inbuff;
+//	k[0] = 0;
+//	if (outsize != 0x28) return KIRK_INVALID_SIZE;
+//	if (insize != 0x3C) return KIRK_INVALID_SIZE;
+//	ecdsa_set_curve(ec_p, ec_a, ec_b2, ec_N2, Gx2, Gy2);
+//	ecdsa_set_pub((u8*)pointmult- > public_key.x);
+//	memcpy(k + 1,pointmult- > multiplier, 0x14);
+//	ec_pub_mult(k, outbuff);
+//	return KIRK_OPERATION_SUCCESS;
+//}
+//
+//function kirk_CMD14(u8 * outbuff, int outsize) {
+//  u8 temp[0x104];
+//	KIRK_SHA1_HEADER * header = (KIRK_SHA1_HEADER *) temp;
+//
+//  // Some randomly selected data for a "key" to add to each randomization
+//  u8 key[0x10] = { 0xA7, 0x2E, 0x4C, 0xB6, 0xC3, 0x34, 0xDF, 0x85, 0x70, 0x01, 0x49, 0xFC, 0xC0, 0x87, 0xC4, 0x77 };
+//  u32 curtime;
+//	//if(outsize != 0x14) return KIRK_INVALID_SIZE; // Need real error code
+//	if (outsize <= 0) return KIRK_OPERATION_SUCCESS;
+//
+//	memcpy(temp + 4, PRNG_DATA, 0x14);
+//	// This uses the standard C time function for portability.
+//	curtime = (u32) time(0);
+//	temp[0x18] = curtime & 0xFF;
+//	temp[0x19] = (curtime >> 8) & 0xFF;
+//	temp[0x1A] = (curtime >> 16) & 0xFF;
+//	temp[0x1B] = (curtime >> 24) & 0xFF;
+//	memcpy(&temp[0x1C], key, 0x10);
+//  //This leaves the remainder of the 0x100 bytes in temp to whatever remains on the stack 
+//  // in an uninitialized state. This should add unpredicableness to the results as well
+//  header- > data_size = 0x100;
+//	kirk_CMD11(PRNG_DATA, temp, 0x104);
+//	while (outsize) {
+//    int blockrem = outsize % 0x14;
+//    int block = outsize / 0x14;
+//
+//		if (block) {
+//			memcpy(outbuff, PRNG_DATA, 0x14);
+//			outbuff += 0x14;
+//			outsize -= 0x14;
+//			kirk_CMD14(outbuff, outsize);
+//		} else {
+//			if (blockrem) {
+//				memcpy(outbuff, PRNG_DATA, blockrem);
+//				outsize -= blockrem;
+//			}
+//		}
+//
+//	}
+//	return KIRK_OPERATION_SUCCESS;
+//}
+//
+//function decrypt_kirk16_private(u8 * dA_out, u8 * dA_enc)
+//{
+//  int i, k;
+//  kirk16_data keydata;
+//  u8 subkey_1[0x10], subkey_2[0x10];
+//  rijndael_ctx aes_ctx;
+//
+//	keydata.fuseid[7] = g_fuse90 & 0xFF;
+//	keydata.fuseid[6] = (g_fuse90 >> 8) & 0xFF;
+//	keydata.fuseid[5] = (g_fuse90 >> 16) & 0xFF;
+//	keydata.fuseid[4] = (g_fuse90 >> 24) & 0xFF;
+//	keydata.fuseid[3] = g_fuse94 & 0xFF;
+//	keydata.fuseid[2] = (g_fuse94 >> 8) & 0xFF;
+//	keydata.fuseid[1] = (g_fuse94 >> 16) & 0xFF;
+//	keydata.fuseid[0] = (g_fuse94 >> 24) & 0xFF;
+//
+//	/* set encryption key */
+//	rijndael_set_key(&aes_ctx, kirk16_key, 128);
+//
+//	/* set the subkeys */
+//	for (i = 0; i < 0x10; i++) {
+//		/* set to the fuseid */
+//		subkey_2[i] = subkey_1[i] = keydata.fuseid[i % 8];
+//	}
+//
+//	/* do aes crypto */
+//	for (i = 0; i < 3; i++) {
+//		/* encrypt + decrypt */
+//		rijndael_encrypt(&aes_ctx, subkey_1, subkey_1);
+//		rijndael_decrypt(&aes_ctx, subkey_2, subkey_2);
+//	}
+//
+//	/* set new key */
+//	rijndael_set_key(&aes_ctx, subkey_1, 128);
+//
+//	/* now lets make the key mesh */
+//	for (i = 0; i < 3; i++) {
+//		/* do encryption in group of 3 */
+//		for (k = 0; k < 3; k++) {
+//			/* crypto */
+//			rijndael_encrypt(&aes_ctx, subkey_2, subkey_2);
+//		}
+//
+//		/* copy to out block */
+//		memcpy(&keydata.mesh[i * 0x10], subkey_2, 0x10);
+//	}
+//
+//	/* set the key to the mesh */
+//	rijndael_set_key(&aes_ctx, &keydata.mesh[0x20], 128);
+//
+//	/* do the encryption routines for the aes key */
+//	for (i = 0; i < 2; i++) {
+//		/* encrypt the data */
+//		rijndael_encrypt(&aes_ctx, &keydata.mesh[0x10], &keydata.mesh[0x10]);
+//	}
+//
+//	/* set the key to that mesh shit */
+//	rijndael_set_key(&aes_ctx, &keydata.mesh[0x10], 128);
+//
+//	/* cbc decrypt the dA */
+//	AES_cbc_decrypt((AES_ctx *) & aes_ctx, dA_enc, dA_out, 0x20);
+//}
+//
+//function encrypt_kirk16_private(u8 * dA_out, u8 * dA_dec)
+//{
+//  int i, k;
+//  kirk16_data keydata;
+//  u8 subkey_1[0x10], subkey_2[0x10];
+//  rijndael_ctx aes_ctx;
+//
+//
+//	keydata.fuseid[7] = g_fuse90 & 0xFF;
+//	keydata.fuseid[6] = (g_fuse90 >> 8) & 0xFF;
+//	keydata.fuseid[5] = (g_fuse90 >> 16) & 0xFF;
+//	keydata.fuseid[4] = (g_fuse90 >> 24) & 0xFF;
+//	keydata.fuseid[3] = g_fuse94 & 0xFF;
+//	keydata.fuseid[2] = (g_fuse94 >> 8) & 0xFF;
+//	keydata.fuseid[1] = (g_fuse94 >> 16) & 0xFF;
+//	keydata.fuseid[0] = (g_fuse94 >> 24) & 0xFF;
+//	/* set encryption key */
+//	rijndael_set_key(&aes_ctx, kirk16_key, 128);
+//
+//	/* set the subkeys */
+//	for (i = 0; i < 0x10; i++) {
+//		/* set to the fuseid */
+//		subkey_2[i] = subkey_1[i] = keydata.fuseid[i % 8];
+//	}
+//
+//	/* do aes crypto */
+//	for (i = 0; i < 3; i++) {
+//		/* encrypt + decrypt */
+//		rijndael_encrypt(&aes_ctx, subkey_1, subkey_1);
+//		rijndael_decrypt(&aes_ctx, subkey_2, subkey_2);
+//	}
+//
+//	/* set new key */
+//	rijndael_set_key(&aes_ctx, subkey_1, 128);
+//
+//	/* now lets make the key mesh */
+//	for (i = 0; i < 3; i++) {
+//		/* do encryption in group of 3 */
+//		for (k = 0; k < 3; k++) {
+//			/* crypto */
+//			rijndael_encrypt(&aes_ctx, subkey_2, subkey_2);
+//		}
+//
+//		/* copy to out block */
+//		memcpy(&keydata.mesh[i * 0x10], subkey_2, 0x10);
+//	}
+//
+//	/* set the key to the mesh */
+//	rijndael_set_key(&aes_ctx, &keydata.mesh[0x20], 128);
+//
+//	/* do the encryption routines for the aes key */
+//	for (i = 0; i < 2; i++) {
+//		/* encrypt the data */
+//		rijndael_encrypt(&aes_ctx, &keydata.mesh[0x10], &keydata.mesh[0x10]);
+//	}
+//
+//	/* set the key to that mesh shit */
+//	rijndael_set_key(&aes_ctx, &keydata.mesh[0x10], 128);
+//
+//	/* cbc encrypt the dA */
+//	AES_cbc_encrypt((AES_ctx *) & aes_ctx, dA_dec, dA_out, 0x20);
+//}
+//
+//function kirk_CMD16(u8 * outbuff, int outsize, u8 * inbuff, int insize) {
+//        u8 dec_private[0x20];
+//	KIRK_CMD16_BUFFER * signbuf = (KIRK_CMD16_BUFFER *) inbuff;
+//	ECDSA_SIG * sig = (ECDSA_SIG *) outbuff;
+//	if (insize != 0x34) return KIRK_INVALID_SIZE;
+//	if (outsize != 0x28) return KIRK_INVALID_SIZE;
+//	decrypt_kirk16_private(dec_private,signbuf- > enc_private);
+//	// Clear out the padding for safety
+//	memset(&dec_private[0x14], 0, 0xC);
+//	ecdsa_set_curve(ec_p, ec_a, ec_b2, ec_N2, Gx2, Gy2);
+//	ecdsa_set_priv(dec_private);
+//	ecdsa_sign(signbuf- > message_hash,sig- > r, sig- > s);
+//	return KIRK_OPERATION_SUCCESS;
+//}
+//
+//// ECDSA Verify
+//// inbuff structure:
+//// 00 = public key (0x28 length)
+//// 28 = message hash (0x14 length)
+//// 3C = signature R (0x14 length)
+//// 50 = signature S (0x14 length)
+//function kirk_CMD17(u8 * inbuff, int insize) {
+//	KIRK_CMD17_BUFFER * sig = (KIRK_CMD17_BUFFER *) inbuff;
+//	if (insize != 0x64) return KIRK_INVALID_SIZE;
+//	ecdsa_set_curve(ec_p, ec_a, ec_b2, ec_N2, Gx2, Gy2);
+//	ecdsa_set_pub(sig- > public_key.x);
+//	// ecdsa_verify(u8 *hash, u8 *R, u8 *S)
+//	if (ecdsa_verify(sig- > message_hash,sig- > signature.r,sig- > signature.s)) {
+//		return KIRK_OPERATION_SUCCESS;
+//	} else {
+//		return KIRK_SIG_CHECK_INVALID;
+//	}
+//}
+//
+//function kirk_init()
+//{
+//	return kirk_init2((u8*) "Lazy Dev should have initialized!", 33, 0xBABEF00D, 0xDEADBEEF);;
+//}
+//
+//function kirk_init2(u8 * rnd_seed, u32 seed_size, u32 fuseid_90, u32 fuseid_94) {
+//  u8 temp[0x104];
+//
+//	KIRK_SHA1_HEADER * header = (KIRK_SHA1_HEADER *) temp;
+//  // Another randomly selected data for a "key" to add to each randomization
+//  u8 key[0x10] = {0x07, 0xAB, 0xEF, 0xF8, 0x96, 0x8C, 0xF3, 0xD6, 0x14, 0xE0, 0xEB, 0xB2, 0x9D, 0x8B, 0x4E, 0x74 };
+//  u32 curtime;
+//
+//	//Set PRNG_DATA initially, otherwise use what ever uninitialized data is in the buffer
+//	if (seed_size > 0) {
+//		u8 * seedbuf;
+//		KIRK_SHA1_HEADER * seedheader;;
+//		seedbuf = (u8*) malloc(seed_size + 4);
+//		seedheader = (KIRK_SHA1_HEADER *) seedbuf;
+//    seedheader- > data_size = seed_size;
+//		kirk_CMD11(PRNG_DATA, seedbuf, seed_size + 4);
+//		free(seedbuf);
+//	}
+//	memcpy(temp + 4, PRNG_DATA, 0x14);
+//	// This uses the standard C time function for portability.
+//	curtime = (u32) time(0);
+//	temp[0x18] = curtime & 0xFF;
+//	temp[0x19] = (curtime >> 8) & 0xFF;
+//	temp[0x1A] = (curtime >> 16) & 0xFF;
+//	temp[0x1B] = (curtime >> 24) & 0xFF;
+//	memcpy(&temp[0x1C], key, 0x10);
+//  //This leaves the remainder of the 0x100 bytes in temp to whatever remains on the stack 
+//  // in an uninitialized state. This should add unpredicableness to the results as well
+//  header- > data_size = 0x100;
+//	kirk_CMD11(PRNG_DATA, temp, 0x104);
+//
+//	//Set Fuse ID
+//	g_fuse90 = fuseid_90;
+//	g_fuse94 = fuseid_94;
+//
+//	//Set KIRK1 main key
+//	AES_set_key(&aes_kirk1, kirk1_key, 128);
+//
+//
+//	is_kirk_initialized = 1;
+//	return 0;
+//}
 function kirk_4_7_get_key(key_type) {
     var key = kirk7_keys[key_type];
     if (!key)
         throw (new Error("Unsupported key '" + key_type + "'"));
     return key;
 }
+var CommandEnum;
 (function (CommandEnum) {
     CommandEnum[CommandEnum["DECRYPT_PRIVATE"] = 1] = "DECRYPT_PRIVATE";
     CommandEnum[CommandEnum["ENCRYPT_SIGN"] = 2] = "ENCRYPT_SIGN";
@@ -11623,11 +16612,21 @@ function kirk_4_7_get_key(key_type) {
     CommandEnum[CommandEnum["ECDSA_SIGN"] = 16] = "ECDSA_SIGN";
     CommandEnum[CommandEnum["ECDSA_VERIFY"] = 17] = "ECDSA_VERIFY";
     CommandEnum[CommandEnum["CERT_VERIFY"] = 18] = "CERT_VERIFY";
-})(exports.CommandEnum || (exports.CommandEnum = {}));
-var CommandEnum = exports.CommandEnum;
+})(CommandEnum = exports.CommandEnum || (exports.CommandEnum = {}));
+//function kirk_CMD1_ex(outbuff: Uint8Array, inbuff: Uint8Array, size: number, header: KIRK_CMD1_HEADER)
+//{
+//	var buffer = new Uint8Array(size);
+//
+//	memcpy(buffer, header, sizeof(KIRK_CMD1_HEADER));
+//	memcpy(buffer + sizeof(KIRK_CMD1_HEADER), inbuff, header.data_size);
+//
+//	return kirk_CMD1(outbuff, buffer, size);
+//}
+//
+//
 function CMD7(input) {
     var header = KIRK_AES128CBC_HEADER.struct.read(input.slice());
-    if (header.mode != 5)
+    if (header.mode != 5 /* DecryptCbc */)
         throw (new Error("Kirk Invalid mode '" + header.mode + "'"));
     if (header.data_size == 0)
         throw (new Error("Kirk data size == 0"));
@@ -11639,8 +16638,9 @@ function kirk_CMD7(output, input) {
     output.slice().writeStream(output2);
 }
 function kirk_CMD1(output, input) {
+    //console.log(input.sliceWithLength(0, 128).readAllBytes());
     var header = input.slice().readStruct(AES128CMACHeader.struct);
-    if (header.Mode != 1)
+    if (header.Mode != 1 /* Cmd1 */)
         throw (new Error("Kirk mode != Cmd1"));
     var Keys = crypto.aes_decrypt(input.sliceWithLength(0, 16 * 2).readAllBytes(), kirk1_key);
     var KeyAes = Keys.subarray(0, 16);
@@ -11651,12 +16651,9 @@ function kirk_CMD1(output, input) {
 }
 function hleUtilsBufferCopyWithRange(output, input, command) {
     switch (command) {
-        case CommandEnum.DECRYPT_PRIVATE:
-            return kirk_CMD1(output, input);
-            break;
-        case CommandEnum.DECRYPT_IV_0:
-            return kirk_CMD7(output, input);
-            break;
+        case CommandEnum.DECRYPT_PRIVATE: return kirk_CMD1(output, input);
+        //case CommandEnum.ENCRYPT_IV_0: return kirk_CMD4(output, input); break;
+        case CommandEnum.DECRYPT_IV_0: return kirk_CMD7(output, input);
     }
     throw (new Error("Not implemented hleUtilsBufferCopyWithRange! with command " + command + ': ' + CommandEnum[command]));
 }
@@ -11665,6 +16662,7 @@ exports.hleUtilsBufferCopyWithRange = hleUtilsBufferCopyWithRange;
 },
 "src/core/memory": function(module, exports, require) {
 ///<reference path="../global.d.ts" />
+"use strict";
 var __extends = (this && this.__extends) || function (d, b) {
     for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
     function __() { this.constructor = d; }
@@ -11684,6 +16682,7 @@ var Memory = (function () {
         this.invalidateDataRange = new Signal2();
         this.invalidateDataAll = new Signal0();
         this.writeBreakpoints = [];
+        //this._updateWriteFunctions();
     }
     Memory.prototype.lwl = function (address, value) {
         var align = address & 3;
@@ -11707,6 +16706,7 @@ var Memory = (function () {
         var vwrite = (value << SWR_SHIFT[align]) | (this.lw(aadress) & SWR_MASK[align]);
         this.sw(aadress, vwrite);
     };
+    // ALIASES!
     Memory.prototype.writeInt8 = function (address, value) { this.sb(address, value); };
     Memory.prototype.writeInt16 = function (address, value) { this.sh(address, value); };
     Memory.prototype.writeInt32 = function (address, value) { this.sw(address, value); };
@@ -11791,6 +16791,7 @@ var Memory = (function () {
         return new Uint32Array(buffer, offset, size / 4);
     };
     Memory.prototype.getPointerStream = function (address, size) {
+        //console.log(sprintf("getPointerStream: %08X", address));
         if (address == 0)
             return null;
         if (size === 0)
@@ -11801,6 +16802,7 @@ var Memory = (function () {
             size = this.availableAfterAddress(address & FastMemory.MASK);
         if (size < 0)
             return Stream.INVALID;
+        //if (size > this.u8.length - (address & FastMemory.MASK)) return Stream.INVALID;
         return new Stream(this.getPointerDataView(address & FastMemory.MASK, size));
     };
     Memory.prototype.getU8Array = function (address, size) {
@@ -11817,6 +16819,31 @@ var Memory = (function () {
             return null;
         return this.getPointerU16Array(address & FastMemory.MASK, size);
     };
+    /*
+    _updateWriteFunctions() {
+        if (this.writeBreakpoints.length > 0) {
+            this.writeInt8 = this._writeInt8_break;
+            this.writeInt16 = this._writeInt16_break;
+            this.writeInt32 = this._writeInt32_break;
+            this.writeFloat32 = this._writeFloat32_break;
+        } else {
+            this.writeInt8 = this._writeInt8;
+            this.writeInt16 = this._writeInt16;
+            this.writeInt32 = this._writeInt32;
+            this.writeFloat32 = this._writeFloat32;
+        }
+    }
+
+    protected _writeInt8(address: number, value: number) { this.writeInt8(address, value); }
+    protected _writeInt16(address: number, value: number) { this.writeInt16(address, value); }
+    protected _writeInt32(address: number, value: number) { this.writeInt32(address, value); }
+    protected _writeFloat32(address: number, value: number) { this.writeFloat32(address, value); }
+
+    protected _writeInt8_break(address: number, value: number) { this._writeInt8(address, value); this._checkWriteBreakpoints(address, address + 1); }
+    protected _writeInt16_break(address: number, value: number) { this._writeInt16(address, value); this._checkWriteBreakpoints(address, address + 2); }
+    protected _writeInt32_break(address: number, value: number) { this._writeInt32(address, value); this._checkWriteBreakpoints(address, address + 4); }
+    protected _writeFloat32_break(address: number, value: number) { this._writeFloat32(address, value); this._checkWriteBreakpoints(address, address + 4); }
+    */
     Memory.prototype.addWatch4 = function (address) {
         var _this = this;
         this.addWriteAction(address, function (address) {
@@ -11836,7 +16863,21 @@ var Memory = (function () {
     };
     Memory.prototype.addWriteAction = function (address, action) {
         this.writeBreakpoints.push({ address: address, action: action });
+        //this._updateWriteFunctions();
     };
+    /*
+    _checkWriteBreakpoints(start: number, end: number) {
+        start &= FastMemory.MASK;
+        end &= FastMemory.MASK;
+        for (var n = 0; n < this.writeBreakpoints.length; n++) {
+            var writeBreakpoint = this.writeBreakpoints[n];
+            var addressCheck = writeBreakpoint.address & FastMemory.MASK;
+            if (addressCheck >= start && addressCheck < end) {
+                writeBreakpoint.action(writeBreakpoint.address);
+            }
+        }
+    }
+    */
     Memory.prototype.readArrayBuffer = function (address, length) {
         var out = new Uint8Array(length);
         out.set(this.getPointerU8Array(address, length));
@@ -11854,7 +16895,9 @@ var Memory = (function () {
     Memory.prototype.copy = function (from, to, length) {
         if (length <= 0)
             return;
+        //console.warn('copy:', from, to, length);
         this.getPointerU8Array(to, length).set(this.getPointerU8Array(from, length));
+        //this._checkWriteBreakpoints(to, to + length);
     };
     Memory.prototype.memset = function (address, value, length) {
         var buffer = this.getPointerU8Array(address, length);
@@ -11863,18 +16906,25 @@ var Memory = (function () {
         }
         else {
             var value8 = value & 0xFF;
+            //let value16 = value8 | (value8 << 8);
+            //let value32 = value16 | (value16 << 8);
+            // @TODO: Improve performance writing 32-bit values
             for (var n = 0; n < buffer.length; n++)
                 buffer[n] = value8;
         }
+        //this._checkWriteBreakpoints(address, address + length);
     };
     Memory.prototype.writeBytes = function (address, data) {
         this.getPointerU8Array(address, data.byteLength).set(new Uint8Array(data));
+        //this._checkWriteBreakpoints(address, address + data.byteLength);
     };
     Memory.prototype.writeUint8Array = function (address, data) {
         this.getPointerU8Array(address, data.length).set(data);
+        //this._checkWriteBreakpoints(address, address + data.length);
     };
     Memory.prototype.writeStream = function (address, stream) {
         this.writeUint8Array(address, stream.slice().readAllBytes());
+        //this._checkWriteBreakpoints(address, address + stream.length);
     };
     Memory.prototype.readStringz = function (address) {
         if (address == 0)
@@ -11884,6 +16934,19 @@ var Memory = (function () {
             endAddress++;
         return String.fromCharCode.apply(null, this.getPointerU8Array(address, endAddress - address));
     };
+    /*
+    hashWordCount(addressAligned: number, count: number) {
+        addressAligned >>>= 2;
+        count >>>= 2;
+
+        var result = 0;
+        for (var n = 0; n < count; n++) {
+            var v = this.lw_2(addressAligned + n);
+            result = (result + v ^ n) | 0;
+        }
+        return result;
+    }
+    */
     Memory.prototype.hashWordCount = function (_addressAligned, _count) {
         var addressAligned = (_addressAligned >>> 2) | 0;
         var count = (_count >>> 2) | 0;
@@ -11920,24 +16983,25 @@ var Memory = (function () {
         if (name === void 0) { name = 'memory.bin'; }
         saveAs(new Blob([this.getPointerDataView(0x08000000, 0x2000000)]), name);
     };
-    Memory.DEFAULT_FRAME_ADDRESS = 0x04000000;
-    Memory.MASK = 0x0FFFFFFF;
-    Memory.MAIN_OFFSET = 0x08000000;
     return Memory;
-})();
+}());
+Memory.DEFAULT_FRAME_ADDRESS = 0x04000000;
+Memory.MASK = 0x0FFFFFFF;
+Memory.MAIN_OFFSET = 0x08000000;
 exports.Memory = Memory;
 var FastMemory = (function (_super) {
     __extends(FastMemory, _super);
     function FastMemory() {
-        this.buffer = new ArrayBuffer(0x0a000000 + 4);
-        this.s8 = new Int8Array(this.buffer);
-        this.u8 = new Uint8Array(this.buffer);
-        this.u16 = new Uint16Array(this.buffer);
-        this.s16 = new Int16Array(this.buffer);
-        this.s32 = new Int32Array(this.buffer);
-        this.u32 = new Uint32Array(this.buffer);
-        this.f32 = new Float32Array(this.buffer);
-        _super.call(this);
+        var _this = _super.call(this) || this;
+        _this.buffer = new ArrayBuffer(0x0a000000 + 4);
+        _this.s8 = new Int8Array(_this.buffer);
+        _this.u8 = new Uint8Array(_this.buffer);
+        _this.u16 = new Uint16Array(_this.buffer);
+        _this.s16 = new Int16Array(_this.buffer);
+        _this.s32 = new Int32Array(_this.buffer);
+        _this.u32 = new Uint32Array(_this.buffer);
+        _this.f32 = new Float32Array(_this.buffer);
+        return _this;
     }
     FastMemory.prototype.sb = function (address, value) { this.u8[(address & MASK) >> 0] = value; };
     FastMemory.prototype.sh = function (address, value) { this.u16[(address & MASK) >> 1] = value; };
@@ -11957,7 +17021,7 @@ var FastMemory = (function (_super) {
         return this.buffer.byteLength - (address & MASK);
     };
     return FastMemory;
-})(Memory);
+}(Memory));
 var LowMemorySegment = (function () {
     function LowMemorySegment(name, offset, buffer) {
         this.name = name;
@@ -11996,14 +17060,18 @@ var LowMemorySegment = (function () {
         return this.buffer.byteLength - this.fixAddress(address);
     };
     return LowMemorySegment;
-})();
+}());
 var LowMemory = (function (_super) {
     __extends(LowMemory, _super);
     function LowMemory() {
-        this.scratchpad = new LowMemorySegment('scatchpad', 0x00000000, new ArrayBuffer(16 * 1024 + 0x00010000));
-        this.videomem = new LowMemorySegment('videomem', 0x04000000, new ArrayBuffer(2 * 1024 * 1024));
-        this.mainmem = new LowMemorySegment('mainmem', 0x08000000, new ArrayBuffer(32 * 1024 * 1024));
-        _super.call(this);
+        var _this = _super.call(this) || this;
+        //this.scratchpad = new LowMemorySegment('scatchpad', 0x00010000, new ArrayBuffer(16 * 1024));
+        _this.scratchpad = new LowMemorySegment('scatchpad', 0x00000000, new ArrayBuffer(16 * 1024 + 0x00010000));
+        //this.scratchpad = new LowMemorySegment('scatchpad', 0x00000000, new ArrayBuffer(0x00010000 + 16 * 1024));
+        _this.videomem = new LowMemorySegment('videomem', 0x04000000, new ArrayBuffer(2 * 1024 * 1024));
+        _this.mainmem = new LowMemorySegment('mainmem', 0x08000000, new ArrayBuffer(32 * 1024 * 1024));
+        return _this;
+        //this.mainmem = new LowMemorySegment('mainmem', 0x08000000, new ArrayBuffer(64 * 1024 * 1024));
     }
     LowMemory.prototype.getMemRange = function (address) {
         address &= MASK;
@@ -12017,6 +17085,7 @@ var LowMemory = (function (_super) {
                 return this.videomem;
             if (this.mainmem.contains(address))
                 return this.mainmem;
+            // 02203738
             printf("Unmapped: %08X", address);
             return null;
         }
@@ -12039,7 +17108,7 @@ var LowMemory = (function (_super) {
         return this.getMemRange(address).availableAfterAddress(address);
     };
     return LowMemory;
-})(Memory);
+}(Memory));
 function isNodeJs() {
     return typeof process != 'undefined';
 }
@@ -12053,7 +17122,9 @@ function allowBigAlloc() {
     }
 }
 function supportFastMemory() {
-    return !isNodeJs();
+    //return !isNodeJs() && allowBigAlloc();
+    //return !isNodeJs();
+    return true;
 }
 function create() {
     if (supportFastMemory()) {
@@ -12075,6 +17146,7 @@ exports.getInstance = getInstance;
 },
 "src/core/pixelformat": function(module, exports, require) {
 ///<reference path="../global.d.ts" />
+"use strict";
 var PixelFormatUtils = (function () {
     function PixelFormatUtils() {
     }
@@ -12082,8 +17154,9 @@ var PixelFormatUtils = (function () {
         return ((pixelFormat >= PixelFormat.PALETTE_T4) && (pixelFormat <= PixelFormat.PALETTE_T32));
     };
     return PixelFormatUtils;
-})();
+}());
 exports.PixelFormatUtils = PixelFormatUtils;
+var PixelFormat;
 (function (PixelFormat) {
     PixelFormat[PixelFormat["NONE"] = -1] = "NONE";
     PixelFormat[PixelFormat["RGBA_5650"] = 0] = "RGBA_5650";
@@ -12097,8 +17170,7 @@ exports.PixelFormatUtils = PixelFormatUtils;
     PixelFormat[PixelFormat["COMPRESSED_DXT1"] = 8] = "COMPRESSED_DXT1";
     PixelFormat[PixelFormat["COMPRESSED_DXT3"] = 9] = "COMPRESSED_DXT3";
     PixelFormat[PixelFormat["COMPRESSED_DXT5"] = 10] = "COMPRESSED_DXT5";
-})(exports.PixelFormat || (exports.PixelFormat = {}));
-var PixelFormat = exports.PixelFormat;
+})(PixelFormat = exports.PixelFormat || (exports.PixelFormat = {}));
 var sizes = new Float32Array(16);
 sizes[PixelFormat.COMPRESSED_DXT1] = 0.5;
 sizes[PixelFormat.COMPRESSED_DXT3] = 1;
@@ -12137,6 +17209,7 @@ var PixelConverter = (function () {
             for (var bx = 0; bx < bxc; bx++) {
                 var dest = xdest;
                 for (var n = 0; n < 8; n++, dest += pitch4) {
+                    //ArrayBufferUtils.copy(input, src, output, dest, 16);
                     for (var m = 0; m < 16; m++)
                         output[dest++] = input[src++];
                 }
@@ -12167,6 +17240,8 @@ var PixelConverter = (function () {
         if (clutStart === void 0) { clutStart = 0; }
         if (clutShift === void 0) { clutShift = 0; }
         if (clutMask === void 0) { clutMask = 0; }
+        //static decode(format: PixelFormat, from: ArrayBuffer, fromIndex:number, to: Uint8Array, toIndex: number, count: number, useAlpha: boolean = true, palette: Uint32Array = null, clutStart: number = 0, clutShift: number = 0, clutMask: number = 0) {
+        //console.log(format + ':' + PixelFormat[format]);
         switch (format) {
             case PixelFormat.RGBA_8888: return PixelConverter.decode8888(from, to, useAlpha);
             case PixelFormat.RGBA_5551: return PixelConverter.update5551(ArrayBufferUtils.uint8ToUint16(from), to, useAlpha);
@@ -12207,6 +17282,7 @@ var PixelConverter = (function () {
         var orValue = useAlpha ? 0 : 0xFF000000;
         var count = to.length;
         clutMask &= 0xFF;
+        // Big enough to be worth the translate construction
         if (count > 1024) {
             var updateT8Translate = PixelConverter.updateTranslate;
             for (var m = 0; m < 256; m++)
@@ -12269,9 +17345,9 @@ var PixelConverter = (function () {
         }
         return to;
     };
-    PixelConverter.updateTranslate = new Uint32Array(256);
     return PixelConverter;
-})();
+}());
+PixelConverter.updateTranslate = new Uint32Array(256);
 exports.PixelConverter = PixelConverter;
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.default = { PixelFormat: PixelFormat };
@@ -12279,6 +17355,7 @@ exports.default = { PixelFormat: PixelFormat };
 },
 "src/core/rtc": function(module, exports, require) {
 ///<reference path="../global.d.ts" />
+"use strict";
 var PspRtc = (function () {
     function PspRtc() {
     }
@@ -12288,40 +17365,44 @@ var PspRtc = (function () {
     PspRtc.prototype.getDayOfWeek = function (year, month, day) { return new Date(year, month - 1, day).getDay(); };
     PspRtc.prototype.getDaysInMonth = function (year, month) { return new Date(year, month, 0).getDate(); };
     return PspRtc;
-})();
+}());
 exports.PspRtc = PspRtc;
 
 },
 "src/core/stream": function(module, exports, require) {
+"use strict";
 exports.MemoryAsyncStream2 = MemoryAsyncStream;
 
 },
 "src/emulator": function(module, exports, require) {
 ///<reference path="global.d.ts" />
-var _context = require('./context');
-var _cpu = require('./core/cpu');
-var _gpu = require('./core/gpu');
-var _rtc = require('./core/rtc');
-var battery_1 = require('./core/battery');
-var _controller = require('./core/controller');
-var _stream = require('./core/stream');
+"use strict";
+var gpu_stats_1 = require("./core/gpu/gpu_stats");
+var _context = require("./context");
+var _cpu = require("./core/cpu");
+var _gpu = require("./core/gpu");
+var _rtc = require("./core/rtc");
+var battery_1 = require("./core/battery");
+var _controller = require("./core/controller");
+var _stream = require("./core/stream");
 _stream;
-var _display = require('./core/display');
-var _audio = require('./core/audio');
-var _interrupt = require('./core/interrupt');
-var _memory = require('./core/memory');
-var _format = require('./format/format');
-var _format_cso = require('./format/cso');
-var _format_iso = require('./format/iso');
-var _format_zip = require('./format/zip');
-var _pbp = require('./format/pbp');
-var _psf = require('./format/psf');
-var _vfs = require('./hle/vfs');
-var _config = require('./hle/config');
-var _elf_psp = require('./hle/elf_psp');
-var _elf_crypted_prx = require('./hle/elf_crypted_prx');
-var _manager = require('./hle/manager');
-var _pspmodules = require('./hle/pspmodules');
+//import _display = require('./core/display');
+var display_1 = require("./core/display");
+var audio_1 = require("./core/audio");
+var _interrupt = require("./core/interrupt");
+var _memory = require("./core/memory");
+var _format = require("./format/format");
+var _format_cso = require("./format/cso");
+var _format_iso = require("./format/iso");
+var _format_zip = require("./format/zip");
+var _pbp = require("./format/pbp");
+var _psf = require("./format/psf");
+var _vfs = require("./hle/vfs");
+var _config = require("./hle/config");
+var _elf_psp = require("./hle/elf_psp");
+var _elf_crypted_prx = require("./hle/elf_crypted_prx");
+var _manager = require("./hle/manager");
+var _pspmodules = require("./hle/pspmodules");
 var PspRtc = _rtc.PspRtc;
 var FileOpenFlags = _vfs.FileOpenFlags;
 var MountableVfs = _vfs.MountableVfs;
@@ -12333,12 +17414,11 @@ var MemoryStickVfs = _vfs.MemoryStickVfs;
 var EmulatorVfs = _vfs.EmulatorVfs;
 _vfs.EmulatorVfs;
 var MemoryVfs = _vfs.MemoryVfs;
+//import DropboxVfs = _vfs.DropboxVfs;
 var ProxyVfs = _vfs.ProxyVfs;
 var PspElfLoader = _elf_psp.PspElfLoader;
 var EmulatorContext = _context.EmulatorContext;
 var InterruptManager = _interrupt.InterruptManager;
-var PspAudio = _audio.PspAudio;
-var PspDisplay = _display.PspDisplay;
 var PspGpu = _gpu.PspGpu;
 var PspController = _controller.PspController;
 var SyscallManager = _cpu.SyscallManager;
@@ -12352,9 +17432,11 @@ var Interop = _manager.Interop;
 var console = logger.named('emulator');
 var Emulator = (function () {
     function Emulator(memory) {
-        this.audio = new PspAudio();
+        this.audio = new audio_1.PspAudio();
+        this.gpuStats = new gpu_stats_1.GpuStats();
         this.battery = new battery_1.Battery();
         this.controller = new PspController();
+        //private dropboxVfs: DropboxVfs;
         this.config = new _config.Config();
         this.gameTitle = '';
         this.onPic0 = new Signal1();
@@ -12387,8 +17469,13 @@ var Emulator = (function () {
             _this.interop = new Interop();
             _this.callbackManager = new CallbackManager(_this.interop);
             _this.rtc = new PspRtc();
-            _this.display = new PspDisplay(_this.memory, _this.interruptManager, _this.canvas, _this.webgl_canvas);
-            _this.gpu = new PspGpu(_this.memory, _this.display, _this.interop);
+            _this.display = new display_1.PspDisplay(_this.memory, _this.interruptManager, _this.canvas, _this.webgl_canvas);
+            _this.gpu = new PspGpu(_this.memory, _this.display, _this.interop, _this.gpuStats);
+            /*
+            this.gpu.onDrawBatches.add(() => {
+                console.log('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa');
+            });
+            */
             _this.gpu.onDrawBatches.pipeTo(_this.onDrawBatches);
             _this.threadManager = new ThreadManager(_this.memory, _this.interruptManager, _this.callbackManager, _this.memoryManager, _this.display, _this.syscallManager);
             _this.moduleManager = new ModuleManager(_this.context);
@@ -12396,6 +17483,9 @@ var Emulator = (function () {
             _this.emulatorVfs = new EmulatorVfs(_this.context);
             _this.ms0Vfs = new MountableVfs();
             _this.storageVfs = new StorageVfs('psp_storage');
+            //this.dropboxVfs = new DropboxVfs();
+            //this.dropboxVfs.enabled = this.usingDropbox;
+            //var msvfs = new MemoryStickVfs([this.dropboxVfs, this.storageVfs, this.ms0Vfs], this.callbackManager, this.memory);
             var msvfs = new MemoryStickVfs([_this.storageVfs, _this.ms0Vfs], _this.callbackManager, _this.memory);
             _this.fileManager.mount('fatms0', msvfs);
             _this.fileManager.mount('ms0', msvfs);
@@ -12509,12 +17599,15 @@ var Emulator = (function () {
                         var argumentsPartition = _this.memoryManager.userPartition.allocateLow(0x4000);
                         var argument = args.map(function (argument) { return argument + String.fromCharCode(0); }).join('');
                         _this.memory.getPointerStream(argumentsPartition.low).writeString(argument);
+                        //console.log(new Uint8Array(executableArrayBuffer));
                         var pspElf = new PspElfLoader(_this.memory, _this.memoryManager, _this.moduleManager, _this.syscallManager);
                         pspElf.load(elfStream);
                         _this.context.symbolLookup = pspElf;
                         _this.context.gameTitle = _this.gameTitle;
                         _this.context.gameId = pspElf.moduleInfo.name;
                         var moduleInfo = pspElf.moduleInfo;
+                        //this.memory.dump(); debugger;
+                        // "ms0:/PSP/GAME/virtual/EBOOT.PBP"
                         var thread = _this.threadManager.create('main', moduleInfo.pc, 10);
                         thread.state.GP = moduleInfo.gp;
                         thread.state.gpr[4] = argument.length;
@@ -12526,7 +17619,40 @@ var Emulator = (function () {
             }
         });
     };
+    /*
+    toggleDropbox() {
+        this.connectToDropbox(!(localStorage["dropbox"] == 'true'));
+    }
+
+    connectToDropbox(newValue: boolean) {
+        if (typeof $ == 'undefined') return;
+
+        newValue = !!newValue;
+        $('#dropbox').html(newValue ? '<span style="color:#3A3;">enabled</span>' : '<span style="color:#777;">disabled</span>');
+        var oldValue = (localStorage["dropbox"] == 'true');
+
+        console.log('dropbox: ', oldValue, '->', newValue);
+
+        if (newValue) {
+            localStorage["dropbox"] = 'true';
+
+            DropboxVfs.tryLoginAsync().then(() => {
+                $('#dropbox').html('<span style="color:#6A6;">connected</span>');
+            }).catch((e) => {
+                console.error(e);
+                $('#dropbox').html('<span style="color:#F77;">error</span>');
+            });
+        } else {
+            delete localStorage["dropbox"];
+        }
+        this.usingDropbox = newValue;
+        if (this.dropboxVfs) {
+            this.dropboxVfs.enabled = newValue;
+        }
+    }
+    */
     Emulator.prototype.checkPlugins = function () {
+        //this.connectToDropbox(localStorage["dropbox"] == 'true');
     };
     Emulator.prototype.loadExecuteAndWaitAsync = function (asyncStream, url, afterStartCallback) {
         var _this = this;
@@ -12534,7 +17660,9 @@ var Emulator = (function () {
         return this.loadAndExecuteAsync(asyncStream, url).then(function () {
             if (afterStartCallback)
                 afterStartCallback();
+            //console.error('WAITING!');
             return _this.threadManager.waitExitGameAsync().then(function () {
+                //console.error('STOPPING!');
                 return _this.stopAsync().then(function () {
                     return _this.emulatorVfs.output;
                 });
@@ -12571,6 +17699,7 @@ var Emulator = (function () {
         var _this = this;
         return UrlAsyncStream.fromUrlAsync(url).then(function (stream) {
             Microtask.queue(function () {
+                // escape try/catch!
                 _this.loadAndExecuteAsync(stream, url);
             });
         });
@@ -12578,370 +17707,276 @@ var Emulator = (function () {
     Emulator.prototype.executeFileAsync = function (file) {
         var _this = this;
         Microtask.queue(function () {
+            // escape try/catch!
             _this.loadAndExecuteAsync(new FileAsyncStream(file), '.');
         });
     };
     return Emulator;
-})();
+}());
 exports.Emulator = Emulator;
 
 },
 "src/emulator_controller": function(module, exports, require) {
-///<reference path="./emulator_bridge.d.ts" />
-var webgl_driver_1 = require('./core/gpu/webgl/webgl_driver');
-var _config = require('./hle/config');
-var canvas = (document.getElementById('canvas'));
-var webgl_canvas = (document.getElementById('webgl_canvas'));
-canvas.style.display = 'none';
-webgl_canvas.style.display = 'block';
-var webglDriver = new webgl_driver_1.WebGlPspDrawDriver(webgl_canvas);
-webglDriver.initAsync();
-var ENABLE_WORKERS = true;
+"use strict";
+var emulator_controller_normal_1 = require("./emulator_controller_normal");
+var emulator_controller_worker_1 = require("./emulator_controller_worker");
+var ENABLE_WORKERS = false;
 console.info('ENABLE_WORKERS', ENABLE_WORKERS);
-var documentLocation = document.location.href;
-documentLocation = documentLocation.replace(/#.*$/, '');
-documentLocation = documentLocation.replace(/\/[^\/]*$/, '');
-console.log('base path', documentLocation);
-var blob = new Blob([("\n\timportScripts('" + documentLocation + "/jspspemu.js');\n\timportScripts('" + documentLocation + "/jspspemu-me.js');\n\tself.documentLocation = " + JSON.stringify(documentLocation) + ";\n\trequire('src/emulator_worker');\n")], { type: 'text/javascript' });
-var blobURL = window.URL.createObjectURL(blob);
-function changeFavicon(src) {
-    if (typeof document == 'undefined')
-        return;
-    var link = document.createElement('link'), oldLink = document.getElementById('dynamic-favicon');
-    link.id = 'dynamic-favicon';
-    link.rel = 'shortcut icon';
-    link.href = src;
-    if (oldLink) {
-        document.head.removeChild(oldLink);
-    }
-    document.head.appendChild(link);
-}
-var emulatorWorker = new Worker(blobURL);
-emulatorWorker.onmessage = function (e) {
-    var action = e.data.action;
-    var payload = e.data.payload;
-    switch (action) {
-        case 'pic0':
-            changeFavicon(Stream.fromUint8Array(payload).toImageUrl());
-            break;
-        case 'pic1':
-            document.body.style.backgroundRepeat = 'no-repeat';
-            document.body.style.backgroundSize = 'cover';
-            document.body.style.backgroundPosition = 'center center';
-            document.body.style.backgroundImage = 'url("' + Stream.fromUint8Array(payload).toImageUrl() + '")';
-            break;
-        case 'audio.start':
-            audio.startChannel(payload.id);
-            break;
-        case 'audio.stop':
-            audio.stopChannel(payload.id);
-            break;
-        case 'audio.data':
-            audio.playDataAsync(payload.id, payload.channels, payload.data, payload.leftvolume, payload.rightvolume).then(function () {
-                completeAction(e);
-            });
-            break;
-        case 'gpu.draw':
-            webglDriver.invalidatedMemoryAll();
-            overlay.updateAndReset();
-            webglDriver.drawBatchesTransfer(payload);
-            freezing.waitUntilValueAsync(false).then(function () {
-                postAction('gpu.sync', {});
-            });
-            break;
-        default:
-            console.error('unknown UI action', action, payload);
-            break;
-    }
-    Microtask.execute();
-};
-var Battery = (function () {
-    function Battery(manager) {
-        this.manager = manager;
-        Battery.instance = this;
-    }
-    Object.defineProperty(Battery.prototype, "lifetime", {
-        get: function () {
-            if (this.manager != null)
-                return Math.min(10 * 3600, this.manager.dischargingTime);
-            return 3 * 3600;
-        },
-        enumerable: true,
-        configurable: true
-    });
-    Object.defineProperty(Battery.prototype, "charging", {
-        get: function () {
-            if (this.manager != null)
-                return this.manager.charging;
-            return true;
-        },
-        enumerable: true,
-        configurable: true
-    });
-    Object.defineProperty(Battery.prototype, "level", {
-        get: function () {
-            if (this.manager != null)
-                return this.manager.level;
-            return 1.0;
-        },
-        enumerable: true,
-        configurable: true
-    });
-    Battery.getAsync = function () {
-        if (this.instance)
-            return Promise2.resolve(this.instance);
-        if (this.promise)
-            return this.promise;
-        if (navigator.battery)
-            return Promise2.resolve(new Battery(navigator.battery));
-        if (navigator.getBattery) {
-            return this.promise = Promise2.fromThenable(navigator.getBattery()).then(function (v) {
-                return new Battery(v);
-            });
-        }
-        return Promise2.resolve(new Battery(null));
-    };
-    Battery.instance = null;
-    Battery.promise = null;
-    return Battery;
-})();
-exports.Battery = Battery;
-setTimeout(function () {
-    Battery.getAsync().then(function (battery) {
-        function sendData() {
-            postAction('battery.info', {
-                charging: battery.charging,
-                level: battery.level,
-                lifetime: battery.lifetime,
-            });
-        }
-        setInterval(function () {
-            sendData();
-        }, 300);
-        sendData();
-    });
-}, 0);
-var PspAudioBuffer = (function () {
-    function PspAudioBuffer(readedCallback, data) {
-        this.readedCallback = readedCallback;
-        this.data = data;
-        this.offset = 0;
-    }
-    PspAudioBuffer.prototype.resolve = function () {
-        if (this.readedCallback)
-            this.readedCallback();
-        this.readedCallback = null;
-    };
-    Object.defineProperty(PspAudioBuffer.prototype, "hasMore", {
-        get: function () { return this.offset < this.length; },
-        enumerable: true,
-        configurable: true
-    });
-    PspAudioBuffer.prototype.read = function () { return this.data[this.offset++]; };
-    Object.defineProperty(PspAudioBuffer.prototype, "available", {
-        get: function () { return this.length - this.offset; },
-        enumerable: true,
-        configurable: true
-    });
-    Object.defineProperty(PspAudioBuffer.prototype, "length", {
-        get: function () { return this.data.length; },
-        enumerable: true,
-        configurable: true
-    });
-    return PspAudioBuffer;
-})();
-exports.PspAudioBuffer = PspAudioBuffer;
-var Audio2Channel = (function () {
-    function Audio2Channel(id, context) {
-        var _this = this;
-        this.id = id;
-        this.context = context;
-        this.buffers = [];
-        if (this.context) {
-            this.node = this.context.createScriptProcessor(1024, 2, 2);
-            this.node.onaudioprocess = function (e) { _this.process(e); };
-        }
-    }
-    Audio2Channel.convertS16ToF32 = function (channels, input, leftVolume, rightVolume) {
-        var output = new Float32Array(input.length * 2 / channels);
-        var optimized = leftVolume == 1.0 && rightVolume == 1.0;
-        switch (channels) {
-            case 2:
-                if (optimized) {
-                    for (var n = 0; n < output.length; n++)
-                        output[n] = input[n] / 32767.0;
-                }
-                else {
-                    for (var n = 0; n < output.length; n += 2) {
-                        output[n + 0] = (input[n + 0] / 32767.0) * leftVolume;
-                        output[n + 1] = (input[n + 1] / 32767.0) * rightVolume;
-                    }
-                }
-                break;
-            case 1:
-                if (optimized) {
-                    for (var n = 0, m = 0; n < input.length; n++) {
-                        output[m++] = output[m++] = (input[n] / 32767.0);
-                    }
-                }
-                else {
-                    for (var n = 0, m = 0; n < input.length; n++) {
-                        var sample = (input[n] / 32767.0);
-                        output[m++] = sample * leftVolume;
-                        output[m++] = sample * rightVolume;
-                    }
-                }
-                break;
-        }
-        return output;
-    };
-    Audio2Channel.prototype.start = function () {
-        if (this.node)
-            this.node.connect(this.context.destination);
-    };
-    Audio2Channel.prototype.stop = function () {
-        if (this.node)
-            this.node.disconnect();
-    };
-    Audio2Channel.prototype.process = function (e) {
-        var left = e.outputBuffer.getChannelData(0);
-        var right = e.outputBuffer.getChannelData(1);
-        var sampleCount = left.length;
-        var hidden = document.hidden;
-        for (var n = 0; n < sampleCount; n++) {
-            if (!this.currentBuffer) {
-                if (this.buffers.length == 0)
-                    break;
-                for (var m = 0; m < Math.min(3, this.buffers.length); m++) {
-                    this.buffers[m].resolve();
-                }
-                this.currentBuffer = this.buffers.shift();
-                this.currentBuffer.resolve();
-            }
-            if (this.currentBuffer.available >= 2) {
-                left[n] = this.currentBuffer.read();
-                right[n] = this.currentBuffer.read();
-            }
-            else {
-                this.currentBuffer = null;
-                n--;
-            }
-            if (hidden)
-                left[n] = right[n] = 0;
-        }
-    };
-    Audio2Channel.prototype.playAsync = function (data) {
-        var _this = this;
-        if (!this.node)
-            return waitAsync(10).then(function () { return 0; });
-        if (this.buffers.length < 8) {
-            this.buffers.push(new PspAudioBuffer(null, data));
-            return Promise2.resolve(0);
-        }
-        else {
-            return new Promise2(function (resolved, rejected) {
-                _this.buffers.push(new PspAudioBuffer(resolved, data));
-                return 0;
-            });
-        }
-    };
-    Audio2Channel.prototype.playDataAsync = function (channels, data, leftVolume, rightVolume) {
-        return this.playAsync(Audio2Channel.convertS16ToF32(channels, data, leftVolume, rightVolume));
-    };
-    return Audio2Channel;
-})();
-var Audio2 = (function () {
-    function Audio2() {
-        this.channels = new Map();
-        this.context = new AudioContext();
-    }
-    Audio2.prototype.getChannel = function (id) {
-        if (!this.channels.has(id))
-            this.channels.set(id, new Audio2Channel(id, this.context));
-        return this.channels.get(id);
-    };
-    Audio2.prototype.startChannel = function (id) {
-        return this.getChannel(id).start();
-    };
-    Audio2.prototype.stopChannel = function (id) {
-        return this.getChannel(id).stop();
-    };
-    Audio2.prototype.playDataAsync = function (id, channels, data, leftVolume, rightVolume) {
-        return this.getChannel(id).playDataAsync(channels, data, leftVolume, rightVolume);
-    };
-    return Audio2;
-})();
-var audio = new Audio2();
-function postAction(type, payload) {
-    emulatorWorker.postMessage({ action: type, payload: payload });
-}
-function completeAction(e) {
-    postAction('$complete', e.data.packetId);
-}
-document.addEventListener('keydown', function (e) {
-    postAction('keyDown', e.keyCode);
-});
-document.addEventListener('keyup', function (e) {
-    postAction('keyUp', e.keyCode);
-});
-var navigator = (typeof window != 'undefined') ? window.navigator : null;
-var getGamepads = (navigator && navigator.getGamepads) ? navigator.getGamepads.bind(navigator) : null;
-var gamepadButtonMapping = [
-    16384,
-    8192,
-    32768,
-    4096,
-    256,
-    512,
-    1048576,
-    2097152,
-    1,
-    8,
-    65536,
-    8388608,
-    16,
-    64,
-    128,
-    32,
-];
-function gamepadsFrame() {
-    if (!getGamepads)
-        return;
-    window.requestAnimationFrame(gamepadsFrame);
-    var gamepads = getGamepads();
-    if (gamepads[0]) {
-        var gamepad = gamepads[0];
-        var buttons = gamepad['buttons'];
-        var axes = gamepad['axes'];
-        function checkButton(button) {
-            if (typeof button == 'number') {
-                return button != 0;
-            }
-            else {
-                return button ? !!(button.pressed) : false;
-            }
-        }
-        var buttonsData = new Uint8Array(16);
-        for (var n = 0; n < 16; n++) {
-            buttonsData[gamepadButtonMapping[n]] = checkButton(buttons[n]) ? 1 : 0;
-        }
-        postAction('gamepadFrame', { x: axes[0], y: axes[1], buttons: buttonsData });
-    }
-}
-gamepadsFrame();
+var controller = ENABLE_WORKERS ? new emulator_controller_worker_1.EmulatorControllerWorker() : new emulator_controller_normal_1.EmulatorControllerNormal();
 var EmulatorController = (function () {
     function EmulatorController() {
     }
     EmulatorController.executeUrl = function (url) {
-        postAction('executeUrl', url);
+        controller.executeUrl(url);
     };
     EmulatorController.executeFile = function (file) {
-        postAction('executeFile', file);
+        controller.executeFile(file);
     };
     return EmulatorController;
-})();
+}());
 exports.EmulatorController = EmulatorController;
-postAction('config.language', _config.Config.detectLanguage());
+controller.init();
+
+},
+"src/emulator_controller_normal": function(module, exports, require) {
+"use strict";
+var webgl_driver_1 = require("./core/gpu/webgl/webgl_driver");
+//import { BatteryInfo } from './core/battery';
+var emulator_overlay_1 = require("./emulator_overlay");
+var emulator_1 = require("./emulator");
+var Html5Audio_1 = require("./html5/Html5Audio");
+var Html5Battery_1 = require("./html5/Html5Battery");
+var Html5Icons_1 = require("./html5/Html5Icons");
+var _vertex = require("./core/gpu/gpu_vertex");
+var _config = require("./hle/config");
+var Html5Gamepad = require("./html5/Html5Gamepad");
+var EmulatorControllerNormal = (function () {
+    function EmulatorControllerNormal() {
+        this.documentLocation = document.location.href.replace(/#.*$/, '').replace(/\/[^\/]*$/, '');
+        this.emulator = new emulator_1.Emulator();
+        this.audio = new Html5Audio_1.Html5Audio2();
+    }
+    EmulatorControllerNormal.prototype.init = function () {
+        var emulator = this.emulator;
+        var audio = this.audio;
+        self.emulator = emulator;
+        var canvas = (document.getElementById('canvas'));
+        var webgl_canvas = (document.getElementById('webgl_canvas'));
+        var webglDriver = new webgl_driver_1.WebGlPspDrawDriver(webgl_canvas, emulator.gpuStats);
+        webglDriver.initAsync();
+        var debugOverlay = new emulator_overlay_1.DebugOverlay(webglDriver);
+        debugOverlay.register();
+        emulator.canvas = canvas;
+        emulator.webgl_canvas = webgl_canvas;
+        emulator.startAsync().then(function () {
+            console.info('emulator started');
+            emulator.onPic0.add(function (data) {
+                Html5Icons_1.Html5Icons.setPic0(data);
+            });
+            emulator.onPic1.add(function (data) {
+                Html5Icons_1.Html5Icons.setPic1(data);
+            });
+            debugOverlay.linkTo(emulator);
+            emulator.onDrawBatches.add(function (drawBufferData, batches) {
+                //console.log('emulator.onDrawBatches');
+                emulator.display.setEnabledDisplay(false);
+                var transferData = _vertex.OptimizedDrawBufferTransfer.build(drawBufferData, batches);
+                webglDriver.invalidatedMemoryAll();
+                debugOverlay.overlay.updateAndReset();
+                webglDriver.drawBatchesTransfer(transferData);
+                debugOverlay.freezing.waitUntilValueAsync(false).then(function () {
+                    emulator.gpu.sync();
+                });
+                //console.log('drawBatches UI:', batches.length);
+            });
+            emulator.memory.invalidateDataAll.add(function () {
+                //postAction('memory.invalidateDataAll', {});
+            });
+            emulator.memory.invalidateDataRange.add(function (low, high) {
+                //postAction('memory.invalidateDataRange', {low: low, high: high});
+            });
+            emulator.audio.onPlayDataAsync.add(function (id, channels, data, leftvolume, rightvolume) {
+                var clonedData = ArrayBufferUtils.cloneInt16Array(data);
+                return audio.playDataAsync(id, channels, data, leftvolume, rightvolume);
+            });
+            emulator.audio.onStart.add(function (id) {
+                audio.startChannel(id);
+            });
+            emulator.audio.onStop.add(function (id) {
+                audio.stopChannel(id);
+            });
+        }).catch(function (e) {
+            console.error(e);
+        });
+        console.log('base path', this.documentLocation);
+        document.addEventListener('keydown', function (e) {
+            emulator.controller.setKeyDown(e.keyCode);
+        });
+        document.addEventListener('keyup', function (e) {
+            emulator.controller.setKeyUp(e.keyCode);
+        });
+        emulator.config.language = _config.Config.detectLanguage();
+        var canDOMCreateElements = (typeof document != 'undefined');
+        new Html5Gamepad().register(emulator.controller);
+        debugOverlay.gpuFreezing.add(function (value) {
+            emulator.gpu.freezing.value = value;
+        });
+        debugOverlay.gpuDumpCommands.add(function () {
+            emulator.gpu.dumpCommands();
+        });
+        Html5Battery_1.Html5Battery.registerAndSetCallback(function (binfo) {
+            emulator.battery.charging = binfo.charging;
+            emulator.battery.level = binfo.level;
+            emulator.battery.lifetime = binfo.lifetime;
+        });
+        new Html5Gamepad().register(emulator.controller);
+        Microtask.execute();
+    };
+    EmulatorControllerNormal.prototype.executeUrl = function (url) {
+        if (url.match(/^https?:\/\//)) {
+            url = url;
+        }
+        else {
+            url = this.documentLocation + "/" + url;
+        }
+        console.info('executeUrl:', url);
+        this.emulator.downloadAndExecuteAsync(url);
+    };
+    EmulatorControllerNormal.prototype.executeFile = function (file) {
+        console.info('executeFile:', file);
+        this.emulator.executeFileAsync(file);
+    };
+    return EmulatorControllerNormal;
+}());
+exports.EmulatorControllerNormal = EmulatorControllerNormal;
+
+},
+"src/emulator_controller_worker": function(module, exports, require) {
+"use strict";
+var webgl_driver_1 = require("./core/gpu/webgl/webgl_driver");
+var gpu_stats_1 = require("./core/gpu/gpu_stats");
+//import { BatteryInfo } from './core/battery';
+var emulator_overlay_1 = require("./emulator_overlay");
+var Html5Audio_1 = require("./html5/Html5Audio");
+var Html5Battery_1 = require("./html5/Html5Battery");
+var Html5Icons_1 = require("./html5/Html5Icons");
+var _config = require("./hle/config");
+var Html5Gamepad = require("./html5/Html5Gamepad");
+var EmulatorControllerWorker = (function () {
+    function EmulatorControllerWorker() {
+        this.documentLocation = document.location.href.replace(/#.*$/, '').replace(/\/[^\/]*$/, '');
+        this.emulatorWorker = new Worker(window.URL.createObjectURL(new Blob(["\n\t\timportScripts('" + this.documentLocation + "/jspspemu.js');\n\t\timportScripts('" + this.documentLocation + "/jspspemu-me.js');\n\t\tself.documentLocation = " + JSON.stringify(this.documentLocation) + ";\n\t\trequire('src/emulator_worker');\n\t"], { type: 'text/javascript' })));
+    }
+    EmulatorControllerWorker.prototype.init = function () {
+        var _this = this;
+        var canvas = (document.getElementById('canvas'));
+        var webgl_canvas = (document.getElementById('webgl_canvas'));
+        var audio = new Html5Audio_1.Html5Audio2();
+        //canvas.style.display = 'block';
+        //webgl_canvas.style.display = 'none';
+        var webglDriver = new webgl_driver_1.WebGlPspDrawDriver(webgl_canvas, new gpu_stats_1.GpuStats());
+        webglDriver.initAsync();
+        var debugOverlay = new emulator_overlay_1.DebugOverlay(webglDriver);
+        debugOverlay.register();
+        var ENABLE_WORKERS = true;
+        console.info('ENABLE_WORKERS', ENABLE_WORKERS);
+        console.log('base path', this.documentLocation);
+        this.emulatorWorker.onmessage = function (e) {
+            var action = e.data.action;
+            var payload = e.data.payload;
+            switch (action) {
+                case 'pic0':
+                    Html5Icons_1.Html5Icons.setPic0(payload);
+                    break;
+                case 'pic1':
+                    Html5Icons_1.Html5Icons.setPic1(payload);
+                    break;
+                case 'audio.start':
+                    audio.startChannel(payload.id);
+                    break;
+                case 'audio.stop':
+                    audio.stopChannel(payload.id);
+                    break;
+                case 'audio.data':
+                    audio.playDataAsync(payload.id, payload.channels, payload.data, payload.leftvolume, payload.rightvolume).then(function () {
+                        _this.completeAction(e);
+                    });
+                    break;
+                case 'gpu.draw':
+                    webglDriver.invalidatedMemoryAll();
+                    debugOverlay.overlay.updateAndReset();
+                    webglDriver.drawBatchesTransfer(payload);
+                    debugOverlay.freezing.waitUntilValueAsync(false).then(function () {
+                        _this.postAction('gpu.sync', {});
+                    });
+                    //console.log('drawBatches UI:', batches.length);
+                    break;
+                /*
+                case 'memory.invalidateDataAll':
+                    webglDriver.invalidatedMemoryAll();
+                    break;
+                case 'memory.invalidateDataRange':
+                    webglDriver.invalidatedMemoryRange(payload.low, payload.high);
+                    break;
+                */
+                default:
+                    console.error('unknown UI action', action, payload);
+                    break;
+            }
+            Microtask.execute();
+        };
+        //worker.postMessage({}); // Start the worker.
+        document.addEventListener('keydown', function (e) {
+            _this.postAction('keyDown', e.keyCode);
+        });
+        document.addEventListener('keyup', function (e) {
+            _this.postAction('keyUp', e.keyCode);
+        });
+        this.postAction('config.language', _config.Config.detectLanguage());
+        var canDOMCreateElements = (typeof document != 'undefined');
+        var postAction = function (action, payload) {
+            _this.postAction(action, payload);
+        };
+        var WorkerPspController = (function () {
+            function WorkerPspController() {
+            }
+            WorkerPspController.prototype.setGamepadFrame = function (x, y, buttons) {
+                postAction('gamepadFrame', { x: x, y: y, buttons: buttons });
+            };
+            return WorkerPspController;
+        }());
+        var workerController = new WorkerPspController();
+        new Html5Gamepad().register(workerController);
+        debugOverlay.gpuFreezing.add(function (value) {
+            _this.postAction('gpu.freezing', value);
+        });
+        debugOverlay.gpuDumpCommands.add(function () {
+            _this.postAction('gpu.dumpcommands', {});
+        });
+        Html5Battery_1.Html5Battery.registerAndSetCallback(function (bi) {
+            _this.postAction('battery.info', bi);
+        });
+    };
+    EmulatorControllerWorker.prototype.postAction = function (action, payload) {
+        this.emulatorWorker.postMessage({ action: action, payload: payload });
+    };
+    EmulatorControllerWorker.prototype.completeAction = function (e) {
+        this.postAction('$complete', e.data.packetId);
+    };
+    EmulatorControllerWorker.prototype.executeUrl = function (url) {
+        this.postAction('executeUrl', url);
+    };
+    EmulatorControllerWorker.prototype.executeFile = function (file) {
+        this.postAction('executeFile', file);
+    };
+    return EmulatorControllerWorker;
+}());
+exports.EmulatorControllerWorker = EmulatorControllerWorker;
+
+},
+"src/emulator_overlay": function(module, exports, require) {
+///<reference path="./global.ts" />
+"use strict";
 var canDOMCreateElements = (typeof document != 'undefined');
 var OverlayCounter = (function () {
     function OverlayCounter(name, resetValue, representer) {
@@ -12968,7 +18003,7 @@ var OverlayCounter = (function () {
         this.value = this.resetValue;
     };
     return OverlayCounter;
-})();
+}());
 var OverlayIntent = (function () {
     function OverlayIntent(text, action) {
         if (canDOMCreateElements) {
@@ -12982,7 +18017,7 @@ var OverlayIntent = (function () {
     OverlayIntent.prototype.reset = function () {
     };
     return OverlayIntent;
-})();
+}());
 var OverlaySlider = (function () {
     function OverlaySlider(text, initialRatio, action) {
         var _this = this;
@@ -12992,6 +18027,7 @@ var OverlaySlider = (function () {
             this.element.min = "0";
             this.element.max = "1000";
             this.element.value = "" + initialRatio * 1000;
+            //this.element.innerHTML = text;
             var lastReportedValue = NaN;
             var report = function (e) {
                 if (_this.ratio == lastReportedValue)
@@ -13028,7 +18064,7 @@ var OverlaySlider = (function () {
     OverlaySlider.prototype.reset = function () {
     };
     return OverlaySlider;
-})();
+}());
 var Overlay = (function () {
     function Overlay() {
         this.sections = [];
@@ -13080,78 +18116,113 @@ var Overlay = (function () {
         this.reset();
     };
     return Overlay;
-})();
-var overlay = new Overlay();
-var overlayBatchSlider = overlay.createSlider('batch', 1.0, function (ratio) {
-    webglDriver.drawRatio = ratio;
-    webglDriver.redrawLastTransfer();
-});
-var overlayIndexCount = overlay.createCounter('indexCount', 0, numberToSeparator);
-var overlayNonIndexCount = overlay.createCounter('nonIndexCount', 0, numberToSeparator);
-var overlayVertexCount = overlay.createCounter('vertexCount', 0, numberToSeparator);
-var trianglePrimCount = overlay.createCounter('trianglePrimCount', 0, numberToSeparator);
-var triangleStripPrimCount = overlay.createCounter('triangleStripPrimCount', 0, numberToSeparator);
-var spritePrimCount = overlay.createCounter('spritePrimCount', 0, numberToSeparator);
-var otherPrimCount = overlay.createCounter('otherPrimCount', 0, numberToSeparator);
-var hashMemoryCount = overlay.createCounter('hashMemoryCount', 0, numberToSeparator);
-var hashMemorySize = overlay.createCounter('hashMemorySize', 0, numberToFileSize);
-var totalCommands = overlay.createCounter('totalCommands', 0, numberToSeparator);
-var totalStalls = overlay.createCounter('totalStalls', 0, numberToSeparator);
-var primCount = overlay.createCounter('primCount', 0, numberToSeparator);
-var batchCount = overlay.createCounter('batchCount', 0, numberToSeparator);
-var timePerFrame = overlay.createCounter('time', 0, function (v) { return (v.toFixed(0) + " ms"); });
-var freezing = new WatchValue(false);
-overlay.createIntent('toggle colors', function () {
-    webglDriver.enableColors = !webglDriver.enableColors;
-    webglDriver.redrawLastTransfer();
-});
-overlay.createIntent('toggle antialiasing', function () {
-    webglDriver.antialiasing = !webglDriver.antialiasing;
-    webglDriver.redrawLastTransfer();
-});
-overlay.createIntent('toggle textures', function () {
-    webglDriver.enableTextures = !webglDriver.enableTextures;
-    webglDriver.redrawLastTransfer();
-});
-overlay.createIntent('skinning', function () {
-    webglDriver.enableSkinning = !webglDriver.enableSkinning;
-    webglDriver.redrawLastTransfer();
-});
-overlay.createIntent('bilinear', function () {
-    webglDriver.enableBilinear = !webglDriver.enableBilinear;
-    webglDriver.redrawLastTransfer();
-});
-overlay.createIntent('freeze', function () {
-    freezing.value = !freezing.value;
-    postAction('gpu.freezing', freezing.value);
-});
-var dumpFrameCommandsList = [];
-overlay.createIntent('dump frame commands', function () {
-    postAction('gpu.dumpcommands', {});
-});
-overlay.createIntent('x1', function () {
-    webglDriver.setFramebufferSize(480 * 1, 272 * 1);
-    webglDriver.redrawLastTransfer();
-});
-overlay.createIntent('x2', function () {
-    webglDriver.setFramebufferSize(480 * 2, 272 * 2);
-    webglDriver.redrawLastTransfer();
-});
-overlay.createIntent('x3', function () {
-    webglDriver.setFramebufferSize(480 * 3, 272 * 3);
-    webglDriver.redrawLastTransfer();
-});
-overlay.createIntent('x4', function () {
-    webglDriver.setFramebufferSize(480 * 4, 272 * 4);
-    webglDriver.redrawLastTransfer();
-});
-overlay.updateAndReset();
+}());
+var DebugOverlay = (function () {
+    function DebugOverlay(webglDriver) {
+        var _this = this;
+        this.webglDriver = webglDriver;
+        this.overlay = new Overlay();
+        this.freezing = new WatchValue(false);
+        this.overlayBatchSlider = this.overlay.createSlider('batch', 1.0, function (ratio) {
+            _this.webglDriver.drawRatio = ratio;
+            _this.webglDriver.redrawLastTransfer();
+        });
+        this.overlayIndexCount = this.overlay.createCounter('indexCount', 0, numberToSeparator);
+        this.overlayNonIndexCount = this.overlay.createCounter('nonIndexCount', 0, numberToSeparator);
+        this.overlayVertexCount = this.overlay.createCounter('vertexCount', 0, numberToSeparator);
+        this.trianglePrimCount = this.overlay.createCounter('trianglePrimCount', 0, numberToSeparator);
+        this.triangleStripPrimCount = this.overlay.createCounter('triangleStripPrimCount', 0, numberToSeparator);
+        this.spritePrimCount = this.overlay.createCounter('spritePrimCount', 0, numberToSeparator);
+        this.otherPrimCount = this.overlay.createCounter('otherPrimCount', 0, numberToSeparator);
+        this.hashMemoryCount = this.overlay.createCounter('hashMemoryCount', 0, numberToSeparator);
+        this.hashMemorySize = this.overlay.createCounter('hashMemorySize', 0, numberToFileSize);
+        this.totalCommands = this.overlay.createCounter('totalCommands', 0, numberToSeparator);
+        this.totalStalls = this.overlay.createCounter('totalStalls', 0, numberToSeparator);
+        this.primCount = this.overlay.createCounter('primCount', 0, numberToSeparator);
+        this.batchCount = this.overlay.createCounter('batchCount', 0, numberToSeparator);
+        this.timePerFrame = this.overlay.createCounter('time', 0, function (v) { return v.toFixed(0) + " ms"; });
+        this.gpuFreezing = new Signal1();
+        this.gpuDumpCommands = new Signal0();
+    }
+    DebugOverlay.prototype.register = function () {
+        var _this = this;
+        var webglDriver = this.webglDriver;
+        var overlay = this.overlay;
+        overlay.createIntent('toggle colors', function () {
+            webglDriver.enableColors = !webglDriver.enableColors;
+            webglDriver.redrawLastTransfer();
+        });
+        overlay.createIntent('toggle antialiasing', function () {
+            webglDriver.antialiasing = !webglDriver.antialiasing;
+            webglDriver.redrawLastTransfer();
+        });
+        overlay.createIntent('toggle textures', function () {
+            webglDriver.enableTextures = !webglDriver.enableTextures;
+            webglDriver.redrawLastTransfer();
+        });
+        overlay.createIntent('skinning', function () {
+            webglDriver.enableSkinning = !webglDriver.enableSkinning;
+            webglDriver.redrawLastTransfer();
+        });
+        overlay.createIntent('bilinear', function () {
+            webglDriver.enableBilinear = !webglDriver.enableBilinear;
+            webglDriver.redrawLastTransfer();
+        });
+        overlay.createIntent('freeze', function () {
+            _this.freezing.value = !_this.freezing.value;
+            _this.gpuFreezing.dispatch(_this.freezing.value);
+        });
+        var dumpFrameCommandsList = [];
+        overlay.createIntent('dump frame commands', function () {
+            _this.gpuDumpCommands.dispatch();
+        });
+        overlay.createIntent('x1', function () {
+            webglDriver.setFramebufferSize(480 * 1, 272 * 1);
+            webglDriver.redrawLastTransfer();
+        });
+        overlay.createIntent('x2', function () {
+            webglDriver.setFramebufferSize(480 * 2, 272 * 2);
+            webglDriver.redrawLastTransfer();
+        });
+        overlay.createIntent('x3', function () {
+            webglDriver.setFramebufferSize(480 * 3, 272 * 3);
+            webglDriver.redrawLastTransfer();
+        });
+        overlay.createIntent('x4', function () {
+            webglDriver.setFramebufferSize(480 * 4, 272 * 4);
+            webglDriver.redrawLastTransfer();
+        });
+        overlay.updateAndReset();
+    };
+    DebugOverlay.prototype.linkTo = function (emulator) {
+        var _this = this;
+        var stats = emulator.gpuStats;
+        stats.onStats.add(function (stats) {
+            _this.totalStalls.value = stats.totalStalls;
+            _this.primCount.value = stats.primCount;
+            _this.totalCommands.value = stats.totalCommands;
+            _this.timePerFrame.value = stats.timePerFrame;
+            _this.overlayVertexCount.value = stats.vertexCount;
+            _this.batchCount.value = stats.batchCount;
+            _this.overlayIndexCount.value = stats.indexCount;
+            _this.overlayNonIndexCount.value = stats.nonIndexCount;
+            _this.trianglePrimCount.value = stats.trianglePrimCount;
+            _this.triangleStripPrimCount.value = stats.triangleStripPrimCountalue;
+            _this.spritePrimCount.value = stats.spritePrimCount;
+            _this.otherPrimCount.value = stats.otherPrimCount;
+            _this.hashMemoryCount.value = stats.hashMemoryCount;
+            _this.hashMemorySize.value = stats.hashMemorySize;
+        });
+    };
+    return DebugOverlay;
+}());
+exports.DebugOverlay = DebugOverlay;
 
 },
 "src/emulator_worker": function(module, exports, require) {
-///<reference path="./emulator_bridge.d.ts" />
-var emulator_1 = require('./emulator');
-var _vertex = require('./core/gpu/gpu_vertex');
+"use strict";
+var emulator_1 = require("./emulator");
+var _vertex = require("./core/gpu/gpu_vertex");
 var lastPacketId = 0;
 function postAction(type, payload, transferables) {
     var packetId = lastPacketId++;
@@ -13186,8 +18257,10 @@ emulator.onDrawBatches.add(function (drawBufferData, batches) {
     postAction('gpu.draw', transferData, [transferData.buffer]);
 });
 emulator.memory.invalidateDataAll.add(function () {
+    //postAction('memory.invalidateDataAll', {});
 });
 emulator.memory.invalidateDataRange.add(function (low, high) {
+    //postAction('memory.invalidateDataRange', {low: low, high: high});
 });
 emulator.audio.onPlayDataAsync.add(function (id, channels, data, leftvolume, rightvolume) {
     var clonedData = ArrayBufferUtils.cloneInt16Array(data);
@@ -13210,6 +18283,7 @@ onmessage = function (e) {
             waiters.get(payload)();
             break;
         case 'executeUrl':
+            // @TODO: check absolute url
             var url;
             if (payload.match(/^https?:\/\//)) {
                 url = payload;
@@ -13257,12 +18331,14 @@ onmessage = function (e) {
             break;
     }
     Microtask.execute();
+    //postMessage('msg from worker');
 };
 
 },
 "src/format/cso": function(module, exports, require) {
 ///<reference path="../global.d.ts" />
-var zlib = require('./zlib');
+"use strict";
+var zlib = require("./zlib");
 var CSO_MAGIC = 'CISO';
 var Header = (function () {
     function Header() {
@@ -13272,17 +18348,17 @@ var Header = (function () {
         enumerable: true,
         configurable: true
     });
-    Header.struct = StructClass.create(Header, [
-        { magic: Stringz(4) },
-        { headerSize: UInt32 },
-        { totalBytes: Integer64_l },
-        { blockSize: UInt32 },
-        { version: UInt8 },
-        { alignment: UInt8 },
-        { reserved: UInt16 },
-    ]);
     return Header;
-})();
+}());
+Header.struct = StructClass.create(Header, [
+    { magic: Stringz(4) },
+    { headerSize: UInt32 },
+    { totalBytes: Integer64_l },
+    { blockSize: UInt32 },
+    { version: UInt8 },
+    { alignment: UInt8 },
+    { reserved: UInt16 },
+]);
 var Block = (function () {
     function Block(index, raw1, raw2) {
         this.index = index;
@@ -13315,11 +18391,12 @@ var Block = (function () {
     });
     Block.getBlocksUncompressedData = function (blocks) {
         return ArrayBufferUtils.concatU8(blocks.map(function (b) {
+            //console.log('block', b.index, b.low, b.compressed);
             return b.uncompresesdData;
         }));
     };
     return Block;
-})();
+}());
 var Cso = (function () {
     function Cso() {
         this.date = new Date();
@@ -13358,7 +18435,9 @@ var Cso = (function () {
         var blockIndexLow = Math.floor(offset / this.header.blockSize);
         var blockIndexHigh = Math.floor((offset + count - 1) / this.header.blockSize);
         var blockCount = blockIndexHigh - blockIndexLow + 2;
+        //var skip = (this.header.blockSize - (offset % this.header.blockSize)) % this.header.blockSize;
         var skip = offset % this.header.blockSize;
+        //console.log('reading: ', offset, count, 'blocks:', blockIndexLow, blockIndexHigh, blockCount, 'skip:', skip);
         return this.readUncachedBlocksAsync(blockIndexLow, blockCount).then(function (blocks) {
             return ArrayBufferUtils.copyUint8ToArrayBuffer(Block.getBlocksUncompressedData(blocks).subarray(skip, skip + count));
         });
@@ -13378,13 +18457,14 @@ var Cso = (function () {
         });
     };
     return Cso;
-})();
+}());
 exports.Cso = Cso;
 
 },
 "src/format/elf": function(module, exports, require) {
 ///<reference path="../global.d.ts" />
-var _memory = require('../core/memory');
+"use strict";
+var _memory = require("../core/memory");
 var Memory = _memory.Memory;
 var console = logger.named('elf');
 var ElfHeader = (function () {
@@ -13399,75 +18479,75 @@ var ElfHeader = (function () {
     });
     Object.defineProperty(ElfHeader.prototype, "hasValidMachine", {
         get: function () {
-            return this.machine == 8;
+            return this.machine == 8 /* ALLEGREX */;
         },
         enumerable: true,
         configurable: true
     });
     Object.defineProperty(ElfHeader.prototype, "hasValidType", {
         get: function () {
-            return [2, 65440].indexOf(this.type) >= 0;
+            return [2 /* Executable */, 65440 /* Prx */].indexOf(this.type) >= 0;
         },
         enumerable: true,
         configurable: true
     });
-    ElfHeader.struct = StructClass.create(ElfHeader, [
-        { magic: Stringn(4) },
-        { class: Int8 },
-        { data: Int8 },
-        { idVersion: Int8 },
-        { _padding: StructArray(Int8, 9) },
-        { type: UInt16 },
-        { machine: Int16 },
-        { version: Int32 },
-        { entryPoint: Int32 },
-        { programHeaderOffset: Int32 },
-        { sectionHeaderOffset: Int32 },
-        { flags: Int32 },
-        { elfHeaderSize: Int16 },
-        { programHeaderEntrySize: Int16 },
-        { programHeaderCount: Int16 },
-        { sectionHeaderEntrySize: Int16 },
-        { sectionHeaderCount: Int16 },
-        { sectionHeaderStringTable: Int16 },
-    ]);
     return ElfHeader;
-})();
+}());
+ElfHeader.struct = StructClass.create(ElfHeader, [
+    { magic: Stringn(4) },
+    { class: Int8 },
+    { data: Int8 },
+    { idVersion: Int8 },
+    { _padding: StructArray(Int8, 9) },
+    { type: UInt16 },
+    { machine: Int16 },
+    { version: Int32 },
+    { entryPoint: Int32 },
+    { programHeaderOffset: Int32 },
+    { sectionHeaderOffset: Int32 },
+    { flags: Int32 },
+    { elfHeaderSize: Int16 },
+    { programHeaderEntrySize: Int16 },
+    { programHeaderCount: Int16 },
+    { sectionHeaderEntrySize: Int16 },
+    { sectionHeaderCount: Int16 },
+    { sectionHeaderStringTable: Int16 },
+]);
 exports.ElfHeader = ElfHeader;
 var ElfProgramHeader = (function () {
     function ElfProgramHeader() {
     }
-    ElfProgramHeader.struct = StructClass.create(ElfProgramHeader, [
-        { type: UInt32 },
-        { offset: UInt32 },
-        { virtualAddress: UInt32 },
-        { psysicalAddress: UInt32 },
-        { fileSize: UInt32 },
-        { memorySize: UInt32 },
-        { flags: UInt32 },
-        { alignment: UInt32 },
-    ]);
     return ElfProgramHeader;
-})();
+}());
+ElfProgramHeader.struct = StructClass.create(ElfProgramHeader, [
+    { type: UInt32 },
+    { offset: UInt32 },
+    { virtualAddress: UInt32 },
+    { psysicalAddress: UInt32 },
+    { fileSize: UInt32 },
+    { memorySize: UInt32 },
+    { flags: UInt32 },
+    { alignment: UInt32 },
+]);
 exports.ElfProgramHeader = ElfProgramHeader;
 var ElfSectionHeader = (function () {
     function ElfSectionHeader() {
         this.stream = null;
     }
-    ElfSectionHeader.struct = StructClass.create(ElfSectionHeader, [
-        { nameOffset: UInt32 },
-        { type: UInt32 },
-        { flags: UInt32 },
-        { address: UInt32 },
-        { offset: UInt32 },
-        { size: UInt32 },
-        { link: UInt32 },
-        { info: UInt32 },
-        { addressAlign: UInt32 },
-        { entitySize: UInt32 },
-    ]);
     return ElfSectionHeader;
-})();
+}());
+ElfSectionHeader.struct = StructClass.create(ElfSectionHeader, [
+    { nameOffset: UInt32 },
+    { type: UInt32 },
+    { flags: UInt32 },
+    { address: UInt32 },
+    { offset: UInt32 },
+    { size: UInt32 },
+    { link: UInt32 },
+    { info: UInt32 },
+    { addressAlign: UInt32 },
+    { entitySize: UInt32 },
+]);
 exports.ElfSectionHeader = ElfSectionHeader;
 var ElfReloc = (function () {
     function ElfReloc() {
@@ -13487,12 +18567,12 @@ var ElfReloc = (function () {
         enumerable: true,
         configurable: true
     });
-    ElfReloc.struct = StructClass.create(ElfReloc, [
-        { pointerAddress: UInt32 },
-        { info: UInt32 },
-    ]);
     return ElfReloc;
-})();
+}());
+ElfReloc.struct = StructClass.create(ElfReloc, [
+    { pointerAddress: UInt32 },
+    { info: UInt32 },
+]);
 exports.ElfReloc = ElfReloc;
 var ElfLoader = (function () {
     function ElfLoader() {
@@ -13513,7 +18593,7 @@ var ElfLoader = (function () {
         this.sectionHeaders.forEach(function (sectionHeader) {
             var name = _this.getStringFromStringTable(sectionHeader.nameOffset);
             sectionHeader.name = name;
-            if (sectionHeader.type != 0) {
+            if (sectionHeader.type != 0 /* Null */) {
                 sectionHeader.stream = _this.getSectionHeaderFileStream(sectionHeader);
             }
             _this.sectionHeadersByName[name] = sectionHeader;
@@ -13535,11 +18615,11 @@ var ElfLoader = (function () {
         return this.stringTableStream.readStringz();
     };
     ElfLoader.prototype.getSectionHeaderFileStream = function (sectionHeader) {
+        //console.log('::' + sectionHeader.type + ' ; ' + sectionHeader.offset + ' ; ' + sectionHeader.size);
         switch (sectionHeader.type) {
-            case 8:
-            case 0:
+            case 8 /* NoBits */:
+            case 0 /* Null */:
                 return this.stream.sliceWithLength(0, 0);
-                break;
             default:
                 return this.stream.sliceWithLength(sectionHeader.offset, sectionHeader.size);
         }
@@ -13550,7 +18630,7 @@ var ElfLoader = (function () {
         return elf;
     };
     Object.defineProperty(ElfLoader.prototype, "isPrx", {
-        get: function () { return (this.header.type & 65440) != 0; },
+        get: function () { return (this.header.type & 65440 /* Prx */) != 0; },
         enumerable: true,
         configurable: true
     });
@@ -13560,13 +18640,15 @@ var ElfLoader = (function () {
         configurable: true
     });
     return ElfLoader;
-})();
+}());
 exports.ElfLoader = ElfLoader;
 
 },
 "src/format/elf_dwarf": function(module, exports, require) {
 ///<reference path="../global.d.ts" />
+"use strict";
 var console = logger.named('elf.dwarf');
+// https://github.com/soywiz/pspemu/blob/master/src/pspemu/hle/elf/ElfDwarf.d
 var Uleb128Class = (function () {
     function Uleb128Class() {
     }
@@ -13588,7 +18670,7 @@ var Uleb128Class = (function () {
         configurable: true
     });
     return Uleb128Class;
-})();
+}());
 var Uleb128 = new Uleb128Class();
 var ElfDwarfHeader = (function () {
     function ElfDwarfHeader() {
@@ -13598,18 +18680,18 @@ var ElfDwarfHeader = (function () {
         enumerable: true,
         configurable: true
     });
-    ElfDwarfHeader.struct = StructClass.create(ElfDwarfHeader, [
-        { total_length: UInt32 },
-        { version: UInt16 },
-        { prologue_length: UInt32 },
-        { minimum_instruction_length: UInt8 },
-        { default_is_stmt: UInt8 },
-        { line_base: Int8 },
-        { line_range: UInt8 },
-        { opcode_base: UInt8 },
-    ]);
     return ElfDwarfHeader;
-})();
+}());
+ElfDwarfHeader.struct = StructClass.create(ElfDwarfHeader, [
+    { total_length: UInt32 },
+    { version: UInt16 },
+    { prologue_length: UInt32 },
+    { minimum_instruction_length: UInt8 },
+    { default_is_stmt: UInt8 },
+    { line_base: Int8 },
+    { line_range: UInt8 },
+    { opcode_base: UInt8 },
+]);
 var DW_LNS;
 (function (DW_LNS) {
     DW_LNS[DW_LNS["extended_op"] = 0] = "extended_op";
@@ -13629,6 +18711,27 @@ var DW_LNE;
     DW_LNE[DW_LNE["set_address"] = 2] = "set_address";
     DW_LNE[DW_LNE["define_file"] = 3] = "define_file";
 })(DW_LNE || (DW_LNE = {}));
+// 6.2.2 State Machine Registers
+/*
+class State {
+    uint address = 0;
+    uint file = 1;
+    uint line = 1;
+    uint column = 0;
+    bool is_stmt = false; // Must be setted by the header.
+    bool basic_block = false;
+    bool end_sequence = false;
+    FileEntry * file_entry;
+
+    string file_full_path() { return file_entry.full_path; }
+
+    //writefln("DW_LNS_copy: %08X, %s/%s:%d", state.address, directories[files[state.file].directory_index], files[state.file].name, state.line);
+    string toString() {
+        //return std.string.format("%08X: is_stmt(%d) basic_block(%d) end_sequence(%d) '%s':%d:%d ", address, is_stmt, basic_block, end_sequence, file_entry.full_path, line, column);
+        return std.string.format("%08X: '%s':%d:%d ", address, file_entry.full_path, line, column);
+    }
+}
+*/
 var FileEntry = (function () {
     function FileEntry() {
         this.name = '';
@@ -13645,14 +18748,14 @@ var FileEntry = (function () {
             return name;
         }
     };
-    FileEntry.struct = StructClass.create(FileEntry, [
-        { name: StringzVariable },
-        { directory_index: Uleb128 },
-        { time_mod: Uleb128 },
-        { size: Uleb128 },
-    ]);
     return FileEntry;
-})();
+}());
+FileEntry.struct = StructClass.create(FileEntry, [
+    { name: StringzVariable },
+    { directory_index: Uleb128 },
+    { time_mod: Uleb128 },
+    { size: Uleb128 },
+]);
 var ElfSymbol = (function () {
     function ElfSymbol() {
         this.name = '';
@@ -13705,17 +18808,18 @@ var ElfSymbol = (function () {
     ElfSymbol.prototype.contains = function (address) {
         return (address >= this.low) && (address < (this.high));
     };
-    ElfSymbol.struct = StructClass.create(ElfSymbol, [
-        { nameIndex: UInt32 },
-        { value: UInt32 },
-        { size: UInt32 },
-        { info: UInt8 },
-        { other: UInt8 },
-        { shndx: UInt16 },
-    ]);
     return ElfSymbol;
-})();
+}());
+ElfSymbol.struct = StructClass.create(ElfSymbol, [
+    { nameIndex: UInt32 },
+    { value: UInt32 },
+    { size: UInt32 },
+    { info: UInt8 },
+    { other: UInt8 },
+    { shndx: UInt16 },
+]);
 exports.ElfSymbol = ElfSymbol;
+var SymInfoBind;
 (function (SymInfoBind) {
     SymInfoBind[SymInfoBind["LOCAL"] = 0] = "LOCAL";
     SymInfoBind[SymInfoBind["GLOBAL"] = 1] = "GLOBAL";
@@ -13726,8 +18830,8 @@ exports.ElfSymbol = ElfSymbol;
     SymInfoBind[SymInfoBind["PROC_1"] = 13] = "PROC_1";
     SymInfoBind[SymInfoBind["PROC_2"] = 14] = "PROC_2";
     SymInfoBind[SymInfoBind["PROC_3"] = 15] = "PROC_3";
-})(exports.SymInfoBind || (exports.SymInfoBind = {}));
-var SymInfoBind = exports.SymInfoBind;
+})(SymInfoBind = exports.SymInfoBind || (exports.SymInfoBind = {}));
+var SymInfoType;
 (function (SymInfoType) {
     SymInfoType[SymInfoType["NOTYPE"] = 0] = "NOTYPE";
     SymInfoType[SymInfoType["OBJECT"] = 1] = "OBJECT";
@@ -13740,13 +18844,13 @@ var SymInfoBind = exports.SymInfoBind;
     SymInfoType[SymInfoType["PROC_1"] = 13] = "PROC_1";
     SymInfoType[SymInfoType["PROC_2"] = 14] = "PROC_2";
     SymInfoType[SymInfoType["PROC_3"] = 15] = "PROC_3";
-})(exports.SymInfoType || (exports.SymInfoType = {}));
-var SymInfoType = exports.SymInfoType;
+})(SymInfoType = exports.SymInfoType || (exports.SymInfoType = {}));
 var ElfDwarfLoader = (function () {
     function ElfDwarfLoader() {
         this.symbolEntries = [];
     }
     ElfDwarfLoader.prototype.parseElfLoader = function (elf) {
+        //this.parseDebugLine(elf);
         this.parseSymtab(elf);
     };
     ElfDwarfLoader.prototype.parseSymtab = function (elf) {
@@ -13773,11 +18877,19 @@ var ElfDwarfLoader = (function () {
         this.symbolEntries.sortBy(function (item) { return item.value; });
     };
     ElfDwarfLoader.prototype.getSymbolAt = function (address) {
+        //console.log('this.symbolEntries: ' + this.symbolEntries.length);
         for (var n = 0; n < this.symbolEntries.length; n++) {
             var entry = this.symbolEntries[n];
             if (entry.contains(address))
                 return entry;
         }
+        /*
+        return this.symbolEntries.binarySearchValue((item) => {
+            if (address < item.value) return +1;
+            if (address >= item.value + item.size) return -1;
+            return 0;
+        });
+        */
         return null;
     };
     ElfDwarfLoader.prototype.parseDebugLine = function (elf) {
@@ -13804,12 +18916,13 @@ var ElfDwarfLoader = (function () {
         }
     };
     return ElfDwarfLoader;
-})();
+}());
 exports.ElfDwarfLoader = ElfDwarfLoader;
 
 },
 "src/format/format": function(module, exports, require) {
 ///<reference path="../global.d.ts" />
+"use strict";
 function detectFormatAsync(asyncStream) {
     return asyncStream.readChunkAsync(0, 4).then(function (data) {
         var stream = Stream.fromArrayBuffer(data);
@@ -13849,6 +18962,7 @@ exports.detectFormatAsync = detectFormatAsync;
 },
 "src/format/iso": function(module, exports, require) {
 ///<reference path="../global.d.ts" />
+"use strict";
 var SECTOR_SIZE = 0x800;
 var DirectoryRecordDate = (function () {
     function DirectoryRecordDate() {
@@ -13867,17 +18981,17 @@ var DirectoryRecordDate = (function () {
         enumerable: true,
         configurable: true
     });
-    DirectoryRecordDate.struct = StructClass.create(DirectoryRecordDate, [
-        { year: UInt8 },
-        { month: UInt8 },
-        { day: UInt8 },
-        { hour: UInt8 },
-        { minute: UInt8 },
-        { second: UInt8 },
-        { offset: UInt8 },
-    ]);
     return DirectoryRecordDate;
-})();
+}());
+DirectoryRecordDate.struct = StructClass.create(DirectoryRecordDate, [
+    { year: UInt8 },
+    { month: UInt8 },
+    { day: UInt8 },
+    { hour: UInt8 },
+    { minute: UInt8 },
+    { second: UInt8 },
+    { offset: UInt8 },
+]);
 var IsoStringDate = (function () {
     function IsoStringDate() {
     }
@@ -13921,11 +19035,11 @@ var IsoStringDate = (function () {
         enumerable: true,
         configurable: true
     });
-    IsoStringDate.struct = StructClass.create(IsoStringDate, [
-        { data: Stringz(17) },
-    ]);
     return IsoStringDate;
-})();
+}());
+IsoStringDate.struct = StructClass.create(IsoStringDate, [
+    { data: Stringz(17) },
+]);
 var VolumeDescriptorHeaderType;
 (function (VolumeDescriptorHeaderType) {
     VolumeDescriptorHeaderType[VolumeDescriptorHeaderType["BootRecord"] = 0] = "BootRecord";
@@ -13937,13 +19051,13 @@ var VolumeDescriptorHeaderType;
 var VolumeDescriptorHeader = (function () {
     function VolumeDescriptorHeader() {
     }
-    VolumeDescriptorHeader.struct = StructClass.create(VolumeDescriptorHeader, [
-        { type: UInt8 },
-        { id: Stringz(5) },
-        { version: UInt8 },
-    ]);
     return VolumeDescriptorHeader;
-})();
+}());
+VolumeDescriptorHeader.struct = StructClass.create(VolumeDescriptorHeader, [
+    { type: UInt8 },
+    { id: Stringz(5) },
+    { version: UInt8 },
+]);
 var DirectoryRecordFlags;
 (function (DirectoryRecordFlags) {
     DirectoryRecordFlags[DirectoryRecordFlags["Unknown1"] = 1] = "Unknown1";
@@ -13977,59 +19091,59 @@ var DirectoryRecord = (function () {
         enumerable: true,
         configurable: true
     });
-    DirectoryRecord.struct = StructClass.create(DirectoryRecord, [
-        { length: UInt8 },
-        { extendedAttributeLength: UInt8 },
-        { extent: UInt32_2lb },
-        { size: UInt32_2lb },
-        { date: DirectoryRecordDate.struct },
-        { flags: UInt8 },
-        { fileUnitSize: UInt8 },
-        { interleave: UInt8 },
-        { volumeSequenceNumber: UInt16_2lb },
-        { nameLength: UInt8 },
-    ]);
     return DirectoryRecord;
-})();
+}());
+DirectoryRecord.struct = StructClass.create(DirectoryRecord, [
+    { length: UInt8 },
+    { extendedAttributeLength: UInt8 },
+    { extent: UInt32_2lb },
+    { size: UInt32_2lb },
+    { date: DirectoryRecordDate.struct },
+    { flags: UInt8 },
+    { fileUnitSize: UInt8 },
+    { interleave: UInt8 },
+    { volumeSequenceNumber: UInt16_2lb },
+    { nameLength: UInt8 },
+]);
 var PrimaryVolumeDescriptor = (function () {
     function PrimaryVolumeDescriptor() {
     }
-    PrimaryVolumeDescriptor.struct = StructClass.create(PrimaryVolumeDescriptor, [
-        { header: VolumeDescriptorHeader.struct },
-        { _pad1: UInt8 },
-        { systemId: Stringz(0x20) },
-        { volumeId: Stringz(0x20) },
-        { _pad2: Int64 },
-        { volumeSpaceSize: UInt32_2lb },
-        { _pad3: StructArray(Int64, 4) },
-        { volumeSetSize: UInt32 },
-        { volumeSequenceNumber: UInt32 },
-        { logicalBlockSize: UInt16_2lb },
-        { pathTableSize: UInt32_2lb },
-        { typeLPathTable: UInt32 },
-        { optType1PathTable: UInt32 },
-        { typeMPathTable: UInt32 },
-        { optTypeMPathTable: UInt32 },
-        { directoryRecord: DirectoryRecord.struct },
-        { _pad4: UInt8 },
-        { volumeSetId: Stringz(0x80) },
-        { publisherId: Stringz(0x80) },
-        { preparerId: Stringz(0x80) },
-        { applicationId: Stringz(0x80) },
-        { copyrightFileId: Stringz(37) },
-        { abstractFileId: Stringz(37) },
-        { bibliographicFileId: Stringz(37) },
-        { creationDate: IsoStringDate.struct },
-        { modificationDate: IsoStringDate.struct },
-        { expirationDate: IsoStringDate.struct },
-        { effectiveDate: IsoStringDate.struct },
-        { fileStructureVersion: UInt8 },
-        { pad5: UInt8 },
-        { pad6: StructArray(UInt8, 0x200) },
-        { pad7: StructArray(UInt8, 653) },
-    ]);
     return PrimaryVolumeDescriptor;
-})();
+}());
+PrimaryVolumeDescriptor.struct = StructClass.create(PrimaryVolumeDescriptor, [
+    { header: VolumeDescriptorHeader.struct },
+    { _pad1: UInt8 },
+    { systemId: Stringz(0x20) },
+    { volumeId: Stringz(0x20) },
+    { _pad2: Int64 },
+    { volumeSpaceSize: UInt32_2lb },
+    { _pad3: StructArray(Int64, 4) },
+    { volumeSetSize: UInt32 },
+    { volumeSequenceNumber: UInt32 },
+    { logicalBlockSize: UInt16_2lb },
+    { pathTableSize: UInt32_2lb },
+    { typeLPathTable: UInt32 },
+    { optType1PathTable: UInt32 },
+    { typeMPathTable: UInt32 },
+    { optTypeMPathTable: UInt32 },
+    { directoryRecord: DirectoryRecord.struct },
+    { _pad4: UInt8 },
+    { volumeSetId: Stringz(0x80) },
+    { publisherId: Stringz(0x80) },
+    { preparerId: Stringz(0x80) },
+    { applicationId: Stringz(0x80) },
+    { copyrightFileId: Stringz(37) },
+    { abstractFileId: Stringz(37) },
+    { bibliographicFileId: Stringz(37) },
+    { creationDate: IsoStringDate.struct },
+    { modificationDate: IsoStringDate.struct },
+    { expirationDate: IsoStringDate.struct },
+    { effectiveDate: IsoStringDate.struct },
+    { fileStructureVersion: UInt8 },
+    { pad5: UInt8 },
+    { pad6: StructArray(UInt8, 0x200) },
+    { pad7: StructArray(UInt8, 653) },
+]);
 var IsoNode = (function () {
     function IsoNode(iso, directoryRecord, parent) {
         if (parent === void 0) { parent = null; }
@@ -14088,7 +19202,7 @@ var IsoNode = (function () {
         return "IsoNode(" + this.path + ", " + this.size + ")";
     };
     return IsoNode;
-})();
+}());
 var Iso = (function () {
     function Iso() {
         this.date = new Date();
@@ -14126,12 +19240,14 @@ var Iso = (function () {
             dr.extent = lba;
             dr.size = size;
             dr.name = '';
+            //console.log(dr);
             return new IsoNode(this, dr, null);
         }
         if (path == '')
             return this.root;
         var node = this._childrenByPath[path];
         if (!node) {
+            //console.info(this);
             throw (new Error("Can't find node '" + path + "'"));
         }
         return node;
@@ -14171,16 +19287,24 @@ var Iso = (function () {
             var directoryStream = Stream.fromArrayBuffer(data);
             while (directoryStream.available) {
                 var directoryRecordSize = directoryStream.readUInt8();
+                // Even if a directory spans multiple sectors, the directory entries are not permitted to cross the sector boundary (unlike the path table).
+                // Where there is not enough space to record an entire directory entry at the end of a sector, that sector is zero-padded and the next
+                // consecutive sector is used.
                 if (directoryRecordSize == 0) {
                     directoryStream.position = MathUtils.nextAligned(directoryStream.position, SECTOR_SIZE);
+                    //Console.WriteLine("AlignedTo: {0:X}", DirectoryStream.Position);
                     continue;
                 }
                 directoryStream.position = directoryStream.position - 1;
+                //Console.WriteLine("[{0}:{1:X}-{2:X}]", DirectoryRecordSize, DirectoryStream.Position, DirectoryStream.Position + DirectoryRecordSize);
                 var directoryRecordStream = directoryStream.readStream(directoryRecordSize);
                 var directoryRecord = DirectoryRecord.struct.read(directoryRecordStream);
                 directoryRecord.name = directoryRecordStream.readStringz(directoryRecordStream.available);
+                //Console.WriteLine("{0}", name); Console.ReadKey();
                 if (directoryRecord.name == "" || directoryRecord.name == "\x01")
                     continue;
+                //console.log(directoryRecord);
+                //writefln("   %s", name);
                 var child = new IsoNode(_this, directoryRecord, parentIsoNode);
                 parentIsoNode.addChild(child);
                 _this._children.push(child);
@@ -14196,12 +19320,13 @@ var Iso = (function () {
         });
     };
     return Iso;
-})();
+}());
 exports.Iso = Iso;
 
 },
 "src/format/pbp": function(module, exports, require) {
 ///<reference path="../global.d.ts" />
+"use strict";
 var PbpMagic;
 (function (PbpMagic) {
     PbpMagic[PbpMagic["expected"] = 1346523136] = "expected";
@@ -14209,26 +19334,26 @@ var PbpMagic;
 var PbpHeader = (function () {
     function PbpHeader() {
     }
-    PbpHeader.struct = StructClass.create(PbpHeader, [
-        { magic: Int32 },
-        { version: Int32 },
-        { offsets: StructArray(Int32, 8) },
-    ]);
     return PbpHeader;
-})();
+}());
+PbpHeader.struct = StructClass.create(PbpHeader, [
+    { magic: Int32 },
+    { version: Int32 },
+    { offsets: StructArray(Int32, 8) },
+]);
 var Names = (function () {
     function Names() {
     }
-    Names.ParamSfo = "param.sfo";
-    Names.Icon0Png = "icon0.png";
-    Names.Icon1Pmf = "icon1.pmf";
-    Names.Pic0Png = "pic0.png";
-    Names.Pic1Png = "pic1.png";
-    Names.Snd0At3 = "snd0.at3";
-    Names.PspData = "psp.data";
-    Names.PsarData = "psar.data";
     return Names;
-})();
+}());
+Names.ParamSfo = "param.sfo";
+Names.Icon0Png = "icon0.png";
+Names.Icon1Pmf = "icon1.pmf";
+Names.Pic0Png = "pic0.png";
+Names.Pic1Png = "pic1.png";
+Names.Snd0At3 = "snd0.at3";
+Names.PspData = "psp.data";
+Names.PsarData = "psar.data";
 exports.Names = Names;
 var Pbp = (function () {
     function Pbp() {
@@ -14253,14 +19378,15 @@ var Pbp = (function () {
         var offsets = this.header.offsets;
         return this.stream.sliceWithLowHigh(offsets[index + 0], offsets[index + 1]);
     };
-    Pbp.names = [Names.ParamSfo, Names.Icon0Png, Names.Icon1Pmf, Names.Pic0Png, Names.Pic1Png, Names.Snd0At3, Names.PspData, Names.PsarData];
     return Pbp;
-})();
+}());
+Pbp.names = [Names.ParamSfo, Names.Icon0Png, Names.Icon1Pmf, Names.Pic0Png, Names.Pic1Png, Names.Snd0At3, Names.PspData, Names.PsarData];
 exports.Pbp = Pbp;
 
 },
 "src/format/psf": function(module, exports, require) {
 ///<reference path="../global.d.ts" />
+"use strict";
 var DataType;
 (function (DataType) {
     DataType[DataType["Binary"] = 0] = "Binary";
@@ -14270,28 +19396,28 @@ var DataType;
 var HeaderStruct = (function () {
     function HeaderStruct() {
     }
-    HeaderStruct.struct = StructClass.create(HeaderStruct, [
-        { magic: UInt32 },
-        { version: UInt32 },
-        { keyTable: UInt32 },
-        { valueTable: UInt32 },
-        { numberOfPairs: UInt32 },
-    ]);
     return HeaderStruct;
-})();
+}());
+HeaderStruct.struct = StructClass.create(HeaderStruct, [
+    { magic: UInt32 },
+    { version: UInt32 },
+    { keyTable: UInt32 },
+    { valueTable: UInt32 },
+    { numberOfPairs: UInt32 },
+]);
 var EntryStruct = (function () {
     function EntryStruct() {
     }
-    EntryStruct.struct = StructClass.create(EntryStruct, [
-        { keyOffset: UInt16 },
-        { unknown: UInt8 },
-        { dataType: UInt8 },
-        { valueSize: UInt32 },
-        { valueSizePad: UInt32 },
-        { valueOffset: UInt32 },
-    ]);
     return EntryStruct;
-})();
+}());
+EntryStruct.struct = StructClass.create(EntryStruct, [
+    { keyOffset: UInt16 },
+    { unknown: UInt8 },
+    { dataType: UInt8 },
+    { valueSize: UInt32 },
+    { valueSizePad: UInt32 },
+    { valueOffset: UInt32 },
+]);
 var Psf = (function () {
     function Psf() {
         this.entries = [];
@@ -14332,12 +19458,13 @@ var Psf = (function () {
         this.entriesByName = entriesByName;
     };
     return Psf;
-})();
+}());
 exports.Psf = Psf;
 
 },
 "src/format/riff": function(module, exports, require) {
 ///<reference path="../global.d.ts" />
+"use strict";
 var Riff = (function () {
     function Riff() {
         this.handlers = {};
@@ -14378,13 +19505,14 @@ var Riff = (function () {
         return riff;
     };
     return Riff;
-})();
+}());
 exports.Riff = Riff;
 
 },
 "src/format/vag": function(module, exports, require) {
 ///<reference path="../global.d.ts" />
-var _audio = require('../core/audio');
+"use strict";
+var _audio = require("../core/audio");
 var Sample = _audio.Sample;
 var VAG_f = [0, 0, 60, 0, 115, -52, 98, -55, 122, -60];
 var VagDecoder = (function () {
@@ -14424,6 +19552,7 @@ var VagDecoder = (function () {
         }
         this.blockStream.position = this.currentState.blockIndex * 16;
         this.currentState.blockIndex++;
+        //var block = VagBlock.struct.read(this.blockStream);
         var block = this.blockStream.readBytes(16);
         switch (block[1]) {
             case VagBlockType.LOOP_START:
@@ -14463,14 +19592,18 @@ var VagDecoder = (function () {
         var predictIndex = BitUtils.extract(block[0], 4, 4) % VAG_f.length;
         this.predict1 = VAG_f[predictIndex * 2 + 0];
         this.predict2 = VAG_f[predictIndex * 2 + 1];
+        // Mono 4-bit/28 Samples per block.
         for (var n = 0; n < VagDecoder.COMPRESSED_BYTES_IN_BLOCK; n++) {
             var dataByte = block[n + 2];
+            //debugger;
             var v1 = MathUtils.sextend16((((dataByte >>> 0) & 0xF) << 12)) >> shiftFactor;
             var v2 = MathUtils.sextend16((((dataByte >>> 4) & 0xF) << 12)) >> shiftFactor;
             this.decodedBlockSamples[sampleOffset + 0] = this.handleSampleKeepHistory(v1);
             this.decodedBlockSamples[sampleOffset + 1] = this.handleSampleKeepHistory(v2);
+            //console.log("" + dataByte, ':', block.modificator, shiftFactor, ':', v1, v2, ':', this.currentState.history1, this.currentState.history2, ':', this.predict1, this.predict2, ':', this.decodedBlockSamples[sampleOffset + 0], this.decodedBlockSamples[sampleOffset + 1]);
             sampleOffset += 2;
         }
+        //console.log('--------------> ', this.currentState.history1, this.currentState.history2);
     };
     VagDecoder.prototype.handleSampleKeepHistory = function (unpackedSample) {
         var sample = this.handleSample(unpackedSample);
@@ -14481,31 +19614,46 @@ var VagDecoder = (function () {
     VagDecoder.prototype.handleSample = function (unpackedSample) {
         var sample = 0;
         sample += unpackedSample * 1;
-        sample += ((this.currentState.history1 * this.predict1) / 64) >> 0;
+        sample += ((this.currentState.history1 * this.predict1) / 64) >> 0; // integer divide by 64
         sample += ((this.currentState.history2 * this.predict2) / 64) >> 0;
+        //console.log(unpackedSample, '->', sample, ' : ');
         return MathUtils.clamp(sample, -32768, 32767);
     };
-    VagDecoder.COMPRESSED_BYTES_IN_BLOCK = 14;
-    VagDecoder.DECOMPRESSED_SAMPLES_IN_BLOCK = VagDecoder.COMPRESSED_BYTES_IN_BLOCK * 2;
     return VagDecoder;
-})();
+}());
+VagDecoder.COMPRESSED_BYTES_IN_BLOCK = 14;
+VagDecoder.DECOMPRESSED_SAMPLES_IN_BLOCK = VagDecoder.COMPRESSED_BYTES_IN_BLOCK * 2; // 28
 var VagBlockType;
 (function (VagBlockType) {
     VagBlockType[VagBlockType["LOOP_END"] = 3] = "LOOP_END";
     VagBlockType[VagBlockType["LOOP_START"] = 6] = "LOOP_START";
     VagBlockType[VagBlockType["END"] = 7] = "END";
 })(VagBlockType || (VagBlockType = {}));
+/*
+class VagBlock {
+    modificator: number;
+    type: VagBlockType;
+    data: number[];
+
+    static struct = StructClass.create<VagBlock>(VagBlock, [
+        { modificator: UInt8 },
+        { type: UInt8 },
+        { data: StructArray<number>(UInt8, 14) },
+    ]);
+}
+*/
 var VagHeader = (function () {
     function VagHeader() {
     }
-    VagHeader.struct = StructClass.create(VagHeader, [
-        { magic: UInt32 },
-        { vagVersion: UInt32_b },
-        { dataSize: UInt32_b },
-        { sampleRate: UInt32_b },
-    ]);
     return VagHeader;
-})();
+}());
+//name: string;
+VagHeader.struct = StructClass.create(VagHeader, [
+    { magic: UInt32 },
+    { vagVersion: UInt32_b },
+    { dataSize: UInt32_b },
+    { sampleRate: UInt32_b },
+]);
 var VagSoundSource = (function () {
     function VagSoundSource(stream, loopCount) {
         this.header = null;
@@ -14519,6 +19667,7 @@ var VagSoundSource = (function () {
         else {
             var headerStream = stream.sliceWithLength(0, VagHeader.struct.length);
             var dataStream = stream.sliceWithLength(VagHeader.struct.length);
+            //debugger;
             this.header = VagHeader.struct.read(headerStream);
             this.samplesCount = Math.floor(dataStream.length * 56 / 16);
             this.decoder = new VagDecoder(dataStream, Math.floor(dataStream.length / 16));
@@ -14538,7 +19687,7 @@ var VagSoundSource = (function () {
         return this.decoder.getNextSample();
     };
     return VagSoundSource;
-})();
+}());
 exports.VagSoundSource = VagSoundSource;
 var VagState = (function () {
     function VagState(blockIndex, history1, history2) {
@@ -14553,12 +19702,13 @@ var VagState = (function () {
         return new VagState(this.blockIndex, this.history1, this.history2);
     };
     return VagState;
-})();
+}());
 
 },
 "src/format/zip": function(module, exports, require) {
 ///<reference path="../global.d.ts" />
-var zlib = require('./zlib');
+"use strict";
+var zlib = require("./zlib");
 var ZipEntry = (function () {
     function ZipEntry(zip, name, parent) {
         this.zip = zip;
@@ -14640,9 +19790,9 @@ var ZipEntry = (function () {
             return Promise2.resolve(this.uncompressedData);
         return this.readRawCompressedAsync().then(function (data) {
             switch (_this.compressionType) {
-                case 8:
+                case 8 /* DEFLATE */:
                     return zlib.inflate_raw(data);
-                case 0:
+                case 0 /* STORED */:
                     return data;
                 default:
                     throw (new Error("Unsupported compression type '" + _this.compressionType + "'"));
@@ -14663,6 +19813,7 @@ var ZipEntry = (function () {
         if (path == '..')
             return this.parent || this;
         var pathIndex = path.indexOf('/');
+        // Single component
         if (pathIndex < 0) {
             var normalizedName = ZipEntry.normalizeString(path);
             var child = this.children[normalizedName];
@@ -14681,7 +19832,7 @@ var ZipEntry = (function () {
         }
     };
     return ZipEntry;
-})();
+}());
 exports.ZipEntry = ZipEntry;
 var Zip = (function () {
     function Zip(zipStream, zipDirEntries) {
@@ -14694,6 +19845,7 @@ var Zip = (function () {
             item.isDirectory = (zipDirEntry.fileName.substr(-1, 1) == '/');
             item.zipDirEntry = zipDirEntry;
         });
+        //console.log(this.root);
     }
     Zip.prototype.get = function (path) {
         return this.root.access(path);
@@ -14711,6 +19863,7 @@ var Zip = (function () {
         //console.info('zipStream', zipStream);
         return zipStream.readChunkAsync(zipStream.size - ZipEndLocator.struct.length, ZipEndLocator.struct.length).then(function (data) {
             var zipEndLocator = ZipEndLocator.struct.read(Stream.fromArrayBuffer(data));
+            //console.log('zipEndLocator', zipEndLocator);
             return zipStream.readChunkAsync(zipEndLocator.directoryOffset, zipEndLocator.directorySize).then(function (data) {
                 var dirEntries = StructArray(ZipDirEntry.struct, zipEndLocator.entriesInDirectory).read(Stream.fromArrayBuffer(data));
                 return new Zip(zipStream, dirEntries);
@@ -14718,76 +19871,77 @@ var Zip = (function () {
         });
     };
     return Zip;
-})();
+}());
 exports.Zip = Zip;
 var ZipEndLocator = (function () {
     function ZipEndLocator() {
     }
-    ZipEndLocator.struct = StructClass.create(ZipEndLocator, [
-        { magic: UInt32 },
-        { currentDiskNumber: UInt16 },
-        { startDiskNumber: UInt16 },
-        { entriesOnDisk: UInt16 },
-        { entriesInDirectory: UInt16 },
-        { directorySize: UInt32 },
-        { directoryOffset: UInt32 },
-        { commentLength: UInt16 },
-    ]);
     return ZipEndLocator;
-})();
+}());
+ZipEndLocator.struct = StructClass.create(ZipEndLocator, [
+    { magic: UInt32 },
+    { currentDiskNumber: UInt16 },
+    { startDiskNumber: UInt16 },
+    { entriesOnDisk: UInt16 },
+    { entriesInDirectory: UInt16 },
+    { directorySize: UInt32 },
+    { directoryOffset: UInt32 },
+    { commentLength: UInt16 },
+]);
 exports.ZipEndLocator = ZipEndLocator;
 var ZipFileRecord = (function () {
     function ZipFileRecord() {
     }
-    ZipFileRecord.struct = StructClass.create(ZipFileRecord, [
-        { magic: UInt32 },
-        { version: UInt16 },
-        { flags: UInt16 },
-        { compType: UInt16 },
-        { dosTime: UInt16 },
-        { dosDate: UInt16 },
-        { crc32: UInt32 },
-        { compressedSize: UInt32 },
-        { uncompressedSize: UInt32 },
-        { fileNameLength: UInt16 },
-        { extraFieldLength: UInt16 },
-        { fileName: StringWithSize(function (context) { return context.fileNameLength; }) },
-        { extraField: StringWithSize(function (context) { return context.extraFieldLength; }) },
-    ]);
     return ZipFileRecord;
-})();
+}());
+ZipFileRecord.struct = StructClass.create(ZipFileRecord, [
+    { magic: UInt32 },
+    { version: UInt16 },
+    { flags: UInt16 },
+    { compType: UInt16 },
+    { dosTime: UInt16 },
+    { dosDate: UInt16 },
+    { crc32: UInt32 },
+    { compressedSize: UInt32 },
+    { uncompressedSize: UInt32 },
+    { fileNameLength: UInt16 },
+    { extraFieldLength: UInt16 },
+    { fileName: StringWithSize(function (context) { return context.fileNameLength; }) },
+    { extraField: StringWithSize(function (context) { return context.extraFieldLength; }) },
+]);
 exports.ZipFileRecord = ZipFileRecord;
 var ZipDirEntry = (function () {
     function ZipDirEntry() {
     }
-    ZipDirEntry.struct = StructClass.create(ZipDirEntry, [
-        { magic: UInt32 },
-        { versionMadeBy: UInt16 },
-        { versionToExtract: UInt16 },
-        { flags: UInt16 },
-        { compType: UInt16 },
-        { dosTime: UInt16 },
-        { dosDate: UInt16 },
-        { crc32: UInt32 },
-        { compressedSize: UInt32 },
-        { uncompressedSize: UInt32 },
-        { fileNameLength: UInt16 },
-        { extraFieldLength: UInt16 },
-        { fileCommentsLength: UInt16 },
-        { diskNumberStart: UInt16 },
-        { internalAttributes: UInt16 },
-        { externalAttributes: UInt32 },
-        { headerOffset: UInt32 },
-        { fileName: StringWithSize(function (context) { return context.fileNameLength; }) },
-        { extraField: StringWithSize(function (context) { return context.extraFieldLength; }) },
-        { fileComments: StringWithSize(function (context) { return context.fileCommentsLength; }) },
-    ]);
     return ZipDirEntry;
-})();
+}());
+ZipDirEntry.struct = StructClass.create(ZipDirEntry, [
+    { magic: UInt32 },
+    { versionMadeBy: UInt16 },
+    { versionToExtract: UInt16 },
+    { flags: UInt16 },
+    { compType: UInt16 },
+    { dosTime: UInt16 },
+    { dosDate: UInt16 },
+    { crc32: UInt32 },
+    { compressedSize: UInt32 },
+    { uncompressedSize: UInt32 },
+    { fileNameLength: UInt16 },
+    { extraFieldLength: UInt16 },
+    { fileCommentsLength: UInt16 },
+    { diskNumberStart: UInt16 },
+    { internalAttributes: UInt16 },
+    { externalAttributes: UInt32 },
+    { headerOffset: UInt32 },
+    { fileName: StringWithSize(function (context) { return context.fileNameLength; }) },
+    { extraField: StringWithSize(function (context) { return context.extraFieldLength; }) },
+    { fileComments: StringWithSize(function (context) { return context.fileCommentsLength; }) },
+]);
 exports.ZipDirEntry = ZipDirEntry;
 
 },
 "src/format/zlib": function(module, exports, require) {
+/** @license zlib.js 2012 - imaya [ https://github.com/imaya/zlib.js ] The MIT License */
 'use strict';
 var exported = {};
 var l = exported;
@@ -15085,8 +20239,45 @@ exports.inflate_raw_arraybuffer = inflate_raw_arraybuffer;
 
 },
 "src/hle/SceKernelErrors": function(module, exports, require) {
+"use strict";
 var SceKernelErrors;
 (function (SceKernelErrors) {
+    /*
+     * PSP Errors:
+     * Represented by a 32-bit value with the following scheme:
+     *
+     *  31  30  29  28  27        16  15        0
+     * | 1 | 0 | 0 | 0 | X | ... | X | E |... | E |
+     *
+     * Bits 31 and 30: Can only be 1 or 0.
+     *      -> If both are 0, there's no error (0x0==SUCCESS).
+     *      -> If 31 is 1 but 30 is 0, there's an error (0x80000000).
+     *      -> If both bits are 1, a critical error stops the PSP (0xC0000000).
+     *
+     * Bits 29 and 28: Unknown. Never change.
+     *
+     * Bits 27 to 16 (X): Represent the system area associated with the error.
+     *      -> 0x000 - Null (can be used anywhere).
+     *      -> 0x001 - Errno (PSP's implementation of errno.h).
+     *      -> 0x002 - Kernel.
+     *      -> 0x011 - Utility.
+     *      -> 0x021 - UMD.
+     *      -> 0x022 - MemStick.
+     *      -> 0x026 - Audio.
+     *      -> 0x02b - Power.
+     *      -> 0x041 - Wlan.
+     *      -> 0x042 - SAS.
+     *      -> 0x043 - HTTP(0x0431)/HTTPS/SSL(0x0435).
+     *      -> 0x044 - WAVE.
+     *      -> 0x046 - Font.
+     *      -> 0x061 - MPEG(0x0618)/PSMF(0x0615)/PSMF Player(0x0616).
+     *      -> 0x062 - AVC.
+     *      -> 0x063 - ATRAC.
+     *      -> 0x07f - Codec.
+     *
+     * Bits 15 to 0 (E): Represent the error code itself (different for each area).
+     *      -> E.g.: 0x80110001 - Error -> Utility -> Some unknown error.
+     */
     SceKernelErrors[SceKernelErrors["ERROR_OK"] = 0] = "ERROR_OK";
     SceKernelErrors[SceKernelErrors["ERROR_ERROR"] = 2147614721] = "ERROR_ERROR";
     SceKernelErrors[SceKernelErrors["ERROR_NOTIMP"] = 2147614722] = "ERROR_NOTIMP";
@@ -15273,6 +20464,12 @@ var SceKernelErrors;
     SceKernelErrors[SceKernelErrors["ERROR_KERNEL_MUTEX_UNLOCK_UNDERFLOW"] = 2147615175] = "ERROR_KERNEL_MUTEX_UNLOCK_UNDERFLOW";
     SceKernelErrors[SceKernelErrors["ERROR_KERNEL_MUTEX_RECURSIVE_NOT_ALLOWED"] = 2147615176] = "ERROR_KERNEL_MUTEX_RECURSIVE_NOT_ALLOWED";
     SceKernelErrors[SceKernelErrors["ERROR_KERNEL_MESSAGEBOX_DUPLICATE_MESSAGE"] = 2147615177] = "ERROR_KERNEL_MESSAGEBOX_DUPLICATE_MESSAGE";
+    //PSP_LWMUTEX_ERROR_NO_SUCH_LWMUTEX 0x800201CA
+    //PSP_LWMUTEX_ERROR_TRYLOCK_FAILED 0x800201CB
+    //PSP_LWMUTEX_ERROR_NOT_LOCKED 0x800201CC
+    //PSP_LWMUTEX_ERROR_LOCK_OVERFLOW 0x800201CD
+    //PSP_LWMUTEX_ERROR_UNLOCK_UNDERFLOW 0x800201CE
+    //PSP_LWMUTEX_ERROR_ALREADY_LOCKED 0x800201CF
     SceKernelErrors[SceKernelErrors["ERROR_KERNEL_LWMUTEX_NOT_FOUND"] = 2147615178] = "ERROR_KERNEL_LWMUTEX_NOT_FOUND";
     SceKernelErrors[SceKernelErrors["ERROR_KERNEL_LWMUTEX_LOCKED"] = 2147615179] = "ERROR_KERNEL_LWMUTEX_LOCKED";
     SceKernelErrors[SceKernelErrors["ERROR_KERNEL_LWMUTEX_UNLOCKED"] = 2147615180] = "ERROR_KERNEL_LWMUTEX_UNLOCKED";
@@ -15421,6 +20618,15 @@ var SceKernelErrors;
     SceKernelErrors[SceKernelErrors["ERROR_CODEC_AUDIO_FATAL"] = 2155806972] = "ERROR_CODEC_AUDIO_FATAL";
     SceKernelErrors[SceKernelErrors["FATAL_UMD_UNKNOWN_MEDIUM"] = 3223388164] = "FATAL_UMD_UNKNOWN_MEDIUM";
     SceKernelErrors[SceKernelErrors["FATAL_UMD_HARDWARE_FAILURE"] = 3223388165] = "FATAL_UMD_HARDWARE_FAILURE";
+    //ERROR_AUDIO_CHANNEL_NOT_INIT                        = unchecked((int)0x80260001,
+    //ERROR_AUDIO_CHANNEL_BUSY                            = unchecked((int)0x80260002,
+    //ERROR_AUDIO_INVALID_CHANNEL                         = unchecked((int)0x80260003,
+    //ERROR_AUDIO_PRIV_REQUIRED                           = unchecked((int)0x80260004,
+    //ERROR_AUDIO_NO_CHANNELS_AVAILABLE                   = unchecked((int)0x80260005,
+    //ERROR_AUDIO_OUTPUT_SAMPLE_DATA_SIZE_NOT_ALIGNED     = unchecked((int)0x80260006,
+    //ERROR_AUDIO_INVALID_FORMAT                          = unchecked((int)0x80260007,
+    //ERROR_AUDIO_CHANNEL_NOT_RESERVED                    = unchecked((int)0x80260008,
+    //ERROR_AUDIO_NOT_OUTPUT                              = unchecked((int)0x80260009,
     SceKernelErrors[SceKernelErrors["ERROR_AUDIO_INVALID_FREQUENCY"] = 2149974026] = "ERROR_AUDIO_INVALID_FREQUENCY";
     SceKernelErrors[SceKernelErrors["ERROR_AUDIO_INVALID_VOLUME"] = 2149974027] = "ERROR_AUDIO_INVALID_VOLUME";
     SceKernelErrors[SceKernelErrors["ERROR_AUDIO_CHANNEL_ALREADY_RESERVED"] = 2150006786] = "ERROR_AUDIO_CHANNEL_ALREADY_RESERVED";
@@ -15454,8 +20660,10 @@ var SceKernelErrors;
     SceKernelErrors[SceKernelErrors["ERROR_SAS_INVALID_VOICE_INDEX"] = 2151809040] = "ERROR_SAS_INVALID_VOICE_INDEX";
     SceKernelErrors[SceKernelErrors["ERROR_SAS_INVALID_NOISE_CLOCK"] = 2151809041] = "ERROR_SAS_INVALID_NOISE_CLOCK";
     SceKernelErrors[SceKernelErrors["ERROR_SAS_INVALID_PITCH_VAL"] = 2151809042] = "ERROR_SAS_INVALID_PITCH_VAL";
+    //ERROR_SAS_INVALID_ADSR_CURVE_MODE                   = unchecked((int)0x80420013,
     SceKernelErrors[SceKernelErrors["ERROR_SAS_INVALID_ADPCM_SIZE"] = 2151809044] = "ERROR_SAS_INVALID_ADPCM_SIZE";
     SceKernelErrors[SceKernelErrors["ERROR_SAS_INVALID_LOOP_MODE"] = 2151809045] = "ERROR_SAS_INVALID_LOOP_MODE";
+    //ERROR_SAS_VOICE_PAUSED                              = unchecked((int)0x80420016,
     SceKernelErrors[SceKernelErrors["ERROR_SAS_INVALID_VOLUME_VAL"] = 2151809048] = "ERROR_SAS_INVALID_VOLUME_VAL";
     SceKernelErrors[SceKernelErrors["ERROR_SAS_INVALID_ADSR_VAL"] = 2151809049] = "ERROR_SAS_INVALID_ADSR_VAL";
     SceKernelErrors[SceKernelErrors["ERROR_SAS_INVALID_SIZE"] = 2151809050] = "ERROR_SAS_INVALID_SIZE";
@@ -15463,6 +20671,8 @@ var SceKernelErrors;
     SceKernelErrors[SceKernelErrors["ERROR_SAS_INVALID_FX_FEEDBACK"] = 2151809057] = "ERROR_SAS_INVALID_FX_FEEDBACK";
     SceKernelErrors[SceKernelErrors["ERROR_SAS_INVALID_FX_DELAY"] = 2151809058] = "ERROR_SAS_INVALID_FX_DELAY";
     SceKernelErrors[SceKernelErrors["ERROR_SAS_INVALID_FX_VOLUME_VAL"] = 2151809059] = "ERROR_SAS_INVALID_FX_VOLUME_VAL";
+    //ERROR_SAS_BUSY                                      = unchecked((int)0x80420030,
+    //ERROR_SAS_NOT_INIT                                  = unchecked((int)0x80420100,
     SceKernelErrors[SceKernelErrors["ERROR_SAS_ALREADY_INIT"] = 2151809281] = "ERROR_SAS_ALREADY_INIT";
     SceKernelErrors[SceKernelErrors["PSP_POWER_ERROR_TAKEN_SLOT"] = 2147483680] = "PSP_POWER_ERROR_TAKEN_SLOT";
     SceKernelErrors[SceKernelErrors["PSP_POWER_ERROR_SLOTS_FULL"] = 2147483682] = "PSP_POWER_ERROR_SLOTS_FULL";
@@ -15476,82 +20686,86 @@ module.exports = SceKernelErrors;
 },
 "src/hle/config": function(module, exports, require) {
 ///<reference path="../global.d.ts" />
+"use strict";
 var Config = (function () {
     function Config() {
-        this.language = 1;
-        this.buttonPreference = 1;
+        this.language = 1 /* ENGLISH */;
+        this.buttonPreference = 1 /* NA */;
         this.language = Config.detectLanguage();
     }
     Config.detectLanguage = function () {
         if (typeof navigator == 'undefined')
-            return 1;
+            return 1 /* ENGLISH */;
         if (!navigator.language)
-            return 1;
+            return 1 /* ENGLISH */;
+        // en_US
         switch (navigator.language.split(/[_\-]/g)[0]) {
-            case 'ja': return 0;
-            case 'en': return 1;
-            case 'fr': return 2;
-            case 'es': return 3;
-            case 'de': return 4;
-            case 'it': return 5;
-            case 'nl': return 6;
-            case 'pt': return 7;
-            case 'ru': return 8;
-            case 'ko': return 9;
-            case 'zh': return 10;
-            case 'zh2': return 11;
-            default: return 1;
+            case 'ja': return 0 /* JAPANESE */;
+            case 'en': return 1 /* ENGLISH */;
+            case 'fr': return 2 /* FRENCH */;
+            case 'es': return 3 /* SPANISH */;
+            case 'de': return 4 /* GERMAN */;
+            case 'it': return 5 /* ITALIAN */;
+            case 'nl': return 6 /* DUTCH */;
+            case 'pt': return 7 /* PORTUGUESE */;
+            case 'ru': return 8 /* RUSSIAN */;
+            case 'ko': return 9 /* KOREAN */;
+            // @TODO which value have navigators for chinese?
+            case 'zh': return 10 /* TRADITIONAL_CHINESE */;
+            case 'zh2': return 11 /* SIMPLIFIED_CHINESE */;
+            default: return 1 /* ENGLISH */;
         }
     };
     return Config;
-})();
+}());
 exports.Config = Config;
 
 },
 "src/hle/elf_crypted_prx": function(module, exports, require) {
-var kirk = require('../core/kirk');
-var keys144 = require('./elf_crypted_prx_keys_144');
-var keys16 = require('./elf_crypted_prx_keys_16');
+"use strict";
+var kirk = require("../core/kirk");
+var keys144 = require("./elf_crypted_prx_keys_144");
+var keys16 = require("./elf_crypted_prx_keys_16");
 var Header = (function () {
     function Header() {
     }
-    Header.struct = StructClass.create(Header, [
-        { magic: UInt32 },
-        { modAttr: UInt16 },
-        { compModAttr: UInt16 },
-        { modVerLo: UInt8 },
-        { modVerHi: UInt8 },
-        { moduleName: Stringz(28) },
-        { modVersion: UInt8 },
-        { nsegments: UInt8 },
-        { elfSize: UInt32 },
-        { pspSize: UInt32 },
-        { bootEntry: UInt32 },
-        { modInfoOffset: UInt32 },
-        { bssSize: UInt32 },
-        { segAlign: StructArray(UInt16, 4) },
-        { segAddress: StructArray(UInt32, 4) },
-        { segSize: StructArray(UInt32, 4) },
-        { reserved: StructArray(UInt32, 5) },
-        { devkitVersion: UInt32 },
-        { decMode: UInt8 },
-        { pad: UInt8 },
-        { overlapSize: UInt16 },
-        { aesKey: StructArray(UInt8, 16) },
-        { cmacKey: StructArray(UInt8, 16) },
-        { cmacHeaderHash: StructArray(UInt8, 16) },
-        { compressedSize: UInt32 },
-        { compressedOffset: UInt32 },
-        { unk1: UInt32 },
-        { unk2: UInt32 },
-        { cmacDataHash: StructArray(UInt8, 16) },
-        { tag: UInt32 },
-        { sigcheck: StructArray(UInt8, 88) },
-        { sha1Hash: StructArray(UInt8, 20) },
-        { keyData: StructArray(UInt8, 16) },
-    ]);
     return Header;
-})();
+}());
+Header.struct = StructClass.create(Header, [
+    { magic: UInt32 },
+    { modAttr: UInt16 },
+    { compModAttr: UInt16 },
+    { modVerLo: UInt8 },
+    { modVerHi: UInt8 },
+    { moduleName: Stringz(28) },
+    { modVersion: UInt8 },
+    { nsegments: UInt8 },
+    { elfSize: UInt32 },
+    { pspSize: UInt32 },
+    { bootEntry: UInt32 },
+    { modInfoOffset: UInt32 },
+    { bssSize: UInt32 },
+    { segAlign: StructArray(UInt16, 4) },
+    { segAddress: StructArray(UInt32, 4) },
+    { segSize: StructArray(UInt32, 4) },
+    { reserved: StructArray(UInt32, 5) },
+    { devkitVersion: UInt32 },
+    { decMode: UInt8 },
+    { pad: UInt8 },
+    { overlapSize: UInt16 },
+    { aesKey: StructArray(UInt8, 16) },
+    { cmacKey: StructArray(UInt8, 16) },
+    { cmacHeaderHash: StructArray(UInt8, 16) },
+    { compressedSize: UInt32 },
+    { compressedOffset: UInt32 },
+    { unk1: UInt32 },
+    { unk2: UInt32 },
+    { cmacDataHash: StructArray(UInt8, 16) },
+    { tag: UInt32 },
+    { sigcheck: StructArray(UInt8, 88) },
+    { sha1Hash: StructArray(UInt8, 20) },
+    { keyData: StructArray(UInt8, 16) },
+]);
 function getTagInfo(checkTag) {
     return keys144.g_tagInfo.first(function (item) { return item.tag == checkTag; });
 }
@@ -15576,20 +20790,25 @@ function decrypt1(pbIn) {
     var pti = getTagInfo(header.tag);
     if (!pti)
         throw (new Error("Can't find tag " + header.tag));
+    // build conversion into pbOut
     pbOut.slice().writeStream(pbIn);
     pbOut.slice().writeByteRepeated(0x00, 0x150);
     pbOut.slice().writeByteRepeated(0x55, 0x40);
+    // step3 demangle in place
+    //kirk.KIRK_AES128CBC_HEADER.struct.write();
     var h7_header = new (kirk.KIRK_AES128CBC_HEADER)();
-    h7_header.mode = 5;
+    h7_header.mode = 5 /* DecryptCbc */;
     h7_header.unk_4 = 0;
     h7_header.unk_8 = 0;
-    h7_header.keyseed = pti.code;
-    h7_header.data_size = 0x70;
+    h7_header.keyseed = pti.code; // initial seed for PRX
+    h7_header.data_size = 0x70; // size
     kirk.KIRK_AES128CBC_HEADER.struct.write(pbOut.sliceFrom(0x2C), h7_header);
+    // redo part of the SIG check (step2)
     var buffer1 = Stream.fromSize(0x150);
     buffer1.sliceWithLength(0x00).writeStream(pbIn.sliceWithLength(0xD0, 0x80));
     buffer1.sliceWithLength(0x80).writeStream(pbIn.sliceWithLength(0x80, 0x50));
     buffer1.sliceWithLength(0xD0).writeStream(pbIn.sliceWithLength(0x00, 0x80));
+    //console.log('buffer1', buffer1.slice().readAllBytes());
     if (pti.codeExtra != 0) {
         var buffer2 = Stream.fromSize(20 + 0xA0);
         buffer2.slice()
@@ -15600,6 +20819,7 @@ function decrypt1(pbIn) {
             .writeUInt32(0xA0)
             .writeStream(buffer1.sliceWithLength(0x10, 0xA0));
         kirk.hleUtilsBufferCopyWithRange(buffer2.sliceWithLength(0, 20 + 0xA0), buffer2.sliceWithLength(0, 20 + 0xA0), kirk.CommandEnum.DECRYPT_IV_0);
+        // copy result back
         buffer1.slice().writeStream(buffer2.sliceWithLength(0, 0xA0));
     }
     pbOut.sliceFrom(0x40).writeStream(buffer1.sliceWithLength(0x40, 0x40));
@@ -15610,12 +20830,138 @@ function decrypt1(pbIn) {
         pbOut.set(0x40 + iXOR, ((pbOut.get(0x2C + iXOR) ^ pti.key[0x20 + iXOR]) & 0xFF));
     pbOut.sliceFrom(0x80).writeByteRepeated(0, 0x30);
     pbOut.set(0xA0, 1);
-    pbOut.sliceFrom(0xB0).writeStream(pbIn.sliceWithLength(0xB0, 0x20));
-    pbOut.sliceFrom(0xD0).writeStream(pbIn.sliceWithLength(0x00, 0x80));
+    // copy unscrambled parts from header
+    pbOut.sliceFrom(0xB0).writeStream(pbIn.sliceWithLength(0xB0, 0x20)); // file size + lots of zeros
+    pbOut.sliceFrom(0xD0).writeStream(pbIn.sliceWithLength(0x00, 0x80)); // ~PSP header
+    // step4: do the actual decryption of code block
+    //  point 0x40 bytes into the buffer to key info
     kirk.hleUtilsBufferCopyWithRange(pbOut.sliceWithLength(0x00, cbTotal), pbOut.sliceWithLength(0x40, cbTotal - 0x40), kirk.CommandEnum.DECRYPT_PRIVATE);
+    //File.WriteAllBytes("../../../TestInput/temp.bin", _pbOut);
     var outputSize = pbIn.sliceFrom(0xB0).readUInt32();
     return pbOut.sliceWithLength(0, outputSize);
 }
+/*
+function Scramble(buf: Stream, code: number) {
+    buf[0] = 5;
+    buf[1] = buf[2] = 0;
+    buf[3] = (uint) code;
+    buf[4] = (uint) size;
+
+    if (Kirk.hleUtilsBufferCopyWithRange((byte*) buf, size + 0x14, (byte *) buf, size + 0x14, Kirk.CommandEnum.PSP_KIRK_CMD_DECRYPT) != Kirk.ResultEnum.OK) {
+        return -1;
+    }
+
+    return 0;
+}
+
+function decrypt2(input: Stream) {
+    var size = input.length;
+    var _pbOut = new Uint8Array(size);
+    _pbIn.CopyTo(_pbOut, 0);
+
+    var _tmp1 = new Uint8Array(0x150);
+    var _tmp2 = new Uint8Array(0x90 + 0x14);
+    var _tmp3 = new Uint8Array(0x60 + 0x14);
+
+    var HeaderPointer = (HeaderStruct*) inbuf;
+    this.Header = * (HeaderStruct*) inbuf;
+    var pti = GetTagInfo2(this.Header.Tag);
+    Console.WriteLine("{0}", pti);
+
+                int retsize = * (int *) & inbuf[0xB0];
+
+    PointerUtils.Memset(_tmp1, 0, 0x150);
+    PointerUtils.Memset(_tmp2, 0, 0x90 + 0x14);
+    PointerUtils.Memset(_tmp3, 0, 0x60 + 0x14);
+
+    PointerUtils.Memcpy(outbuf, inbuf, size);
+
+    if (size < 0x160) {
+        throw (new InvalidDataException("buffer not big enough, "));
+    }
+
+    if ((size - 0x150) < retsize) {
+        throw (new InvalidDataException("not enough data, "));
+    }
+
+    PointerUtils.Memcpy(tmp1, outbuf, 0x150);
+
+    for (var i = 0; i < 9; i++) {
+        for (var j = 0; j < 0x10; j++) {
+            _tmp2[0x14 + (i << 4) + j] = pti.key[j];
+        }
+
+        _tmp2[0x14 + (i << 4)] = (byte) i;
+    }
+
+    if (Scramble((uint *) tmp2, 0x90, pti.code) < 0) {
+        throw (new InvalidDataException("error in Scramble#1, "));
+    }
+
+    PointerUtils.Memcpy(outbuf, tmp1 + 0xD0, 0x5C);
+    PointerUtils.Memcpy(outbuf + 0x5C, tmp1 + 0x140, 0x10);
+    PointerUtils.Memcpy(outbuf + 0x6C, tmp1 + 0x12C, 0x14);
+    PointerUtils.Memcpy(outbuf + 0x80, tmp1 + 0x080, 0x30);
+    PointerUtils.Memcpy(outbuf + 0xB0, tmp1 + 0x0C0, 0x10);
+    PointerUtils.Memcpy(outbuf + 0xC0, tmp1 + 0x0B0, 0x10);
+    PointerUtils.Memcpy(outbuf + 0xD0, tmp1 + 0x000, 0x80);
+
+    PointerUtils.Memcpy(tmp3 + 0x14, outbuf + 0x5C, 0x60);
+
+    if (Scramble((uint *) tmp3, 0x60, pti.code) < 0) {
+        throw (new InvalidDataException("error in Scramble#2, "));
+    }
+
+    PointerUtils.Memcpy(outbuf + 0x5C, tmp3, 0x60);
+    PointerUtils.Memcpy(tmp3, outbuf + 0x6C, 0x14);
+    PointerUtils.Memcpy(outbuf + 0x70, outbuf + 0x5C, 0x10);
+    PointerUtils.Memset(outbuf + 0x18, 0, 0x58);
+    PointerUtils.Memcpy(outbuf + 0x04, outbuf, 0x04);
+
+                *((uint *)outbuf) = 0x014C;
+    PointerUtils.Memcpy(outbuf + 0x08, tmp2, 0x10);
+
+    // sha-1
+    if (Kirk.hleUtilsBufferCopyWithRange(outbuf, 3000000, outbuf, 3000000, Core.Crypto.Kirk.CommandEnum.PSP_KIRK_CMD_SHA1_HASH) != Core.Crypto.Kirk.ResultEnum.OK) {
+        throw (new InvalidDataException("error in sceUtilsBufferCopyWithRange 0xB, "));
+    }
+
+    if (PointerUtils.Memcmp(outbuf, tmp3, 0x14) != 0) {
+        throw (new InvalidDataException("WARNING (SHA-1 incorrect), "));
+    }
+    
+    for (var iXOR = 0; iXOR < 0x40; iXOR++) {
+        tmp3[iXOR + 0x14] = (byte)(outbuf[iXOR + 0x80] ^ _tmp2[iXOR + 0x10]);
+    }
+
+    if (Scramble((uint *) tmp3, 0x40, pti.code) != 0) {
+        throw (new InvalidDataException("error in Scramble#3, "));
+    }
+
+    for (var iXOR = 0x3F; iXOR >= 0; iXOR--) {
+        outbuf[iXOR + 0x40] = (byte)(_tmp3[iXOR] ^ _tmp2[iXOR + 0x50]); // uns 8
+    }
+
+    PointerUtils.Memset(outbuf + 0x80, 0, 0x30);
+    *(uint *) & outbuf[0xA0] = 1;
+
+    PointerUtils.Memcpy(outbuf + 0xB0, outbuf + 0xC0, 0x10);
+    PointerUtils.Memset(outbuf + 0xC0, 0, 0x10);
+
+    // the real decryption
+    var ret = Kirk.hleUtilsBufferCopyWithRange(outbuf, size, outbuf + 0x40, size - 0x40, Core.Crypto.Kirk.CommandEnum.PSP_KIRK_CMD_DECRYPT_PRIVATE);
+    if (ret != 0) {
+        throw (new InvalidDataException(String.Format("error in sceUtilsBufferCopyWithRange 0x1 (0x{0:X}), ", ret)));
+    }
+
+    if (retsize < 0x150) {
+        // Fill with 0
+        PointerUtils.Memset(outbuf + retsize, 0, 0x150 - retsize);
+    }
+
+    return _pbOut.Slice(0, retsize).ToArray();
+}
+*/
 function decrypt(input) {
     return decrypt1(input.slice());
 }
@@ -15623,6 +20969,7 @@ exports.decrypt = decrypt;
 
 },
 "src/hle/elf_crypted_prx_keys_144": function(module, exports, require) {
+"use strict";
 var g_key0 = new Uint32Array([
     0x7b21f3be, 0x299c5e1d, 0x1c9c5e71, 0x96cb4645, 0x3c9b1be0, 0xeb85de3d,
     0x4a7f2022, 0xc2206eaa, 0xd50b3265, 0x55770567, 0x3c080840, 0x981d55f2,
@@ -15671,6 +21018,7 @@ var g_key3A = new Uint32Array([
     0x4602e9cb, 0x4de16cda, 0xe164d5bb, 0x07ecd88e, 0x99ffe5f8, 0x768800c1,
     0x53b091ed, 0x84047434, 0xb426dbbc, 0x36f948bb, 0x46142158, 0x749bb492,
 ]);
+// KEYS FROM MESG_LED.PRX (3.52)
 var g_keyEBOOT1xx = new Uint32Array([
     0x18CB69EF, 0x158E8912, 0xDEF90EBB, 0x4CB0FB23, 0x3687EE18, 0x868D4A6E,
     0x19B5C756, 0xEE16551D, 0xE7CB2D6C, 0x9747C660, 0xCE95143F, 0x2956F477,
@@ -15757,12 +21105,15 @@ function process(_item) {
     return item;
 }
 exports.g_tagInfo = [
+    // 1.x PRXs
     process({ tag: 0x00000000, ikey: g_key0, code: 0x42, codeExtra: 0x00 }),
     process({ tag: 0x02000000, ikey: g_key2, code: 0x45, codeExtra: 0x00 }),
     process({ tag: 0x03000000, ikey: g_key3, code: 0x46, codeExtra: 0x00 }),
+    // 2.0 PRXs
     process({ tag: 0x4467415d, ikey: g_key44, code: 0x59, codeExtra: 0x59 }),
     process({ tag: 0x207bbf2f, ikey: g_key20, code: 0x5A, codeExtra: 0x5A }),
     process({ tag: 0x3ace4dce, ikey: g_key3A, code: 0x5B, codeExtra: 0x5B }),
+    // misc
     process({ tag: 0x07000000, ikey: g_key_INDEXDAT1xx, code: 0x4A, codeExtra: 0x00 }),
     process({ tag: 0x08000000, ikey: g_keyEBOOT1xx, code: 0x4B, codeExtra: 0x00 }),
     process({ tag: 0xC0CB167C, ikey: g_keyEBOOT2xx, code: 0x5D, codeExtra: 0x5D }),
@@ -15777,6 +21128,7 @@ exports.g_tagInfo = [
 
 },
 "src/hle/elf_crypted_prx_keys_16": function(module, exports, require) {
+"use strict";
 exports.g_tagInfo2 = [
     { tag: 0x380228F0, key: keys620_5v, code: 0x5A },
     { tag: 0x4C942AF0, key: keys620_5k, code: 0x43 },
@@ -15849,84 +21201,85 @@ exports.g_tagInfo2 = [
     { tag: 0x279D10F0, key: oneseg_slim, code: 0x61 },
     { tag: 0x3C2A08F0, key: ms_app_main, code: 0x67 },
 ];
-var keys260_0 = new Uint8Array([0xC3, 0x24, 0x89, 0xD3, 0x80, 0x87, 0xB2, 0x4E, 0x4C, 0xD7, 0x49, 0xE4, 0x9D, 0x1D, 0x34, 0xD1]);
-var keys260_1 = new Uint8Array([0xF3, 0xAC, 0x6E, 0x7C, 0x04, 0x0A, 0x23, 0xE7, 0x0D, 0x33, 0xD8, 0x24, 0x73, 0x39, 0x2B, 0x4A]);
-var keys260_2 = new Uint8Array([0x72, 0xB4, 0x39, 0xFF, 0x34, 0x9B, 0xAE, 0x82, 0x30, 0x34, 0x4A, 0x1D, 0xA2, 0xD8, 0xB4, 0x3C]);
-var keys280_0 = new Uint8Array([0xCA, 0xFB, 0xBF, 0xC7, 0x50, 0xEA, 0xB4, 0x40, 0x8E, 0x44, 0x5C, 0x63, 0x53, 0xCE, 0x80, 0xB1]);
-var keys280_1 = new Uint8Array([0x40, 0x9B, 0xC6, 0x9B, 0xA9, 0xFB, 0x84, 0x7F, 0x72, 0x21, 0xD2, 0x36, 0x96, 0x55, 0x09, 0x74]);
-var keys280_2 = new Uint8Array([0x03, 0xA7, 0xCC, 0x4A, 0x5B, 0x91, 0xC2, 0x07, 0xFF, 0xFC, 0x26, 0x25, 0x1E, 0x42, 0x4B, 0xB5]);
-var keys300_0 = new Uint8Array([0x9F, 0x67, 0x1A, 0x7A, 0x22, 0xF3, 0x59, 0x0B, 0xAA, 0x6D, 0xA4, 0xC6, 0x8B, 0xD0, 0x03, 0x77]);
-var keys300_1 = new Uint8Array([0x15, 0x07, 0x63, 0x26, 0xDB, 0xE2, 0x69, 0x34, 0x56, 0x08, 0x2A, 0x93, 0x4E, 0x4B, 0x8A, 0xB2]);
-var keys300_2 = new Uint8Array([0x56, 0x3B, 0x69, 0xF7, 0x29, 0x88, 0x2F, 0x4C, 0xDB, 0xD5, 0xDE, 0x80, 0xC6, 0x5C, 0xC8, 0x73]);
-var keys303_0 = new Uint8Array([0x7b, 0xa1, 0xe2, 0x5a, 0x91, 0xb9, 0xd3, 0x13, 0x77, 0x65, 0x4a, 0xb7, 0xc2, 0x8a, 0x10, 0xaf]);
-var keys310_0 = new Uint8Array([0xa2, 0x41, 0xe8, 0x39, 0x66, 0x5b, 0xfa, 0xbb, 0x1b, 0x2d, 0x6e, 0x0e, 0x33, 0xe5, 0xd7, 0x3f]);
-var keys310_1 = new Uint8Array([0xA4, 0x60, 0x8F, 0xAB, 0xAB, 0xDE, 0xA5, 0x65, 0x5D, 0x43, 0x3A, 0xD1, 0x5E, 0xC3, 0xFF, 0xEA]);
-var keys310_2 = new Uint8Array([0xE7, 0x5C, 0x85, 0x7A, 0x59, 0xB4, 0xE3, 0x1D, 0xD0, 0x9E, 0xCE, 0xC2, 0xD6, 0xD4, 0xBD, 0x2B]);
-var keys310_3 = new Uint8Array([0x2E, 0x00, 0xF6, 0xF7, 0x52, 0xCF, 0x95, 0x5A, 0xA1, 0x26, 0xB4, 0x84, 0x9B, 0x58, 0x76, 0x2F]);
-var keys330_0 = new Uint8Array([0x3B, 0x9B, 0x1A, 0x56, 0x21, 0x80, 0x14, 0xED, 0x8E, 0x8B, 0x08, 0x42, 0xFA, 0x2C, 0xDC, 0x3A]);
-var keys330_1 = new Uint8Array([0xE8, 0xBE, 0x2F, 0x06, 0xB1, 0x05, 0x2A, 0xB9, 0x18, 0x18, 0x03, 0xE3, 0xEB, 0x64, 0x7D, 0x26]);
-var keys330_2 = new Uint8Array([0xAB, 0x82, 0x25, 0xD7, 0x43, 0x6F, 0x6C, 0xC1, 0x95, 0xC5, 0xF7, 0xF0, 0x63, 0x73, 0x3F, 0xE7]);
-var keys330_3 = new Uint8Array([0xA8, 0xB1, 0x47, 0x77, 0xDC, 0x49, 0x6A, 0x6F, 0x38, 0x4C, 0x4D, 0x96, 0xBD, 0x49, 0xEC, 0x9B]);
-var keys330_4 = new Uint8Array([0xEC, 0x3B, 0xD2, 0xC0, 0xFA, 0xC1, 0xEE, 0xB9, 0x9A, 0xBC, 0xFF, 0xA3, 0x89, 0xF2, 0x60, 0x1F]);
-var demokeys_280 = new Uint8Array([0x12, 0x99, 0x70, 0x5E, 0x24, 0x07, 0x6C, 0xD0, 0x2D, 0x06, 0xFE, 0x7E, 0xB3, 0x0C, 0x11, 0x26]);
-var demokeys_3XX_1 = new Uint8Array([0x47, 0x05, 0xD5, 0xE3, 0x56, 0x1E, 0x81, 0x9B, 0x09, 0x2F, 0x06, 0xDB, 0x6B, 0x12, 0x92, 0xE0]);
-var demokeys_3XX_2 = new Uint8Array([0xF6, 0x62, 0x39, 0x6E, 0x26, 0x22, 0x4D, 0xCA, 0x02, 0x64, 0x16, 0x99, 0x7B, 0x9A, 0xE7, 0xB8]);
-var ebootbin_271_new = new Uint8Array([0xF4, 0xAE, 0xF4, 0xE1, 0x86, 0xDD, 0xD2, 0x9C, 0x7C, 0xC5, 0x42, 0xA6, 0x95, 0xA0, 0x83, 0x88]);
-var ebootbin_280_new = new Uint8Array([0xB8, 0x8C, 0x45, 0x8B, 0xB6, 0xE7, 0x6E, 0xB8, 0x51, 0x59, 0xA6, 0x53, 0x7C, 0x5E, 0x86, 0x31]);
-var ebootbin_300_new = new Uint8Array([0xED, 0x10, 0xE0, 0x36, 0xC4, 0xFE, 0x83, 0xF3, 0x75, 0x70, 0x5E, 0xF6, 0xA4, 0x40, 0x05, 0xF7]);
-var ebootbin_310_new = new Uint8Array([0x5C, 0x77, 0x0C, 0xBB, 0xB4, 0xC2, 0x4F, 0xA2, 0x7E, 0x3B, 0x4E, 0xB4, 0xB4, 0xC8, 0x70, 0xAF]);
-var gameshare_260_271 = new Uint8Array([0xF9, 0x48, 0x38, 0x0C, 0x96, 0x88, 0xA7, 0x74, 0x4F, 0x65, 0xA0, 0x54, 0xC2, 0x76, 0xD9, 0xB8]);
-var gameshare_280 = new Uint8Array([0x2D, 0x86, 0x77, 0x3A, 0x56, 0xA4, 0x4F, 0xDD, 0x3C, 0x16, 0x71, 0x93, 0xAA, 0x8E, 0x11, 0x43]);
-var gameshare_300 = new Uint8Array([0x78, 0x1A, 0xD2, 0x87, 0x24, 0xBD, 0xA2, 0x96, 0x18, 0x3F, 0x89, 0x36, 0x72, 0x90, 0x92, 0x85]);
-var gameshare_310 = new Uint8Array([0xC9, 0x7D, 0x3E, 0x0A, 0x54, 0x81, 0x6E, 0xC7, 0x13, 0x74, 0x99, 0x74, 0x62, 0x18, 0xE7, 0xDD]);
-var keys360_0 = new Uint8Array([0x3C, 0x2B, 0x51, 0xD4, 0x2D, 0x85, 0x47, 0xDA, 0x2D, 0xCA, 0x18, 0xDF, 0xFE, 0x54, 0x09, 0xED]);
-var keys360_1 = new Uint8Array([0x31, 0x1F, 0x98, 0xD5, 0x7B, 0x58, 0x95, 0x45, 0x32, 0xAB, 0x3A, 0xE3, 0x89, 0x32, 0x4B, 0x34]);
-var keys370_0 = new Uint8Array([0x26, 0x38, 0x0A, 0xAC, 0xA5, 0xD8, 0x74, 0xD1, 0x32, 0xB7, 0x2A, 0xBF, 0x79, 0x9E, 0x6D, 0xDB]);
-var keys370_1 = new Uint8Array([0x53, 0xE7, 0xAB, 0xB9, 0xC6, 0x4A, 0x4B, 0x77, 0x92, 0x17, 0xB5, 0x74, 0x0A, 0xDA, 0xA9, 0xEA]);
-var keys370_2 = new Uint8Array([0x71, 0x10, 0xF0, 0xA4, 0x16, 0x14, 0xD5, 0x93, 0x12, 0xFF, 0x74, 0x96, 0xDF, 0x1F, 0xDA, 0x89]);
-var oneseg_310 = new Uint8Array([0xC7, 0x27, 0x72, 0x85, 0xAB, 0xA7, 0xF7, 0xF0, 0x4C, 0xC1, 0x86, 0xCC, 0xE3, 0x7F, 0x17, 0xCA]);
+var keys260_0 = new Uint8Array([0xC3, 0x24, 0x89, 0xD3, 0x80, 0x87, 0xB2, 0x4E, 0x4C, 0xD7, 0x49, 0xE4, 0x9D, 0x1D, 0x34, 0xD1]); // kernel modules 2.60-2.71
+var keys260_1 = new Uint8Array([0xF3, 0xAC, 0x6E, 0x7C, 0x04, 0x0A, 0x23, 0xE7, 0x0D, 0x33, 0xD8, 0x24, 0x73, 0x39, 0x2B, 0x4A]); // user modules 2.60-2.71
+var keys260_2 = new Uint8Array([0x72, 0xB4, 0x39, 0xFF, 0x34, 0x9B, 0xAE, 0x82, 0x30, 0x34, 0x4A, 0x1D, 0xA2, 0xD8, 0xB4, 0x3C]); // vshmain 2.60-2.71
+var keys280_0 = new Uint8Array([0xCA, 0xFB, 0xBF, 0xC7, 0x50, 0xEA, 0xB4, 0x40, 0x8E, 0x44, 0x5C, 0x63, 0x53, 0xCE, 0x80, 0xB1]); // kernel modules 2.80
+var keys280_1 = new Uint8Array([0x40, 0x9B, 0xC6, 0x9B, 0xA9, 0xFB, 0x84, 0x7F, 0x72, 0x21, 0xD2, 0x36, 0x96, 0x55, 0x09, 0x74]); // user modules 2.80
+var keys280_2 = new Uint8Array([0x03, 0xA7, 0xCC, 0x4A, 0x5B, 0x91, 0xC2, 0x07, 0xFF, 0xFC, 0x26, 0x25, 0x1E, 0x42, 0x4B, 0xB5]); // vshmain executable 2.80
+var keys300_0 = new Uint8Array([0x9F, 0x67, 0x1A, 0x7A, 0x22, 0xF3, 0x59, 0x0B, 0xAA, 0x6D, 0xA4, 0xC6, 0x8B, 0xD0, 0x03, 0x77]); // kernel modules 3.00
+var keys300_1 = new Uint8Array([0x15, 0x07, 0x63, 0x26, 0xDB, 0xE2, 0x69, 0x34, 0x56, 0x08, 0x2A, 0x93, 0x4E, 0x4B, 0x8A, 0xB2]); // user modules 3.00
+var keys300_2 = new Uint8Array([0x56, 0x3B, 0x69, 0xF7, 0x29, 0x88, 0x2F, 0x4C, 0xDB, 0xD5, 0xDE, 0x80, 0xC6, 0x5C, 0xC8, 0x73]); // vshmain 3.00
+var keys303_0 = new Uint8Array([0x7b, 0xa1, 0xe2, 0x5a, 0x91, 0xb9, 0xd3, 0x13, 0x77, 0x65, 0x4a, 0xb7, 0xc2, 0x8a, 0x10, 0xaf]); // kernel modules 3.00
+var keys310_0 = new Uint8Array([0xa2, 0x41, 0xe8, 0x39, 0x66, 0x5b, 0xfa, 0xbb, 0x1b, 0x2d, 0x6e, 0x0e, 0x33, 0xe5, 0xd7, 0x3f]); // kernel modules 3.10
+var keys310_1 = new Uint8Array([0xA4, 0x60, 0x8F, 0xAB, 0xAB, 0xDE, 0xA5, 0x65, 0x5D, 0x43, 0x3A, 0xD1, 0x5E, 0xC3, 0xFF, 0xEA]); // user modules 3.10
+var keys310_2 = new Uint8Array([0xE7, 0x5C, 0x85, 0x7A, 0x59, 0xB4, 0xE3, 0x1D, 0xD0, 0x9E, 0xCE, 0xC2, 0xD6, 0xD4, 0xBD, 0x2B]); // vshmain 3.10
+var keys310_3 = new Uint8Array([0x2E, 0x00, 0xF6, 0xF7, 0x52, 0xCF, 0x95, 0x5A, 0xA1, 0x26, 0xB4, 0x84, 0x9B, 0x58, 0x76, 0x2F]); // reboot.bin 3.10
+var keys330_0 = new Uint8Array([0x3B, 0x9B, 0x1A, 0x56, 0x21, 0x80, 0x14, 0xED, 0x8E, 0x8B, 0x08, 0x42, 0xFA, 0x2C, 0xDC, 0x3A]); // kernel modules 3.30
+var keys330_1 = new Uint8Array([0xE8, 0xBE, 0x2F, 0x06, 0xB1, 0x05, 0x2A, 0xB9, 0x18, 0x18, 0x03, 0xE3, 0xEB, 0x64, 0x7D, 0x26]); // user modules 3.30
+var keys330_2 = new Uint8Array([0xAB, 0x82, 0x25, 0xD7, 0x43, 0x6F, 0x6C, 0xC1, 0x95, 0xC5, 0xF7, 0xF0, 0x63, 0x73, 0x3F, 0xE7]); // vshmain 3.30
+var keys330_3 = new Uint8Array([0xA8, 0xB1, 0x47, 0x77, 0xDC, 0x49, 0x6A, 0x6F, 0x38, 0x4C, 0x4D, 0x96, 0xBD, 0x49, 0xEC, 0x9B]); // reboot.bin 3.30
+var keys330_4 = new Uint8Array([0xEC, 0x3B, 0xD2, 0xC0, 0xFA, 0xC1, 0xEE, 0xB9, 0x9A, 0xBC, 0xFF, 0xA3, 0x89, 0xF2, 0x60, 0x1F]); // stdio.prx 3.30
+var demokeys_280 = new Uint8Array([0x12, 0x99, 0x70, 0x5E, 0x24, 0x07, 0x6C, 0xD0, 0x2D, 0x06, 0xFE, 0x7E, 0xB3, 0x0C, 0x11, 0x26]); // demo data.psp 2.80
+var demokeys_3XX_1 = new Uint8Array([0x47, 0x05, 0xD5, 0xE3, 0x56, 0x1E, 0x81, 0x9B, 0x09, 0x2F, 0x06, 0xDB, 0x6B, 0x12, 0x92, 0xE0]); // demo data.psp 3.XX
+var demokeys_3XX_2 = new Uint8Array([0xF6, 0x62, 0x39, 0x6E, 0x26, 0x22, 0x4D, 0xCA, 0x02, 0x64, 0x16, 0x99, 0x7B, 0x9A, 0xE7, 0xB8]); // demo data.psp 3.XX
+var ebootbin_271_new = new Uint8Array([0xF4, 0xAE, 0xF4, 0xE1, 0x86, 0xDD, 0xD2, 0x9C, 0x7C, 0xC5, 0x42, 0xA6, 0x95, 0xA0, 0x83, 0x88]); // new 2.7X eboot.bin
+var ebootbin_280_new = new Uint8Array([0xB8, 0x8C, 0x45, 0x8B, 0xB6, 0xE7, 0x6E, 0xB8, 0x51, 0x59, 0xA6, 0x53, 0x7C, 0x5E, 0x86, 0x31]); // new 2.8X eboot.bin
+var ebootbin_300_new = new Uint8Array([0xED, 0x10, 0xE0, 0x36, 0xC4, 0xFE, 0x83, 0xF3, 0x75, 0x70, 0x5E, 0xF6, 0xA4, 0x40, 0x05, 0xF7]); // new 3.XX eboot.bin
+var ebootbin_310_new = new Uint8Array([0x5C, 0x77, 0x0C, 0xBB, 0xB4, 0xC2, 0x4F, 0xA2, 0x7E, 0x3B, 0x4E, 0xB4, 0xB4, 0xC8, 0x70, 0xAF]); // new 3.XX eboot.bin
+var gameshare_260_271 = new Uint8Array([0xF9, 0x48, 0x38, 0x0C, 0x96, 0x88, 0xA7, 0x74, 0x4F, 0x65, 0xA0, 0x54, 0xC2, 0x76, 0xD9, 0xB8]); // 2.60-2.71 gameshare
+var gameshare_280 = new Uint8Array([0x2D, 0x86, 0x77, 0x3A, 0x56, 0xA4, 0x4F, 0xDD, 0x3C, 0x16, 0x71, 0x93, 0xAA, 0x8E, 0x11, 0x43]); // 2.80 gameshare
+var gameshare_300 = new Uint8Array([0x78, 0x1A, 0xD2, 0x87, 0x24, 0xBD, 0xA2, 0x96, 0x18, 0x3F, 0x89, 0x36, 0x72, 0x90, 0x92, 0x85]); // 3.00 gameshare
+var gameshare_310 = new Uint8Array([0xC9, 0x7D, 0x3E, 0x0A, 0x54, 0x81, 0x6E, 0xC7, 0x13, 0x74, 0x99, 0x74, 0x62, 0x18, 0xE7, 0xDD]); // 3.10 gameshare
+var keys360_0 = new Uint8Array([0x3C, 0x2B, 0x51, 0xD4, 0x2D, 0x85, 0x47, 0xDA, 0x2D, 0xCA, 0x18, 0xDF, 0xFE, 0x54, 0x09, 0xED]); // 3.60 common kernel modules
+var keys360_1 = new Uint8Array([0x31, 0x1F, 0x98, 0xD5, 0x7B, 0x58, 0x95, 0x45, 0x32, 0xAB, 0x3A, 0xE3, 0x89, 0x32, 0x4B, 0x34]); // 3.60 specific slim kernel modules
+var keys370_0 = new Uint8Array([0x26, 0x38, 0x0A, 0xAC, 0xA5, 0xD8, 0x74, 0xD1, 0x32, 0xB7, 0x2A, 0xBF, 0x79, 0x9E, 0x6D, 0xDB]); // 3.70 common and fat kernel modules
+var keys370_1 = new Uint8Array([0x53, 0xE7, 0xAB, 0xB9, 0xC6, 0x4A, 0x4B, 0x77, 0x92, 0x17, 0xB5, 0x74, 0x0A, 0xDA, 0xA9, 0xEA]); // 3.70 slim specific kernel modules
+var keys370_2 = new Uint8Array([0x71, 0x10, 0xF0, 0xA4, 0x16, 0x14, 0xD5, 0x93, 0x12, 0xFF, 0x74, 0x96, 0xDF, 0x1F, 0xDA, 0x89]); // some 3.70 slim user modules
+var oneseg_310 = new Uint8Array([0xC7, 0x27, 0x72, 0x85, 0xAB, 0xA7, 0xF7, 0xF0, 0x4C, 0xC1, 0x86, 0xCC, 0xE3, 0x7F, 0x17, 0xCA]); // 1SEG.PBP keys
 var oneseg_300 = new Uint8Array([0x76, 0x40, 0x9E, 0x08, 0xDB, 0x9B, 0x3B, 0xA1, 0x47, 0x8A, 0x96, 0x8E, 0xF3, 0xF7, 0x62, 0x92]);
 var oneseg_280 = new Uint8Array([0x23, 0xDC, 0x3B, 0xB5, 0xA9, 0x82, 0xD6, 0xEA, 0x63, 0xA3, 0x6E, 0x2B, 0x2B, 0xE9, 0xE1, 0x54]);
 var oneseg_260_271 = new Uint8Array([0x22, 0x43, 0x57, 0x68, 0x2F, 0x41, 0xCE, 0x65, 0x4C, 0xA3, 0x7C, 0xC6, 0xC4, 0xAC, 0xF3, 0x60]);
 var oneseg_slim = new Uint8Array([0x12, 0x57, 0x0D, 0x8A, 0x16, 0x6D, 0x87, 0x06, 0x03, 0x7D, 0xC8, 0x8B, 0x62, 0xA3, 0x32, 0xA9]);
 var ms_app_main = new Uint8Array([0x1E, 0x2E, 0x38, 0x49, 0xDA, 0xD4, 0x16, 0x08, 0x27, 0x2E, 0xF3, 0xBC, 0x37, 0x75, 0x80, 0x93]);
-var keys390_0 = new Uint8Array([0x45, 0xEF, 0x5C, 0x5D, 0xED, 0x81, 0x99, 0x84, 0x12, 0x94, 0x8F, 0xAB, 0xE8, 0x05, 0x6D, 0x7D]);
-var keys390_1 = new Uint8Array([0x70, 0x1B, 0x08, 0x25, 0x22, 0xA1, 0x4D, 0x3B, 0x69, 0x21, 0xF9, 0x71, 0x0A, 0xA8, 0x41, 0xA9]);
-var keys500_0 = new Uint8Array([0xEB, 0x1B, 0x53, 0x0B, 0x62, 0x49, 0x32, 0x58, 0x1F, 0x83, 0x0A, 0xF4, 0x99, 0x3D, 0x75, 0xD0]);
-var keys500_1 = new Uint8Array([0xBA, 0xE2, 0xA3, 0x12, 0x07, 0xFF, 0x04, 0x1B, 0x64, 0xA5, 0x11, 0x85, 0xF7, 0x2F, 0x99, 0x5B]);
-var keys500_2 = new Uint8Array([0x2C, 0x8E, 0xAF, 0x1D, 0xFF, 0x79, 0x73, 0x1A, 0xAD, 0x96, 0xAB, 0x09, 0xEA, 0x35, 0x59, 0x8B]);
+var keys390_0 = new Uint8Array([0x45, 0xEF, 0x5C, 0x5D, 0xED, 0x81, 0x99, 0x84, 0x12, 0x94, 0x8F, 0xAB, 0xE8, 0x05, 0x6D, 0x7D]); // 3.90 kernel
+var keys390_1 = new Uint8Array([0x70, 0x1B, 0x08, 0x25, 0x22, 0xA1, 0x4D, 0x3B, 0x69, 0x21, 0xF9, 0x71, 0x0A, 0xA8, 0x41, 0xA9]); // 3.90 slim
+var keys500_0 = new Uint8Array([0xEB, 0x1B, 0x53, 0x0B, 0x62, 0x49, 0x32, 0x58, 0x1F, 0x83, 0x0A, 0xF4, 0x99, 0x3D, 0x75, 0xD0]); // 5.00 kernel
+var keys500_1 = new Uint8Array([0xBA, 0xE2, 0xA3, 0x12, 0x07, 0xFF, 0x04, 0x1B, 0x64, 0xA5, 0x11, 0x85, 0xF7, 0x2F, 0x99, 0x5B]); // 5.00 kernel 2000 specific
+var keys500_2 = new Uint8Array([0x2C, 0x8E, 0xAF, 0x1D, 0xFF, 0x79, 0x73, 0x1A, 0xAD, 0x96, 0xAB, 0x09, 0xEA, 0x35, 0x59, 0x8B]); // 5.00 kernel 3000 specific
 var keys500_c = new Uint8Array([0xA3, 0x5D, 0x51, 0xE6, 0x56, 0xC8, 0x01, 0xCA, 0xE3, 0x77, 0xBF, 0xCD, 0xFF, 0x24, 0xDA, 0x4D]);
-var keys505_a = new Uint8Array([0x7B, 0x94, 0x72, 0x27, 0x4C, 0xCC, 0x54, 0x3B, 0xAE, 0xDF, 0x46, 0x37, 0xAC, 0x01, 0x4D, 0x87]);
+var keys505_a = new Uint8Array([0x7B, 0x94, 0x72, 0x27, 0x4C, 0xCC, 0x54, 0x3B, 0xAE, 0xDF, 0x46, 0x37, 0xAC, 0x01, 0x4D, 0x87]); // 5.05 kernel specific
 var keys505_0 = new Uint8Array([0x2E, 0x8E, 0x97, 0xA2, 0x85, 0x42, 0x70, 0x73, 0x18, 0xDA, 0xA0, 0x8A, 0xF8, 0x62, 0xA2, 0xB0]);
 var keys505_1 = new Uint8Array([0x58, 0x2A, 0x4C, 0x69, 0x19, 0x7B, 0x83, 0x3D, 0xD2, 0x61, 0x61, 0xFE, 0x14, 0xEE, 0xAA, 0x11]);
-var keys02G_E = new Uint8Array([0x9D, 0x09, 0xFD, 0x20, 0xF3, 0x8F, 0x10, 0x69, 0x0D, 0xB2, 0x6F, 0x00, 0xCC, 0xC5, 0x51, 0x2E]);
-var keys03G_E = new Uint8Array([0x4F, 0x44, 0x5C, 0x62, 0xB3, 0x53, 0xC4, 0x30, 0xFC, 0x3A, 0xA4, 0x5B, 0xEC, 0xFE, 0x51, 0xEA]);
+var keys02G_E = new Uint8Array([0x9D, 0x09, 0xFD, 0x20, 0xF3, 0x8F, 0x10, 0x69, 0x0D, 0xB2, 0x6F, 0x00, 0xCC, 0xC5, 0x51, 0x2E]); // for psp 2000 file table and ipl pre-decryption
+var keys03G_E = new Uint8Array([0x4F, 0x44, 0x5C, 0x62, 0xB3, 0x53, 0xC4, 0x30, 0xFC, 0x3A, 0xA4, 0x5B, 0xEC, 0xFE, 0x51, 0xEA]); // for psp 3000 file table and ipl pre-decryption
 var key_D91609F0 = new Uint8Array([0xD0, 0x36, 0x12, 0x75, 0x80, 0x56, 0x20, 0x43, 0xC4, 0x30, 0x94, 0x3E, 0x1C, 0x75, 0xD1, 0xBF]);
 var key_D9160AF0 = new Uint8Array([0x10, 0xA9, 0xAC, 0x16, 0xAE, 0x19, 0xC0, 0x7E, 0x3B, 0x60, 0x77, 0x86, 0x01, 0x6F, 0xF2, 0x63]);
 var key_D9160BF0 = new Uint8Array([0x83, 0x83, 0xF1, 0x37, 0x53, 0xD0, 0xBE, 0xFC, 0x8D, 0xA7, 0x32, 0x52, 0x46, 0x0A, 0xC2, 0xC2]);
 var key_D91611F0 = new Uint8Array([0x61, 0xB0, 0xC0, 0x58, 0x71, 0x57, 0xD9, 0xFA, 0x74, 0x67, 0x0E, 0x5C, 0x7E, 0x6E, 0x95, 0xB9]);
-var key_D91612F0 = new Uint8Array([0x9E, 0x20, 0xE1, 0xCD, 0xD7, 0x88, 0xDE, 0xC0, 0x31, 0x9B, 0x10, 0xAF, 0xC5, 0xB8, 0x73, 0x23]);
+var key_D91612F0 = new Uint8Array([0x9E, 0x20, 0xE1, 0xCD, 0xD7, 0x88, 0xDE, 0xC0, 0x31, 0x9B, 0x10, 0xAF, 0xC5, 0xB8, 0x73, 0x23]); // UMD EBOOT.BIN (OPNSSMP.BIN)
 var key_D91613F0 = new Uint8Array([0xEB, 0xFF, 0x40, 0xD8, 0xB4, 0x1A, 0xE1, 0x66, 0x91, 0x3B, 0x8F, 0x64, 0xB6, 0xFC, 0xB7, 0x12]);
-var key_2E5E10F0 = new Uint8Array([0x9D, 0x5C, 0x5B, 0xAF, 0x8C, 0xD8, 0x69, 0x7E, 0x51, 0x9F, 0x70, 0x96, 0xE6, 0xD5, 0xC4, 0xE8]);
-var key_2E5E12F0 = new Uint8Array([0x8A, 0x7B, 0xC9, 0xD6, 0x52, 0x58, 0x88, 0xEA, 0x51, 0x83, 0x60, 0xCA, 0x16, 0x79, 0xE2, 0x07]);
+var key_2E5E10F0 = new Uint8Array([0x9D, 0x5C, 0x5B, 0xAF, 0x8C, 0xD8, 0x69, 0x7E, 0x51, 0x9F, 0x70, 0x96, 0xE6, 0xD5, 0xC4, 0xE8]); // UMD EBOOT.BIN 2 (OPNSSMP.BIN)
+var key_2E5E12F0 = new Uint8Array([0x8A, 0x7B, 0xC9, 0xD6, 0x52, 0x58, 0x88, 0xEA, 0x51, 0x83, 0x60, 0xCA, 0x16, 0x79, 0xE2, 0x07]); // UMD EBOOT.BIN 3 (OPNSSMP.BIN)
 var key_2E5E13F0 = new Uint8Array([0xFF, 0xA4, 0x68, 0xC3, 0x31, 0xCA, 0xB7, 0x4C, 0xF1, 0x23, 0xFF, 0x01, 0x65, 0x3D, 0x26, 0x36]);
 var keys600_u1_457B0BF0 = new Uint8Array([0x7B, 0x94, 0x72, 0x27, 0x4C, 0xCC, 0x54, 0x3B, 0xAE, 0xDF, 0x46, 0x37, 0xAC, 0x01, 0x4D, 0x87]);
 var keys600_u1_457B0CF0 = new Uint8Array([0xAC, 0x34, 0xBA, 0xB1, 0x97, 0x8D, 0xAE, 0x6F, 0xBA, 0xE8, 0xB1, 0xD6, 0xDF, 0xDF, 0xF1, 0xA2]);
-var keys05G_E = new Uint8Array([0x5D, 0xAA, 0x72, 0xF2, 0x26, 0x60, 0x4D, 0x1C, 0xE7, 0x2D, 0xC8, 0xA3, 0x2F, 0x79, 0xC5, 0x54]);
-var keys570_5k = new Uint8Array([0x6D, 0x72, 0xA4, 0xBA, 0x7F, 0xBF, 0xD1, 0xF1, 0xA9, 0xF3, 0xBB, 0x07, 0x1B, 0xC0, 0xB3, 0x66]);
-var keys620_0 = new Uint8Array([0xD6, 0xBD, 0xCE, 0x1E, 0x12, 0xAF, 0x9A, 0xE6, 0x69, 0x30, 0xDE, 0xDA, 0x88, 0xB8, 0xFF, 0xFB]);
-var keys620_1 = new Uint8Array([0x1D, 0x13, 0xE9, 0x50, 0x04, 0x73, 0x3D, 0xD2, 0xE1, 0xDA, 0xB9, 0xC1, 0xE6, 0x7B, 0x25, 0xA7]);
+var keys05G_E = new Uint8Array([0x5D, 0xAA, 0x72, 0xF2, 0x26, 0x60, 0x4D, 0x1C, 0xE7, 0x2D, 0xC8, 0xA3, 0x2F, 0x79, 0xC5, 0x54]); // for psp go file table and ipl pre-decryption
+var keys570_5k = new Uint8Array([0x6D, 0x72, 0xA4, 0xBA, 0x7F, 0xBF, 0xD1, 0xF1, 0xA9, 0xF3, 0xBB, 0x07, 0x1B, 0xC0, 0xB3, 0x66]); // 5.70 PSPgo kernel
+var keys620_0 = new Uint8Array([0xD6, 0xBD, 0xCE, 0x1E, 0x12, 0xAF, 0x9A, 0xE6, 0x69, 0x30, 0xDE, 0xDA, 0x88, 0xB8, 0xFF, 0xFB]); // 6.00-6.20 kernel and phat
+var keys620_1 = new Uint8Array([0x1D, 0x13, 0xE9, 0x50, 0x04, 0x73, 0x3D, 0xD2, 0xE1, 0xDA, 0xB9, 0xC1, 0xE6, 0x7B, 0x25, 0xA7]); // 6.00-6.20 slim kernel
 var keys620_3 = new Uint8Array([0xA3, 0x5D, 0x51, 0xE6, 0x56, 0xC8, 0x01, 0xCA, 0xE3, 0x77, 0xBF, 0xCD, 0xFF, 0x24, 0xDA, 0x4D]);
 var keys620_e = new Uint8Array([0xB1, 0xB3, 0x7F, 0x76, 0xC3, 0xFB, 0x88, 0xE6, 0xF8, 0x60, 0xD3, 0x35, 0x3C, 0xA3, 0x4E, 0xF3]);
-var keys620_5 = new Uint8Array([0xF1, 0xBC, 0x17, 0x07, 0xAE, 0xB7, 0xC8, 0x30, 0xD8, 0x34, 0x9D, 0x40, 0x6A, 0x8E, 0xDF, 0x4E]);
-var keys620_5k = new Uint8Array([0x41, 0x8A, 0x35, 0x4F, 0x69, 0x3A, 0xDF, 0x04, 0xFD, 0x39, 0x46, 0xA2, 0x5C, 0x2D, 0xF2, 0x21]);
+var keys620_5 = new Uint8Array([0xF1, 0xBC, 0x17, 0x07, 0xAE, 0xB7, 0xC8, 0x30, 0xD8, 0x34, 0x9D, 0x40, 0x6A, 0x8E, 0xDF, 0x4E]); // PSPgo internal
+var keys620_5k = new Uint8Array([0x41, 0x8A, 0x35, 0x4F, 0x69, 0x3A, 0xDF, 0x04, 0xFD, 0x39, 0x46, 0xA2, 0x5C, 0x2D, 0xF2, 0x21]); // 6.XX PSPgo kernel
 var keys620_5v = new Uint8Array([0xF2, 0x8F, 0x75, 0xA7, 0x31, 0x91, 0xCE, 0x9E, 0x75, 0xBD, 0x27, 0x26, 0xB4, 0xB4, 0x0C, 0x32]);
 
 },
 "src/hle/elf_psp": function(module, exports, require) {
-var _cpu = require('../core/cpu');
-var _format_elf = require('../format/elf');
-var _format_elf_dwarf = require('../format/elf_dwarf');
+"use strict";
+var _cpu = require("../core/cpu");
+var _format_elf = require("../format/elf");
+var _format_elf_dwarf = require("../format/elf_dwarf");
 var NativeFunction = _cpu.NativeFunction;
 var MipsAssembler = _cpu.MipsAssembler;
 var Instruction = _cpu.Instruction;
@@ -15937,49 +21290,51 @@ var console = logger.named('elf.psp');
 var ElfPspModuleInfo = (function () {
     function ElfPspModuleInfo() {
     }
-    ElfPspModuleInfo.struct = StructClass.create(ElfPspModuleInfo, [
-        { moduleAtributes: UInt16 },
-        { moduleVersion: UInt16 },
-        { name: Stringz(28) },
-        { gp: UInt32 },
-        { exportsStart: UInt32 },
-        { exportsEnd: UInt32 },
-        { importsStart: UInt32 },
-        { importsEnd: UInt32 },
-    ]);
     return ElfPspModuleInfo;
-})();
+}());
+// http://hitmen.c02.at/files/yapspd/psp_doc/chap26.html
+// 26.2.2.8
+ElfPspModuleInfo.struct = StructClass.create(ElfPspModuleInfo, [
+    { moduleAtributes: UInt16 },
+    { moduleVersion: UInt16 },
+    { name: Stringz(28) },
+    { gp: UInt32 },
+    { exportsStart: UInt32 },
+    { exportsEnd: UInt32 },
+    { importsStart: UInt32 },
+    { importsEnd: UInt32 },
+]);
 exports.ElfPspModuleInfo = ElfPspModuleInfo;
 var ElfPspModuleImport = (function () {
     function ElfPspModuleImport() {
     }
-    ElfPspModuleImport.struct = StructClass.create(ElfPspModuleImport, [
-        { nameOffset: UInt32 },
-        { version: UInt16 },
-        { flags: UInt16 },
-        { entrySize: UInt8 },
-        { variableCount: UInt8 },
-        { functionCount: UInt16 },
-        { nidAddress: UInt32 },
-        { callAddress: UInt32 },
-    ]);
     return ElfPspModuleImport;
-})();
+}());
+ElfPspModuleImport.struct = StructClass.create(ElfPspModuleImport, [
+    { nameOffset: UInt32 },
+    { version: UInt16 },
+    { flags: UInt16 },
+    { entrySize: UInt8 },
+    { variableCount: UInt8 },
+    { functionCount: UInt16 },
+    { nidAddress: UInt32 },
+    { callAddress: UInt32 },
+]);
 exports.ElfPspModuleImport = ElfPspModuleImport;
 var ElfPspModuleExport = (function () {
     function ElfPspModuleExport() {
     }
-    ElfPspModuleExport.struct = StructClass.create(ElfPspModuleExport, [
-        { name: UInt32 },
-        { version: UInt16 },
-        { flags: UInt16 },
-        { entrySize: UInt8 },
-        { variableCount: UInt8 },
-        { functionCount: UInt16 },
-        { exports: UInt32 },
-    ]);
     return ElfPspModuleExport;
-})();
+}());
+ElfPspModuleExport.struct = StructClass.create(ElfPspModuleExport, [
+    { name: UInt32 },
+    { version: UInt16 },
+    { flags: UInt16 },
+    { entrySize: UInt8 },
+    { variableCount: UInt8 },
+    { functionCount: UInt16 },
+    { exports: UInt32 },
+]);
 exports.ElfPspModuleExport = ElfPspModuleExport;
 var InstructionReader = (function () {
     function InstructionReader(memory) {
@@ -15992,7 +21347,7 @@ var InstructionReader = (function () {
         this.memory.writeInt32(address, instruction.data);
     };
     return InstructionReader;
-})();
+}());
 var PspElfLoader = (function () {
     function PspElfLoader(memory, memoryManager, moduleManager, syscallManager) {
         this.memory = memory;
@@ -16003,7 +21358,9 @@ var PspElfLoader = (function () {
         this.baseAddress = 0;
     }
     PspElfLoader.prototype.load = function (stream) {
+        //console.warn('PspElfLoader.load');
         this.elfLoader = ElfLoader.fromStream(stream);
+        //ElfSectionHeaderFlags.Allocate
         this.allocateMemory();
         this.writeToMemory();
         this.relocateFromHeaders();
@@ -16011,6 +21368,9 @@ var PspElfLoader = (function () {
         this.updateModuleImports();
         this.elfDwarfLoader = new ElfDwarfLoader();
         this.elfDwarfLoader.parseElfLoader(this.elfLoader);
+        //this.memory.dump(); debugger;
+        //this.elfDwarfLoader.getSymbolAt();
+        //logger.log(this.moduleInfo);
     };
     PspElfLoader.prototype.getSymbolAt = function (address) {
         return this.elfDwarfLoader.getSymbolAt(address);
@@ -16031,7 +21391,7 @@ var PspElfLoader = (function () {
         }
         var lowest = 0xFFFFFFFF;
         var highest = 0;
-        this.elfLoader.sectionHeaders.filter(function (section) { return ((section.flags & 2) != 0); }).forEach(function (section) {
+        this.elfLoader.sectionHeaders.filter(function (section) { return ((section.flags & 2 /* Allocate */) != 0); }).forEach(function (section) {
             lowest = Math.min(lowest, (_this.baseAddress + section.address));
             highest = Math.max(highest, (_this.baseAddress + section.address + section.size));
         });
@@ -16046,10 +21406,10 @@ var PspElfLoader = (function () {
         var RelocProgramIndex = 0;
         this.elfLoader.programHeaders.forEach(function (programHeader) {
             switch (programHeader.type) {
-                case 1879048352:
+                case 1879048352 /* Reloc1 */:
                     console.warn("SKIPPING Elf.ProgramHeader.TypeEnum.Reloc1!");
                     break;
-                case 1879048353:
+                case 1879048353 /* Reloc2 */:
                     throw ("Not implemented");
             }
         });
@@ -16058,15 +21418,15 @@ var PspElfLoader = (function () {
             //RelocOutput.WriteLine("Section Header: %d : %s".Sprintf(RelocSectionIndex++, SectionHeader.ToString()));
             //console.info(sprintf('Section Header: '));
             switch (sectionHeader.type) {
-                case 9:
+                case 9 /* Relocation */:
                     console.log(sectionHeader);
                     console.error("Not implemented ElfSectionHeaderType.Relocation");
                     break;
-                case 1879048352:
+                case 1879048352 /* PrxRelocation */:
                     var relocs = StructArray(ElfReloc.struct, sectionHeader.stream.length / ElfReloc.struct.length).read(sectionHeader.stream);
                     _this.relocateRelocs(relocs);
                     break;
-                case 1879048353:
+                case 1879048353 /* PrxRelocation_FW5 */:
                     throw ("Not implemented ElfSectionHeader.Type.PrxRelocation_FW5");
             }
         });
@@ -16078,32 +21438,34 @@ var PspElfLoader = (function () {
         var instructionReader = new InstructionReader(this.memory);
         for (var index = 0; index < relocs.length; index++) {
             var reloc = relocs[index];
-            if (reloc.type == 255)
+            if (reloc.type == 255 /* StopRelocation */)
                 break;
             var pointerBaseOffset = this.elfLoader.programHeaders[reloc.pointerSectionHeaderBase].virtualAddress;
             var pointeeBaseOffset = this.elfLoader.programHeaders[reloc.pointeeSectionHeaderBase].virtualAddress;
+            // Address of data to relocate
             var RelocatedPointerAddress = (baseAddress + reloc.pointerAddress + pointerBaseOffset);
+            // Value of data to relocate
             var instruction = instructionReader.read(RelocatedPointerAddress);
             var S = baseAddress + pointeeBaseOffset;
             var GP_ADDR = (baseAddress + reloc.pointerAddress);
             var GP_OFFSET = GP_ADDR - (baseAddress & 0xFFFF0000);
             switch (reloc.type) {
-                case 0: break;
-                case 1:
+                case 0 /* None */: break;
+                case 1 /* Mips16 */:
                     instruction.u_imm16 += S;
                     break;
-                case 2:
+                case 2 /* Mips32 */:
                     instruction.data += S;
                     break;
-                case 3: throw ("Not implemented MipsRel32");
-                case 4:
+                case 3 /* MipsRel32 */: throw ("Not implemented MipsRel32");
+                case 4 /* Mips26 */:
                     instruction.jump_real = instruction.jump_real + S;
                     break;
-                case 5:
+                case 5 /* MipsHi16 */:
                     hiValue = instruction.u_imm16;
                     deferredHi16.push(RelocatedPointerAddress);
                     break;
-                case 6:
+                case 6 /* MipsLo16 */:
                     var A = instruction.u_imm16;
                     instruction.u_imm16 = ((hiValue << 16) | (A & 0x0000FFFF)) + S;
                     deferredHi16.forEach(function (data_addr2) {
@@ -16120,7 +21482,7 @@ var PspElfLoader = (function () {
                     });
                     deferredHi16 = [];
                     break;
-                case 7:
+                case 7 /* MipsGpRel16 */:
                     break;
                 default: throw (new Error(sprintf("RelocType %d not implemented", reloc.type)));
             }
@@ -16130,8 +21492,10 @@ var PspElfLoader = (function () {
     PspElfLoader.prototype.writeToMemory = function () {
         var _this = this;
         var needsRelocate = this.elfLoader.needsRelocation;
+        //var loadAddress = this.elfLoader.programHeaders[0].psysicalAddress;
         var loadAddress = this.baseAddress;
         console.info(sprintf("PspElfLoader: needsRelocate=%s, loadAddress=%08X", needsRelocate, loadAddress));
+        //console.log(moduleInfo);
         this.elfLoader.programHeaders.filter(function (programHeader) { return (programHeader.type == 1); }).forEach(function (programHeader) {
             var fileOffset = programHeader.offset;
             var memOffset = _this.baseAddress + programHeader.virtualAddress;
@@ -16139,21 +21503,25 @@ var PspElfLoader = (function () {
             var memSize = programHeader.memorySize;
             _this.elfLoader.stream.sliceWithLength(fileOffset, fileSize).copyTo(_this.memory.getPointerStream(memOffset, fileSize));
             _this.memory.memset(memOffset + fileSize, 0, memSize - fileSize);
+            //this.getSectionHeaderMemoryStream
             console.info('Program Header: ', sprintf("%08X:%08X, %08X:%08X", fileOffset, fileSize, memOffset, memSize));
         });
-        this.elfLoader.sectionHeaders.filter(function (sectionHeader) { return ((sectionHeader.flags & 2) != 0); }).forEach(function (sectionHeader) {
+        this.elfLoader.sectionHeaders.filter(function (sectionHeader) { return ((sectionHeader.flags & 2 /* Allocate */) != 0); }).forEach(function (sectionHeader) {
             var low = loadAddress + sectionHeader.address;
             console.info('Section Header: ', sectionHeader, sprintf('LOW:%08X, SIZE:%08X', low, sectionHeader.size));
+            //console.log(sectionHeader);
             switch (sectionHeader.type) {
-                case 8:
+                case 8 /* NoBits */:
                     for (var n = 0; n < sectionHeader.size; n++)
                         _this.memory.writeInt8(low + n, 0);
                     break;
                 default:
+                    //console.log(sprintf('low: %08X type: %08X', low, sectionHeader.type));
                     break;
-                case 1:
+                case 1 /* ProgramBits */:
                     var stream = sectionHeader.stream;
                     var length = stream.length;
+                    //console.log(sprintf('low: %08X, %08X, size: %08X', sectionHeader.address, low, stream.length));
                     _this.memory.writeStream(low, stream);
                     break;
             }
@@ -16173,6 +21541,7 @@ var PspElfLoader = (function () {
             _this.updateModuleVars(_import);
             console.info('Imported: ', imported.name, imported.registeredNativeFunctions.map(function (i) { return i.name; }));
         });
+        //console.log(imports);
     };
     PspElfLoader.prototype.updateModuleFunctions = function (moduleImport) {
         var _this = this;
@@ -16202,6 +21571,7 @@ var PspElfLoader = (function () {
             }
             registeredNativeFunctions.push(nfunc);
             var syscallId = _this.syscallManager.register(nfunc);
+            //printf("%s:%08X -> %s", moduleImport.name, nid, syscallId);
             return syscallId;
         };
         for (var n = 0; n < moduleImport.functionCount; n++) {
@@ -16221,24 +21591,25 @@ var PspElfLoader = (function () {
     PspElfLoader.prototype.updateModuleVars = function (moduleImport) {
     };
     return PspElfLoader;
-})();
+}());
 exports.PspElfLoader = PspElfLoader;
 
 },
 "src/hle/manager": function(module, exports, require) {
-var _file = require('./manager/file');
+"use strict";
+var _file = require("./manager/file");
 _file.Device;
-var _memory = require('./manager/memory');
+var _memory = require("./manager/memory");
 _memory.MemoryManager;
-var _module = require('./manager/module');
+var _module = require("./manager/module");
 _module.ModuleManager;
-var _thread = require('./manager/thread');
+var _thread = require("./manager/thread");
 _thread.Thread;
-var _callback = require('./manager/callback');
+var _callback = require("./manager/callback");
 _callback.Callback;
-var _interop = require('./manager/interop');
+var _interop = require("./manager/interop");
 _interop.Interop;
-var _net = require('./manager/net');
+var _net = require("./manager/net");
 _net.NetManager;
 exports.Device = _file.Device;
 exports.FileManager = _file.FileManager;
@@ -16261,6 +21632,7 @@ exports.NetManager = _net.NetManager;
 },
 "src/hle/manager/callback": function(module, exports, require) {
 ///<reference path="../../global.d.ts" />
+"use strict";
 var CallbackManager = (function () {
     function CallbackManager(interop) {
         this.interop = interop;
@@ -16290,6 +21662,7 @@ var CallbackManager = (function () {
     };
     CallbackManager.prototype.notify = function (id, arg2) {
         var callback = this.get(id);
+        //if (!callback) throw(new Error("Can't find callback by id '" + id + "'"));
         this.notifications.push(new CallbackNotification(callback, arg2));
         this.onAdded.dispatch(this.notifications.length);
     };
@@ -16312,7 +21685,7 @@ var CallbackManager = (function () {
         return (count > 0);
     };
     return CallbackManager;
-})();
+}());
 exports.CallbackManager = CallbackManager;
 var CallbackNotification = (function () {
     function CallbackNotification(callback, arg2) {
@@ -16320,7 +21693,7 @@ var CallbackNotification = (function () {
         this.arg2 = arg2;
     }
     return CallbackNotification;
-})();
+}());
 exports.CallbackNotification = CallbackNotification;
 var Callback = (function () {
     function Callback(name, funcptr, argument) {
@@ -16330,12 +21703,13 @@ var Callback = (function () {
         this.count = 0;
     }
     return Callback;
-})();
+}());
 exports.Callback = Callback;
 
 },
 "src/hle/manager/file": function(module, exports, require) {
 ///<reference path="../../global.d.ts" />
+"use strict";
 var Device = (function () {
     function Device(name, vfs) {
         this.name = name;
@@ -16355,7 +21729,7 @@ var Device = (function () {
         return this.vfs.getStatAsync(uri.pathWithoutDevice);
     };
     return Device;
-})();
+}());
 exports.Device = Device;
 var HleFile = (function () {
     function HleFile(entry) {
@@ -16395,7 +21769,7 @@ var HleFile = (function () {
         this.entry.close();
     };
     return HleFile;
-})();
+}());
 exports.HleFile = HleFile;
 var HleDirectory = (function () {
     function HleDirectory(childs) {
@@ -16415,7 +21789,7 @@ var HleDirectory = (function () {
     HleDirectory.prototype.close = function () {
     };
     return HleDirectory;
-})();
+}());
 exports.HleDirectory = HleDirectory;
 var Uri = (function () {
     function Uri(path) {
@@ -16448,7 +21822,7 @@ var Uri = (function () {
         return new Uri(this.path + '/' + that.path);
     };
     return Uri;
-})();
+}());
 exports.Uri = Uri;
 var FileManager = (function () {
     function FileManager() {
@@ -16489,14 +21863,16 @@ var FileManager = (function () {
         this.devices[device] = new Device(device, vfs);
     };
     return FileManager;
-})();
+}());
 exports.FileManager = FileManager;
 
 },
 "src/hle/manager/interop": function(module, exports, require) {
 ///<reference path="../../global.d.ts" />
-var _cpu = require('../../core/cpu');
+"use strict";
+var _cpu = require("../../core/cpu");
 _cpu.CpuState;
+//export class Interop implements _cpu.ICpuExecutable {
 var Interop = (function () {
     function Interop() {
     }
@@ -16508,15 +21884,18 @@ var Interop = (function () {
             }
             state.PC = address;
             state.executeAtPCAsync();
+            //state.PC = address;
+            //state.executeAtPC();
         });
     };
     return Interop;
-})();
+}());
 exports.Interop = Interop;
 
 },
 "src/hle/manager/memory": function(module, exports, require) {
 ///<reference path="../../global.d.ts" />
+"use strict";
 var MemoryPartitions;
 (function (MemoryPartitions) {
     MemoryPartitions[MemoryPartitions["Kernel0"] = 0] = "Kernel0";
@@ -16524,14 +21903,14 @@ var MemoryPartitions;
     MemoryPartitions[MemoryPartitions["VolatilePartition"] = 5] = "VolatilePartition";
     MemoryPartitions[MemoryPartitions["UserStacks"] = 6] = "UserStacks";
 })(MemoryPartitions || (MemoryPartitions = {}));
+var MemoryAnchor;
 (function (MemoryAnchor) {
     MemoryAnchor[MemoryAnchor["Low"] = 0] = "Low";
     MemoryAnchor[MemoryAnchor["High"] = 1] = "High";
     MemoryAnchor[MemoryAnchor["Address"] = 2] = "Address";
     MemoryAnchor[MemoryAnchor["LowAligned"] = 3] = "LowAligned";
     MemoryAnchor[MemoryAnchor["HighAligned"] = 4] = "HighAligned";
-})(exports.MemoryAnchor || (exports.MemoryAnchor = {}));
-var MemoryAnchor = exports.MemoryAnchor;
+})(MemoryAnchor = exports.MemoryAnchor || (exports.MemoryAnchor = {}));
 var OutOfMemoryError = (function () {
     function OutOfMemoryError(message, name) {
         if (name === void 0) { name = 'OutOfMemoryError'; }
@@ -16539,7 +21918,7 @@ var OutOfMemoryError = (function () {
         this.name = name;
     }
     return OutOfMemoryError;
-})();
+}());
 exports.OutOfMemoryError = OutOfMemoryError;
 var MemoryPartition = (function () {
     function MemoryPartition(name, low, high, allocated, parent) {
@@ -16582,7 +21961,7 @@ var MemoryPartition = (function () {
         if (address === void 0) { address = 0; }
         if (name === void 0) { name = ''; }
         switch (anchor) {
-            case MemoryAnchor.LowAligned:
+            case MemoryAnchor.LowAligned: // @TODO: aligned!
             case MemoryAnchor.Low: return this.allocateLow(size, name);
             case MemoryAnchor.High: return this.allocateHigh(size, name);
             case MemoryAnchor.Address: return this.allocateSet(size, address, name);
@@ -16663,6 +22042,7 @@ var MemoryPartition = (function () {
             this.cleanup();
             return allocatedChild;
         }
+        //console.info(this);
         throw (new OutOfMemoryError("Can't find a partition with " + size + " available"));
     };
     MemoryPartition.prototype.unallocate = function () {
@@ -16673,22 +22053,27 @@ var MemoryPartition = (function () {
     };
     MemoryPartition.prototype.cleanup = function () {
         var startTotalFreeMemory = this.getTotalFreeMemory();
+        //this._validateChilds();
+        // join contiguous free memory
         var childs = this.childPartitions;
         if (childs.length >= 2) {
             for (var n = 0; n < childs.length - 1; n++) {
                 var child = childs[n + 0];
                 var c1 = childs[n + 1];
                 if (!child.allocated && !c1.allocated) {
+                    //console.log('joining', child, c1, child.low, c1.high);
                     childs.splice(n, 2, new MemoryPartition("", child.low, c1.high, false, this));
                     n--;
                 }
             }
         }
+        // remove empty segments
         for (var n = 0; n < childs.length; n++) {
             var child = childs[n];
             if (!child.allocated && child.size == 0)
                 childs.splice(n, 1);
         }
+        //this._validateChilds();
         var endTotalFreeMemory = this.getTotalFreeMemory();
         if (endTotalFreeMemory != startTotalFreeMemory) {
             console.log('assertion failed! : ' + startTotalFreeMemory + ',' + endTotalFreeMemory);
@@ -16710,7 +22095,7 @@ var MemoryPartition = (function () {
     MemoryPartition.prototype.findFreeChildWithSize = function (size) {
     };
     return MemoryPartition;
-})();
+}());
 exports.MemoryPartition = MemoryPartition;
 var MemoryManager = (function () {
     function MemoryManager() {
@@ -16719,6 +22104,8 @@ var MemoryManager = (function () {
     }
     MemoryManager.prototype.init = function () {
         this.memoryPartitionsUid[MemoryPartitions.Kernel0] = new MemoryPartition("Kernel Partition 1", 0x88000000, 0x88300000, false);
+        //this.memoryPartitionsUid[MemoryPartitions.User] = new MemoryPartition("User Partition", 0x08800000, 0x08800000 + 0x100000 * 32, false);
+        //this.memoryPartitionsUid[MemoryPartitions.UserStacks] = new MemoryPartition("User Stacks Partition", 0x08800000, 0x08800000 + 0x100000 * 32, false);
         this.memoryPartitionsUid[MemoryPartitions.User] = new MemoryPartition("User Partition", 0x08800000, 0x08800000 + 0x100000 * 24, false);
         this.memoryPartitionsUid[MemoryPartitions.UserStacks] = new MemoryPartition("User Stacks Partition", 0x08800000, 0x08800000 + 0x100000 * 24, false);
         this.memoryPartitionsUid[MemoryPartitions.VolatilePartition] = new MemoryPartition("Volatile Partition", 0x08400000, 0x08800000, false);
@@ -16745,13 +22132,14 @@ var MemoryManager = (function () {
         configurable: true
     });
     return MemoryManager;
-})();
+}());
 exports.MemoryManager = MemoryManager;
 
 },
 "src/hle/manager/module": function(module, exports, require) {
 ///<reference path="../../global.d.ts" />
-var _cpu = require('../../core/cpu');
+"use strict";
+var _cpu = require("../../core/cpu");
 var NativeFunction = _cpu.NativeFunction;
 var ModuleWrapper = (function () {
     function ModuleWrapper(moduleName, _modules) {
@@ -16763,8 +22151,9 @@ var ModuleWrapper = (function () {
         _modules.forEach(function (_module) {
             if (typeof _module.natives != 'undefined') {
                 var natives = _module.natives;
-                for (var _i = 0; _i < natives.length; _i++) {
-                    var nativeGenerator = natives[_i];
+                for (var _i = 0, natives_1 = natives; _i < natives_1.length; _i++) {
+                    var nativeGenerator = natives_1[_i];
+                    //console.error('Registered native', native.name);
                     _this.registerNative(nativeGenerator(_module));
                 }
             }
@@ -16789,10 +22178,11 @@ var ModuleWrapper = (function () {
     };
     ModuleWrapper.prototype.getByNid = function (nid) {
         var result = this.nids[nid];
+        //if (!result) throw (new Error(sprintf("Can't find function '%s':0x%08X", this.moduleName, nid)));
         return result;
     };
     return ModuleWrapper;
-})();
+}());
 exports.ModuleWrapper = ModuleWrapper;
 var ModuleManager = (function () {
     function ModuleManager(context) {
@@ -16810,6 +22200,11 @@ var ModuleManager = (function () {
             this.add(key, _class);
         }
     };
+    /*
+    getByClass<T>(clazz: Class<T>):T {
+        return null;
+    }
+    */
     ModuleManager.prototype.getByName = function (name) {
         var _this = this;
         var _moduleWrapper = this.moduleWrappers[name];
@@ -16829,12 +22224,13 @@ var ModuleManager = (function () {
         this.names[name].push(_class);
     };
     return ModuleManager;
-})();
+}());
 exports.ModuleManager = ModuleManager;
 
 },
 "src/hle/manager/net": function(module, exports, require) {
 ///<reference path="../../global.d.ts" />
+"use strict";
 var NetManager = (function () {
     function NetManager() {
         this.connected = false;
@@ -16883,6 +22279,7 @@ var NetManager = (function () {
                     mac: string2mac(info.from),
                     payload: Stream.fromBase64(info.payload).toUInt8Array(),
                 };
+                //console.info('NetManager: from_user:', { port: info.port, type: info.type, mac: info.from, payload: Stream.fromBase64(info.payload).toStringAll() });
                 _this.onmessage(info.port).dispatch(packet);
             }
         };
@@ -16897,17 +22294,19 @@ var NetManager = (function () {
     };
     NetManager.prototype.send = function (port, type, toMac, data) {
         this.connectOnce();
+        //console.info('NetManager: send:', { type: type, port: port, to: mac2string(toMac), payload: Stream.fromUint8Array(data).toStringAll() });
         this.ws.send(JSON.stringify({ type: type, port: port, to: mac2string(toMac), payload: Stream.fromUint8Array(data).toBase64() }));
     };
     return NetManager;
-})();
+}());
 exports.NetManager = NetManager;
 
 },
 "src/hle/manager/thread": function(module, exports, require) {
 ///<reference path="../../global.d.ts" />
-var _cpu = require('../../core/cpu');
-var SceKernelErrors = require('../SceKernelErrors');
+"use strict";
+var _cpu = require("../../core/cpu");
+var SceKernelErrors = require("../SceKernelErrors");
 var CpuState = _cpu.CpuState;
 var console = logger.named('hle.thread');
 var Thread = (function () {
@@ -16917,12 +22316,13 @@ var Thread = (function () {
         this.manager = manager;
         this.state = state;
         this.id = 0;
-        this.status = 16;
+        this.status = 16 /* DORMANT */;
         this.initialPriority = 10;
         this.entryPoint = 0;
         this.priority = 10;
         this.attributes = 0;
         this.sceKernelCpuResumeIntrCount = 0;
+        //exitStatus: number = 0x800201a2;
         this.exitStatus = SceKernelErrors.ERROR_KERNEL_THREAD_ALREADY_DORMANT;
         this.running = false;
         this.preemptionCount = 0;
@@ -16965,6 +22365,7 @@ var Thread = (function () {
     Thread.prototype.wakeupSleepAsync = function (callbacks) {
         this.wakeupCount--;
         this.suspend();
+        //return new Promise2((resolve, reject) => { });
         return this.getWakeupPromise();
     };
     Thread.prototype.wakeupWakeupAsync = function () {
@@ -16981,12 +22382,14 @@ var Thread = (function () {
         //return waitAsync(delayMicroseconds / 1000).then(() => 0);
         var _this = this;
         if (allowCompensating === void 0) { allowCompensating = false; }
-        this.accumulatedMicroseconds = Math.min(this.accumulatedMicroseconds, 50000);
+        this.accumulatedMicroseconds = Math.min(this.accumulatedMicroseconds, 50000); // Don't accumulate more than 50ms
         if (allowCompensating) {
+            //debugger;
             var subtractAccumulatedMicroseconds = Math.min(delayMicroseconds, this.accumulatedMicroseconds);
             delayMicroseconds -= subtractAccumulatedMicroseconds;
             this.accumulatedMicroseconds -= subtractAccumulatedMicroseconds;
         }
+        //console.error(delayMicroseconds, this.accumulatedMicroseconds, subtractAccumulatedMicroseconds);
         if (delayMicroseconds <= 0.00001) {
         }
         var start = performance.now();
@@ -16998,6 +22401,7 @@ var Thread = (function () {
         });
     };
     Thread.prototype.suspend = function () {
+        //console.log('suspended ' + this.name);
         this.running = false;
         this.manager.eventOcurred();
     };
@@ -17009,6 +22413,7 @@ var Thread = (function () {
         this._suspendUntilPromiseDone(info.promise, info.compensate);
     };
     Thread.prototype.suspendUntilPromiseDone = function (promise, info) {
+        //this.waitingName = sprintf('%s:0x%08X (Promise2)', info.name, info.nid);
         this.waitingName = info.name + ':0x' + info.nid.toString(16) + ' (Promise2)';
         this.waitingObject = info;
         this._suspendUntilPromiseDone(promise, Compensate.NO);
@@ -17020,6 +22425,7 @@ var Thread = (function () {
         }
         this.waitingPromise = promise;
         this.suspend();
+        //console.log(promise);
         promise.then(function (result) {
             _this.waitingPromise = null;
             _this.waitingName = null;
@@ -17038,6 +22444,7 @@ var Thread = (function () {
                 var endTime = performance.now();
                 _this.accumulatedMicroseconds += (endTime - startTime) * 1000;
             }
+            //console.error('resumed ' + this.name);
             _this.resume();
         });
     };
@@ -17054,6 +22461,7 @@ var Thread = (function () {
     Thread.prototype.stop = function (reason) {
         this.running = false;
         this.runningStop();
+        //debugger;
         console.info('stopping thread ', this.name, 'reason:', reason);
         this.manager.threads.delete(this);
         this.manager.eventOcurred();
@@ -17065,7 +22473,7 @@ var Thread = (function () {
         this.state.executeAtPC();
     };
     return Thread;
-})();
+}());
 exports.Thread = Thread;
 var ThreadManager = (function () {
     function ThreadManager(memory, interruptManager, callbackManager, memoryManager, display, syscallManager) {
@@ -17094,16 +22502,16 @@ var ThreadManager = (function () {
         var thread = new Thread(name, this, this.memoryManager, this.rootCpuState.clone(), stackSize);
         thread.entryPoint = entryPoint;
         thread.state.PC = entryPoint;
-        thread.state.setRA(268435455);
+        thread.state.setRA(268435455 /* EXIT_THREAD */);
         thread.state.SP = thread.stackPartition.high;
         thread.initialPriority = initialPriority;
         thread.priority = initialPriority;
         thread.attributes = attributes;
         if ((thread.stackPartition.high & 0xFF) != 0)
             throw (new Error("Stack not aligned"));
-        if (!(thread.attributes & 1048576)) {
+        if (!(thread.attributes & 1048576 /* NoFillStack */)) {
         }
-        else if ((thread.attributes & 2097152)) {
+        else if ((thread.attributes & 2097152 /* ClearStack */)) {
         }
         return thread;
     };
@@ -17117,6 +22525,7 @@ var ThreadManager = (function () {
         this.enqueuedTime = performance.now();
         Microtask.queue(function () { return _this.eventOcurredCallback(); });
     };
+    //get runningThreads() { return this.threads.filter(thread => thread.running); }
     ThreadManager.getHighestPriority = function (threads) {
         var priority = -9999;
         threads.forEach(function (thread) {
@@ -17129,6 +22538,7 @@ var ThreadManager = (function () {
         if (!this.running)
             return;
         var microsecondsToCompensate = Math.round((performance.now() - this.enqueuedTime) * 1000);
+        //console.log('delayedTime', timeMsToCompensate);
         this.enqueued = false;
         var start = window.performance.now();
         while (true) {
@@ -17163,11 +22573,13 @@ var ThreadManager = (function () {
             if (runningThreadCount != 0) {
                 this.threads.forEach(function (thread) {
                     if (thread.running && (thread.priority == runningPriority)) {
+                        // No callbacks?
                         _this.callbackManager.executeLaterPendingWithinThread(thread);
                         _this.runThreadStep(thread);
                     }
                 });
             }
+            //Microtask.execute(); // causes game to freeze
             var current = window.performance.now();
             if (current - start >= 100) {
                 setTimeout(function () { return _this.eventOcurred(); }, 0);
@@ -17185,6 +22597,10 @@ var ThreadManager = (function () {
             } while (!this.interruptManager.enabled);
         }
         catch (e) {
+            //console.groupEnd();
+            //console.log(e);
+            //console.log(e['stack']);
+            //debugger;
             if (e.message == 'CpuBreakException')
                 return;
             var estack = e['stack'] || e;
@@ -17224,21 +22640,20 @@ var ThreadManager = (function () {
         return this.exitPromise;
     };
     return ThreadManager;
-})();
+}());
 exports.ThreadManager = ThreadManager;
 
 },
 "src/hle/module/ExceptionManagerForKernel": function(module, exports, require) {
 ///<reference path="../../global.d.ts" />
+"use strict";
 var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
-    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") return Reflect.decorate(decorators, target, key, desc);
-    switch (arguments.length) {
-        case 2: return decorators.reduceRight(function(o, d) { return (d && d(o)) || o; }, target);
-        case 3: return decorators.reduceRight(function(o, d) { return (d && d(target, key)), void 0; }, void 0);
-        case 4: return decorators.reduceRight(function(o, d) { return (d && d(target, key, o)) || o; }, desc);
-    }
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
 };
-var _utils = require('../utils');
+var _utils = require("../utils");
 var nativeFunction = _utils.nativeFunction;
 var ExceptionManagerForKernel = (function () {
     function ExceptionManagerForKernel(context) {
@@ -17247,33 +22662,32 @@ var ExceptionManagerForKernel = (function () {
     ExceptionManagerForKernel.prototype.sceKernelRegisterDefaultExceptionHandler = function (exceptionHandlerFunction) {
         return 0;
     };
-    Object.defineProperty(ExceptionManagerForKernel.prototype, "sceKernelRegisterDefaultExceptionHandler",
-        __decorate([
-            nativeFunction(0x565C0B0E, 150, 'uint', 'uint')
-        ], ExceptionManagerForKernel.prototype, "sceKernelRegisterDefaultExceptionHandler", Object.getOwnPropertyDescriptor(ExceptionManagerForKernel.prototype, "sceKernelRegisterDefaultExceptionHandler")));
     return ExceptionManagerForKernel;
-})();
+}());
+__decorate([
+    nativeFunction(0x565C0B0E, 150, 'uint', 'uint')
+], ExceptionManagerForKernel.prototype, "sceKernelRegisterDefaultExceptionHandler", null);
 exports.ExceptionManagerForKernel = ExceptionManagerForKernel;
 
 },
 "src/hle/module/InterruptManager": function(module, exports, require) {
 ///<reference path="../../global.d.ts" />
+"use strict";
 var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
-    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") return Reflect.decorate(decorators, target, key, desc);
-    switch (arguments.length) {
-        case 2: return decorators.reduceRight(function(o, d) { return (d && d(o)) || o; }, target);
-        case 3: return decorators.reduceRight(function(o, d) { return (d && d(target, key)), void 0; }, void 0);
-        case 4: return decorators.reduceRight(function(o, d) { return (d && d(target, key, o)) || o; }, desc);
-    }
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
 };
-var _utils = require('../utils');
-var _interrupt = require('../../core/interrupt');
+var _utils = require("../utils");
+var _interrupt = require("../../core/interrupt");
 var PspInterrupts = _interrupt.PspInterrupts;
 var nativeFunction = _utils.nativeFunction;
 var InterruptManager = (function () {
     function InterruptManager(context) {
         this.context = context;
         this.context.display.vblank.add(function () {
+            //this.context.callbackManager.notify(
         });
     }
     InterruptManager.prototype.sceKernelRegisterSubIntrHandler = function (thread, interrupt, handlerIndex, callbackAddress, callbackArgument) {
@@ -17303,34 +22717,30 @@ var InterruptManager = (function () {
         interruptManager.get(pspInterrupt).get(handlerIndex).enabled = false;
         return 0;
     };
-    Object.defineProperty(InterruptManager.prototype, "sceKernelRegisterSubIntrHandler",
-        __decorate([
-            nativeFunction(0xCA04A2B9, 150, 'uint', 'Thread/int/int/uint/uint')
-        ], InterruptManager.prototype, "sceKernelRegisterSubIntrHandler", Object.getOwnPropertyDescriptor(InterruptManager.prototype, "sceKernelRegisterSubIntrHandler")));
-    Object.defineProperty(InterruptManager.prototype, "sceKernelEnableSubIntr",
-        __decorate([
-            nativeFunction(0xFB8E22EC, 150, 'uint', 'int/int')
-        ], InterruptManager.prototype, "sceKernelEnableSubIntr", Object.getOwnPropertyDescriptor(InterruptManager.prototype, "sceKernelEnableSubIntr")));
-    Object.defineProperty(InterruptManager.prototype, "sceKernelReleaseSubIntrHandler",
-        __decorate([
-            nativeFunction(0xD61E6961, 150, 'uint', 'int/int')
-        ], InterruptManager.prototype, "sceKernelReleaseSubIntrHandler", Object.getOwnPropertyDescriptor(InterruptManager.prototype, "sceKernelReleaseSubIntrHandler")));
     return InterruptManager;
-})();
+}());
+__decorate([
+    nativeFunction(0xCA04A2B9, 150, 'uint', 'Thread/int/int/uint/uint')
+], InterruptManager.prototype, "sceKernelRegisterSubIntrHandler", null);
+__decorate([
+    nativeFunction(0xFB8E22EC, 150, 'uint', 'int/int')
+], InterruptManager.prototype, "sceKernelEnableSubIntr", null);
+__decorate([
+    nativeFunction(0xD61E6961, 150, 'uint', 'int/int')
+], InterruptManager.prototype, "sceKernelReleaseSubIntrHandler", null);
 exports.InterruptManager = InterruptManager;
 
 },
 "src/hle/module/KDebugForKernel": function(module, exports, require) {
 ///<reference path="../../global.d.ts" />
+"use strict";
 var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
-    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") return Reflect.decorate(decorators, target, key, desc);
-    switch (arguments.length) {
-        case 2: return decorators.reduceRight(function(o, d) { return (d && d(o)) || o; }, target);
-        case 3: return decorators.reduceRight(function(o, d) { return (d && d(target, key)), void 0; }, void 0);
-        case 4: return decorators.reduceRight(function(o, d) { return (d && d(target, key, o)) || o; }, desc);
-    }
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
 };
-var _utils = require('../utils');
+var _utils = require("../utils");
 var nativeFunction = _utils.nativeFunction;
 var KDebugForKernel = (function () {
     function KDebugForKernel(context) {
@@ -17339,27 +22749,25 @@ var KDebugForKernel = (function () {
     KDebugForKernel.prototype.Kprintf = function (format) {
         console.info('Kprintf: ' + format);
     };
-    Object.defineProperty(KDebugForKernel.prototype, "Kprintf",
-        __decorate([
-            nativeFunction(0x84F370BC, 150, 'void', 'string')
-        ], KDebugForKernel.prototype, "Kprintf", Object.getOwnPropertyDescriptor(KDebugForKernel.prototype, "Kprintf")));
     return KDebugForKernel;
-})();
+}());
+__decorate([
+    nativeFunction(0x84F370BC, 150, 'void', 'string')
+], KDebugForKernel.prototype, "Kprintf", null);
 exports.KDebugForKernel = KDebugForKernel;
 
 },
 "src/hle/module/Kernel_Library": function(module, exports, require) {
 ///<reference path="../../global.d.ts" />
+"use strict";
 var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
-    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") return Reflect.decorate(decorators, target, key, desc);
-    switch (arguments.length) {
-        case 2: return decorators.reduceRight(function(o, d) { return (d && d(o)) || o; }, target);
-        case 3: return decorators.reduceRight(function(o, d) { return (d && d(target, key)), void 0; }, void 0);
-        case 4: return decorators.reduceRight(function(o, d) { return (d && d(target, key, o)) || o; }, desc);
-    }
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
 };
-var _utils = require('../utils');
-var _manager = require('../manager');
+var _utils = require("../utils");
+var _manager = require("../manager");
 _manager.Thread;
 var nativeFunction = _utils.nativeFunction;
 var Kernel_Library = (function () {
@@ -17371,6 +22779,10 @@ var Kernel_Library = (function () {
     };
     Kernel_Library.prototype.sceKernelCpuResumeIntr = function (thread, flags) {
         this.context.interruptManager.resume(flags);
+        //return 0;
+        //throw(new CpuBreakException());
+        //thread.state.V0 = 0;
+        //throw (new CpuBreakException());
         thread.sceKernelCpuResumeIntrCount++;
         if (thread.sceKernelCpuResumeIntrCount >= 3) {
             thread.sceKernelCpuResumeIntrCount = 0;
@@ -17388,38 +22800,33 @@ var Kernel_Library = (function () {
         this.context.memory.copy(src, dst, size);
         return dst;
     };
-    Object.defineProperty(Kernel_Library.prototype, "sceKernelCpuSuspendIntr",
-        __decorate([
-            nativeFunction(0x092968F4, 150, 'uint', '')
-        ], Kernel_Library.prototype, "sceKernelCpuSuspendIntr", Object.getOwnPropertyDescriptor(Kernel_Library.prototype, "sceKernelCpuSuspendIntr")));
-    Object.defineProperty(Kernel_Library.prototype, "sceKernelCpuResumeIntr",
-        __decorate([
-            nativeFunction(0x5F10D406, 150, 'uint', 'Thread/uint')
-        ], Kernel_Library.prototype, "sceKernelCpuResumeIntr", Object.getOwnPropertyDescriptor(Kernel_Library.prototype, "sceKernelCpuResumeIntr")));
-    Object.defineProperty(Kernel_Library.prototype, "sceKernelMemset",
-        __decorate([
-            nativeFunction(0xA089ECA4, 150, 'uint', 'uint/int/int')
-        ], Kernel_Library.prototype, "sceKernelMemset", Object.getOwnPropertyDescriptor(Kernel_Library.prototype, "sceKernelMemset")));
-    Object.defineProperty(Kernel_Library.prototype, "sceKernelMemcpy",
-        __decorate([
-            nativeFunction(0x1839852A, 150, 'uint', 'uint/uint/int')
-        ], Kernel_Library.prototype, "sceKernelMemcpy", Object.getOwnPropertyDescriptor(Kernel_Library.prototype, "sceKernelMemcpy")));
     return Kernel_Library;
-})();
+}());
+__decorate([
+    nativeFunction(0x092968F4, 150, 'uint', '')
+], Kernel_Library.prototype, "sceKernelCpuSuspendIntr", null);
+__decorate([
+    nativeFunction(0x5F10D406, 150, 'uint', 'Thread/uint')
+], Kernel_Library.prototype, "sceKernelCpuResumeIntr", null);
+__decorate([
+    nativeFunction(0xA089ECA4, 150, 'uint', 'uint/int/int')
+], Kernel_Library.prototype, "sceKernelMemset", null);
+__decorate([
+    nativeFunction(0x1839852A, 150, 'uint', 'uint/uint/int')
+], Kernel_Library.prototype, "sceKernelMemcpy", null);
 exports.Kernel_Library = Kernel_Library;
 
 },
 "src/hle/module/LoadCoreForKernel": function(module, exports, require) {
 ///<reference path="../../global.d.ts" />
+"use strict";
 var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
-    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") return Reflect.decorate(decorators, target, key, desc);
-    switch (arguments.length) {
-        case 2: return decorators.reduceRight(function(o, d) { return (d && d(o)) || o; }, target);
-        case 3: return decorators.reduceRight(function(o, d) { return (d && d(target, key)), void 0; }, void 0);
-        case 4: return decorators.reduceRight(function(o, d) { return (d && d(target, key, o)) || o; }, desc);
-    }
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
 };
-var _utils = require('../utils');
+var _utils = require("../utils");
 var nativeFunction = _utils.nativeFunction;
 var LoadCoreForKernel = (function () {
     function LoadCoreForKernel(context) {
@@ -17432,30 +22839,27 @@ var LoadCoreForKernel = (function () {
         console.warn('Not implemented sceKernelFindModuleByUID(' + moduleID + ')');
         return 0;
     };
-    Object.defineProperty(LoadCoreForKernel.prototype, "sceKernelIcacheClearAll",
-        __decorate([
-            nativeFunction(0xD8779AC6, 150, 'void', '')
-        ], LoadCoreForKernel.prototype, "sceKernelIcacheClearAll", Object.getOwnPropertyDescriptor(LoadCoreForKernel.prototype, "sceKernelIcacheClearAll")));
-    Object.defineProperty(LoadCoreForKernel.prototype, "sceKernelFindModuleByUID",
-        __decorate([
-            nativeFunction(0xCCE4A157, 150, 'int', 'int')
-        ], LoadCoreForKernel.prototype, "sceKernelFindModuleByUID", Object.getOwnPropertyDescriptor(LoadCoreForKernel.prototype, "sceKernelFindModuleByUID")));
     return LoadCoreForKernel;
-})();
+}());
+__decorate([
+    nativeFunction(0xD8779AC6, 150, 'void', '')
+], LoadCoreForKernel.prototype, "sceKernelIcacheClearAll", null);
+__decorate([
+    nativeFunction(0xCCE4A157, 150, 'int', 'int')
+], LoadCoreForKernel.prototype, "sceKernelFindModuleByUID", null);
 exports.LoadCoreForKernel = LoadCoreForKernel;
 
 },
 "src/hle/module/LoadExecForUser": function(module, exports, require) {
 ///<reference path="../../global.d.ts" />
+"use strict";
 var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
-    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") return Reflect.decorate(decorators, target, key, desc);
-    switch (arguments.length) {
-        case 2: return decorators.reduceRight(function(o, d) { return (d && d(o)) || o; }, target);
-        case 3: return decorators.reduceRight(function(o, d) { return (d && d(target, key)), void 0; }, void 0);
-        case 4: return decorators.reduceRight(function(o, d) { return (d && d(target, key, o)) || o; }, desc);
-    }
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
 };
-var _utils = require('../utils');
+var _utils = require("../utils");
 var nativeFunction = _utils.nativeFunction;
 var console = logger.named('module.LoadExecForUser');
 var LoadExecForUser = (function () {
@@ -17472,42 +22876,40 @@ var LoadExecForUser = (function () {
     LoadExecForUser.prototype.sceKernelExitGame2 = function (thread) {
         console.info("Call stack:");
         thread.state.printCallstack(this.context.symbolLookup);
+        //this.context.instructionCache.functionGenerator.getInstructionUsageCount().forEach((item) => { console.log(item.name, ':', item.count); });
         console.info('sceKernelExitGame2');
         this.context.threadManager.exitGame();
         thread.stop('sceKernelExitGame2');
         throwEndCycles();
     };
     LoadExecForUser.prototype.sceKernelRegisterExitCallback = function (callbackId) {
+        //console.warn('Not implemented sceKernelRegisterExitCallback: ' + callbackId);
         return 0;
     };
-    Object.defineProperty(LoadExecForUser.prototype, "sceKernelExitGame",
-        __decorate([
-            nativeFunction(0xBD2F1094, 150, 'uint', 'Thread')
-        ], LoadExecForUser.prototype, "sceKernelExitGame", Object.getOwnPropertyDescriptor(LoadExecForUser.prototype, "sceKernelExitGame")));
-    Object.defineProperty(LoadExecForUser.prototype, "sceKernelExitGame2",
-        __decorate([
-            nativeFunction(0x05572A5F, 150, 'uint', 'Thread')
-        ], LoadExecForUser.prototype, "sceKernelExitGame2", Object.getOwnPropertyDescriptor(LoadExecForUser.prototype, "sceKernelExitGame2")));
-    Object.defineProperty(LoadExecForUser.prototype, "sceKernelRegisterExitCallback",
-        __decorate([
-            nativeFunction(0x4AC57943, 150, 'uint', 'int')
-        ], LoadExecForUser.prototype, "sceKernelRegisterExitCallback", Object.getOwnPropertyDescriptor(LoadExecForUser.prototype, "sceKernelRegisterExitCallback")));
     return LoadExecForUser;
-})();
+}());
+__decorate([
+    nativeFunction(0xBD2F1094, 150, 'uint', 'Thread')
+], LoadExecForUser.prototype, "sceKernelExitGame", null);
+__decorate([
+    nativeFunction(0x05572A5F, 150, 'uint', 'Thread')
+], LoadExecForUser.prototype, "sceKernelExitGame2", null);
+__decorate([
+    nativeFunction(0x4AC57943, 150, 'uint', 'int')
+], LoadExecForUser.prototype, "sceKernelRegisterExitCallback", null);
 exports.LoadExecForUser = LoadExecForUser;
 
 },
 "src/hle/module/ModuleMgrForUser": function(module, exports, require) {
 ///<reference path="../../global.d.ts" />
+"use strict";
 var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
-    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") return Reflect.decorate(decorators, target, key, desc);
-    switch (arguments.length) {
-        case 2: return decorators.reduceRight(function(o, d) { return (d && d(o)) || o; }, target);
-        case 3: return decorators.reduceRight(function(o, d) { return (d && d(target, key)), void 0; }, void 0);
-        case 4: return decorators.reduceRight(function(o, d) { return (d && d(target, key, o)) || o; }, desc);
-    }
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
 };
-var _utils = require('../utils');
+var _utils = require("../utils");
 var nativeFunction = _utils.nativeFunction;
 var ModuleMgrForUser = (function () {
     function ModuleMgrForUser(context) {
@@ -17522,13 +22924,12 @@ var ModuleMgrForUser = (function () {
     ModuleMgrForUser.prototype.sceKernelSelfStopUnloadModule = function (unknown, argsize, argp, thread) {
         console.info("Call stack:");
         thread.state.printCallstack(this.context.symbolLookup);
+        //this.context.instructionCache.functionGenerator.getInstructionUsageCount().forEach((item) => { console.log(item.name, ':', item.count); });
         console.warn(sprintf('Not implemented ModuleMgrForUser.sceKernelSelfStopUnloadModule(%d, %d, %d)', unknown, argsize, argp));
-        throw (new Error("sceKernelSelfStopUnloadModule"));
-        return 0;
+        throw new Error("sceKernelSelfStopUnloadModule");
     };
     ModuleMgrForUser.prototype.sceKernelStopUnloadSelfModule = function (argsize, argp, optionsAddress, thread) {
-        throw (new Error("sceKernelStopUnloadSelfModule"));
-        return 0;
+        throw new Error("sceKernelStopUnloadSelfModule");
     };
     ModuleMgrForUser.prototype.sceKernelLoadModule = function (path, flags, sceKernelLMOption) {
         console.warn(sprintf('Not implemented ModuleMgrForUser.sceKernelLoadModule("%s", %d)', path, flags));
@@ -17544,64 +22945,54 @@ var ModuleMgrForUser = (function () {
     };
     ModuleMgrForUser.prototype.sceKernelGetModuleId = function () {
         console.warn(sprintf('Not implemented ModuleMgrForUser.sceKernelGetModuleId()'));
-        return 4;
+        return 4; // TODO!
     };
     ModuleMgrForUser.prototype.sceKernelLoadModuleByID = function (fileId, flags, sceKernelLMOption) {
         console.warn(sprintf('Not implemented ModuleMgrForUser.sceKernelLoadModuleByID(%d, %08X)', fileId, flags));
         return 0;
     };
-    Object.defineProperty(ModuleMgrForUser.prototype, "sceKernelStopModule",
-        __decorate([
-            nativeFunction(0xD1FF982A, 150, 'uint', '')
-        ], ModuleMgrForUser.prototype, "sceKernelStopModule", Object.getOwnPropertyDescriptor(ModuleMgrForUser.prototype, "sceKernelStopModule")));
-    Object.defineProperty(ModuleMgrForUser.prototype, "sceKernelUnloadModule",
-        __decorate([
-            nativeFunction(0x2E0911AA, 150, 'uint', 'int')
-        ], ModuleMgrForUser.prototype, "sceKernelUnloadModule", Object.getOwnPropertyDescriptor(ModuleMgrForUser.prototype, "sceKernelUnloadModule")));
-    Object.defineProperty(ModuleMgrForUser.prototype, "sceKernelSelfStopUnloadModule",
-        __decorate([
-            nativeFunction(0xD675EBB8, 150, 'uint', 'int/int/int/Thread')
-        ], ModuleMgrForUser.prototype, "sceKernelSelfStopUnloadModule", Object.getOwnPropertyDescriptor(ModuleMgrForUser.prototype, "sceKernelSelfStopUnloadModule")));
-    Object.defineProperty(ModuleMgrForUser.prototype, "sceKernelStopUnloadSelfModule",
-        __decorate([
-            nativeFunction(0xCC1D3699, 150, 'uint', 'int/int/int/Thread')
-        ], ModuleMgrForUser.prototype, "sceKernelStopUnloadSelfModule", Object.getOwnPropertyDescriptor(ModuleMgrForUser.prototype, "sceKernelStopUnloadSelfModule")));
-    Object.defineProperty(ModuleMgrForUser.prototype, "sceKernelLoadModule",
-        __decorate([
-            nativeFunction(0x977DE386, 150, 'uint', 'string/uint/void*')
-        ], ModuleMgrForUser.prototype, "sceKernelLoadModule", Object.getOwnPropertyDescriptor(ModuleMgrForUser.prototype, "sceKernelLoadModule")));
-    Object.defineProperty(ModuleMgrForUser.prototype, "sceKernelStartModule",
-        __decorate([
-            nativeFunction(0x50F0C1EC, 150, 'uint', 'int/int/uint/void*/void*')
-        ], ModuleMgrForUser.prototype, "sceKernelStartModule", Object.getOwnPropertyDescriptor(ModuleMgrForUser.prototype, "sceKernelStartModule")));
-    Object.defineProperty(ModuleMgrForUser.prototype, "sceKernelGetModuleIdByAddress",
-        __decorate([
-            nativeFunction(0xD8B73127, 150, 'uint', 'uint')
-        ], ModuleMgrForUser.prototype, "sceKernelGetModuleIdByAddress", Object.getOwnPropertyDescriptor(ModuleMgrForUser.prototype, "sceKernelGetModuleIdByAddress")));
-    Object.defineProperty(ModuleMgrForUser.prototype, "sceKernelGetModuleId",
-        __decorate([
-            nativeFunction(0xF0A26395, 150, 'uint', '')
-        ], ModuleMgrForUser.prototype, "sceKernelGetModuleId", Object.getOwnPropertyDescriptor(ModuleMgrForUser.prototype, "sceKernelGetModuleId")));
-    Object.defineProperty(ModuleMgrForUser.prototype, "sceKernelLoadModuleByID",
-        __decorate([
-            nativeFunction(0xB7F46618, 150, 'uint', 'uint/uint/void*')
-        ], ModuleMgrForUser.prototype, "sceKernelLoadModuleByID", Object.getOwnPropertyDescriptor(ModuleMgrForUser.prototype, "sceKernelLoadModuleByID")));
     return ModuleMgrForUser;
-})();
+}());
+__decorate([
+    nativeFunction(0xD1FF982A, 150, 'uint', '')
+], ModuleMgrForUser.prototype, "sceKernelStopModule", null);
+__decorate([
+    nativeFunction(0x2E0911AA, 150, 'uint', 'int')
+], ModuleMgrForUser.prototype, "sceKernelUnloadModule", null);
+__decorate([
+    nativeFunction(0xD675EBB8, 150, 'uint', 'int/int/int/Thread')
+], ModuleMgrForUser.prototype, "sceKernelSelfStopUnloadModule", null);
+__decorate([
+    nativeFunction(0xCC1D3699, 150, 'uint', 'int/int/int/Thread')
+], ModuleMgrForUser.prototype, "sceKernelStopUnloadSelfModule", null);
+__decorate([
+    nativeFunction(0x977DE386, 150, 'uint', 'string/uint/void*')
+], ModuleMgrForUser.prototype, "sceKernelLoadModule", null);
+__decorate([
+    nativeFunction(0x50F0C1EC, 150, 'uint', 'int/int/uint/void*/void*')
+], ModuleMgrForUser.prototype, "sceKernelStartModule", null);
+__decorate([
+    nativeFunction(0xD8B73127, 150, 'uint', 'uint')
+], ModuleMgrForUser.prototype, "sceKernelGetModuleIdByAddress", null);
+__decorate([
+    nativeFunction(0xF0A26395, 150, 'uint', '')
+], ModuleMgrForUser.prototype, "sceKernelGetModuleId", null);
+__decorate([
+    nativeFunction(0xB7F46618, 150, 'uint', 'uint/uint/void*')
+], ModuleMgrForUser.prototype, "sceKernelLoadModuleByID", null);
 exports.ModuleMgrForUser = ModuleMgrForUser;
 
 },
 "src/hle/module/StdioForUser": function(module, exports, require) {
 ///<reference path="../../global.d.ts" />
+"use strict";
 var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
-    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") return Reflect.decorate(decorators, target, key, desc);
-    switch (arguments.length) {
-        case 2: return decorators.reduceRight(function(o, d) { return (d && d(o)) || o; }, target);
-        case 3: return decorators.reduceRight(function(o, d) { return (d && d(target, key)), void 0; }, void 0);
-        case 4: return decorators.reduceRight(function(o, d) { return (d && d(target, key, o)) || o; }, desc);
-    }
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
 };
-var _utils = require('../utils');
+var _utils = require("../utils");
 var nativeFunction = _utils.nativeFunction;
 var StdioForUser = (function () {
     function StdioForUser(context) {
@@ -17610,36 +23001,32 @@ var StdioForUser = (function () {
     StdioForUser.prototype.sceKernelStdin = function () { return 0; };
     StdioForUser.prototype.sceKernelStdout = function () { return 1; };
     StdioForUser.prototype.sceKernelStderr = function () { return 2; };
-    Object.defineProperty(StdioForUser.prototype, "sceKernelStdin",
-        __decorate([
-            nativeFunction(0x172D316E, 150, 'int', '')
-        ], StdioForUser.prototype, "sceKernelStdin", Object.getOwnPropertyDescriptor(StdioForUser.prototype, "sceKernelStdin")));
-    Object.defineProperty(StdioForUser.prototype, "sceKernelStdout",
-        __decorate([
-            nativeFunction(0xA6BAB2E9, 150, 'int', '')
-        ], StdioForUser.prototype, "sceKernelStdout", Object.getOwnPropertyDescriptor(StdioForUser.prototype, "sceKernelStdout")));
-    Object.defineProperty(StdioForUser.prototype, "sceKernelStderr",
-        __decorate([
-            nativeFunction(0xF78BA90A, 150, 'int', '')
-        ], StdioForUser.prototype, "sceKernelStderr", Object.getOwnPropertyDescriptor(StdioForUser.prototype, "sceKernelStderr")));
     return StdioForUser;
-})();
+}());
+__decorate([
+    nativeFunction(0x172D316E, 150, 'int', '')
+], StdioForUser.prototype, "sceKernelStdin", null);
+__decorate([
+    nativeFunction(0xA6BAB2E9, 150, 'int', '')
+], StdioForUser.prototype, "sceKernelStdout", null);
+__decorate([
+    nativeFunction(0xF78BA90A, 150, 'int', '')
+], StdioForUser.prototype, "sceKernelStderr", null);
 exports.StdioForUser = StdioForUser;
 
 },
 "src/hle/module/SysMemUserForUser": function(module, exports, require) {
 ///<reference path="../../global.d.ts" />
+"use strict";
 var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
-    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") return Reflect.decorate(decorators, target, key, desc);
-    switch (arguments.length) {
-        case 2: return decorators.reduceRight(function(o, d) { return (d && d(o)) || o; }, target);
-        case 3: return decorators.reduceRight(function(o, d) { return (d && d(target, key)), void 0; }, void 0);
-        case 4: return decorators.reduceRight(function(o, d) { return (d && d(target, key, o)) || o; }, desc);
-    }
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
 };
-var _utils = require('../utils');
+var _utils = require("../utils");
 var nativeFunction = _utils.nativeFunction;
-var SceKernelErrors = require('../SceKernelErrors');
+var SceKernelErrors = require("../SceKernelErrors");
 var console = logger.named('module.SysMemUserForUser');
 var SysMemUserForUser = (function () {
     function SysMemUserForUser(context) {
@@ -17713,6 +23100,9 @@ var SysMemUserForUser = (function () {
         var block = this.partitionUids.get(partitionId);
         return block.low;
     };
+    /**
+        * Get the size of the largest free memory block.
+        */
     SysMemUserForUser.prototype.sceKernelMaxFreeMemSize = function () {
         return this.context.memoryManager.userPartition.nonAllocatedPartitions.max(function (partition) { return partition.size; }).size;
     };
@@ -17726,6 +23116,8 @@ var SysMemUserForUser = (function () {
         console.info(sprintf('sceKernelSetCompiledSdkVersion395: %08X', param));
     };
     SysMemUserForUser.prototype.sceKernelDevkitVersion = function (version) {
+        //var Version = HleConfig.FirmwareVersion;
+        //return (Version.Major << 24) | (Version.Minor << 16) | (Version.Revision << 8) | 0x10;
         return 0x02070110;
     };
     SysMemUserForUser.prototype.sceKernelPrintf = function (thread, format) {
@@ -17742,75 +23134,62 @@ var SysMemUserForUser = (function () {
         console.info('sceKernelPrintf: ' + format.replace(/%[dsux]/g, function (data) {
             return readParam(data);
         }));
+        //console.warn(this.context.memory.readStringz(thread.state.gpr[5]));
     };
-    Object.defineProperty(SysMemUserForUser.prototype, "sceKernelAllocPartitionMemory",
-        __decorate([
-            nativeFunction(0x237DBD4F, 150, 'int', 'int/string/int/int/int')
-        ], SysMemUserForUser.prototype, "sceKernelAllocPartitionMemory", Object.getOwnPropertyDescriptor(SysMemUserForUser.prototype, "sceKernelAllocPartitionMemory")));
-    Object.defineProperty(SysMemUserForUser.prototype, "AllocMemoryBlock",
-        __decorate([
-            nativeFunction(0xFE707FDF, 150, 'int', 'string/uint/uint/void*')
-        ], SysMemUserForUser.prototype, "AllocMemoryBlock", Object.getOwnPropertyDescriptor(SysMemUserForUser.prototype, "AllocMemoryBlock")));
-    Object.defineProperty(SysMemUserForUser.prototype, "GetMemoryBlockAddr",
-        __decorate([
-            nativeFunction(0xDB83A952, 150, 'int', 'int')
-        ], SysMemUserForUser.prototype, "GetMemoryBlockAddr", Object.getOwnPropertyDescriptor(SysMemUserForUser.prototype, "GetMemoryBlockAddr")));
-    Object.defineProperty(SysMemUserForUser.prototype, "FreeMemoryBlock",
-        __decorate([
-            nativeFunction(0x50F61D8A, 150, 'int', 'int')
-        ], SysMemUserForUser.prototype, "FreeMemoryBlock", Object.getOwnPropertyDescriptor(SysMemUserForUser.prototype, "FreeMemoryBlock")));
-    Object.defineProperty(SysMemUserForUser.prototype, "sceKernelFreePartitionMemory",
-        __decorate([
-            nativeFunction(0xB6D61D02, 150, 'int', 'int')
-        ], SysMemUserForUser.prototype, "sceKernelFreePartitionMemory", Object.getOwnPropertyDescriptor(SysMemUserForUser.prototype, "sceKernelFreePartitionMemory")));
-    Object.defineProperty(SysMemUserForUser.prototype, "sceKernelTotalFreeMemSize",
-        __decorate([
-            nativeFunction(0xF919F628, 150, 'int', '')
-        ], SysMemUserForUser.prototype, "sceKernelTotalFreeMemSize", Object.getOwnPropertyDescriptor(SysMemUserForUser.prototype, "sceKernelTotalFreeMemSize")));
-    Object.defineProperty(SysMemUserForUser.prototype, "sceKernelGetBlockHeadAddr",
-        __decorate([
-            nativeFunction(0x9D9A5BA1, 150, 'uint', 'int')
-        ], SysMemUserForUser.prototype, "sceKernelGetBlockHeadAddr", Object.getOwnPropertyDescriptor(SysMemUserForUser.prototype, "sceKernelGetBlockHeadAddr")));
-    Object.defineProperty(SysMemUserForUser.prototype, "sceKernelMaxFreeMemSize",
-        __decorate([
-            nativeFunction(0xA291F107, 150, 'int', '')
-        ], SysMemUserForUser.prototype, "sceKernelMaxFreeMemSize", Object.getOwnPropertyDescriptor(SysMemUserForUser.prototype, "sceKernelMaxFreeMemSize")));
-    Object.defineProperty(SysMemUserForUser.prototype, "sceKernelSetCompiledSdkVersion",
-        __decorate([
-            nativeFunction(0x7591C7DB, 150, 'int', 'uint')
-        ], SysMemUserForUser.prototype, "sceKernelSetCompiledSdkVersion", Object.getOwnPropertyDescriptor(SysMemUserForUser.prototype, "sceKernelSetCompiledSdkVersion")));
-    Object.defineProperty(SysMemUserForUser.prototype, "sceKernelSetCompilerVersion",
-        __decorate([
-            nativeFunction(0xF77D77CB, 150, 'int', 'uint')
-        ], SysMemUserForUser.prototype, "sceKernelSetCompilerVersion", Object.getOwnPropertyDescriptor(SysMemUserForUser.prototype, "sceKernelSetCompilerVersion")));
-    Object.defineProperty(SysMemUserForUser.prototype, "sceKernelSetCompiledSdkVersion395",
-        __decorate([
-            nativeFunction(0xEBD5C3E6, 150, 'int', 'uint')
-        ], SysMemUserForUser.prototype, "sceKernelSetCompiledSdkVersion395", Object.getOwnPropertyDescriptor(SysMemUserForUser.prototype, "sceKernelSetCompiledSdkVersion395")));
-    Object.defineProperty(SysMemUserForUser.prototype, "sceKernelDevkitVersion",
-        __decorate([
-            nativeFunction(0x3FC9AE6A, 150, 'int', 'uint')
-        ], SysMemUserForUser.prototype, "sceKernelDevkitVersion", Object.getOwnPropertyDescriptor(SysMemUserForUser.prototype, "sceKernelDevkitVersion")));
-    Object.defineProperty(SysMemUserForUser.prototype, "sceKernelPrintf",
-        __decorate([
-            nativeFunction(0x13A5ABEF, 150, 'void', 'Thread/string')
-        ], SysMemUserForUser.prototype, "sceKernelPrintf", Object.getOwnPropertyDescriptor(SysMemUserForUser.prototype, "sceKernelPrintf")));
     return SysMemUserForUser;
-})();
+}());
+__decorate([
+    nativeFunction(0x237DBD4F, 150, 'int', 'int/string/int/int/int')
+], SysMemUserForUser.prototype, "sceKernelAllocPartitionMemory", null);
+__decorate([
+    nativeFunction(0xFE707FDF, 150, 'int', 'string/uint/uint/void*')
+], SysMemUserForUser.prototype, "AllocMemoryBlock", null);
+__decorate([
+    nativeFunction(0xDB83A952, 150, 'int', 'int')
+], SysMemUserForUser.prototype, "GetMemoryBlockAddr", null);
+__decorate([
+    nativeFunction(0x50F61D8A, 150, 'int', 'int')
+], SysMemUserForUser.prototype, "FreeMemoryBlock", null);
+__decorate([
+    nativeFunction(0xB6D61D02, 150, 'int', 'int')
+], SysMemUserForUser.prototype, "sceKernelFreePartitionMemory", null);
+__decorate([
+    nativeFunction(0xF919F628, 150, 'int', '')
+], SysMemUserForUser.prototype, "sceKernelTotalFreeMemSize", null);
+__decorate([
+    nativeFunction(0x9D9A5BA1, 150, 'uint', 'int')
+], SysMemUserForUser.prototype, "sceKernelGetBlockHeadAddr", null);
+__decorate([
+    nativeFunction(0xA291F107, 150, 'int', '')
+], SysMemUserForUser.prototype, "sceKernelMaxFreeMemSize", null);
+__decorate([
+    nativeFunction(0x7591C7DB, 150, 'int', 'uint')
+], SysMemUserForUser.prototype, "sceKernelSetCompiledSdkVersion", null);
+__decorate([
+    nativeFunction(0xF77D77CB, 150, 'int', 'uint')
+], SysMemUserForUser.prototype, "sceKernelSetCompilerVersion", null);
+__decorate([
+    nativeFunction(0xEBD5C3E6, 150, 'int', 'uint')
+], SysMemUserForUser.prototype, "sceKernelSetCompiledSdkVersion395", null);
+__decorate([
+    nativeFunction(0x3FC9AE6A, 150, 'int', 'uint')
+], SysMemUserForUser.prototype, "sceKernelDevkitVersion", null);
+__decorate([
+    nativeFunction(0x13A5ABEF, 150, 'void', 'Thread/string')
+], SysMemUserForUser.prototype, "sceKernelPrintf", null);
 exports.SysMemUserForUser = SysMemUserForUser;
 
 },
 "src/hle/module/UtilsForKernel": function(module, exports, require) {
 ///<reference path="../../global.d.ts" />
+"use strict";
 var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
-    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") return Reflect.decorate(decorators, target, key, desc);
-    switch (arguments.length) {
-        case 2: return decorators.reduceRight(function(o, d) { return (d && d(o)) || o; }, target);
-        case 3: return decorators.reduceRight(function(o, d) { return (d && d(target, key)), void 0; }, void 0);
-        case 4: return decorators.reduceRight(function(o, d) { return (d && d(target, key, o)) || o; }, desc);
-    }
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
 };
-var _utils = require('../utils');
+var _utils = require("../utils");
 var nativeFunction = _utils.nativeFunction;
 var UtilsForKernel = (function () {
     function UtilsForKernel(context) {
@@ -17819,28 +23198,26 @@ var UtilsForKernel = (function () {
     UtilsForKernel.prototype.sceKernelIcacheInvalidateRange = function (address, size) {
         this.context.currentInstructionCache.invalidateRange(address, address + size);
     };
-    Object.defineProperty(UtilsForKernel.prototype, "sceKernelIcacheInvalidateRange",
-        __decorate([
-            nativeFunction(0xC2DF770E, 150, 'void', 'uint/uint')
-        ], UtilsForKernel.prototype, "sceKernelIcacheInvalidateRange", Object.getOwnPropertyDescriptor(UtilsForKernel.prototype, "sceKernelIcacheInvalidateRange")));
     return UtilsForKernel;
-})();
+}());
+__decorate([
+    nativeFunction(0xC2DF770E, 150, 'void', 'uint/uint')
+], UtilsForKernel.prototype, "sceKernelIcacheInvalidateRange", null);
 exports.UtilsForKernel = UtilsForKernel;
 
 },
 "src/hle/module/UtilsForUser": function(module, exports, require) {
 ///<reference path="../../global.d.ts" />
+"use strict";
 var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
-    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") return Reflect.decorate(decorators, target, key, desc);
-    switch (arguments.length) {
-        case 2: return decorators.reduceRight(function(o, d) { return (d && d(o)) || o; }, target);
-        case 3: return decorators.reduceRight(function(o, d) { return (d && d(target, key)), void 0; }, void 0);
-        case 4: return decorators.reduceRight(function(o, d) { return (d && d(target, key, o)) || o; }, desc);
-    }
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
 };
-var _utils = require('../utils');
+var _utils = require("../utils");
 var nativeFunction = _utils.nativeFunction;
-var SceKernelErrors = require('../SceKernelErrors');
+var SceKernelErrors = require("../SceKernelErrors");
 var UtilsForUser = (function () {
     function UtilsForUser(context) {
         this.context = context;
@@ -17849,6 +23226,7 @@ var UtilsForUser = (function () {
         return this.context.rtc.getClockMicroseconds();
     };
     UtilsForUser.prototype.sceKernelLibcTime = function (pointer) {
+        //console.warn('Not implemented UtilsForUser.sceKernelLibcTime');
         if (pointer == Stream.INVALID)
             return 0;
         var result = (this.context.rtc.getCurrentUnixSeconds()) | 0;
@@ -17884,6 +23262,7 @@ var UtilsForUser = (function () {
         return 0;
     };
     UtilsForUser.prototype.sceKernelDcacheWritebackInvalidateRange = function (pointer, size) {
+        //console.log('sceKernelDcacheWritebackInvalidateRange');
         if (size > 0x7FFFFFFF)
             return SceKernelErrors.ERROR_INVALID_SIZE;
         if (pointer >= 0x80000000)
@@ -17892,6 +23271,7 @@ var UtilsForUser = (function () {
         return 0;
     };
     UtilsForUser.prototype.sceKernelDcacheWritebackRange = function (pointer, size) {
+        //console.log('sceKernelDcacheWritebackRange');
         if (size > 0x7FFFFFFF)
             return SceKernelErrors.ERROR_INVALID_SIZE;
         if (pointer >= 0x80000000)
@@ -17900,12 +23280,15 @@ var UtilsForUser = (function () {
         return 0;
     };
     UtilsForUser.prototype.sceKernelDcacheWritebackAll = function () {
+        //console.log('sceKernelDcacheWritebackAll');
         this.context.memory.invalidateDataAll.dispatch();
         return 0;
     };
     UtilsForUser.prototype.sceKernelDcacheInvalidateRange = function (pointer, size) {
+        //console.log('sceKernelDcacheInvalidateRange');
         if (!MathUtils.isAlignedTo(size, 4))
             return SceKernelErrors.ERROR_KERNEL_NOT_CACHE_ALIGNED;
+        //if (!this.context.memory.isValidAddress(pointer + size)) return SceKernelErrors.ERROR_KERNEL_ILLEGAL_ADDR;
         if (size > 0x7FFFFFFF)
             return SceKernelErrors.ERROR_INVALID_SIZE;
         if (pointer >= 0x80000000)
@@ -17916,83 +23299,72 @@ var UtilsForUser = (function () {
         return 0;
     };
     UtilsForUser.prototype.sceKernelDcacheWritebackInvalidateAll = function () {
+        //console.log('sceKernelDcacheWritebackInvalidateAll');
         this.context.memory.invalidateDataAll.dispatch();
         return 0;
     };
     UtilsForUser.prototype.sceKernelSetGPO = function (value) {
         return 0;
     };
-    Object.defineProperty(UtilsForUser.prototype, "sceKernelLibcClock",
-        __decorate([
-            nativeFunction(0x91E4F6A7, 150, 'uint', '')
-        ], UtilsForUser.prototype, "sceKernelLibcClock", Object.getOwnPropertyDescriptor(UtilsForUser.prototype, "sceKernelLibcClock")));
-    Object.defineProperty(UtilsForUser.prototype, "sceKernelLibcTime",
-        __decorate([
-            nativeFunction(0x27CC57F0, 150, 'uint', 'void*')
-        ], UtilsForUser.prototype, "sceKernelLibcTime", Object.getOwnPropertyDescriptor(UtilsForUser.prototype, "sceKernelLibcTime")));
-    Object.defineProperty(UtilsForUser.prototype, "sceKernelGetGPI",
-        __decorate([
-            nativeFunction(0x37FB5C42, 150, 'uint', '')
-        ], UtilsForUser.prototype, "sceKernelGetGPI", Object.getOwnPropertyDescriptor(UtilsForUser.prototype, "sceKernelGetGPI")));
-    Object.defineProperty(UtilsForUser.prototype, "sceKernelUtilsMt19937Init",
-        __decorate([
-            nativeFunction(0xE860E75E, 150, 'uint', 'Memory/uint/uint')
-        ], UtilsForUser.prototype, "sceKernelUtilsMt19937Init", Object.getOwnPropertyDescriptor(UtilsForUser.prototype, "sceKernelUtilsMt19937Init")));
-    Object.defineProperty(UtilsForUser.prototype, "sceKernelUtilsMt19937UInt",
-        __decorate([
-            nativeFunction(0x06FB8A63, 150, 'uint', 'Memory/uint')
-        ], UtilsForUser.prototype, "sceKernelUtilsMt19937UInt", Object.getOwnPropertyDescriptor(UtilsForUser.prototype, "sceKernelUtilsMt19937UInt")));
-    Object.defineProperty(UtilsForUser.prototype, "sceKernelLibcGettimeofday",
-        __decorate([
-            nativeFunction(0x71EC4271, 150, 'uint', 'void*/void*')
-        ], UtilsForUser.prototype, "sceKernelLibcGettimeofday", Object.getOwnPropertyDescriptor(UtilsForUser.prototype, "sceKernelLibcGettimeofday")));
-    Object.defineProperty(UtilsForUser.prototype, "sceKernelDcacheWritebackInvalidateRange",
-        __decorate([
-            nativeFunction(0x34B9FA9E, 150, 'uint', 'uint/uint')
-        ], UtilsForUser.prototype, "sceKernelDcacheWritebackInvalidateRange", Object.getOwnPropertyDescriptor(UtilsForUser.prototype, "sceKernelDcacheWritebackInvalidateRange")));
-    Object.defineProperty(UtilsForUser.prototype, "sceKernelDcacheWritebackRange",
-        __decorate([
-            nativeFunction(0x3EE30821, 150, 'uint', 'uint/uint')
-        ], UtilsForUser.prototype, "sceKernelDcacheWritebackRange", Object.getOwnPropertyDescriptor(UtilsForUser.prototype, "sceKernelDcacheWritebackRange")));
-    Object.defineProperty(UtilsForUser.prototype, "sceKernelDcacheWritebackAll",
-        __decorate([
-            nativeFunction(0x79D1C3FA, 150, 'uint', '')
-        ], UtilsForUser.prototype, "sceKernelDcacheWritebackAll", Object.getOwnPropertyDescriptor(UtilsForUser.prototype, "sceKernelDcacheWritebackAll")));
-    Object.defineProperty(UtilsForUser.prototype, "sceKernelDcacheInvalidateRange",
-        __decorate([
-            nativeFunction(0xBFA98062, 150, 'uint', 'uint/uint')
-        ], UtilsForUser.prototype, "sceKernelDcacheInvalidateRange", Object.getOwnPropertyDescriptor(UtilsForUser.prototype, "sceKernelDcacheInvalidateRange")));
-    Object.defineProperty(UtilsForUser.prototype, "sceKernelDcacheWritebackInvalidateAll",
-        __decorate([
-            nativeFunction(0xB435DEC5, 150, 'uint', '')
-        ], UtilsForUser.prototype, "sceKernelDcacheWritebackInvalidateAll", Object.getOwnPropertyDescriptor(UtilsForUser.prototype, "sceKernelDcacheWritebackInvalidateAll")));
-    Object.defineProperty(UtilsForUser.prototype, "sceKernelSetGPO",
-        __decorate([
-            nativeFunction(0x6AD345D7, 150, 'uint', 'int')
-        ], UtilsForUser.prototype, "sceKernelSetGPO", Object.getOwnPropertyDescriptor(UtilsForUser.prototype, "sceKernelSetGPO")));
     return UtilsForUser;
-})();
+}());
+__decorate([
+    nativeFunction(0x91E4F6A7, 150, 'uint', '')
+], UtilsForUser.prototype, "sceKernelLibcClock", null);
+__decorate([
+    nativeFunction(0x27CC57F0, 150, 'uint', 'void*')
+], UtilsForUser.prototype, "sceKernelLibcTime", null);
+__decorate([
+    nativeFunction(0x37FB5C42, 150, 'uint', '')
+], UtilsForUser.prototype, "sceKernelGetGPI", null);
+__decorate([
+    nativeFunction(0xE860E75E, 150, 'uint', 'Memory/uint/uint')
+], UtilsForUser.prototype, "sceKernelUtilsMt19937Init", null);
+__decorate([
+    nativeFunction(0x06FB8A63, 150, 'uint', 'Memory/uint')
+], UtilsForUser.prototype, "sceKernelUtilsMt19937UInt", null);
+__decorate([
+    nativeFunction(0x71EC4271, 150, 'uint', 'void*/void*')
+], UtilsForUser.prototype, "sceKernelLibcGettimeofday", null);
+__decorate([
+    nativeFunction(0x34B9FA9E, 150, 'uint', 'uint/uint')
+], UtilsForUser.prototype, "sceKernelDcacheWritebackInvalidateRange", null);
+__decorate([
+    nativeFunction(0x3EE30821, 150, 'uint', 'uint/uint')
+], UtilsForUser.prototype, "sceKernelDcacheWritebackRange", null);
+__decorate([
+    nativeFunction(0x79D1C3FA, 150, 'uint', '')
+], UtilsForUser.prototype, "sceKernelDcacheWritebackAll", null);
+__decorate([
+    nativeFunction(0xBFA98062, 150, 'uint', 'uint/uint')
+], UtilsForUser.prototype, "sceKernelDcacheInvalidateRange", null);
+__decorate([
+    nativeFunction(0xB435DEC5, 150, 'uint', '')
+], UtilsForUser.prototype, "sceKernelDcacheWritebackInvalidateAll", null);
+__decorate([
+    nativeFunction(0x6AD345D7, 150, 'uint', 'int')
+], UtilsForUser.prototype, "sceKernelSetGPO", null);
 exports.UtilsForUser = UtilsForUser;
 
 },
 "src/hle/module/iofilemgr/IoFileMgrForUser": function(module, exports, require) {
 ///<reference path="../../../global.d.ts" />
+"use strict";
 var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
-    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") return Reflect.decorate(decorators, target, key, desc);
-    switch (arguments.length) {
-        case 2: return decorators.reduceRight(function(o, d) { return (d && d(o)) || o; }, target);
-        case 3: return decorators.reduceRight(function(o, d) { return (d && d(target, key)), void 0; }, void 0);
-        case 4: return decorators.reduceRight(function(o, d) { return (d && d(target, key, o)) || o; }, desc);
-    }
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
 };
-var _utils = require('../../utils');
+var _utils = require("../../utils");
 var nativeFunction = _utils.nativeFunction;
-var _vfs = require('../../vfs');
-var _structs = require('../../structs');
-var SceKernelErrors = require('../../SceKernelErrors');
-var _manager = require('../../manager');
+var _vfs = require("../../vfs");
+var _structs = require("../../structs");
+var SceKernelErrors = require("../../SceKernelErrors");
+var _manager = require("../../manager");
 _manager.Thread;
 var FileOpenFlags = _vfs.FileOpenFlags;
+//var console = logger.named('module.IoFileMgrForUser');
 var log = logger.named('module.IoFileMgrForUser');
 var IoFileMgrForUser = (function () {
     function IoFileMgrForUser(context) {
@@ -18033,6 +23405,7 @@ var IoFileMgrForUser = (function () {
     IoFileMgrForUser.prototype.sceIoOpenAsync = function (filename, flags, mode) {
         var _this = this;
         log.info(sprintf('IoFileMgrForUser.sceIoOpenAsync("%s", %d(%s), 0%o)', filename, flags, setToString(FileOpenFlags, flags), mode));
+        //if (filename == '') return Promise2.resolve(0);
         return this._sceIoOpenAsync(filename, flags, mode).then(function (fileId) {
             if (!_this.hasFileById(fileId))
                 return SceKernelErrors.ERROR_ERRNO_FILE_NOT_FOUND;
@@ -18044,15 +23417,18 @@ var IoFileMgrForUser = (function () {
     };
     IoFileMgrForUser.prototype.sceIoCloseAsync = function (fileId) {
         log.warn(sprintf('Not implemented IoFileMgrForUser.sceIoCloseAsync(%d)', fileId));
+        //if (filename == '') return Promise2.resolve(0);
         if (!this.hasFileById(fileId))
             return SceKernelErrors.ERROR_ERRNO_FILE_NOT_FOUND;
         var file = this.getFileById(fileId);
         if (file)
             file.close();
+        //file.setAsyncOperation(Promise2.resolve(Integer64.fromInt(fileId)));
         file.setAsyncOperation(Promise2.resolve(Integer64.fromInt(0)));
         return 0;
     };
     IoFileMgrForUser.prototype.sceIoAssign = function (device1, device2, device3, mode, unk1Ptr, unk2) {
+        // IoFileMgrForUser.sceIoAssign(Device1:'disc0:', Device2:'umd0:', Device3:'isofs0:', mode:1, unk1:0x00000000, unk2:0x0880001E)
         log.warn(sprintf("sceIoAssign not implemented! %s -> %s -> %s", device1, device2, device3));
         return 0;
     };
@@ -18067,9 +23443,11 @@ var IoFileMgrForUser = (function () {
     };
     IoFileMgrForUser.prototype.sceIoWrite = function (fileId, input) {
         if (fileId < 3) {
+            // @TODO: Fixme! Create a proper file
             var str = input.readString(input.length);
             log.warn('STD[' + fileId + ']', str);
             this.context.onStdout.dispatch(str);
+            //return immediateAsync().then(() => 0);
             return 0;
         }
         else {
@@ -18093,7 +23471,9 @@ var IoFileMgrForUser = (function () {
         var file = this.getFileById(fileId);
         return file.entry.readChunkAsync(file.cursor, outputLength).then(function (readedData) {
             file.cursor += readedData.byteLength;
+            //log.log(new Uint8Array(readedData));
             _this.context.memory.writeBytes(outputPointer, readedData);
+            //log.info(sprintf('IoFileMgrForUser.sceIoRead(%d, %08X: %d) : cursor:%d ->%d', fileId, outputPointer, outputLength, file.cursor, readedData.byteLength));
             return readedData.byteLength;
         });
     };
@@ -18102,8 +23482,11 @@ var IoFileMgrForUser = (function () {
         if (!this.hasFileById(fileId))
             return SceKernelErrors.ERROR_ERRNO_FILE_NOT_FOUND;
         var file = this.getFileById(fileId);
+        // SCE_KERNEL_ERROR_ASYNC_BUSY
         file.setAsyncOperation(file.entry.readChunkAsync(file.cursor, outputLength).then(function (readedData) {
+            //log.log('sceIoReadAsync', file, fileId, outputLength, readedData.byteLength, new Uint8Array(readedData));
             file.cursor += readedData.byteLength;
+            //log.info(thread, 'readed', new Uint8Array(readedData));
             _this.context.memory.writeBytes(outputPointer, readedData);
             return Integer64.fromNumber(readedData.byteLength);
         }));
@@ -18123,6 +23506,7 @@ var IoFileMgrForUser = (function () {
             if (DebugOnce('_sceIoWaitAsyncCB', 100))
                 log.info(thread.name, ':_sceIoWaitAsyncCB', fileId, 'completed');
             return file.asyncOperation.then(function (result) {
+                //debugger;
                 if (DebugOnce('_sceIoWaitAsyncCB', 100))
                     log.info(thread.name, ':_sceIoWaitAsyncCB', fileId, 'result: ', result.getNumber());
                 resultPointer.writeInt64(result);
@@ -18143,20 +23527,38 @@ var IoFileMgrForUser = (function () {
         return this._sceIoWaitAsyncCB(thread, fileId, resultPointer);
     };
     IoFileMgrForUser.prototype.sceIoPollAsync = function (thread, fileId, resultPointer) {
+        //log.info('sceIoPollAsync', fileId);
         if (!this.hasFileById(fileId))
             return SceKernelErrors.ERROR_ERRNO_FILE_NOT_FOUND;
         var file = this.getFileById(fileId);
         if (file.asyncResult) {
+            //return this._sceIoWaitAsyncCB(thread, fileId, resultPointer);
+            //if (DebugOnce('sceIoPollAsync', 100)) log.log(thread.name, ':sceIoPollAsync', fileId, 'resolved -> ', file.asyncResult.number);
             resultPointer.writeInt64(file.asyncResult);
             return 0;
         }
         else {
+            //if (DebugOnce('sceIoPollAsync', 100)) log.log(thread.name, ':sceIoPollAsync', fileId, 'not resolved');
+            //log.log('not resolved');
             resultPointer.writeInt64(Integer64.fromInt(0));
             return 1;
         }
     };
+    /*
+    [HlePspFunction(NID = 0xA0B5A7C2, FirmwareVersion = 150)]
+    public int sceIoReadAsync(SceUID FileId, byte * OutputPointer, int OutputSize)
+    {
+        var File = HleIoManager.HleIoDrvFileArgPool.Get(FileId);
+        File.AsyncLastResult = sceIoRead(FileId, OutputPointer, OutputSize);
+
+        _DelayIo(IoDelayType.Read, OutputSize);
+
+        return 0;
+    }
+    */
     IoFileMgrForUser.prototype._vfsStatToSceIoStat = function (stat) {
         var stat2 = new _structs.SceIoStat();
+        //stat2.mode = <_structs.SceMode>parseInt('777', 8)
         stat2.mode = 0;
         stat2.size = stat.size;
         stat2.timeCreation = _structs.ScePspDateTime.fromDate(stat.timeCreation);
@@ -18166,16 +23568,16 @@ var IoFileMgrForUser = (function () {
         stat2.deviceDependentData[1] = stat.dependentData1 || 0;
         stat2.attributes = 0;
         if (stat.isDirectory) {
-            stat2.mode = 0x1000;
-            stat2.attributes |= 16;
-            stat2.attributes |= 4;
+            stat2.mode = 0x1000; // Directory
+            stat2.attributes |= 16 /* Directory */;
+            stat2.attributes |= 4 /* CanRead */;
         }
         else {
-            stat2.mode = 0x2000;
-            stat2.attributes |= 32;
-            stat2.attributes |= 1;
-            stat2.attributes |= 4;
-            stat2.attributes |= 2;
+            stat2.mode = 0x2000; // File
+            stat2.attributes |= 32 /* File */;
+            stat2.attributes |= 1 /* CanExecute */;
+            stat2.attributes |= 4 /* CanRead */;
+            stat2.attributes |= 2 /* CanWrite */;
         }
         return stat2;
     };
@@ -18214,7 +23616,18 @@ var IoFileMgrForUser = (function () {
             return SceKernelErrors.ERROR_ERRNO_FILE_NOT_FOUND;
         }
     };
+    /*
+    [HlePspFunction(NID = 0x71B19E77, FirmwareVersion = 150)]
+    public int sceIoLseekAsync(SceUID FileId, long Offset, SeekAnchor Whence)
+    {
+        var File = HleIoManager.HleIoDrvFileArgPool.Get(FileId);
+        File.AsyncLastResult = sceIoLseek(FileId, Offset, Whence);
+        _DelayIo(IoDelayType.Seek);
+        return 0;
+    }
+    */
     IoFileMgrForUser.prototype.sceIoLseekAsync = function (fileId, offset, whence) {
+        //var file = this.getFileById(fileId);
         if (!this.hasFileById(fileId))
             return SceKernelErrors.ERROR_ERRNO_FILE_NOT_FOUND;
         var file = this.getFileById(fileId);
@@ -18224,10 +23637,12 @@ var IoFileMgrForUser = (function () {
     };
     IoFileMgrForUser.prototype.sceIoLseek = function (fileId, offset, whence) {
         var result = this._seek(fileId, offset.getNumber(), whence);
+        //log.info(sprintf('IoFileMgrForUser.sceIoLseek(%d, %d, %d): %d', fileId, offset, whence, result));
         return Integer64.fromNumber(result);
     };
     IoFileMgrForUser.prototype.sceIoLseek32 = function (fileId, offset, whence) {
         var result = this._seek(fileId, offset, whence);
+        //log.info(sprintf('IoFileMgrForUser.sceIoLseek32(%d, %d, %d) : %d', fileId, offset, whence, result));
         return result;
     };
     IoFileMgrForUser.prototype.sceIoMkdir = function (path, accessMode) {
@@ -18274,124 +23689,101 @@ var IoFileMgrForUser = (function () {
             return SceKernelErrors.ERROR_ERRNO_FILE_NOT_FOUND;
         var file = this.getFileById(fileId);
         switch (whence) {
-            case 0:
+            case 0 /* Set */:
                 file.cursor = 0 + offset;
                 break;
-            case 1:
+            case 1 /* Cursor */:
                 file.cursor = file.cursor + offset;
                 break;
-            case 2:
+            case 2 /* End */:
                 file.cursor = file.entry.size + offset;
                 break;
         }
         return file.cursor;
     };
-    Object.defineProperty(IoFileMgrForUser.prototype, "sceIoDevctl",
-        __decorate([
-            nativeFunction(0x54F5FB11, 150, 'uint', 'string/uint/uint/int/uint/int')
-        ], IoFileMgrForUser.prototype, "sceIoDevctl", Object.getOwnPropertyDescriptor(IoFileMgrForUser.prototype, "sceIoDevctl")));
-    Object.defineProperty(IoFileMgrForUser.prototype, "sceIoOpen",
-        __decorate([
-            nativeFunction(0x109F50BC, 150, 'int', 'string/int/int')
-        ], IoFileMgrForUser.prototype, "sceIoOpen", Object.getOwnPropertyDescriptor(IoFileMgrForUser.prototype, "sceIoOpen")));
-    Object.defineProperty(IoFileMgrForUser.prototype, "sceIoOpenAsync",
-        __decorate([
-            nativeFunction(0x89AA9906, 150, 'int', 'string/int/int')
-        ], IoFileMgrForUser.prototype, "sceIoOpenAsync", Object.getOwnPropertyDescriptor(IoFileMgrForUser.prototype, "sceIoOpenAsync")));
-    Object.defineProperty(IoFileMgrForUser.prototype, "sceIoCloseAsync",
-        __decorate([
-            nativeFunction(0xFF5940B6, 150, 'int', 'int')
-        ], IoFileMgrForUser.prototype, "sceIoCloseAsync", Object.getOwnPropertyDescriptor(IoFileMgrForUser.prototype, "sceIoCloseAsync")));
-    Object.defineProperty(IoFileMgrForUser.prototype, "sceIoAssign",
-        __decorate([
-            nativeFunction(0xB2A628C1, 150, 'int', 'string/string/string/int/void*/long')
-        ], IoFileMgrForUser.prototype, "sceIoAssign", Object.getOwnPropertyDescriptor(IoFileMgrForUser.prototype, "sceIoAssign")));
-    Object.defineProperty(IoFileMgrForUser.prototype, "sceIoClose",
-        __decorate([
-            nativeFunction(0x810C4BC3, 150, 'int', 'int')
-        ], IoFileMgrForUser.prototype, "sceIoClose", Object.getOwnPropertyDescriptor(IoFileMgrForUser.prototype, "sceIoClose")));
-    Object.defineProperty(IoFileMgrForUser.prototype, "sceIoWrite",
-        __decorate([
-            nativeFunction(0x42EC03AC, 150, 'int', 'int/byte[]')
-        ], IoFileMgrForUser.prototype, "sceIoWrite", Object.getOwnPropertyDescriptor(IoFileMgrForUser.prototype, "sceIoWrite")));
-    Object.defineProperty(IoFileMgrForUser.prototype, "sceIoRead",
-        __decorate([
-            nativeFunction(0x6A638D83, 150, 'int', 'int/uint/int')
-        ], IoFileMgrForUser.prototype, "sceIoRead", Object.getOwnPropertyDescriptor(IoFileMgrForUser.prototype, "sceIoRead")));
-    Object.defineProperty(IoFileMgrForUser.prototype, "sceIoReadAsync",
-        __decorate([
-            nativeFunction(0xA0B5A7C2, 150, 'int', 'Thread/int/uint/int')
-        ], IoFileMgrForUser.prototype, "sceIoReadAsync", Object.getOwnPropertyDescriptor(IoFileMgrForUser.prototype, "sceIoReadAsync")));
-    Object.defineProperty(IoFileMgrForUser.prototype, "sceIoWaitAsync",
-        __decorate([
-            nativeFunction(0xE23EEC33, 150, 'int', 'Thread/int/void*')
-        ], IoFileMgrForUser.prototype, "sceIoWaitAsync", Object.getOwnPropertyDescriptor(IoFileMgrForUser.prototype, "sceIoWaitAsync")));
-    Object.defineProperty(IoFileMgrForUser.prototype, "sceIoWaitAsyncCB",
-        __decorate([
-            nativeFunction(0x35DBD746, 150, 'int', 'Thread/int/void*')
-        ], IoFileMgrForUser.prototype, "sceIoWaitAsyncCB", Object.getOwnPropertyDescriptor(IoFileMgrForUser.prototype, "sceIoWaitAsyncCB")));
-    Object.defineProperty(IoFileMgrForUser.prototype, "sceIoPollAsync",
-        __decorate([
-            nativeFunction(0x3251EA56, 150, 'uint', 'Thread/int/void*')
-        ], IoFileMgrForUser.prototype, "sceIoPollAsync", Object.getOwnPropertyDescriptor(IoFileMgrForUser.prototype, "sceIoPollAsync")));
-    Object.defineProperty(IoFileMgrForUser.prototype, "sceIoGetstat",
-        __decorate([
-            nativeFunction(0xACE946E8, 150, 'int', 'string/void*')
-        ], IoFileMgrForUser.prototype, "sceIoGetstat", Object.getOwnPropertyDescriptor(IoFileMgrForUser.prototype, "sceIoGetstat")));
-    Object.defineProperty(IoFileMgrForUser.prototype, "sceIoChdir",
-        __decorate([
-            nativeFunction(0x55F4717D, 150, 'int', 'string')
-        ], IoFileMgrForUser.prototype, "sceIoChdir", Object.getOwnPropertyDescriptor(IoFileMgrForUser.prototype, "sceIoChdir")));
-    Object.defineProperty(IoFileMgrForUser.prototype, "sceIoLseekAsync",
-        __decorate([
-            nativeFunction(0x71B19E77, 150, 'int', 'int/long/int')
-        ], IoFileMgrForUser.prototype, "sceIoLseekAsync", Object.getOwnPropertyDescriptor(IoFileMgrForUser.prototype, "sceIoLseekAsync")));
-    Object.defineProperty(IoFileMgrForUser.prototype, "sceIoLseek",
-        __decorate([
-            nativeFunction(0x27EB27B8, 150, 'long', 'int/long/int')
-        ], IoFileMgrForUser.prototype, "sceIoLseek", Object.getOwnPropertyDescriptor(IoFileMgrForUser.prototype, "sceIoLseek")));
-    Object.defineProperty(IoFileMgrForUser.prototype, "sceIoLseek32",
-        __decorate([
-            nativeFunction(0x68963324, 150, 'int', 'int/int/int')
-        ], IoFileMgrForUser.prototype, "sceIoLseek32", Object.getOwnPropertyDescriptor(IoFileMgrForUser.prototype, "sceIoLseek32")));
-    Object.defineProperty(IoFileMgrForUser.prototype, "sceIoMkdir",
-        __decorate([
-            nativeFunction(0x06A70004, 150, 'uint', 'string/int')
-        ], IoFileMgrForUser.prototype, "sceIoMkdir", Object.getOwnPropertyDescriptor(IoFileMgrForUser.prototype, "sceIoMkdir")));
-    Object.defineProperty(IoFileMgrForUser.prototype, "sceIoDopen",
-        __decorate([
-            nativeFunction(0xB29DDF9C, 150, 'uint', 'string')
-        ], IoFileMgrForUser.prototype, "sceIoDopen", Object.getOwnPropertyDescriptor(IoFileMgrForUser.prototype, "sceIoDopen")));
-    Object.defineProperty(IoFileMgrForUser.prototype, "sceIoDclose",
-        __decorate([
-            nativeFunction(0xEB092469, 150, 'uint', 'int')
-        ], IoFileMgrForUser.prototype, "sceIoDclose", Object.getOwnPropertyDescriptor(IoFileMgrForUser.prototype, "sceIoDclose")));
-    Object.defineProperty(IoFileMgrForUser.prototype, "sceIoDread",
-        __decorate([
-            nativeFunction(0xE3EB004C, 150, 'int', 'int/void*')
-        ], IoFileMgrForUser.prototype, "sceIoDread", Object.getOwnPropertyDescriptor(IoFileMgrForUser.prototype, "sceIoDread")));
-    Object.defineProperty(IoFileMgrForUser.prototype, "sceIoChangeAsyncPriority",
-        __decorate([
-            nativeFunction(0xB293727F, 150, 'int', 'int/int')
-        ], IoFileMgrForUser.prototype, "sceIoChangeAsyncPriority", Object.getOwnPropertyDescriptor(IoFileMgrForUser.prototype, "sceIoChangeAsyncPriority")));
     return IoFileMgrForUser;
-})();
+}());
+__decorate([
+    nativeFunction(0x54F5FB11, 150, 'uint', 'string/uint/uint/int/uint/int')
+], IoFileMgrForUser.prototype, "sceIoDevctl", null);
+__decorate([
+    nativeFunction(0x109F50BC, 150, 'int', 'string/int/int')
+], IoFileMgrForUser.prototype, "sceIoOpen", null);
+__decorate([
+    nativeFunction(0x89AA9906, 150, 'int', 'string/int/int')
+], IoFileMgrForUser.prototype, "sceIoOpenAsync", null);
+__decorate([
+    nativeFunction(0xFF5940B6, 150, 'int', 'int')
+], IoFileMgrForUser.prototype, "sceIoCloseAsync", null);
+__decorate([
+    nativeFunction(0xB2A628C1, 150, 'int', 'string/string/string/int/void*/long')
+], IoFileMgrForUser.prototype, "sceIoAssign", null);
+__decorate([
+    nativeFunction(0x810C4BC3, 150, 'int', 'int')
+], IoFileMgrForUser.prototype, "sceIoClose", null);
+__decorate([
+    nativeFunction(0x42EC03AC, 150, 'int', 'int/byte[]')
+], IoFileMgrForUser.prototype, "sceIoWrite", null);
+__decorate([
+    nativeFunction(0x6A638D83, 150, 'int', 'int/uint/int')
+], IoFileMgrForUser.prototype, "sceIoRead", null);
+__decorate([
+    nativeFunction(0xA0B5A7C2, 150, 'int', 'Thread/int/uint/int')
+], IoFileMgrForUser.prototype, "sceIoReadAsync", null);
+__decorate([
+    nativeFunction(0xE23EEC33, 150, 'int', 'Thread/int/void*')
+], IoFileMgrForUser.prototype, "sceIoWaitAsync", null);
+__decorate([
+    nativeFunction(0x35DBD746, 150, 'int', 'Thread/int/void*')
+], IoFileMgrForUser.prototype, "sceIoWaitAsyncCB", null);
+__decorate([
+    nativeFunction(0x3251EA56, 150, 'uint', 'Thread/int/void*')
+], IoFileMgrForUser.prototype, "sceIoPollAsync", null);
+__decorate([
+    nativeFunction(0xACE946E8, 150, 'int', 'string/void*')
+], IoFileMgrForUser.prototype, "sceIoGetstat", null);
+__decorate([
+    nativeFunction(0x55F4717D, 150, 'int', 'string')
+], IoFileMgrForUser.prototype, "sceIoChdir", null);
+__decorate([
+    nativeFunction(0x71B19E77, 150, 'int', 'int/long/int')
+], IoFileMgrForUser.prototype, "sceIoLseekAsync", null);
+__decorate([
+    nativeFunction(0x27EB27B8, 150, 'long', 'int/long/int')
+], IoFileMgrForUser.prototype, "sceIoLseek", null);
+__decorate([
+    nativeFunction(0x68963324, 150, 'int', 'int/int/int')
+], IoFileMgrForUser.prototype, "sceIoLseek32", null);
+__decorate([
+    nativeFunction(0x06A70004, 150, 'uint', 'string/int')
+], IoFileMgrForUser.prototype, "sceIoMkdir", null);
+__decorate([
+    nativeFunction(0xB29DDF9C, 150, 'uint', 'string')
+], IoFileMgrForUser.prototype, "sceIoDopen", null);
+__decorate([
+    nativeFunction(0xEB092469, 150, 'uint', 'int')
+], IoFileMgrForUser.prototype, "sceIoDclose", null);
+__decorate([
+    nativeFunction(0xE3EB004C, 150, 'int', 'int/void*')
+], IoFileMgrForUser.prototype, "sceIoDread", null);
+__decorate([
+    nativeFunction(0xB293727F, 150, 'int', 'int/int')
+], IoFileMgrForUser.prototype, "sceIoChangeAsyncPriority", null);
 exports.IoFileMgrForUser = IoFileMgrForUser;
 
 },
 "src/hle/module/sceAtrac3plus": function(module, exports, require) {
 ///<reference path="../../global.d.ts" />
+"use strict";
 var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
-    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") return Reflect.decorate(decorators, target, key, desc);
-    switch (arguments.length) {
-        case 2: return decorators.reduceRight(function(o, d) { return (d && d(o)) || o; }, target);
-        case 3: return decorators.reduceRight(function(o, d) { return (d && d(target, key)), void 0; }, void 0);
-        case 4: return decorators.reduceRight(function(o, d) { return (d && d(target, key, o)) || o; }, desc);
-    }
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
 };
-var _utils = require('../utils');
-var SceKernelErrors = require('../SceKernelErrors');
-var _riff = require('../../format/riff');
+var _utils = require("../utils");
+var SceKernelErrors = require("../SceKernelErrors");
+var _riff = require("../../format/riff");
 _riff.Riff;
 var Riff = _riff.Riff;
 var nativeFunction = _utils.nativeFunction;
@@ -18422,6 +23814,7 @@ var sceAtrac3plus = (function () {
         return SceKernelErrors.ERROR_ATRAC_SECOND_BUFFER_NOT_NEEDED;
     };
     sceAtrac3plus.prototype.sceAtracSetSecondBuffer = function (id, pucSecondBufferAddr, uiSecondBufferByte) {
+        //throw (new Error("Not implemented sceAtracSetSecondBuffer"));
         return 0;
     };
     sceAtrac3plus.prototype.sceAtracReleaseAtracID = function (id) {
@@ -18437,12 +23830,15 @@ var sceAtrac3plus = (function () {
         var reachedEnd = new UIntReference(reachedEndPtr);
         var decodedSamplesCount = new UIntReference(decodedSamplesCountPtr);
         var remainingFramesToDecode = new UIntReference(remainingFramesToDecodePtr);
+        //console.log(`${atrac3.decodingReachedEnd}, ${atrac3.currentFrame}-${atrac3.totalFrames} ${atrac3.remainingFrames}. ${atrac3.getNumberOfSamplesInNextFrame()}, ${atrac3.packet ? atrac3.packet.pos : -1}/${atrac3.stream.length}`);		
         return atrac3.decodeAsync(samplesOutPtr).then(function (decodedSamples) {
             reachedEnd.value = 0;
             remainingFramesToDecode.value = atrac3.remainingFrames;
             decodedSamplesCount.value = decodedSamples / atrac3.format.atracChannels;
+            //Console.WriteLine("{0}/{1} -> {2} : {3}", Atrac.DecodingOffsetInSamples, Atrac.TotalSamples, DecodedSamples, Atrac.DecodingReachedEnd);
             if (atrac3.decodingReachedEnd) {
                 if (atrac3.numberOfLoops == 0) {
+                    //if (true) {
                     decodedSamplesCount.value = 0;
                     reachedEnd.value = 1;
                     remainingFramesToDecode.value = 0;
@@ -18455,6 +23851,12 @@ var sceAtrac3plus = (function () {
             return 0;
         });
     };
+    /**
+     * Gets the remaining (not decoded) number of frames
+     * Pointer to a integer that receives either -1 if all at3 data is already on memory,
+     * or the remaining (not decoded yet) frames at memory if not all at3 data is on memory
+     * @return Less than 0 on error, otherwise 0
+     */
     sceAtrac3plus.prototype.sceAtracGetRemainFrame = function (id, remainFramePtr) {
         if (!this.hasById(id))
             return SceKernelErrors.ATRAC_ERROR_NO_ATRACID;
@@ -18505,6 +23907,9 @@ var sceAtrac3plus = (function () {
         if (!this.hasById(id))
             return SceKernelErrors.ATRAC_ERROR_NO_ATRACID;
         var atrac3 = this.getById(id);
+        //console.warn("Not implemented sceAtracAddStreamData", id, bytesToAdd, atrac3);
+        //throw (new Error("Not implemented sceAtracAddStreamData"));
+        //return -1;
         return 0;
     };
     sceAtrac3plus.prototype.sceAtracGetStreamDataInfo = function (id, writePointerPointer, availableBytesPtr, readOffsetPtr) {
@@ -18514,6 +23919,12 @@ var sceAtrac3plus = (function () {
         writePointerPointer.writeInt32(0);
         availableBytesPtr.writeInt32(0);
         readOffsetPtr.writeInt32(0);
+        //WritePointerPointer = Atrac.PrimaryBuffer.Low; // @FIXME!!
+        //AvailableBytes = Atrac.PrimaryBuffer.Size;
+        //ReadOffset = Atrac.PrimaryBufferReaded;
+        //console.warn("Not implemented sceAtracGetStreamDataInfo");
+        //throw (new Error("Not implemented sceAtracGetStreamDataInfo"));
+        //return -1;
         return 0;
     };
     sceAtrac3plus.prototype.sceAtracGetNextDecodePosition = function (id, samplePositionPtr) {
@@ -18533,8 +23944,10 @@ var sceAtrac3plus = (function () {
         var hasLoops = (atrac3.loopInfoList != null) && (atrac3.loopInfoList.length > 0);
         if (endSamplePtr)
             endSamplePtr.writeInt32(atrac3.fact.endSample);
+        //if (loopStartSamplePtr) loopStartSamplePtr.writeInt32(hasLoops ? atrac3.LoopInfoList[0].StartSample : -1);
         if (loopStartSamplePtr)
             loopStartSamplePtr.writeInt32(-1);
+        //if (loopEndSamplePtr) *LoopEndSamplePointer = hasLoops ? atrac3.LoopInfoList[0].EndSample : -1;
         if (loopEndSamplePtr)
             loopEndSamplePtr.writeInt32(-1);
         return 0;
@@ -18547,16 +23960,13 @@ var sceAtrac3plus = (function () {
         return 0;
     };
     sceAtrac3plus.prototype.sceAtracGetBufferInfoForReseting = function (id, uiSample, bufferInfoPtr) {
-        throw (new Error("Not implemented sceAtracGetBufferInfoForReseting"));
-        return 0;
+        throw new Error("Not implemented sceAtracGetBufferInfoForReseting");
     };
     sceAtrac3plus.prototype.sceAtracResetPlayPosition = function (id, uiSample, uiWriteByteFirstBuf, uiWriteByteSecondBuf) {
-        throw (new Error("Not implemented sceAtracResetPlayPosition"));
-        return 0;
+        throw new Error("Not implemented sceAtracResetPlayPosition");
     };
     sceAtrac3plus.prototype.sceAtracGetInternalErrorInfo = function (id, errorResultPtr) {
-        throw (new Error("Not implemented sceAtracGetInternalErrorInfo"));
-        return 0;
+        throw new Error("Not implemented sceAtracGetInternalErrorInfo");
     };
     sceAtrac3plus.prototype.sceAtracGetOutputChannel = function (id, outputChannelPtr) {
         if (!this.hasById(id))
@@ -18567,92 +23977,71 @@ var sceAtrac3plus = (function () {
         outputChannelPtr.writeInt32(channel);
         return 0;
     };
-    Object.defineProperty(sceAtrac3plus.prototype, "sceAtracSetDataAndGetID",
-        __decorate([
-            nativeFunction(0x7A20E7AF, 150, 'uint', 'byte[]')
-        ], sceAtrac3plus.prototype, "sceAtracSetDataAndGetID", Object.getOwnPropertyDescriptor(sceAtrac3plus.prototype, "sceAtracSetDataAndGetID")));
-    Object.defineProperty(sceAtrac3plus.prototype, "sceAtracSetData",
-        __decorate([
-            nativeFunction(0x0E2A73AB, 150, 'uint', 'int/byte[]')
-        ], sceAtrac3plus.prototype, "sceAtracSetData", Object.getOwnPropertyDescriptor(sceAtrac3plus.prototype, "sceAtracSetData")));
-    Object.defineProperty(sceAtrac3plus.prototype, "sceAtracGetSecondBufferInfo",
-        __decorate([
-            nativeFunction(0x83E85EA0, 150, 'uint', 'int/void*/void*')
-        ], sceAtrac3plus.prototype, "sceAtracGetSecondBufferInfo", Object.getOwnPropertyDescriptor(sceAtrac3plus.prototype, "sceAtracGetSecondBufferInfo")));
-    Object.defineProperty(sceAtrac3plus.prototype, "sceAtracSetSecondBuffer",
-        __decorate([
-            nativeFunction(0x83BF7AFD, 150, 'uint', 'int/void*/uint')
-        ], sceAtrac3plus.prototype, "sceAtracSetSecondBuffer", Object.getOwnPropertyDescriptor(sceAtrac3plus.prototype, "sceAtracSetSecondBuffer")));
-    Object.defineProperty(sceAtrac3plus.prototype, "sceAtracReleaseAtracID",
-        __decorate([
-            nativeFunction(0x61EB33F5, 150, 'uint', 'int')
-        ], sceAtrac3plus.prototype, "sceAtracReleaseAtracID", Object.getOwnPropertyDescriptor(sceAtrac3plus.prototype, "sceAtracReleaseAtracID")));
-    Object.defineProperty(sceAtrac3plus.prototype, "sceAtracDecodeData",
-        __decorate([
-            nativeFunction(0x6A8C3CD5, 150, 'uint', 'int/void*/void*/void*/void*')
-        ], sceAtrac3plus.prototype, "sceAtracDecodeData", Object.getOwnPropertyDescriptor(sceAtrac3plus.prototype, "sceAtracDecodeData")));
-    Object.defineProperty(sceAtrac3plus.prototype, "sceAtracGetRemainFrame",
-        __decorate([
-            nativeFunction(0x9AE849A7, 150, 'uint', 'int/void*')
-        ], sceAtrac3plus.prototype, "sceAtracGetRemainFrame", Object.getOwnPropertyDescriptor(sceAtrac3plus.prototype, "sceAtracGetRemainFrame")));
-    Object.defineProperty(sceAtrac3plus.prototype, "sceAtracGetBitrate",
-        __decorate([
-            nativeFunction(0xA554A158, 150, 'uint', 'int/void*')
-        ], sceAtrac3plus.prototype, "sceAtracGetBitrate", Object.getOwnPropertyDescriptor(sceAtrac3plus.prototype, "sceAtracGetBitrate")));
-    Object.defineProperty(sceAtrac3plus.prototype, "sceAtracGetChannel",
-        __decorate([
-            nativeFunction(0x31668baa, 150, 'uint', 'int/void*')
-        ], sceAtrac3plus.prototype, "sceAtracGetChannel", Object.getOwnPropertyDescriptor(sceAtrac3plus.prototype, "sceAtracGetChannel")));
-    Object.defineProperty(sceAtrac3plus.prototype, "sceAtracGetMaxSample",
-        __decorate([
-            nativeFunction(0xD6A5F2F7, 150, 'uint', 'int/void*')
-        ], sceAtrac3plus.prototype, "sceAtracGetMaxSample", Object.getOwnPropertyDescriptor(sceAtrac3plus.prototype, "sceAtracGetMaxSample")));
-    Object.defineProperty(sceAtrac3plus.prototype, "sceAtracGetNextSample",
-        __decorate([
-            nativeFunction(0x36FAABFB, 150, 'uint', 'int/void*')
-        ], sceAtrac3plus.prototype, "sceAtracGetNextSample", Object.getOwnPropertyDescriptor(sceAtrac3plus.prototype, "sceAtracGetNextSample")));
-    Object.defineProperty(sceAtrac3plus.prototype, "sceAtracGetAtracID",
-        __decorate([
-            nativeFunction(0x780F88D1, 150, 'uint', 'int')
-        ], sceAtrac3plus.prototype, "sceAtracGetAtracID", Object.getOwnPropertyDescriptor(sceAtrac3plus.prototype, "sceAtracGetAtracID")));
-    Object.defineProperty(sceAtrac3plus.prototype, "sceAtracAddStreamData",
-        __decorate([
-            nativeFunction(0x7DB31251, 150, 'uint', 'int/int')
-        ], sceAtrac3plus.prototype, "sceAtracAddStreamData", Object.getOwnPropertyDescriptor(sceAtrac3plus.prototype, "sceAtracAddStreamData")));
-    Object.defineProperty(sceAtrac3plus.prototype, "sceAtracGetStreamDataInfo",
-        __decorate([
-            nativeFunction(0x5D268707, 150, 'uint', 'int/void*/void*/void*')
-        ], sceAtrac3plus.prototype, "sceAtracGetStreamDataInfo", Object.getOwnPropertyDescriptor(sceAtrac3plus.prototype, "sceAtracGetStreamDataInfo")));
-    Object.defineProperty(sceAtrac3plus.prototype, "sceAtracGetNextDecodePosition",
-        __decorate([
-            nativeFunction(0xE23E3A35, 150, 'uint', 'int/void*')
-        ], sceAtrac3plus.prototype, "sceAtracGetNextDecodePosition", Object.getOwnPropertyDescriptor(sceAtrac3plus.prototype, "sceAtracGetNextDecodePosition")));
-    Object.defineProperty(sceAtrac3plus.prototype, "sceAtracGetSoundSample",
-        __decorate([
-            nativeFunction(0xA2BBA8BE, 150, 'uint', 'int/void*/void*/void*')
-        ], sceAtrac3plus.prototype, "sceAtracGetSoundSample", Object.getOwnPropertyDescriptor(sceAtrac3plus.prototype, "sceAtracGetSoundSample")));
-    Object.defineProperty(sceAtrac3plus.prototype, "sceAtracSetLoopNum",
-        __decorate([
-            nativeFunction(0x868120B5, 150, 'uint', 'int/int')
-        ], sceAtrac3plus.prototype, "sceAtracSetLoopNum", Object.getOwnPropertyDescriptor(sceAtrac3plus.prototype, "sceAtracSetLoopNum")));
-    Object.defineProperty(sceAtrac3plus.prototype, "sceAtracGetBufferInfoForReseting",
-        __decorate([
-            nativeFunction(0xCA3CA3D2, 150, 'uint', 'int/uint/void*')
-        ], sceAtrac3plus.prototype, "sceAtracGetBufferInfoForReseting", Object.getOwnPropertyDescriptor(sceAtrac3plus.prototype, "sceAtracGetBufferInfoForReseting")));
-    Object.defineProperty(sceAtrac3plus.prototype, "sceAtracResetPlayPosition",
-        __decorate([
-            nativeFunction(0x644E5607, 150, 'uint', 'int/uint/uint/uint')
-        ], sceAtrac3plus.prototype, "sceAtracResetPlayPosition", Object.getOwnPropertyDescriptor(sceAtrac3plus.prototype, "sceAtracResetPlayPosition")));
-    Object.defineProperty(sceAtrac3plus.prototype, "sceAtracGetInternalErrorInfo",
-        __decorate([
-            nativeFunction(0xE88F759B, 150, 'uint', 'int/void*')
-        ], sceAtrac3plus.prototype, "sceAtracGetInternalErrorInfo", Object.getOwnPropertyDescriptor(sceAtrac3plus.prototype, "sceAtracGetInternalErrorInfo")));
-    Object.defineProperty(sceAtrac3plus.prototype, "sceAtracGetOutputChannel",
-        __decorate([
-            nativeFunction(0xB3B5D042, 150, 'uint', 'int/void*')
-        ], sceAtrac3plus.prototype, "sceAtracGetOutputChannel", Object.getOwnPropertyDescriptor(sceAtrac3plus.prototype, "sceAtracGetOutputChannel")));
     return sceAtrac3plus;
-})();
+}());
+__decorate([
+    nativeFunction(0x7A20E7AF, 150, 'uint', 'byte[]')
+], sceAtrac3plus.prototype, "sceAtracSetDataAndGetID", null);
+__decorate([
+    nativeFunction(0x0E2A73AB, 150, 'uint', 'int/byte[]')
+], sceAtrac3plus.prototype, "sceAtracSetData", null);
+__decorate([
+    nativeFunction(0x83E85EA0, 150, 'uint', 'int/void*/void*')
+], sceAtrac3plus.prototype, "sceAtracGetSecondBufferInfo", null);
+__decorate([
+    nativeFunction(0x83BF7AFD, 150, 'uint', 'int/void*/uint')
+], sceAtrac3plus.prototype, "sceAtracSetSecondBuffer", null);
+__decorate([
+    nativeFunction(0x61EB33F5, 150, 'uint', 'int')
+], sceAtrac3plus.prototype, "sceAtracReleaseAtracID", null);
+__decorate([
+    nativeFunction(0x6A8C3CD5, 150, 'uint', 'int/void*/void*/void*/void*')
+], sceAtrac3plus.prototype, "sceAtracDecodeData", null);
+__decorate([
+    nativeFunction(0x9AE849A7, 150, 'uint', 'int/void*')
+], sceAtrac3plus.prototype, "sceAtracGetRemainFrame", null);
+__decorate([
+    nativeFunction(0xA554A158, 150, 'uint', 'int/void*')
+], sceAtrac3plus.prototype, "sceAtracGetBitrate", null);
+__decorate([
+    nativeFunction(0x31668baa, 150, 'uint', 'int/void*')
+], sceAtrac3plus.prototype, "sceAtracGetChannel", null);
+__decorate([
+    nativeFunction(0xD6A5F2F7, 150, 'uint', 'int/void*')
+], sceAtrac3plus.prototype, "sceAtracGetMaxSample", null);
+__decorate([
+    nativeFunction(0x36FAABFB, 150, 'uint', 'int/void*')
+], sceAtrac3plus.prototype, "sceAtracGetNextSample", null);
+__decorate([
+    nativeFunction(0x780F88D1, 150, 'uint', 'int')
+], sceAtrac3plus.prototype, "sceAtracGetAtracID", null);
+__decorate([
+    nativeFunction(0x7DB31251, 150, 'uint', 'int/int')
+], sceAtrac3plus.prototype, "sceAtracAddStreamData", null);
+__decorate([
+    nativeFunction(0x5D268707, 150, 'uint', 'int/void*/void*/void*')
+], sceAtrac3plus.prototype, "sceAtracGetStreamDataInfo", null);
+__decorate([
+    nativeFunction(0xE23E3A35, 150, 'uint', 'int/void*')
+], sceAtrac3plus.prototype, "sceAtracGetNextDecodePosition", null);
+__decorate([
+    nativeFunction(0xA2BBA8BE, 150, 'uint', 'int/void*/void*/void*')
+], sceAtrac3plus.prototype, "sceAtracGetSoundSample", null);
+__decorate([
+    nativeFunction(0x868120B5, 150, 'uint', 'int/int')
+], sceAtrac3plus.prototype, "sceAtracSetLoopNum", null);
+__decorate([
+    nativeFunction(0xCA3CA3D2, 150, 'uint', 'int/uint/void*')
+], sceAtrac3plus.prototype, "sceAtracGetBufferInfoForReseting", null);
+__decorate([
+    nativeFunction(0x644E5607, 150, 'uint', 'int/uint/uint/uint')
+], sceAtrac3plus.prototype, "sceAtracResetPlayPosition", null);
+__decorate([
+    nativeFunction(0xE88F759B, 150, 'uint', 'int/void*')
+], sceAtrac3plus.prototype, "sceAtracGetInternalErrorInfo", null);
+__decorate([
+    nativeFunction(0xB3B5D042, 150, 'uint', 'int/void*')
+], sceAtrac3plus.prototype, "sceAtracGetOutputChannel", null);
 exports.sceAtrac3plus = sceAtrac3plus;
 var Atrac3 = (function () {
     function Atrac3(id) {
@@ -18687,6 +24076,8 @@ var Atrac3 = (function () {
             'data': function (stream) { _this.dataStream = stream; },
         });
         this.stream = MediaEngine.MeStream.open(new MediaEngine.MemoryCustomStream(dataBytes));
+        //console.log(this.fmt);
+        //console.log(this.fact);
         return this;
     };
     Object.defineProperty(Atrac3.prototype, "bitrate", {
@@ -18752,6 +24143,8 @@ var Atrac3 = (function () {
             frame = 0;
         this.flushPacket();
         this.stream.seek(0);
+        // @TODO: Fix seek times! We could detect timestamps while decoding to do a faster seek
+        // later on loops.
         while (this.currentFrame < frame) {
             var data = this.decodeOne();
             if (data == null)
@@ -18770,11 +24163,13 @@ var Atrac3 = (function () {
         do {
             if (this.packet == null) {
                 this.packet = this.stream.readPacket();
+                //console.warn('readPacket', this.packet != null);
                 if (this.packet == null) {
                     return null;
                 }
             }
             var data = this.packet.decodeAudio(this.format.atracChannels, 44100);
+            //console.log('decodeAudio', data != null);
             if (data == null) {
                 this.packet.free();
                 this.packet = null;
@@ -18785,7 +24180,9 @@ var Atrac3 = (function () {
     Atrac3.prototype.decodeAsync = function (samplesOutPtr) {
         if (this.totalFrames <= 0)
             return Promise2.resolve(0);
+        //var blockData = this.dataStream.readBytes(this.format.blockSize);
         try {
+            //console.log(data);
             var data = this.decodeOne();
             if (data == null)
                 return Promise2.resolve(0);
@@ -18808,34 +24205,35 @@ var Atrac3 = (function () {
         }
         return Promise2.resolve(new Atrac3(Atrac3.lastId++).setDataStream(data));
     };
-    Atrac3.useWorker = true;
-    Atrac3.lastId = 0;
     return Atrac3;
-})();
+}());
+//private static useWorker = false;
+Atrac3.useWorker = true;
+Atrac3.lastId = 0;
 var FactStruct = (function () {
     function FactStruct() {
         this.endSample = 0;
         this.sampleOffset = 0;
     }
-    FactStruct.struct = StructClass.create(FactStruct, [
-        { endSample: Int32 },
-        { sampleOffset: Int32 },
-    ]);
     return FactStruct;
-})();
+}());
+FactStruct.struct = StructClass.create(FactStruct, [
+    { endSample: Int32 },
+    { sampleOffset: Int32 },
+]);
 var SmplStruct = (function () {
     function SmplStruct() {
         this.unknown = [0, 0, 0, 0, 0, 0, 0];
         this.loopCount = 0;
         this.unknown2 = 0;
     }
-    SmplStruct.struct = StructClass.create(SmplStruct, [
-        { unknown: StructArray(Int32, 7) },
-        { loopCount: Int32 },
-        { unknown2: Int32 },
-    ]);
     return SmplStruct;
-})();
+}());
+SmplStruct.struct = StructClass.create(SmplStruct, [
+    { unknown: StructArray(Int32, 7) },
+    { loopCount: Int32 },
+    { unknown2: Int32 },
+]);
 var LoopInfoStruct = (function () {
     function LoopInfoStruct() {
         this.cuePointID = 0;
@@ -18845,16 +24243,16 @@ var LoopInfoStruct = (function () {
         this.fraction = 0;
         this.playCount = 0;
     }
-    LoopInfoStruct.struct = StructClass.create(LoopInfoStruct, [
-        { cuePointID: Int32 },
-        { type: Int32 },
-        { startSample: Int32 },
-        { endSample: Int32 },
-        { fraction: Int32 },
-        { playCount: Int32 },
-    ]);
     return LoopInfoStruct;
-})();
+}());
+LoopInfoStruct.struct = StructClass.create(LoopInfoStruct, [
+    { cuePointID: Int32 },
+    { type: Int32 },
+    { startSample: Int32 },
+    { endSample: Int32 },
+    { fraction: Int32 },
+    { playCount: Int32 },
+]);
 var At3FormatStruct = (function () {
     function At3FormatStruct() {
         this.compressionCode = 0;
@@ -18873,39 +24271,69 @@ var At3FormatStruct = (function () {
         enumerable: true,
         configurable: true
     });
-    At3FormatStruct.struct = StructClass.create(At3FormatStruct, [
-        { compressionCode: UInt16 },
-        { atracChannels: UInt16 },
-        { bitrate: UInt32 },
-        { averageBytesPerSecond: UInt16 },
-        { blockAlignment: UInt16 },
-        { bytesPerFrame: UInt16 },
-        { _unk: UInt16 },
-        { unknown: StructArray(UInt32, 6) },
-        { _unk2: UInt16_b },
-        { _blockSize: UInt16_b },
-    ]);
     return At3FormatStruct;
-})();
+}());
+At3FormatStruct.struct = StructClass.create(At3FormatStruct, [
+    { compressionCode: UInt16 },
+    { atracChannels: UInt16 },
+    { bitrate: UInt32 },
+    { averageBytesPerSecond: UInt16 },
+    { blockAlignment: UInt16 },
+    { bytesPerFrame: UInt16 },
+    { _unk: UInt16 },
+    { unknown: StructArray(UInt32, 6) },
+    { _unk2: UInt16_b },
+    { _blockSize: UInt16_b },
+]);
 var CodecType;
 (function (CodecType) {
     CodecType[CodecType["PSP_MODE_AT_3_PLUS"] = 4096] = "PSP_MODE_AT_3_PLUS";
     CodecType[CodecType["PSP_MODE_AT_3"] = 4097] = "PSP_MODE_AT_3";
 })(CodecType || (CodecType = {}));
+/*
+class MyMemoryCustomStream extends MediaEngine.CustomStream {
+    constructor(public data:Uint8Array) {
+        super();
+    }
+    get length() { return this.data.length; }
+    
+    public read(buf:Uint8Array):number {
+        var readlen = Math.min(buf.length, this.available);
+        console.log('read', this.position, buf.length, readlen);
+        buf.subarray(0, readlen).set(this.data.subarray(this.position, this.position + readlen));
+        return readlen;
+    }
+    public write(buf:Uint8Array):number {
+        throw new Error("Must override CustomStream.write()");
+    }
+    public close():void {
+    }
+    
+    public _seek(offset: number, whence: MediaEngine.SeekType) {
+        console.info('seek', offset, whence);
+        switch (whence) {
+            case MediaEngine.SeekType.Set: this.position = 0 + offset; break;
+            case MediaEngine.SeekType.Cur: this.position = this.position + offset; break;
+            case MediaEngine.SeekType.End: this.position = this.length + offset; break;
+            case MediaEngine.SeekType.Tell: return this.position;
+        }
+        return this.position;
+    }
+}
+*/
 
 },
 "src/hle/module/sceAudio": function(module, exports, require) {
 ///<reference path="../../global.d.ts" />
+"use strict";
 var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
-    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") return Reflect.decorate(decorators, target, key, desc);
-    switch (arguments.length) {
-        case 2: return decorators.reduceRight(function(o, d) { return (d && d(o)) || o; }, target);
-        case 3: return decorators.reduceRight(function(o, d) { return (d && d(target, key)), void 0; }, void 0);
-        case 4: return decorators.reduceRight(function(o, d) { return (d && d(target, key, o)) || o; }, desc);
-    }
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
 };
-var _utils = require('../utils');
-var SceKernelErrors = require('../SceKernelErrors');
+var _utils = require("../utils");
+var SceKernelErrors = require("../SceKernelErrors");
 var nativeFunction = _utils.nativeFunction;
 var sceAudio = (function () {
     function sceAudio(context) {
@@ -18939,6 +24367,7 @@ var sceAudio = (function () {
         channel.allocated = true;
         channel.sampleCount = sampleCount;
         channel.format = format;
+        //console.log(this.context);
         channel.channel = this.context.audio.createChannel();
         channel.channel.start();
         return channelId;
@@ -18963,6 +24392,7 @@ var sceAudio = (function () {
         return 0;
     };
     sceAudio.prototype.sceAudioSetChannelDataLen = function (channelId, sampleCount) {
+        //ERROR_AUDIO_CHANNEL_NOT_INIT
         if (!this.isValidChannel(channelId))
             return SceKernelErrors.ERROR_AUDIO_INVALID_CHANNEL;
         if ((sampleCount % 64) != 0)
@@ -18976,6 +24406,7 @@ var sceAudio = (function () {
             return -1;
         if (!this.isValidChannel(channelId))
             return SceKernelErrors.ERROR_AUDIO_INVALID_CHANNEL;
+        //console.log(leftVolume, rightVolume);
         var channel = this.getChannelById(channelId);
         return channel.channel.playAsync(channel.numberOfChannels, buffer.readInt16Array(channel.totalSampleCount), MathUtils.clamp01(leftVolume / 32768), MathUtils.clamp01(rightVolume / 32768));
     };
@@ -18988,6 +24419,8 @@ var sceAudio = (function () {
     sceAudio.prototype.sceAudioOutputBlocking = function (channelId, volume, buffer) {
         var result = this._sceAudioOutput(channelId, volume, volume, buffer);
         return result;
+        //debugger;
+        //return new WaitingThreadInfo('sceAudioOutputBlocking', channel, , AcceptCallbacks.NO);
     };
     sceAudio.prototype.sceAudioOutput = function (channelId, volume, buffer) {
         var result = this._sceAudioOutput(channelId, volume, volume, buffer);
@@ -19005,56 +24438,44 @@ var sceAudio = (function () {
         console.warn("Not implemented sceAudioGetChannelRestLen");
         return 0;
     };
-    Object.defineProperty(sceAudio.prototype, "sceAudioOutput2Reserve",
-        __decorate([
-            nativeFunction(0x01562BA3, 150, 'uint', 'int')
-        ], sceAudio.prototype, "sceAudioOutput2Reserve", Object.getOwnPropertyDescriptor(sceAudio.prototype, "sceAudioOutput2Reserve")));
-    Object.defineProperty(sceAudio.prototype, "sceAudioOutput2OutputBlocking",
-        __decorate([
-            nativeFunction(0x2D53F36E, 150, 'uint', 'int/void*')
-        ], sceAudio.prototype, "sceAudioOutput2OutputBlocking", Object.getOwnPropertyDescriptor(sceAudio.prototype, "sceAudioOutput2OutputBlocking")));
-    Object.defineProperty(sceAudio.prototype, "sceAudioChReserve",
-        __decorate([
-            nativeFunction(0x5EC81C55, 150, 'uint', 'int/int/int')
-        ], sceAudio.prototype, "sceAudioChReserve", Object.getOwnPropertyDescriptor(sceAudio.prototype, "sceAudioChReserve")));
-    Object.defineProperty(sceAudio.prototype, "sceAudioChRelease",
-        __decorate([
-            nativeFunction(0x6FC46853, 150, 'uint', 'int')
-        ], sceAudio.prototype, "sceAudioChRelease", Object.getOwnPropertyDescriptor(sceAudio.prototype, "sceAudioChRelease")));
-    Object.defineProperty(sceAudio.prototype, "sceAudioChangeChannelConfig",
-        __decorate([
-            nativeFunction(0x95FD0C2D, 150, 'uint', 'int/int')
-        ], sceAudio.prototype, "sceAudioChangeChannelConfig", Object.getOwnPropertyDescriptor(sceAudio.prototype, "sceAudioChangeChannelConfig")));
-    Object.defineProperty(sceAudio.prototype, "sceAudioSetChannelDataLen",
-        __decorate([
-            nativeFunction(0xCB2E439E, 150, 'uint', 'int/int')
-        ], sceAudio.prototype, "sceAudioSetChannelDataLen", Object.getOwnPropertyDescriptor(sceAudio.prototype, "sceAudioSetChannelDataLen")));
-    Object.defineProperty(sceAudio.prototype, "sceAudioOutputPannedBlocking",
-        __decorate([
-            nativeFunction(0x13F592BC, 150, 'uint', 'int/int/int/void*')
-        ], sceAudio.prototype, "sceAudioOutputPannedBlocking", Object.getOwnPropertyDescriptor(sceAudio.prototype, "sceAudioOutputPannedBlocking")));
-    Object.defineProperty(sceAudio.prototype, "sceAudioOutputBlocking",
-        __decorate([
-            nativeFunction(0x136CAF51, 150, 'uint', 'int/int/void*')
-        ], sceAudio.prototype, "sceAudioOutputBlocking", Object.getOwnPropertyDescriptor(sceAudio.prototype, "sceAudioOutputBlocking")));
-    Object.defineProperty(sceAudio.prototype, "sceAudioOutput",
-        __decorate([
-            nativeFunction(0x8C1009B2, 150, 'uint', 'int/int/void*')
-        ], sceAudio.prototype, "sceAudioOutput", Object.getOwnPropertyDescriptor(sceAudio.prototype, "sceAudioOutput")));
-    Object.defineProperty(sceAudio.prototype, "sceAudioOutputPanned",
-        __decorate([
-            nativeFunction(0xE2D56B2D, 150, 'uint', 'int/int/int/void*')
-        ], sceAudio.prototype, "sceAudioOutputPanned", Object.getOwnPropertyDescriptor(sceAudio.prototype, "sceAudioOutputPanned")));
-    Object.defineProperty(sceAudio.prototype, "sceAudioChangeChannelVolume",
-        __decorate([
-            nativeFunction(0xB7E1D8E7, 150, 'uint', 'int/int/int')
-        ], sceAudio.prototype, "sceAudioChangeChannelVolume", Object.getOwnPropertyDescriptor(sceAudio.prototype, "sceAudioChangeChannelVolume")));
-    Object.defineProperty(sceAudio.prototype, "sceAudioGetChannelRestLen",
-        __decorate([
-            nativeFunction(0xB7E1D8E7, 150, 'uint', 'int')
-        ], sceAudio.prototype, "sceAudioGetChannelRestLen", Object.getOwnPropertyDescriptor(sceAudio.prototype, "sceAudioGetChannelRestLen")));
     return sceAudio;
-})();
+}());
+__decorate([
+    nativeFunction(0x01562BA3, 150, 'uint', 'int')
+], sceAudio.prototype, "sceAudioOutput2Reserve", null);
+__decorate([
+    nativeFunction(0x2D53F36E, 150, 'uint', 'int/void*')
+], sceAudio.prototype, "sceAudioOutput2OutputBlocking", null);
+__decorate([
+    nativeFunction(0x5EC81C55, 150, 'uint', 'int/int/int')
+], sceAudio.prototype, "sceAudioChReserve", null);
+__decorate([
+    nativeFunction(0x6FC46853, 150, 'uint', 'int')
+], sceAudio.prototype, "sceAudioChRelease", null);
+__decorate([
+    nativeFunction(0x95FD0C2D, 150, 'uint', 'int/int')
+], sceAudio.prototype, "sceAudioChangeChannelConfig", null);
+__decorate([
+    nativeFunction(0xCB2E439E, 150, 'uint', 'int/int')
+], sceAudio.prototype, "sceAudioSetChannelDataLen", null);
+__decorate([
+    nativeFunction(0x13F592BC, 150, 'uint', 'int/int/int/void*')
+], sceAudio.prototype, "sceAudioOutputPannedBlocking", null);
+__decorate([
+    nativeFunction(0x136CAF51, 150, 'uint', 'int/int/void*')
+], sceAudio.prototype, "sceAudioOutputBlocking", null);
+__decorate([
+    nativeFunction(0x8C1009B2, 150, 'uint', 'int/int/void*')
+], sceAudio.prototype, "sceAudioOutput", null);
+__decorate([
+    nativeFunction(0xE2D56B2D, 150, 'uint', 'int/int/int/void*')
+], sceAudio.prototype, "sceAudioOutputPanned", null);
+__decorate([
+    nativeFunction(0xB7E1D8E7, 150, 'uint', 'int/int/int')
+], sceAudio.prototype, "sceAudioChangeChannelVolume", null);
+__decorate([
+    nativeFunction(0xB7E1D8E7, 150, 'uint', 'int')
+], sceAudio.prototype, "sceAudioGetChannelRestLen", null);
 exports.sceAudio = sceAudio;
 var AudioFormat;
 (function (AudioFormat) {
@@ -19071,6 +24492,7 @@ var Channel = (function () {
     Object.defineProperty(Channel.prototype, "totalSampleCount", {
         get: function () {
             return this.sampleCount * this.numberOfChannels;
+            //return this.sampleCount;
         },
         enumerable: true,
         configurable: true
@@ -19083,23 +24505,22 @@ var Channel = (function () {
         configurable: true
     });
     return Channel;
-})();
+}());
 
 },
 "src/hle/module/sceCtrl": function(module, exports, require) {
 ///<reference path="../../global.d.ts" />
+"use strict";
 var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
-    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") return Reflect.decorate(decorators, target, key, desc);
-    switch (arguments.length) {
-        case 2: return decorators.reduceRight(function(o, d) { return (d && d(o)) || o; }, target);
-        case 3: return decorators.reduceRight(function(o, d) { return (d && d(target, key)), void 0; }, void 0);
-        case 4: return decorators.reduceRight(function(o, d) { return (d && d(target, key, o)) || o; }, desc);
-    }
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
 };
-var _utils = require('../utils');
-var _manager = require('../manager');
+var _utils = require("../utils");
+var _manager = require("../manager");
 _manager.Thread;
-var _controller = require('../../core/controller');
+var _controller = require("../../core/controller");
 var nativeFunction = _utils.nativeFunction;
 var SceCtrlData = _controller.SceCtrlData;
 var sceCtrl = (function () {
@@ -19108,30 +24529,36 @@ var sceCtrl = (function () {
         this.lastLatchData = new SceCtrlData();
     }
     sceCtrl.prototype.sceCtrlPeekBufferPositive = function (sceCtrlDataPtr, count) {
+        //console.log('sceCtrlPeekBufferPositive');
         for (var n = 0; n < count; n++)
             _controller.SceCtrlData.struct.write(sceCtrlDataPtr, this.context.controller.data);
+        //return waitAsync(1).then(v => count);
         return count;
     };
     sceCtrl.prototype.sceCtrlReadBufferPositive = function (thread, sceCtrlDataPtr, count) {
         //console.log('sceCtrlReadBufferPositive');
         for (var n = 0; n < count; n++)
             _controller.SceCtrlData.struct.write(sceCtrlDataPtr, this.context.controller.data);
+        //return Promise2.resolve(0);
         return new WaitingThreadInfo('sceCtrlReadBufferPositive', this.context.display, this.context.display.waitVblankStartAsync(thread).then(function (v) { return count; }), AcceptCallbacks.NO);
+        //return 0;
     };
     sceCtrl.prototype.sceCtrlSetSamplingCycle = function (samplingCycle) {
+        //console.warn('Not implemented sceCtrl.sceCtrlSetSamplingCycle');
         return 0;
     };
     sceCtrl.prototype.sceCtrlSetSamplingMode = function (samplingMode) {
+        //console.warn('Not implemented sceCtrl.sceCtrlSetSamplingMode');
         return 0;
     };
     sceCtrl.prototype._peekLatch = function (currentLatchPtr) {
         var ButtonsNew = this.context.controller.data.buttons;
         var ButtonsOld = this.lastLatchData.buttons;
         var ButtonsChanged = ButtonsOld ^ ButtonsNew;
-        currentLatchPtr.writeInt32(ButtonsNew & ButtonsChanged);
-        currentLatchPtr.writeInt32(ButtonsOld & ButtonsChanged);
-        currentLatchPtr.writeInt32(ButtonsNew);
-        currentLatchPtr.writeInt32((ButtonsOld & ~ButtonsNew) & ButtonsChanged);
+        currentLatchPtr.writeInt32(ButtonsNew & ButtonsChanged); // uiMake
+        currentLatchPtr.writeInt32(ButtonsOld & ButtonsChanged); // uiBreak
+        currentLatchPtr.writeInt32(ButtonsNew); // uiPress
+        currentLatchPtr.writeInt32((ButtonsOld & ~ButtonsNew) & ButtonsChanged); // uiRelease
         return this.context.controller.latchSamplingCount;
     };
     sceCtrl.prototype.sceCtrlReadLatch = function (currentLatchPtr) {
@@ -19146,49 +24573,42 @@ var sceCtrl = (function () {
     sceCtrl.prototype.sceCtrlSetIdleCancelThreshold = function (idlereset, idleback) {
         return 0;
     };
-    Object.defineProperty(sceCtrl.prototype, "sceCtrlPeekBufferPositive",
-        __decorate([
-            nativeFunction(0x3A622550, 150, 'uint', 'void*/int')
-        ], sceCtrl.prototype, "sceCtrlPeekBufferPositive", Object.getOwnPropertyDescriptor(sceCtrl.prototype, "sceCtrlPeekBufferPositive")));
-    Object.defineProperty(sceCtrl.prototype, "sceCtrlReadBufferPositive",
-        __decorate([
-            nativeFunction(0x1F803938, 150, 'uint', 'Thread/void*/int')
-        ], sceCtrl.prototype, "sceCtrlReadBufferPositive", Object.getOwnPropertyDescriptor(sceCtrl.prototype, "sceCtrlReadBufferPositive")));
-    Object.defineProperty(sceCtrl.prototype, "sceCtrlSetSamplingCycle",
-        __decorate([
-            nativeFunction(0x6A2774F3, 150, 'uint', 'int')
-        ], sceCtrl.prototype, "sceCtrlSetSamplingCycle", Object.getOwnPropertyDescriptor(sceCtrl.prototype, "sceCtrlSetSamplingCycle")));
-    Object.defineProperty(sceCtrl.prototype, "sceCtrlSetSamplingMode",
-        __decorate([
-            nativeFunction(0x1F4011E6, 150, 'uint', 'int')
-        ], sceCtrl.prototype, "sceCtrlSetSamplingMode", Object.getOwnPropertyDescriptor(sceCtrl.prototype, "sceCtrlSetSamplingMode")));
-    Object.defineProperty(sceCtrl.prototype, "sceCtrlReadLatch",
-        __decorate([
-            nativeFunction(0x0B588501, 150, 'uint', 'void*')
-        ], sceCtrl.prototype, "sceCtrlReadLatch", Object.getOwnPropertyDescriptor(sceCtrl.prototype, "sceCtrlReadLatch")));
-    Object.defineProperty(sceCtrl.prototype, "sceCtrlSetIdleCancelThreshold",
-        __decorate([
-            nativeFunction(0xA7144800, 150, 'uint', 'int/int')
-        ], sceCtrl.prototype, "sceCtrlSetIdleCancelThreshold", Object.getOwnPropertyDescriptor(sceCtrl.prototype, "sceCtrlSetIdleCancelThreshold")));
     return sceCtrl;
-})();
+}());
+__decorate([
+    nativeFunction(0x3A622550, 150, 'uint', 'void*/int')
+], sceCtrl.prototype, "sceCtrlPeekBufferPositive", null);
+__decorate([
+    nativeFunction(0x1F803938, 150, 'uint', 'Thread/void*/int')
+], sceCtrl.prototype, "sceCtrlReadBufferPositive", null);
+__decorate([
+    nativeFunction(0x6A2774F3, 150, 'uint', 'int')
+], sceCtrl.prototype, "sceCtrlSetSamplingCycle", null);
+__decorate([
+    nativeFunction(0x1F4011E6, 150, 'uint', 'int')
+], sceCtrl.prototype, "sceCtrlSetSamplingMode", null);
+__decorate([
+    nativeFunction(0x0B588501, 150, 'uint', 'void*')
+], sceCtrl.prototype, "sceCtrlReadLatch", null);
+__decorate([
+    nativeFunction(0xA7144800, 150, 'uint', 'int/int')
+], sceCtrl.prototype, "sceCtrlSetIdleCancelThreshold", null);
 exports.sceCtrl = sceCtrl;
 
 },
 "src/hle/module/sceDisplay": function(module, exports, require) {
 ///<reference path="../../global.d.ts" />
+"use strict";
 var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
-    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") return Reflect.decorate(decorators, target, key, desc);
-    switch (arguments.length) {
-        case 2: return decorators.reduceRight(function(o, d) { return (d && d(o)) || o; }, target);
-        case 3: return decorators.reduceRight(function(o, d) { return (d && d(target, key)), void 0; }, void 0);
-        case 4: return decorators.reduceRight(function(o, d) { return (d && d(target, key, o)) || o; }, desc);
-    }
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
 };
-var _utils = require('../utils');
-var _manager = require('../manager');
+var _utils = require("../utils");
+var _manager = require("../manager");
 _manager.Thread;
-var _display = require('../../core/display');
+var _display = require("../../core/display");
 var nativeFunction = _utils.nativeFunction;
 var PspDisplay = _display.PspDisplay;
 var sceDisplay = (function () {
@@ -19230,9 +24650,11 @@ var sceDisplay = (function () {
     };
     sceDisplay.prototype.sceDisplayWaitVblankStart = function (thread) {
         return this._waitVblankAsync(thread, AcceptCallbacks.NO);
+        //return this._waitVblankStartAsync(thread, AcceptCallbacks.NO);
     };
     sceDisplay.prototype.sceDisplayWaitVblankStartCB = function (thread) {
         return this._waitVblankAsync(thread, AcceptCallbacks.YES);
+        //return this._waitVblankStartAsync(thread, AcceptCallbacks.YES)
     };
     sceDisplay.prototype.sceDisplayGetVcount = function () {
         this.context.display.updateTime();
@@ -19266,72 +24688,59 @@ var sceDisplay = (function () {
         this.context.display.updateTime();
         return this.context.display.hcountTotal;
     };
-    Object.defineProperty(sceDisplay.prototype, "sceDisplaySetMode",
-        __decorate([
-            nativeFunction(0x0E20F177, 150, 'uint', 'uint/uint/uint')
-        ], sceDisplay.prototype, "sceDisplaySetMode", Object.getOwnPropertyDescriptor(sceDisplay.prototype, "sceDisplaySetMode")));
-    Object.defineProperty(sceDisplay.prototype, "sceDisplayGetMode",
-        __decorate([
-            nativeFunction(0xDEA197D4, 150, 'uint', 'void*/void*/void*')
-        ], sceDisplay.prototype, "sceDisplayGetMode", Object.getOwnPropertyDescriptor(sceDisplay.prototype, "sceDisplayGetMode")));
-    Object.defineProperty(sceDisplay.prototype, "sceDisplayWaitVblank",
-        __decorate([
-            nativeFunction(0x36CDFADE, 150, 'uint', 'Thread/int', { disableInsideInterrupt: true })
-        ], sceDisplay.prototype, "sceDisplayWaitVblank", Object.getOwnPropertyDescriptor(sceDisplay.prototype, "sceDisplayWaitVblank")));
-    Object.defineProperty(sceDisplay.prototype, "sceDisplayWaitVblankCB",
-        __decorate([
-            nativeFunction(0x8EB9EC49, 150, 'uint', 'Thread/int', { disableInsideInterrupt: true })
-        ], sceDisplay.prototype, "sceDisplayWaitVblankCB", Object.getOwnPropertyDescriptor(sceDisplay.prototype, "sceDisplayWaitVblankCB")));
-    Object.defineProperty(sceDisplay.prototype, "sceDisplayWaitVblankStart",
-        __decorate([
-            nativeFunction(0x984C27E7, 150, 'uint', 'Thread', { disableInsideInterrupt: true })
-        ], sceDisplay.prototype, "sceDisplayWaitVblankStart", Object.getOwnPropertyDescriptor(sceDisplay.prototype, "sceDisplayWaitVblankStart")));
-    Object.defineProperty(sceDisplay.prototype, "sceDisplayWaitVblankStartCB",
-        __decorate([
-            nativeFunction(0x46F186C3, 150, 'uint', 'Thread', { disableInsideInterrupt: true })
-        ], sceDisplay.prototype, "sceDisplayWaitVblankStartCB", Object.getOwnPropertyDescriptor(sceDisplay.prototype, "sceDisplayWaitVblankStartCB")));
-    Object.defineProperty(sceDisplay.prototype, "sceDisplayGetVcount",
-        __decorate([
-            nativeFunction(0x9C6EAAD7, 150, 'int', '')
-        ], sceDisplay.prototype, "sceDisplayGetVcount", Object.getOwnPropertyDescriptor(sceDisplay.prototype, "sceDisplayGetVcount")));
-    Object.defineProperty(sceDisplay.prototype, "sceDisplayGetFramePerSec",
-        __decorate([
-            nativeFunction(0xDBA6C4C4, 150, 'float', '')
-        ], sceDisplay.prototype, "sceDisplayGetFramePerSec", Object.getOwnPropertyDescriptor(sceDisplay.prototype, "sceDisplayGetFramePerSec")));
-    Object.defineProperty(sceDisplay.prototype, "sceDisplayIsVblank",
-        __decorate([
-            nativeFunction(0x4D4E10EC, 150, 'int', '')
-        ], sceDisplay.prototype, "sceDisplayIsVblank", Object.getOwnPropertyDescriptor(sceDisplay.prototype, "sceDisplayIsVblank")));
-    Object.defineProperty(sceDisplay.prototype, "sceDisplaySetFrameBuf",
-        __decorate([
-            nativeFunction(0x289D82FE, 150, 'uint', 'uint/int/uint/uint')
-        ], sceDisplay.prototype, "sceDisplaySetFrameBuf", Object.getOwnPropertyDescriptor(sceDisplay.prototype, "sceDisplaySetFrameBuf")));
-    Object.defineProperty(sceDisplay.prototype, "sceDisplayGetFrameBuf",
-        __decorate([
-            nativeFunction(0xEEDA2E54, 150, 'uint', 'void*/void*/void*/void*')
-        ], sceDisplay.prototype, "sceDisplayGetFrameBuf", Object.getOwnPropertyDescriptor(sceDisplay.prototype, "sceDisplayGetFrameBuf")));
-    Object.defineProperty(sceDisplay.prototype, "sceDisplayGetCurrentHcount",
-        __decorate([
-            nativeFunction(0x773DD3A3, 150, 'uint', '')
-        ], sceDisplay.prototype, "sceDisplayGetCurrentHcount", Object.getOwnPropertyDescriptor(sceDisplay.prototype, "sceDisplayGetCurrentHcount")));
     return sceDisplay;
-})();
+}());
+__decorate([
+    nativeFunction(0x0E20F177, 150, 'uint', 'uint/uint/uint')
+], sceDisplay.prototype, "sceDisplaySetMode", null);
+__decorate([
+    nativeFunction(0xDEA197D4, 150, 'uint', 'void*/void*/void*')
+], sceDisplay.prototype, "sceDisplayGetMode", null);
+__decorate([
+    nativeFunction(0x36CDFADE, 150, 'uint', 'Thread/int', { disableInsideInterrupt: true })
+], sceDisplay.prototype, "sceDisplayWaitVblank", null);
+__decorate([
+    nativeFunction(0x8EB9EC49, 150, 'uint', 'Thread/int', { disableInsideInterrupt: true })
+], sceDisplay.prototype, "sceDisplayWaitVblankCB", null);
+__decorate([
+    nativeFunction(0x984C27E7, 150, 'uint', 'Thread', { disableInsideInterrupt: true })
+], sceDisplay.prototype, "sceDisplayWaitVblankStart", null);
+__decorate([
+    nativeFunction(0x46F186C3, 150, 'uint', 'Thread', { disableInsideInterrupt: true })
+], sceDisplay.prototype, "sceDisplayWaitVblankStartCB", null);
+__decorate([
+    nativeFunction(0x9C6EAAD7, 150, 'int', '')
+], sceDisplay.prototype, "sceDisplayGetVcount", null);
+__decorate([
+    nativeFunction(0xDBA6C4C4, 150, 'float', '')
+], sceDisplay.prototype, "sceDisplayGetFramePerSec", null);
+__decorate([
+    nativeFunction(0x4D4E10EC, 150, 'int', '')
+], sceDisplay.prototype, "sceDisplayIsVblank", null);
+__decorate([
+    nativeFunction(0x289D82FE, 150, 'uint', 'uint/int/uint/uint')
+], sceDisplay.prototype, "sceDisplaySetFrameBuf", null);
+__decorate([
+    nativeFunction(0xEEDA2E54, 150, 'uint', 'void*/void*/void*/void*')
+], sceDisplay.prototype, "sceDisplayGetFrameBuf", null);
+__decorate([
+    nativeFunction(0x773DD3A3, 150, 'uint', '')
+], sceDisplay.prototype, "sceDisplayGetCurrentHcount", null);
 exports.sceDisplay = sceDisplay;
 
 },
 "src/hle/module/sceDmac": function(module, exports, require) {
 ///<reference path="../../global.d.ts" />
+"use strict";
 var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
-    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") return Reflect.decorate(decorators, target, key, desc);
-    switch (arguments.length) {
-        case 2: return decorators.reduceRight(function(o, d) { return (d && d(o)) || o; }, target);
-        case 3: return decorators.reduceRight(function(o, d) { return (d && d(target, key)), void 0; }, void 0);
-        case 4: return decorators.reduceRight(function(o, d) { return (d && d(target, key, o)) || o; }, desc);
-    }
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
 };
-var _utils = require('../utils');
+var _utils = require("../utils");
 var nativeFunction = _utils.nativeFunction;
-var SceKernelErrors = require('../SceKernelErrors');
+var SceKernelErrors = require("../SceKernelErrors");
 var sceDmac = (function () {
     function sceDmac(context) {
         this.context = context;
@@ -19354,32 +24763,29 @@ var sceDmac = (function () {
     sceDmac.prototype.sceDmacTryMemcpy = function (destination, source, size) {
         return this._sceDmacMemcpy(destination, source, size);
     };
-    Object.defineProperty(sceDmac.prototype, "sceDmacMemcpy",
-        __decorate([
-            nativeFunction(0x617F3FE6, 150, 'uint', 'uint/uint/int')
-        ], sceDmac.prototype, "sceDmacMemcpy", Object.getOwnPropertyDescriptor(sceDmac.prototype, "sceDmacMemcpy")));
-    Object.defineProperty(sceDmac.prototype, "sceDmacTryMemcpy",
-        __decorate([
-            nativeFunction(0xD97F94D8, 150, 'uint', 'uint/uint/int')
-        ], sceDmac.prototype, "sceDmacTryMemcpy", Object.getOwnPropertyDescriptor(sceDmac.prototype, "sceDmacTryMemcpy")));
     return sceDmac;
-})();
+}());
+__decorate([
+    nativeFunction(0x617F3FE6, 150, 'uint', 'uint/uint/int')
+], sceDmac.prototype, "sceDmacMemcpy", null);
+__decorate([
+    nativeFunction(0xD97F94D8, 150, 'uint', 'uint/uint/int')
+], sceDmac.prototype, "sceDmacTryMemcpy", null);
 exports.sceDmac = sceDmac;
 
 },
 "src/hle/module/sceGe_user": function(module, exports, require) {
 ///<reference path="../../global.d.ts" />
+"use strict";
 var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
-    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") return Reflect.decorate(decorators, target, key, desc);
-    switch (arguments.length) {
-        case 2: return decorators.reduceRight(function(o, d) { return (d && d(o)) || o; }, target);
-        case 3: return decorators.reduceRight(function(o, d) { return (d && d(target, key)), void 0; }, void 0);
-        case 4: return decorators.reduceRight(function(o, d) { return (d && d(target, key, o)) || o; }, desc);
-    }
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
 };
-var _utils = require('../utils');
+var _utils = require("../utils");
 var nativeFunction = _utils.nativeFunction;
-var _gpu = require('../../core/gpu');
+var _gpu = require("../../core/gpu");
 _gpu.PspGpuCallback;
 var PspGpuCallback = _gpu.PspGpuCallback;
 var sceGe_user = (function () {
@@ -19408,14 +24814,17 @@ var sceGe_user = (function () {
         return this.context.gpu.listEnqueue(start, stall, callbackId, argsPtr);
     };
     sceGe_user.prototype.sceGeListSync = function (displayListId, syncType) {
+        //console.warn('Not implemented sceGe_user.sceGeListSync');
         return this.context.gpu.listSync(displayListId, syncType);
     };
     sceGe_user.prototype.sceGeListUpdateStallAddr = function (displayListId, stall) {
+        //console.warn('Not implemented sceGe_user.sceGeListUpdateStallAddr');
         return this.context.gpu.updateStallAddr(displayListId, stall);
     };
     sceGe_user.prototype.sceGeDrawSync = function (syncType) {
         var result = this.context.gpu.drawSync(syncType);
         if (result instanceof Promise2) {
+            //result = Promise2.all([result, waitAsync(10)]);
             return new WaitingThreadInfo('sceGeDrawSync', this.context.gpu, result.then(function () {
             }), AcceptCallbacks.NO, Compensate.YES);
         }
@@ -19430,82 +24839,72 @@ var sceGe_user = (function () {
         return -1;
     };
     sceGe_user.prototype.sceGeEdramGetAddr = function () {
+        //console.warn('Not implemented sceGe_user.sceGeEdramGetAddr', 0x04000000);
         return 0x04000000;
     };
     sceGe_user.prototype.sceGeEdramGetSize = function () {
-        return 0x00200000;
+        //console.warn('Not implemented sceGe_user.sceGeEdramGetSize', 0x00200000);
+        return 0x00200000; // 2MB
     };
-    Object.defineProperty(sceGe_user.prototype, "sceGeEdramSetAddrTranslation",
-        __decorate([
-            nativeFunction(0xB77905EA, 150, 'uint', 'int')
-        ], sceGe_user.prototype, "sceGeEdramSetAddrTranslation", Object.getOwnPropertyDescriptor(sceGe_user.prototype, "sceGeEdramSetAddrTranslation")));
-    Object.defineProperty(sceGe_user.prototype, "sceGeSetCallback",
-        __decorate([
-            nativeFunction(0xA4FC06A4, 150, 'uint', 'Thread/void*')
-        ], sceGe_user.prototype, "sceGeSetCallback", Object.getOwnPropertyDescriptor(sceGe_user.prototype, "sceGeSetCallback")));
-    Object.defineProperty(sceGe_user.prototype, "sceGeUnsetCallback",
-        __decorate([
-            nativeFunction(0x05DB22CE, 150, 'uint', 'int')
-        ], sceGe_user.prototype, "sceGeUnsetCallback", Object.getOwnPropertyDescriptor(sceGe_user.prototype, "sceGeUnsetCallback")));
-    Object.defineProperty(sceGe_user.prototype, "sceGeListEnQueue",
-        __decorate([
-            nativeFunction(0xAB49E76A, 150, 'uint', 'uint/uint/int/void*')
-        ], sceGe_user.prototype, "sceGeListEnQueue", Object.getOwnPropertyDescriptor(sceGe_user.prototype, "sceGeListEnQueue")));
-    Object.defineProperty(sceGe_user.prototype, "sceGeListSync",
-        __decorate([
-            nativeFunction(0x03444EB4, 150, 'uint', 'int/int')
-        ], sceGe_user.prototype, "sceGeListSync", Object.getOwnPropertyDescriptor(sceGe_user.prototype, "sceGeListSync")));
-    Object.defineProperty(sceGe_user.prototype, "sceGeListUpdateStallAddr",
-        __decorate([
-            nativeFunction(0xE0D68148, 150, 'uint', 'int/int')
-        ], sceGe_user.prototype, "sceGeListUpdateStallAddr", Object.getOwnPropertyDescriptor(sceGe_user.prototype, "sceGeListUpdateStallAddr")));
-    Object.defineProperty(sceGe_user.prototype, "sceGeDrawSync",
-        __decorate([
-            nativeFunction(0xB287BD61, 150, 'uint', 'int')
-        ], sceGe_user.prototype, "sceGeDrawSync", Object.getOwnPropertyDescriptor(sceGe_user.prototype, "sceGeDrawSync")));
-    Object.defineProperty(sceGe_user.prototype, "sceGeContinue",
-        __decorate([
-            nativeFunction(0x4C06E472, 150, 'uint', '')
-        ], sceGe_user.prototype, "sceGeContinue", Object.getOwnPropertyDescriptor(sceGe_user.prototype, "sceGeContinue")));
-    Object.defineProperty(sceGe_user.prototype, "sceGeBreak",
-        __decorate([
-            nativeFunction(0xB448EC0D, 150, 'uint', 'int/void*')
-        ], sceGe_user.prototype, "sceGeBreak", Object.getOwnPropertyDescriptor(sceGe_user.prototype, "sceGeBreak")));
-    Object.defineProperty(sceGe_user.prototype, "sceGeEdramGetAddr",
-        __decorate([
-            nativeFunction(0xE47E40E4, 150, 'uint', '')
-        ], sceGe_user.prototype, "sceGeEdramGetAddr", Object.getOwnPropertyDescriptor(sceGe_user.prototype, "sceGeEdramGetAddr")));
-    Object.defineProperty(sceGe_user.prototype, "sceGeEdramGetSize",
-        __decorate([
-            nativeFunction(0x1F6752AD, 150, 'uint', '')
-        ], sceGe_user.prototype, "sceGeEdramGetSize", Object.getOwnPropertyDescriptor(sceGe_user.prototype, "sceGeEdramGetSize")));
     return sceGe_user;
-})();
+}());
+__decorate([
+    nativeFunction(0xB77905EA, 150, 'uint', 'int')
+], sceGe_user.prototype, "sceGeEdramSetAddrTranslation", null);
+__decorate([
+    nativeFunction(0xA4FC06A4, 150, 'uint', 'Thread/void*')
+], sceGe_user.prototype, "sceGeSetCallback", null);
+__decorate([
+    nativeFunction(0x05DB22CE, 150, 'uint', 'int')
+], sceGe_user.prototype, "sceGeUnsetCallback", null);
+__decorate([
+    nativeFunction(0xAB49E76A, 150, 'uint', 'uint/uint/int/void*')
+], sceGe_user.prototype, "sceGeListEnQueue", null);
+__decorate([
+    nativeFunction(0x03444EB4, 150, 'uint', 'int/int')
+], sceGe_user.prototype, "sceGeListSync", null);
+__decorate([
+    nativeFunction(0xE0D68148, 150, 'uint', 'int/int')
+], sceGe_user.prototype, "sceGeListUpdateStallAddr", null);
+__decorate([
+    nativeFunction(0xB287BD61, 150, 'uint', 'int')
+], sceGe_user.prototype, "sceGeDrawSync", null);
+__decorate([
+    nativeFunction(0x4C06E472, 150, 'uint', '')
+], sceGe_user.prototype, "sceGeContinue", null);
+__decorate([
+    nativeFunction(0xB448EC0D, 150, 'uint', 'int/void*')
+], sceGe_user.prototype, "sceGeBreak", null);
+__decorate([
+    nativeFunction(0xE47E40E4, 150, 'uint', '')
+], sceGe_user.prototype, "sceGeEdramGetAddr", null);
+__decorate([
+    nativeFunction(0x1F6752AD, 150, 'uint', '')
+], sceGe_user.prototype, "sceGeEdramGetSize", null);
 exports.sceGe_user = sceGe_user;
 var CallbackData = (function () {
     function CallbackData() {
     }
-    CallbackData.struct = StructClass.create(CallbackData, [
-        { signalFunction: UInt32 },
-        { signalArgument: UInt32 },
-        { finishFunction: UInt32 },
-        { finishArgument: UInt32 },
-    ]);
     return CallbackData;
-})();
+}());
+CallbackData.struct = StructClass.create(CallbackData, [
+    { signalFunction: UInt32 },
+    { signalArgument: UInt32 },
+    { finishFunction: UInt32 },
+    { finishArgument: UInt32 },
+]);
 
 },
 "src/hle/module/sceHprm": function(module, exports, require) {
 ///<reference path="../../global.d.ts" />
+"use strict";
 var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
-    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") return Reflect.decorate(decorators, target, key, desc);
-    switch (arguments.length) {
-        case 2: return decorators.reduceRight(function(o, d) { return (d && d(o)) || o; }, target);
-        case 3: return decorators.reduceRight(function(o, d) { return (d && d(target, key)), void 0; }, void 0);
-        case 4: return decorators.reduceRight(function(o, d) { return (d && d(target, key, o)) || o; }, desc);
-    }
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
 };
-var _utils = require('../utils');
+var _utils = require("../utils");
 var nativeFunction = _utils.nativeFunction;
 var sceHprm = (function () {
     function sceHprm(context) {
@@ -19515,37 +24914,36 @@ var sceHprm = (function () {
         PspHprmKeysEnumKeyPtr.writeInt32(0);
         return 0;
     };
-    Object.defineProperty(sceHprm.prototype, "sceHprmPeekCurrentKey",
-        __decorate([
-            nativeFunction(0x1910B327, 150, 'uint', 'void*')
-        ], sceHprm.prototype, "sceHprmPeekCurrentKey", Object.getOwnPropertyDescriptor(sceHprm.prototype, "sceHprmPeekCurrentKey")));
     return sceHprm;
-})();
+}());
+__decorate([
+    nativeFunction(0x1910B327, 150, 'uint', 'void*')
+], sceHprm.prototype, "sceHprmPeekCurrentKey", null);
 exports.sceHprm = sceHprm;
 
 },
 "src/hle/module/sceHttp": function(module, exports, require) {
 ///<reference path="../../global.d.ts" />
+"use strict";
 var sceHttp = (function () {
     function sceHttp(context) {
         this.context = context;
     }
     return sceHttp;
-})();
+}());
 exports.sceHttp = sceHttp;
 
 },
 "src/hle/module/sceImpose": function(module, exports, require) {
 ///<reference path="../../global.d.ts" />
+"use strict";
 var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
-    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") return Reflect.decorate(decorators, target, key, desc);
-    switch (arguments.length) {
-        case 2: return decorators.reduceRight(function(o, d) { return (d && d(o)) || o; }, target);
-        case 3: return decorators.reduceRight(function(o, d) { return (d && d(target, key)), void 0; }, void 0);
-        case 4: return decorators.reduceRight(function(o, d) { return (d && d(target, key, o)) || o; }, desc);
-    }
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
 };
-var utils_1 = require('../utils');
+var utils_1 = require("../utils");
 var sceImpose = (function () {
     function sceImpose(context) {
         this.context = context;
@@ -19565,34 +24963,30 @@ var sceImpose = (function () {
         buttonPreferencePtr.writeUInt32(this.context.config.buttonPreference);
         return 0;
     };
-    Object.defineProperty(sceImpose.prototype, "sceImposeGetBatteryIconStatus",
-        __decorate([
-            utils_1.nativeFunction(0x8C943191, 150, 'uint', 'void*/void*')
-        ], sceImpose.prototype, "sceImposeGetBatteryIconStatus", Object.getOwnPropertyDescriptor(sceImpose.prototype, "sceImposeGetBatteryIconStatus")));
-    Object.defineProperty(sceImpose.prototype, "sceImposeSetLanguageMode",
-        __decorate([
-            utils_1.nativeFunction(0x36AA6E91, 150, 'uint', 'uint/uint')
-        ], sceImpose.prototype, "sceImposeSetLanguageMode", Object.getOwnPropertyDescriptor(sceImpose.prototype, "sceImposeSetLanguageMode")));
-    Object.defineProperty(sceImpose.prototype, "sceImposeGetLanguageMode",
-        __decorate([
-            utils_1.nativeFunction(0x24FD7BCF, 150, 'uint', 'void*/void*')
-        ], sceImpose.prototype, "sceImposeGetLanguageMode", Object.getOwnPropertyDescriptor(sceImpose.prototype, "sceImposeGetLanguageMode")));
     return sceImpose;
-})();
+}());
+__decorate([
+    utils_1.nativeFunction(0x8C943191, 150, 'uint', 'void*/void*')
+], sceImpose.prototype, "sceImposeGetBatteryIconStatus", null);
+__decorate([
+    utils_1.nativeFunction(0x36AA6E91, 150, 'uint', 'uint/uint')
+], sceImpose.prototype, "sceImposeSetLanguageMode", null);
+__decorate([
+    utils_1.nativeFunction(0x24FD7BCF, 150, 'uint', 'void*/void*')
+], sceImpose.prototype, "sceImposeGetLanguageMode", null);
 exports.sceImpose = sceImpose;
 
 },
 "src/hle/module/sceLibFont": function(module, exports, require) {
 ///<reference path="../../global.d.ts" />
+"use strict";
 var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
-    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") return Reflect.decorate(decorators, target, key, desc);
-    switch (arguments.length) {
-        case 2: return decorators.reduceRight(function(o, d) { return (d && d(o)) || o; }, target);
-        case 3: return decorators.reduceRight(function(o, d) { return (d && d(target, key)), void 0; }, void 0);
-        case 4: return decorators.reduceRight(function(o, d) { return (d && d(target, key, o)) || o; }, desc);
-    }
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
 };
-var _utils = require('../utils');
+var _utils = require("../utils");
 var nativeFunction = _utils.nativeFunction;
 var sceLibFont = (function () {
     function sceLibFont(context) {
@@ -19617,68 +25011,141 @@ var sceLibFont = (function () {
         return 0;
     };
     sceLibFont.prototype.sceFontSetResolution = function (fontLibId, horizontalResolution, verticalResolution) {
+        //var font = this.fontUid.get(fontId);
+        //FontLibrary.HorizontalResolution = HorizontalResolution;
+        //FontLibrary.VerticalResolution = VerticalResolution;
         return 0;
     };
-    Object.defineProperty(sceLibFont.prototype, "sceFontNewLib",
-        __decorate([
-            nativeFunction(0x67F17ED7, 150, 'uint', 'void*/void*')
-        ], sceLibFont.prototype, "sceFontNewLib", Object.getOwnPropertyDescriptor(sceLibFont.prototype, "sceFontNewLib")));
-    Object.defineProperty(sceLibFont.prototype, "sceFontFindOptimumFont",
-        __decorate([
-            nativeFunction(0x099EF33C, 150, 'uint', 'int/void*/void*')
-        ], sceLibFont.prototype, "sceFontFindOptimumFont", Object.getOwnPropertyDescriptor(sceLibFont.prototype, "sceFontFindOptimumFont")));
-    Object.defineProperty(sceLibFont.prototype, "sceFontOpen",
-        __decorate([
-            nativeFunction(0xA834319D, 150, 'uint', 'int/int/int/void*')
-        ], sceLibFont.prototype, "sceFontOpen", Object.getOwnPropertyDescriptor(sceLibFont.prototype, "sceFontOpen")));
-    Object.defineProperty(sceLibFont.prototype, "sceFontGetFontInfo",
-        __decorate([
-            nativeFunction(0x0DA7535E, 150, 'uint', 'int/void*')
-        ], sceLibFont.prototype, "sceFontGetFontInfo", Object.getOwnPropertyDescriptor(sceLibFont.prototype, "sceFontGetFontInfo")));
-    Object.defineProperty(sceLibFont.prototype, "sceFontSetResolution",
-        __decorate([
-            nativeFunction(0x48293280, 150, 'uint', 'int/float/float')
-        ], sceLibFont.prototype, "sceFontSetResolution", Object.getOwnPropertyDescriptor(sceLibFont.prototype, "sceFontSetResolution")));
     return sceLibFont;
-})();
+}());
+__decorate([
+    nativeFunction(0x67F17ED7, 150, 'uint', 'void*/void*')
+], sceLibFont.prototype, "sceFontNewLib", null);
+__decorate([
+    nativeFunction(0x099EF33C, 150, 'uint', 'int/void*/void*')
+], sceLibFont.prototype, "sceFontFindOptimumFont", null);
+__decorate([
+    nativeFunction(0xA834319D, 150, 'uint', 'int/int/int/void*')
+], sceLibFont.prototype, "sceFontOpen", null);
+__decorate([
+    nativeFunction(0x0DA7535E, 150, 'uint', 'int/void*')
+], sceLibFont.prototype, "sceFontGetFontInfo", null);
+__decorate([
+    nativeFunction(0x48293280, 150, 'uint', 'int/float/float')
+], sceLibFont.prototype, "sceFontSetResolution", null);
 exports.sceLibFont = sceLibFont;
 var FontLib = (function () {
     function FontLib() {
     }
     return FontLib;
-})();
+}());
 var Font = (function () {
     function Font() {
     }
     return Font;
-})();
+}());
+/*
+class FontInfo {
+    private Fixed26_6 MaxGlyphWidthI;
+    private Fixed26_6 MaxGlyphHeightI;
+    private Fixed26_6 MaxGlyphAscenderI;
+    private Fixed26_6 MaxGlyphDescenderI;
+    private Fixed26_6 MaxGlyphLeftXI;
+    private Fixed26_6 MaxGlyphBaseYI;
+    private Fixed26_6 MinGlyphCenterXI;
+    private Fixed26_6 MaxGlyphTopYI;
+    private Fixed26_6 MaxGlyphAdvanceXI;
+    private Fixed26_6 MaxGlyphAdvanceYI;
+
+    private float MaxGlyphWidthF;
+    private float MaxGlyphHeightF;
+    private float MaxGlyphAscenderF;
+    private float MaxGlyphDescenderF;
+    private float MaxGlyphLeftXF;
+    private float MaxGlyphBaseYF;
+    private float MinGlyphCenterXF;
+    private float MaxGlyphTopYF;
+    private float MaxGlyphAdvanceXF;
+    private float MaxGlyphAdvanceYF;
+
+    public float MaxGlyphAscender { set { MaxGlyphAscenderI = MaxGlyphAscenderF = value; } get { return MaxGlyphAscenderF; } }
+    public float MaxGlyphDescender { set { MaxGlyphDescenderI = MaxGlyphDescenderF = value; } get { return MaxGlyphDescenderF; } }
+    public float MaxGlyphLeftX { set { MaxGlyphLeftXI = MaxGlyphLeftXF = value; } get { return MaxGlyphLeftXF; } }
+    public float MaxGlyphBaseY { set { MaxGlyphBaseYI = MaxGlyphBaseYF = value; } get { return MaxGlyphBaseYF; } }
+    public float MinGlyphCenterX { set { MinGlyphCenterXI = MinGlyphCenterXF = value; } get { return MinGlyphCenterXF; } }
+    public float MaxGlyphTopY { set { MaxGlyphTopYI = MaxGlyphTopYF = value; } get { return MaxGlyphTopYF; } }
+    public float MaxGlyphAdvanceX { set { MaxGlyphAdvanceXI = MaxGlyphAdvanceXF = value; } get { return MaxGlyphAdvanceXF; } }
+    public float MaxGlyphAdvanceY { set { MaxGlyphAdvanceYI = MaxGlyphAdvanceYF = value; } get { return MaxGlyphAdvanceYF; } }
+
+    public ushort MaxGlyphWidth { set { MaxGlyphWidthI = MaxGlyphWidthF = _MaxGlyphWidth = value; } get { return _MaxGlyphWidth; } }
+    public ushort MaxGlyphHeight { set { MaxGlyphHeightI = MaxGlyphHeightF = _MaxGlyphHeight = value; } get { return _MaxGlyphHeight; } }
+
+    #region Bitmap dimensions.
+/// <summary>
+///
+/// </summary>
+private ushort _MaxGlyphWidth;
+
+    /// <summary>
+    ///
+    /// </summary>
+    private ushort _MaxGlyphHeight;
+
+    /// <summary>
+    /// Number of elements in the font's charmap.
+    /// </summary>
+    public uint CharMapLength;
+
+    /// <summary>
+    /// Number of elements in the font's shadow charmap.
+    /// </summary>
+    public uint ShadowMapLength;
+
+    /// <summary>
+    /// Font style (used by font comparison functions).
+    /// </summary>
+    public FontStyle FontStyle;
+    #endregion
+
+    /// <summary>
+    /// Font's BPP. = 4
+    /// </summary>
+    public byte BPP;
+
+    /// <summary>
+    /// Padding.
+    /// </summary>
+    public fixed byte Pad[3];
+}
+*/ 
 
 },
 "src/hle/module/sceMp3": function(module, exports, require) {
 ///<reference path="../../global.d.ts" />
+"use strict";
 var sceMp3 = (function () {
     function sceMp3(context) {
         this.context = context;
     }
     return sceMp3;
-})();
+}());
 exports.sceMp3 = sceMp3;
 
 },
 "src/hle/module/sceMpeg": function(module, exports, require) {
 ///<reference path="../../global.d.ts" />
+"use strict";
 var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
-    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") return Reflect.decorate(decorators, target, key, desc);
-    switch (arguments.length) {
-        case 2: return decorators.reduceRight(function(o, d) { return (d && d(o)) || o; }, target);
-        case 3: return decorators.reduceRight(function(o, d) { return (d && d(target, key)), void 0; }, void 0);
-        case 4: return decorators.reduceRight(function(o, d) { return (d && d(target, key, o)) || o; }, desc);
-    }
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
 };
-var utils_1 = require('../utils');
-var pixelformat_1 = require('../../core/pixelformat');
-var SceKernelErrors = require('../SceKernelErrors');
+var utils_1 = require("../utils");
+var pixelformat_1 = require("../../core/pixelformat");
+var SceKernelErrors = require("../SceKernelErrors");
 var ENABLE = false;
+//var ENABLE = true;
 var sceMpeg = (function () {
     function sceMpeg(context) {
         this.context = context;
@@ -19689,6 +25156,7 @@ var sceMpeg = (function () {
         return ENABLE ? 0 : -1;
     };
     sceMpeg.prototype.sceMpegFinish = function () {
+        //this.getMpeg(sceMpegPointer).delete();
         return 0;
     };
     sceMpeg.prototype._sceMpegReadField = function (name, bufferAddr, output, readField) {
@@ -19778,6 +25246,9 @@ var sceMpeg = (function () {
         mpegHandle.writeString("LIBMPEG\0" + "001\0");
         mpegHandle.writeInt32(-1);
         this.mpegs.set(mpegAddr, this.mpeg = new Mpeg());
+        // @TODO: WIP
+        //mpegHandle.writeInt32(mpegAddr);
+        //mpegHandle.write
     };
     sceMpeg.prototype.sceMpegDelete = function (sceMpegPointer) {
         //this.getMpeg(sceMpegPointer).delete();
@@ -19814,14 +25285,20 @@ var sceMpeg = (function () {
         buf.dataUpperBound = data + numPackets * 2048;
         buf.semaID = 0;
         buf.mpeg = 0;
+        // This isn't in ver 0104, but it is in 0105.
+        //if (mpegLibVersion >= 0x0105) buf.gp = __KernelGetModuleGP(__KernelGetCurThreadModuleId());
     };
     sceMpeg.prototype.sceMpegRingbufferDestruct = function (ringBufferPointer) {
+        //Ringbuffer- > PacketsAvailable = Ringbuffer- > PacketsTotal;
+        //Ringbuffer- > PacketsRead = 0;
+        //Ringbuffer- > PacketsWritten = 0;
         return 0;
     };
     sceMpeg.prototype._mpegRingbufferRead = function () {
     };
     sceMpeg.prototype.sceMpegRingbufferPut = function (ringbufferAddr, numPackets, available) {
         var state = this.context.currentState;
+        //console.log('sceMpegRingbufferPut');
         this._mpegRingbufferRead();
         numPackets = Math.min(numPackets, available);
         if (numPackets <= 0) {
@@ -19829,6 +25306,8 @@ var sceMpeg = (function () {
             return 0;
         }
         var ringbuffer = RingBuffer.struct.createProxy(ringbufferAddr.clone());
+        //console.log(this.context.memory.getPointerU8Array(ringbuffer.data, ringbuffer.packetSize));
+        // Execute callback function as a direct MipsCall, no blocking here so no messing around with wait states etc
         if (ringbuffer.callback_addr != 0) {
             var packetsThisRound = Math.min(numPackets, ringbuffer.packets);
             this.context.interop.execute(state, ringbuffer.callback_addr, [
@@ -19846,78 +25325,61 @@ var sceMpeg = (function () {
     sceMpeg.prototype.__mpegRingbufferQueryMemSize = function (packets) {
         return packets * (104 + 2048);
     };
-    sceMpeg.RING_BUFFER_PACKET_SIZE = 0x800;
-    sceMpeg.MPEG_MEMSIZE = 64 * 1024;
-    Object.defineProperty(sceMpeg.prototype, "sceMpegInit",
-        __decorate([
-            utils_1.nativeFunction(0x682A619B, 150, 'uint', '')
-        ], sceMpeg.prototype, "sceMpegInit", Object.getOwnPropertyDescriptor(sceMpeg.prototype, "sceMpegInit")));
-    Object.defineProperty(sceMpeg.prototype, "sceMpegFinish",
-        __decorate([
-            utils_1.nativeFunction(0x874624D6, 150, 'uint', '')
-        ], sceMpeg.prototype, "sceMpegFinish", Object.getOwnPropertyDescriptor(sceMpeg.prototype, "sceMpegFinish")));
-    Object.defineProperty(sceMpeg.prototype, "sceMpegQueryStreamOffset",
-        __decorate([
-            utils_1.nativeFunction(0x21FF80E4, 150, 'uint', 'uint/uint/void*')
-        ], sceMpeg.prototype, "sceMpegQueryStreamOffset", Object.getOwnPropertyDescriptor(sceMpeg.prototype, "sceMpegQueryStreamOffset")));
-    Object.defineProperty(sceMpeg.prototype, "sceMpegQueryStreamSize",
-        __decorate([
-            utils_1.nativeFunction(0x611E9E11, 150, 'uint', 'uint/void*')
-        ], sceMpeg.prototype, "sceMpegQueryStreamSize", Object.getOwnPropertyDescriptor(sceMpeg.prototype, "sceMpegQueryStreamSize")));
-    Object.defineProperty(sceMpeg.prototype, "sceMpegAvcDecodeMode",
-        __decorate([
-            utils_1.nativeFunction(0xA11C7026, 150, 'uint', 'uint/void*')
-        ], sceMpeg.prototype, "sceMpegAvcDecodeMode", Object.getOwnPropertyDescriptor(sceMpeg.prototype, "sceMpegAvcDecodeMode")));
-    Object.defineProperty(sceMpeg.prototype, "sceMpegMallocAvcEsBuf",
-        __decorate([
-            utils_1.nativeFunction(0xA780CF7E, 150, 'uint', 'uint')
-        ], sceMpeg.prototype, "sceMpegMallocAvcEsBuf", Object.getOwnPropertyDescriptor(sceMpeg.prototype, "sceMpegMallocAvcEsBuf")));
-    Object.defineProperty(sceMpeg.prototype, "sceMpegInitAu",
-        __decorate([
-            utils_1.nativeFunction(0x167AFD9E, 150, 'uint', 'uint/uint/void*')
-        ], sceMpeg.prototype, "sceMpegInitAu", Object.getOwnPropertyDescriptor(sceMpeg.prototype, "sceMpegInitAu")));
-    Object.defineProperty(sceMpeg.prototype, "sceMpegQueryAtracEsSize",
-        __decorate([
-            utils_1.nativeFunction(0xF8DCB679, 150, 'uint', 'uint/void*/void*')
-        ], sceMpeg.prototype, "sceMpegQueryAtracEsSize", Object.getOwnPropertyDescriptor(sceMpeg.prototype, "sceMpegQueryAtracEsSize")));
-    Object.defineProperty(sceMpeg.prototype, "sceMpegRegistStream",
-        __decorate([
-            utils_1.nativeFunction(0x42560F23, 150, 'uint', 'uint/uint/uint')
-        ], sceMpeg.prototype, "sceMpegRegistStream", Object.getOwnPropertyDescriptor(sceMpeg.prototype, "sceMpegRegistStream")));
-    Object.defineProperty(sceMpeg.prototype, "sceMpegQueryMemSize",
-        __decorate([
-            utils_1.nativeFunction(0xC132E22F, 150, 'uint', 'int')
-        ], sceMpeg.prototype, "sceMpegQueryMemSize", Object.getOwnPropertyDescriptor(sceMpeg.prototype, "sceMpegQueryMemSize")));
-    Object.defineProperty(sceMpeg.prototype, "sceMpegCreate",
-        __decorate([
-            utils_1.nativeFunction(0xd8c5f121, 150, 'uint', 'uint/uint/uint/void*/uint/uint')
-        ], sceMpeg.prototype, "sceMpegCreate", Object.getOwnPropertyDescriptor(sceMpeg.prototype, "sceMpegCreate")));
-    Object.defineProperty(sceMpeg.prototype, "sceMpegDelete",
-        __decorate([
-            utils_1.nativeFunction(0x606A4649, 150, 'uint', 'int')
-        ], sceMpeg.prototype, "sceMpegDelete", Object.getOwnPropertyDescriptor(sceMpeg.prototype, "sceMpegDelete")));
-    Object.defineProperty(sceMpeg.prototype, "sceMpegRingbufferAvailableSize",
-        __decorate([
-            utils_1.nativeFunction(0xB5F6DC87, 150, 'uint', 'void*')
-        ], sceMpeg.prototype, "sceMpegRingbufferAvailableSize", Object.getOwnPropertyDescriptor(sceMpeg.prototype, "sceMpegRingbufferAvailableSize")));
-    Object.defineProperty(sceMpeg.prototype, "sceMpegRingbufferQueryMemSize",
-        __decorate([
-            utils_1.nativeFunction(0xD7A29F46, 150, 'uint', 'int')
-        ], sceMpeg.prototype, "sceMpegRingbufferQueryMemSize", Object.getOwnPropertyDescriptor(sceMpeg.prototype, "sceMpegRingbufferQueryMemSize")));
-    Object.defineProperty(sceMpeg.prototype, "sceMpegRingbufferConstruct",
-        __decorate([
-            utils_1.nativeFunction(0x37295ED8, 150, 'uint', 'void*/int/int/int/int/int')
-        ], sceMpeg.prototype, "sceMpegRingbufferConstruct", Object.getOwnPropertyDescriptor(sceMpeg.prototype, "sceMpegRingbufferConstruct")));
-    Object.defineProperty(sceMpeg.prototype, "sceMpegRingbufferDestruct",
-        __decorate([
-            utils_1.nativeFunction(0x13407F13, 150, 'uint', 'int')
-        ], sceMpeg.prototype, "sceMpegRingbufferDestruct", Object.getOwnPropertyDescriptor(sceMpeg.prototype, "sceMpegRingbufferDestruct")));
-    Object.defineProperty(sceMpeg.prototype, "sceMpegRingbufferPut",
-        __decorate([
-            utils_1.nativeFunction(0xB240A59E, 150, 'uint', 'void*/uint/uint')
-        ], sceMpeg.prototype, "sceMpegRingbufferPut", Object.getOwnPropertyDescriptor(sceMpeg.prototype, "sceMpegRingbufferPut")));
     return sceMpeg;
-})();
+}());
+sceMpeg.RING_BUFFER_PACKET_SIZE = 0x800;
+sceMpeg.MPEG_MEMSIZE = 64 * 1024;
+__decorate([
+    utils_1.nativeFunction(0x682A619B, 150, 'uint', '')
+], sceMpeg.prototype, "sceMpegInit", null);
+__decorate([
+    utils_1.nativeFunction(0x874624D6, 150, 'uint', '')
+], sceMpeg.prototype, "sceMpegFinish", null);
+__decorate([
+    utils_1.nativeFunction(0x21FF80E4, 150, 'uint', 'uint/uint/void*')
+], sceMpeg.prototype, "sceMpegQueryStreamOffset", null);
+__decorate([
+    utils_1.nativeFunction(0x611E9E11, 150, 'uint', 'uint/void*')
+], sceMpeg.prototype, "sceMpegQueryStreamSize", null);
+__decorate([
+    utils_1.nativeFunction(0xA11C7026, 150, 'uint', 'uint/void*')
+], sceMpeg.prototype, "sceMpegAvcDecodeMode", null);
+__decorate([
+    utils_1.nativeFunction(0xA780CF7E, 150, 'uint', 'uint')
+], sceMpeg.prototype, "sceMpegMallocAvcEsBuf", null);
+__decorate([
+    utils_1.nativeFunction(0x167AFD9E, 150, 'uint', 'uint/uint/void*')
+], sceMpeg.prototype, "sceMpegInitAu", null);
+__decorate([
+    utils_1.nativeFunction(0xF8DCB679, 150, 'uint', 'uint/void*/void*')
+], sceMpeg.prototype, "sceMpegQueryAtracEsSize", null);
+__decorate([
+    utils_1.nativeFunction(0x42560F23, 150, 'uint', 'uint/uint/uint')
+], sceMpeg.prototype, "sceMpegRegistStream", null);
+__decorate([
+    utils_1.nativeFunction(0xC132E22F, 150, 'uint', 'int')
+], sceMpeg.prototype, "sceMpegQueryMemSize", null);
+__decorate([
+    utils_1.nativeFunction(0xd8c5f121, 150, 'uint', 'uint/uint/uint/void*/uint/uint')
+], sceMpeg.prototype, "sceMpegCreate", null);
+__decorate([
+    utils_1.nativeFunction(0x606A4649, 150, 'uint', 'int')
+], sceMpeg.prototype, "sceMpegDelete", null);
+__decorate([
+    utils_1.nativeFunction(0xB5F6DC87, 150, 'uint', 'void*')
+], sceMpeg.prototype, "sceMpegRingbufferAvailableSize", null);
+__decorate([
+    utils_1.nativeFunction(0xD7A29F46, 150, 'uint', 'int')
+], sceMpeg.prototype, "sceMpegRingbufferQueryMemSize", null);
+__decorate([
+    utils_1.nativeFunction(0x37295ED8, 150, 'uint', 'void*/int/int/int/int/int')
+], sceMpeg.prototype, "sceMpegRingbufferConstruct", null);
+__decorate([
+    utils_1.nativeFunction(0x13407F13, 150, 'uint', 'int')
+], sceMpeg.prototype, "sceMpegRingbufferDestruct", null);
+__decorate([
+    utils_1.nativeFunction(0xB240A59E, 150, 'uint', 'void*/uint/uint')
+], sceMpeg.prototype, "sceMpegRingbufferPut", null);
 exports.sceMpeg = sceMpeg;
 var StreamType;
 (function (StreamType) {
@@ -19942,73 +25404,74 @@ var Mpeg = (function () {
         return this.avcEsBuf++;
     };
     return Mpeg;
-})();
+}());
 var SceMpegAvcMode = (function () {
     function SceMpegAvcMode() {
     }
-    SceMpegAvcMode.struct = StructClass.create(SceMpegAvcMode, [
-        { mode: Int32 },
-        { pixelformat: Int32 },
-    ]);
     return SceMpegAvcMode;
-})();
+}());
+SceMpegAvcMode.struct = StructClass.create(SceMpegAvcMode, [
+    // PSP info
+    { mode: Int32 },
+    { pixelformat: Int32 },
+]);
 var SceMpegAu = (function () {
     function SceMpegAu() {
     }
-    SceMpegAu.struct = StructClass.create(SceMpegAu, [
-        { pts: Int64 },
-        { dts: Int64 },
-        { esBuffer: UInt32 },
-        { esSize: UInt32 },
-    ]);
     return SceMpegAu;
-})();
+}());
+SceMpegAu.struct = StructClass.create(SceMpegAu, [
+    { pts: Int64 },
+    { dts: Int64 },
+    { esBuffer: UInt32 },
+    { esSize: UInt32 },
+]);
 var PmfStruct = (function () {
     function PmfStruct() {
     }
-    PmfStruct.struct = StructClass.create(PmfStruct, [
-        { magic: Stringn(4) },
-        { version: UInt32 },
-        { offset: UInt32 },
-        { size: UInt32 },
-        { _unknown: Stringn(0x44) },
-        { firstTimestampOffset: Stringn(6) },
-        { lastTimestampOffset: Stringn(6) },
-    ]);
     return PmfStruct;
-})();
+}());
+PmfStruct.struct = StructClass.create(PmfStruct, [
+    // PSP info
+    { magic: Stringn(4) },
+    { version: UInt32 },
+    { offset: UInt32 },
+    { size: UInt32 },
+    { _unknown: Stringn(0x44) },
+    { firstTimestampOffset: Stringn(6) },
+    { lastTimestampOffset: Stringn(6) },
+]);
 var RingBuffer = (function () {
     function RingBuffer() {
     }
-    RingBuffer.struct = StructClass.create(RingBuffer, [
-        { packets: Int32_l },
-        { packetsRead: Int32_l },
-        { packetsWritten: Int32_l },
-        { packetsAvail: Int32_l },
-        { packetSize: Int32_l },
-        { data: UInt32_l },
-        { callback_addr: UInt32_l },
-        { callback_args: Int32_l },
-        { dataUpperBound: Int32_l },
-        { semaID: Int32_l },
-        { mpeg: UInt32_l },
-        { gp: UInt32_l },
-    ]);
     return RingBuffer;
-})();
+}());
+RingBuffer.struct = StructClass.create(RingBuffer, [
+    { packets: Int32_l },
+    { packetsRead: Int32_l },
+    { packetsWritten: Int32_l },
+    { packetsAvail: Int32_l },
+    { packetSize: Int32_l },
+    { data: UInt32_l },
+    { callback_addr: UInt32_l },
+    { callback_args: Int32_l },
+    { dataUpperBound: Int32_l },
+    { semaID: Int32_l },
+    { mpeg: UInt32_l },
+    { gp: UInt32_l },
+]);
 
 },
 "src/hle/module/sceNet": function(module, exports, require) {
 ///<reference path="../../global.d.ts" />
+"use strict";
 var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
-    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") return Reflect.decorate(decorators, target, key, desc);
-    switch (arguments.length) {
-        case 2: return decorators.reduceRight(function(o, d) { return (d && d(o)) || o; }, target);
-        case 3: return decorators.reduceRight(function(o, d) { return (d && d(target, key)), void 0; }, void 0);
-        case 4: return decorators.reduceRight(function(o, d) { return (d && d(target, key, o)) || o; }, desc);
-    }
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
 };
-var _utils = require('../utils');
+var _utils = require("../utils");
 var nativeFunction = _utils.nativeFunction;
 var sceNet = (function () {
     function sceNet(context) {
@@ -20022,113 +25485,111 @@ var sceNet = (function () {
         return 0;
     };
     sceNet.prototype.sceNetFreeThreadinfo = function (threadId) {
-        throw (new Error("Not implemented"));
-        return -1;
+        throw new Error("Not implemented");
     };
     sceNet.prototype.sceNetThreadAbort = function (threadId) {
-        throw (new Error("Not implemented"));
-        return -1;
+        throw new Error("Not implemented");
     };
+    /** Convert string to a Mac address **/
     sceNet.prototype.sceNetEtherStrton = function (string, mac) {
         mac.set(string2mac(string));
         return 0;
     };
+    /** Convert Mac address to a string **/
     sceNet.prototype.sceNetEtherNtostr = function (mac, outputAddress) {
         outputAddress.writeStringz(mac2string(mac));
         return 0;
     };
+    /** Retrieve the local Mac address **/
     sceNet.prototype.sceNetGetLocalEtherAddr = function (macOut) {
         console.info("sceNetGetLocalEtherAddr: ", mac2string(this.context.netManager.mac));
         macOut.set(this.context.netManager.mac);
         return 0;
     };
     sceNet.prototype.sceNetGetMallocStat = function (statPtr) {
-        throw (new Error("Not implemented"));
-        return -1;
+        throw new Error("Not implemented");
     };
-    Object.defineProperty(sceNet.prototype, "sceNetInit",
-        __decorate([
-            nativeFunction(0x39AF39A6, 150, 'int', 'int/int/int/int/int')
-        ], sceNet.prototype, "sceNetInit", Object.getOwnPropertyDescriptor(sceNet.prototype, "sceNetInit")));
-    Object.defineProperty(sceNet.prototype, "sceNetTerm",
-        __decorate([
-            nativeFunction(0x281928A9, 150, 'int', '')
-        ], sceNet.prototype, "sceNetTerm", Object.getOwnPropertyDescriptor(sceNet.prototype, "sceNetTerm")));
-    Object.defineProperty(sceNet.prototype, "sceNetFreeThreadinfo",
-        __decorate([
-            nativeFunction(0x50647530, 150, 'int', 'int')
-        ], sceNet.prototype, "sceNetFreeThreadinfo", Object.getOwnPropertyDescriptor(sceNet.prototype, "sceNetFreeThreadinfo")));
-    Object.defineProperty(sceNet.prototype, "sceNetThreadAbort",
-        __decorate([
-            nativeFunction(0xAD6844c6, 150, 'int', 'int')
-        ], sceNet.prototype, "sceNetThreadAbort", Object.getOwnPropertyDescriptor(sceNet.prototype, "sceNetThreadAbort")));
-    Object.defineProperty(sceNet.prototype, "sceNetEtherStrton",
-        __decorate([
-            nativeFunction(0xD27961C9, 150, 'int', 'string/byte[6]')
-        ], sceNet.prototype, "sceNetEtherStrton", Object.getOwnPropertyDescriptor(sceNet.prototype, "sceNetEtherStrton")));
-    Object.defineProperty(sceNet.prototype, "sceNetEtherNtostr",
-        __decorate([
-            nativeFunction(0x89360950, 150, 'int', 'byte[6]/void*')
-        ], sceNet.prototype, "sceNetEtherNtostr", Object.getOwnPropertyDescriptor(sceNet.prototype, "sceNetEtherNtostr")));
-    Object.defineProperty(sceNet.prototype, "sceNetGetLocalEtherAddr",
-        __decorate([
-            nativeFunction(0x0BF0A3AE, 150, 'int', 'byte[6]')
-        ], sceNet.prototype, "sceNetGetLocalEtherAddr", Object.getOwnPropertyDescriptor(sceNet.prototype, "sceNetGetLocalEtherAddr")));
-    Object.defineProperty(sceNet.prototype, "sceNetGetMallocStat",
-        __decorate([
-            nativeFunction(0xCC393E48, 150, 'int', 'void*')
-        ], sceNet.prototype, "sceNetGetMallocStat", Object.getOwnPropertyDescriptor(sceNet.prototype, "sceNetGetMallocStat")));
     return sceNet;
-})();
+}());
+__decorate([
+    nativeFunction(0x39AF39A6, 150, 'int', 'int/int/int/int/int')
+], sceNet.prototype, "sceNetInit", null);
+__decorate([
+    nativeFunction(0x281928A9, 150, 'int', '')
+], sceNet.prototype, "sceNetTerm", null);
+__decorate([
+    nativeFunction(0x50647530, 150, 'int', 'int')
+], sceNet.prototype, "sceNetFreeThreadinfo", null);
+__decorate([
+    nativeFunction(0xAD6844c6, 150, 'int', 'int')
+], sceNet.prototype, "sceNetThreadAbort", null);
+__decorate([
+    nativeFunction(0xD27961C9, 150, 'int', 'string/byte[6]')
+], sceNet.prototype, "sceNetEtherStrton", null);
+__decorate([
+    nativeFunction(0x89360950, 150, 'int', 'byte[6]/void*')
+], sceNet.prototype, "sceNetEtherNtostr", null);
+__decorate([
+    nativeFunction(0x0BF0A3AE, 150, 'int', 'byte[6]')
+], sceNet.prototype, "sceNetGetLocalEtherAddr", null);
+__decorate([
+    nativeFunction(0xCC393E48, 150, 'int', 'void*')
+], sceNet.prototype, "sceNetGetMallocStat", null);
 exports.sceNet = sceNet;
 
 },
 "src/hle/module/sceNetAdhoc": function(module, exports, require) {
 ///<reference path="../../global.d.ts" />
+"use strict";
 var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
-    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") return Reflect.decorate(decorators, target, key, desc);
-    switch (arguments.length) {
-        case 2: return decorators.reduceRight(function(o, d) { return (d && d(o)) || o; }, target);
-        case 3: return decorators.reduceRight(function(o, d) { return (d && d(target, key)), void 0; }, void 0);
-        case 4: return decorators.reduceRight(function(o, d) { return (d && d(target, key, o)) || o; }, desc);
-    }
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
 };
-var _utils = require('../utils');
+var _utils = require("../utils");
 var nativeFunction = _utils.nativeFunction;
 var sceNetAdhoc = (function () {
     function sceNetAdhoc(context) {
         this.context = context;
         this.pdps = new UidCollection(1);
     }
+    /** Initialise the adhoc library. */
     sceNetAdhoc.prototype.sceNetAdhocInit = function () {
         this.partition = this.context.memoryManager.kernelPartition.allocateLow(0x4000);
         return 0;
     };
+    /** Terminate the adhoc library */
     sceNetAdhoc.prototype.sceNetAdhocTerm = function () {
         this.partition.deallocate();
         return 0;
     };
+    /** */
     sceNetAdhoc.prototype.sceNetAdhocPollSocket = function (socketAddress, int, timeout, nonblock) {
-        throw (new Error("Not implemented sceNetAdhocPollSocket"));
-        return -1;
+        throw new Error("Not implemented sceNetAdhocPollSocket");
     };
+    /** Create a PDP object. */
     sceNetAdhoc.prototype.sceNetAdhocPdpCreate = function (mac, port, bufsize, unk1) {
         var pdp = new Pdp(this.context, mac, port, bufsize);
         pdp.id = this.pdps.allocate(pdp);
         return pdp.id;
     };
+    /** Delete a PDP object. */
     sceNetAdhoc.prototype.sceNetAdhocPdpDelete = function (pdpId, unk1) {
         var pdp = this.pdps.get(pdpId);
         pdp.dispose();
         this.pdps.remove(pdpId);
         return 0;
     };
+    /** Send a PDP packet to a destination. */
     sceNetAdhoc.prototype.sceNetAdhocPdpSend = function (pdpId, destMac, port, dataStream, timeout, nonblock) {
+        //debugger;
         var pdp = this.pdps.get(pdpId);
         var data = dataStream.readBytes(dataStream.length);
         pdp.send(port, destMac, data);
         return 0;
     };
+    /** Receive a PDP packet */
     sceNetAdhoc.prototype.sceNetAdhocPdpRecv = function (pdpId, srcMac, portPtr, data, dataLengthPtr, timeout, nonblock) {
         var block = !nonblock;
         var pdp = this.pdps.get(pdpId);
@@ -20139,20 +25600,23 @@ var sceNetAdhoc = (function () {
             dataLengthPtr.writeInt32(chunk.payload.length);
             return 0;
         };
+        // block
         if (block) {
             return pdp.recvOneAsync().then(recvOne);
         }
         else {
             if (pdp.chunks.length <= 0)
-                return 0x80410709;
+                return 0x80410709; // ERROR_NET_ADHOC_NO_DATA_AVAILABLE
             return recvOne(pdp.chunks.shift());
         }
     };
+    /** Get the status of all PDP objects */
     sceNetAdhoc.prototype.sceNetAdhocGetPdpStat = function (sizeStream, pdpStatStruct) {
         var maxSize = sizeStream.sliceWithLength(0).readInt32();
         var pdps = this.pdps.list();
         var totalSize = pdps.length * PdpStatStruct.struct.length;
         sizeStream.sliceWithLength(0).writeInt32(totalSize);
+        //var outStream = this.context.memory.getPointerStream(this.partition.low, this.partition.size);
         var pos = 0;
         pdps.forEach(function (pdp) {
             var stat = new PdpStatStruct();
@@ -20161,164 +25625,142 @@ var sceNetAdhoc = (function () {
             stat.port = pdp.port;
             stat.mac = xrange(0, 6).map(function (index) { return pdp.mac[index]; });
             stat.rcvdData = pdp.getDataLength();
+            //console.log("sceNetAdhocGetPdpStat:", stat);
             PdpStatStruct.struct.write(pdpStatStruct, stat);
         });
         return 0;
     };
+    /** Create own game object type data. */
     sceNetAdhoc.prototype.sceNetAdhocGameModeCreateMaster = function (data) {
         throw (new Error("Not implemented sceNetAdhocGameModeCreateMaster"));
-        return -1;
     };
+    /** Create peer game object type data. */
     sceNetAdhoc.prototype.sceNetAdhocGameModeCreateReplica = function (mac, data) {
         throw (new Error("Not implemented sceNetAdhocGameModeCreateReplica"));
-        return -1;
     };
+    /** Update own game object type data. */
     sceNetAdhoc.prototype.sceNetAdhocGameModeUpdateMaster = function () {
         throw (new Error("Not implemented sceNetAdhocGameModeUpdateMaster"));
-        return -1;
     };
+    /** Update peer game object type data. */
     sceNetAdhoc.prototype.sceNetAdhocGameModeUpdateReplica = function (id, unk1) {
         throw (new Error("Not implemented sceNetAdhocGameModeUpdateReplica"));
-        return -1;
     };
+    /** Delete own game object type data. */
     sceNetAdhoc.prototype.sceNetAdhocGameModeDeleteMaster = function () {
         throw (new Error("Not implemented sceNetAdhocGameModeDeleteMaster"));
-        return -1;
     };
+    /** Delete peer game object type data. */
     sceNetAdhoc.prototype.sceNetAdhocGameModeDeleteReplica = function (id) {
         throw (new Error("Not implemented sceNetAdhocGameModeDeleteReplica"));
-        return -1;
     };
+    /** Open a PTP (Peer To Peer) connection */
     sceNetAdhoc.prototype.sceNetAdhocPtpOpen = function (srcmac, srcport, destmac, destport, bufsize, delay, count, unk1) {
         throw (new Error("Not implemented sceNetAdhocPtpOpen"));
-        return -1;
     };
+    /** Wait for an incoming PTP connection */
     sceNetAdhoc.prototype.sceNetAdhocPtpListen = function (srcmac, srcport, bufsize, delay, count, queue, unk1) {
         throw (new Error("Not implemented sceNetAdhocPtpListen"));
-        return -1;
     };
+    /** Wait for connection created by sceNetAdhocPtpOpen */
     sceNetAdhoc.prototype.sceNetAdhocPtpConnect = function (id, timeout, nonblock) {
         throw (new Error("Not implemented sceNetAdhocPtpConnect"));
-        return -1;
     };
+    /** Accept an incoming PTP connection */
     sceNetAdhoc.prototype.sceNetAdhocPtpAccept = function (id, data, datasize, timeout, nonblock) {
         throw (new Error("Not implemented sceNetAdhocPtpAccept"));
-        return -1;
     };
+    /** Send data */
     sceNetAdhoc.prototype.sceNetAdhocPtpSend = function (id, data, datasize, timeout, nonblock) {
         throw (new Error("Not implemented sceNetAdhocPtpSend"));
-        return -1;
     };
+    /** Receive data */
     sceNetAdhoc.prototype.sceNetAdhocPtpRecv = function (id, data, datasize, timeout, nonblock) {
         throw (new Error("Not implemented sceNetAdhocPtpRecv"));
-        return -1;
     };
+    /** Wait for data in the buffer to be sent */
     sceNetAdhoc.prototype.sceNetAdhocPtpFlush = function (id, timeout, nonblock) {
         throw (new Error("Not implemented sceNetAdhocPtpFlush"));
-        return -1;
     };
+    /** Close a socket */
     sceNetAdhoc.prototype.sceNetAdhocPtpClose = function (id, unk1) {
         throw (new Error("Not implemented sceNetAdhocPtpClose"));
-        return -1;
     };
+    /** Get the status of all PTP objects */
     sceNetAdhoc.prototype.sceNetAdhocGetPtpStat = function (size, stat) {
         throw (new Error("Not implemented sceNetAdhocGetPtpStat"));
-        return -1;
     };
-    Object.defineProperty(sceNetAdhoc.prototype, "sceNetAdhocInit",
-        __decorate([
-            nativeFunction(0xE1D621D7, 150, 'int', '')
-        ], sceNetAdhoc.prototype, "sceNetAdhocInit", Object.getOwnPropertyDescriptor(sceNetAdhoc.prototype, "sceNetAdhocInit")));
-    Object.defineProperty(sceNetAdhoc.prototype, "sceNetAdhocTerm",
-        __decorate([
-            nativeFunction(0xA62C6F57, 150, 'int', '')
-        ], sceNetAdhoc.prototype, "sceNetAdhocTerm", Object.getOwnPropertyDescriptor(sceNetAdhoc.prototype, "sceNetAdhocTerm")));
-    Object.defineProperty(sceNetAdhoc.prototype, "sceNetAdhocPollSocket",
-        __decorate([
-            nativeFunction(0x7A662D6B, 150, 'int', 'int/int/int/int')
-        ], sceNetAdhoc.prototype, "sceNetAdhocPollSocket", Object.getOwnPropertyDescriptor(sceNetAdhoc.prototype, "sceNetAdhocPollSocket")));
-    Object.defineProperty(sceNetAdhoc.prototype, "sceNetAdhocPdpCreate",
-        __decorate([
-            nativeFunction(0x6F92741B, 150, 'int', 'byte[6]/int/uint/int')
-        ], sceNetAdhoc.prototype, "sceNetAdhocPdpCreate", Object.getOwnPropertyDescriptor(sceNetAdhoc.prototype, "sceNetAdhocPdpCreate")));
-    Object.defineProperty(sceNetAdhoc.prototype, "sceNetAdhocPdpDelete",
-        __decorate([
-            nativeFunction(0x7F27BB5E, 150, 'int', 'int/int')
-        ], sceNetAdhoc.prototype, "sceNetAdhocPdpDelete", Object.getOwnPropertyDescriptor(sceNetAdhoc.prototype, "sceNetAdhocPdpDelete")));
-    Object.defineProperty(sceNetAdhoc.prototype, "sceNetAdhocPdpSend",
-        __decorate([
-            nativeFunction(0xABED3790, 150, 'int', 'int/byte[6]/int/byte[]/int/int')
-        ], sceNetAdhoc.prototype, "sceNetAdhocPdpSend", Object.getOwnPropertyDescriptor(sceNetAdhoc.prototype, "sceNetAdhocPdpSend")));
-    Object.defineProperty(sceNetAdhoc.prototype, "sceNetAdhocPdpRecv",
-        __decorate([
-            nativeFunction(0xDFE53E03, 150, 'int', 'int/byte[6]/void*/void*/void*/void*/int')
-        ], sceNetAdhoc.prototype, "sceNetAdhocPdpRecv", Object.getOwnPropertyDescriptor(sceNetAdhoc.prototype, "sceNetAdhocPdpRecv")));
-    Object.defineProperty(sceNetAdhoc.prototype, "sceNetAdhocGetPdpStat",
-        __decorate([
-            nativeFunction(0xC7C1FC57, 150, 'int', 'void*/void*')
-        ], sceNetAdhoc.prototype, "sceNetAdhocGetPdpStat", Object.getOwnPropertyDescriptor(sceNetAdhoc.prototype, "sceNetAdhocGetPdpStat")));
-    Object.defineProperty(sceNetAdhoc.prototype, "sceNetAdhocGameModeCreateMaster",
-        __decorate([
-            nativeFunction(0x7F75C338, 150, 'int', 'byte[]')
-        ], sceNetAdhoc.prototype, "sceNetAdhocGameModeCreateMaster", Object.getOwnPropertyDescriptor(sceNetAdhoc.prototype, "sceNetAdhocGameModeCreateMaster")));
-    Object.defineProperty(sceNetAdhoc.prototype, "sceNetAdhocGameModeCreateReplica",
-        __decorate([
-            nativeFunction(0x3278AB0C, 150, 'int', 'byte[6]/byte[]')
-        ], sceNetAdhoc.prototype, "sceNetAdhocGameModeCreateReplica", Object.getOwnPropertyDescriptor(sceNetAdhoc.prototype, "sceNetAdhocGameModeCreateReplica")));
-    Object.defineProperty(sceNetAdhoc.prototype, "sceNetAdhocGameModeUpdateMaster",
-        __decorate([
-            nativeFunction(0x98C204C8, 150, 'int', '')
-        ], sceNetAdhoc.prototype, "sceNetAdhocGameModeUpdateMaster", Object.getOwnPropertyDescriptor(sceNetAdhoc.prototype, "sceNetAdhocGameModeUpdateMaster")));
-    Object.defineProperty(sceNetAdhoc.prototype, "sceNetAdhocGameModeUpdateReplica",
-        __decorate([
-            nativeFunction(0xFA324B4E, 150, 'int', 'int/int')
-        ], sceNetAdhoc.prototype, "sceNetAdhocGameModeUpdateReplica", Object.getOwnPropertyDescriptor(sceNetAdhoc.prototype, "sceNetAdhocGameModeUpdateReplica")));
-    Object.defineProperty(sceNetAdhoc.prototype, "sceNetAdhocGameModeDeleteMaster",
-        __decorate([
-            nativeFunction(0xA0229362, 150, 'int', '')
-        ], sceNetAdhoc.prototype, "sceNetAdhocGameModeDeleteMaster", Object.getOwnPropertyDescriptor(sceNetAdhoc.prototype, "sceNetAdhocGameModeDeleteMaster")));
-    Object.defineProperty(sceNetAdhoc.prototype, "sceNetAdhocGameModeDeleteReplica",
-        __decorate([
-            nativeFunction(0x0B2228E9, 150, 'int', 'int')
-        ], sceNetAdhoc.prototype, "sceNetAdhocGameModeDeleteReplica", Object.getOwnPropertyDescriptor(sceNetAdhoc.prototype, "sceNetAdhocGameModeDeleteReplica")));
-    Object.defineProperty(sceNetAdhoc.prototype, "sceNetAdhocPtpOpen",
-        __decorate([
-            nativeFunction(0x877F6D66, 150, 'int', 'byte[6]/int/void*/int/int/int/int/int')
-        ], sceNetAdhoc.prototype, "sceNetAdhocPtpOpen", Object.getOwnPropertyDescriptor(sceNetAdhoc.prototype, "sceNetAdhocPtpOpen")));
-    Object.defineProperty(sceNetAdhoc.prototype, "sceNetAdhocPtpListen",
-        __decorate([
-            nativeFunction(0xE08BDAC1, 150, 'int', 'byte[6]/int/int/int/int/int/int')
-        ], sceNetAdhoc.prototype, "sceNetAdhocPtpListen", Object.getOwnPropertyDescriptor(sceNetAdhoc.prototype, "sceNetAdhocPtpListen")));
-    Object.defineProperty(sceNetAdhoc.prototype, "sceNetAdhocPtpConnect",
-        __decorate([
-            nativeFunction(0xFC6FC07B, 150, 'int', 'int/int/int')
-        ], sceNetAdhoc.prototype, "sceNetAdhocPtpConnect", Object.getOwnPropertyDescriptor(sceNetAdhoc.prototype, "sceNetAdhocPtpConnect")));
-    Object.defineProperty(sceNetAdhoc.prototype, "sceNetAdhocPtpAccept",
-        __decorate([
-            nativeFunction(0x9DF81198, 150, 'int', 'int/void*/void*/int/int')
-        ], sceNetAdhoc.prototype, "sceNetAdhocPtpAccept", Object.getOwnPropertyDescriptor(sceNetAdhoc.prototype, "sceNetAdhocPtpAccept")));
-    Object.defineProperty(sceNetAdhoc.prototype, "sceNetAdhocPtpSend",
-        __decorate([
-            nativeFunction(0x4DA4C788, 150, 'int', 'int/void*/void*/int/int')
-        ], sceNetAdhoc.prototype, "sceNetAdhocPtpSend", Object.getOwnPropertyDescriptor(sceNetAdhoc.prototype, "sceNetAdhocPtpSend")));
-    Object.defineProperty(sceNetAdhoc.prototype, "sceNetAdhocPtpRecv",
-        __decorate([
-            nativeFunction(0x8BEA2B3E, 150, 'int', 'int/void*/void*/int/int')
-        ], sceNetAdhoc.prototype, "sceNetAdhocPtpRecv", Object.getOwnPropertyDescriptor(sceNetAdhoc.prototype, "sceNetAdhocPtpRecv")));
-    Object.defineProperty(sceNetAdhoc.prototype, "sceNetAdhocPtpFlush",
-        __decorate([
-            nativeFunction(0x9AC2EEAC, 150, 'int', 'int/int/int')
-        ], sceNetAdhoc.prototype, "sceNetAdhocPtpFlush", Object.getOwnPropertyDescriptor(sceNetAdhoc.prototype, "sceNetAdhocPtpFlush")));
-    Object.defineProperty(sceNetAdhoc.prototype, "sceNetAdhocPtpClose",
-        __decorate([
-            nativeFunction(0x157E6225, 150, 'int', 'int/int')
-        ], sceNetAdhoc.prototype, "sceNetAdhocPtpClose", Object.getOwnPropertyDescriptor(sceNetAdhoc.prototype, "sceNetAdhocPtpClose")));
-    Object.defineProperty(sceNetAdhoc.prototype, "sceNetAdhocGetPtpStat",
-        __decorate([
-            nativeFunction(0xB9685118, 150, 'int', 'void*/void*')
-        ], sceNetAdhoc.prototype, "sceNetAdhocGetPtpStat", Object.getOwnPropertyDescriptor(sceNetAdhoc.prototype, "sceNetAdhocGetPtpStat")));
     return sceNetAdhoc;
-})();
+}());
+__decorate([
+    nativeFunction(0xE1D621D7, 150, 'int', '')
+], sceNetAdhoc.prototype, "sceNetAdhocInit", null);
+__decorate([
+    nativeFunction(0xA62C6F57, 150, 'int', '')
+], sceNetAdhoc.prototype, "sceNetAdhocTerm", null);
+__decorate([
+    nativeFunction(0x7A662D6B, 150, 'int', 'int/int/int/int')
+], sceNetAdhoc.prototype, "sceNetAdhocPollSocket", null);
+__decorate([
+    nativeFunction(0x6F92741B, 150, 'int', 'byte[6]/int/uint/int')
+], sceNetAdhoc.prototype, "sceNetAdhocPdpCreate", null);
+__decorate([
+    nativeFunction(0x7F27BB5E, 150, 'int', 'int/int')
+], sceNetAdhoc.prototype, "sceNetAdhocPdpDelete", null);
+__decorate([
+    nativeFunction(0xABED3790, 150, 'int', 'int/byte[6]/int/byte[]/int/int')
+], sceNetAdhoc.prototype, "sceNetAdhocPdpSend", null);
+__decorate([
+    nativeFunction(0xDFE53E03, 150, 'int', 'int/byte[6]/void*/void*/void*/void*/int')
+], sceNetAdhoc.prototype, "sceNetAdhocPdpRecv", null);
+__decorate([
+    nativeFunction(0xC7C1FC57, 150, 'int', 'void*/void*')
+], sceNetAdhoc.prototype, "sceNetAdhocGetPdpStat", null);
+__decorate([
+    nativeFunction(0x7F75C338, 150, 'int', 'byte[]')
+], sceNetAdhoc.prototype, "sceNetAdhocGameModeCreateMaster", null);
+__decorate([
+    nativeFunction(0x3278AB0C, 150, 'int', 'byte[6]/byte[]')
+], sceNetAdhoc.prototype, "sceNetAdhocGameModeCreateReplica", null);
+__decorate([
+    nativeFunction(0x98C204C8, 150, 'int', '')
+], sceNetAdhoc.prototype, "sceNetAdhocGameModeUpdateMaster", null);
+__decorate([
+    nativeFunction(0xFA324B4E, 150, 'int', 'int/int')
+], sceNetAdhoc.prototype, "sceNetAdhocGameModeUpdateReplica", null);
+__decorate([
+    nativeFunction(0xA0229362, 150, 'int', '')
+], sceNetAdhoc.prototype, "sceNetAdhocGameModeDeleteMaster", null);
+__decorate([
+    nativeFunction(0x0B2228E9, 150, 'int', 'int')
+], sceNetAdhoc.prototype, "sceNetAdhocGameModeDeleteReplica", null);
+__decorate([
+    nativeFunction(0x877F6D66, 150, 'int', 'byte[6]/int/void*/int/int/int/int/int')
+], sceNetAdhoc.prototype, "sceNetAdhocPtpOpen", null);
+__decorate([
+    nativeFunction(0xE08BDAC1, 150, 'int', 'byte[6]/int/int/int/int/int/int')
+], sceNetAdhoc.prototype, "sceNetAdhocPtpListen", null);
+__decorate([
+    nativeFunction(0xFC6FC07B, 150, 'int', 'int/int/int')
+], sceNetAdhoc.prototype, "sceNetAdhocPtpConnect", null);
+__decorate([
+    nativeFunction(0x9DF81198, 150, 'int', 'int/void*/void*/int/int')
+], sceNetAdhoc.prototype, "sceNetAdhocPtpAccept", null);
+__decorate([
+    nativeFunction(0x4DA4C788, 150, 'int', 'int/void*/void*/int/int')
+], sceNetAdhoc.prototype, "sceNetAdhocPtpSend", null);
+__decorate([
+    nativeFunction(0x8BEA2B3E, 150, 'int', 'int/void*/void*/int/int')
+], sceNetAdhoc.prototype, "sceNetAdhocPtpRecv", null);
+__decorate([
+    nativeFunction(0x9AC2EEAC, 150, 'int', 'int/int/int')
+], sceNetAdhoc.prototype, "sceNetAdhocPtpFlush", null);
+__decorate([
+    nativeFunction(0x157E6225, 150, 'int', 'int/int')
+], sceNetAdhoc.prototype, "sceNetAdhocPtpClose", null);
+__decorate([
+    nativeFunction(0xB9685118, 150, 'int', 'void*/void*')
+], sceNetAdhoc.prototype, "sceNetAdhocGetPtpStat", null);
 exports.sceNetAdhoc = sceNetAdhoc;
 var PdpRecv = (function () {
     function PdpRecv() {
@@ -20327,7 +25769,7 @@ var PdpRecv = (function () {
         this.data = new Uint8Array(0);
     }
     return PdpRecv;
-})();
+}());
 var Pdp = (function () {
     function Pdp(context, mac, port, bufsize) {
         var _this = this;
@@ -20363,7 +25805,7 @@ var Pdp = (function () {
         }
     };
     return Pdp;
-})();
+}());
 exports.Pdp = Pdp;
 var PdpStatStruct = (function () {
     function PdpStatStruct() {
@@ -20373,29 +25815,41 @@ var PdpStatStruct = (function () {
         this.port = 0;
         this.rcvdData = 0;
     }
-    PdpStatStruct.struct = StructClass.create(PdpStatStruct, [
-        { nextPointer: UInt32 },
-        { pdpId: Int32 },
-        { mac: StructArray(Int8, 6) },
-        { port: Int16 },
-        { rcvdData: UInt32 },
-    ]);
     return PdpStatStruct;
-})();
+}());
+PdpStatStruct.struct = StructClass.create(PdpStatStruct, [
+    { nextPointer: UInt32 },
+    { pdpId: Int32 },
+    { mac: StructArray(Int8, 6) },
+    { port: Int16 },
+    { rcvdData: UInt32 },
+]);
+/*
+class ptpStatStruct { // PTP status structure
+    public uint NextAddress; // Pointer to next PTP structure in list (ptpStatStruct *next;)
+    public int ptpId; // ptp ID
+    public fixed byte mac[6]; // MAC address
+    public fixed byte peermac[6]; // Peer MAC address
+    public ushort port; // Port
+    public ushort peerport; // Peer Port
+    public uint sentData; // Bytes sent
+    public uint rcvdData; // Bytes received
+    public int unk1; // Unknown
+}
+*/
 
 },
 "src/hle/module/sceNetAdhocMatching": function(module, exports, require) {
 ///<reference path="../../global.d.ts" />
+"use strict";
 var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
-    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") return Reflect.decorate(decorators, target, key, desc);
-    switch (arguments.length) {
-        case 2: return decorators.reduceRight(function(o, d) { return (d && d(o)) || o; }, target);
-        case 3: return decorators.reduceRight(function(o, d) { return (d && d(target, key)), void 0; }, void 0);
-        case 4: return decorators.reduceRight(function(o, d) { return (d && d(target, key, o)) || o; }, desc);
-    }
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
 };
-var _utils = require('../utils');
-var _manager = require('../manager');
+var _utils = require("../utils");
+var _manager = require("../manager");
 _manager.Thread;
 var nativeFunction = _utils.nativeFunction;
 var sceNetAdhocMatching = (function () {
@@ -20404,20 +25858,25 @@ var sceNetAdhocMatching = (function () {
         this.poolStat = { size: 0, maxsize: 0, freesize: 0 };
         this.matchings = new UidCollection(1);
     }
+    /** Initialise the Adhoc matching library */
     sceNetAdhocMatching.prototype.sceNetAdhocMatchingInit = function (memSize) {
+        //stateOut.writeInt32(this.currentState);
         this.poolStat.size = memSize;
         this.poolStat.maxsize = memSize;
         this.poolStat.freesize = memSize;
         return 0;
     };
+    /** Terminate the Adhoc matching library */
     sceNetAdhocMatching.prototype.sceNetAdhocMatchingTerm = function () {
         return 0;
     };
+    /** Create an Adhoc matching object */
     sceNetAdhocMatching.prototype.sceNetAdhocMatchingCreate = function (thread, mode, maxPeers, port, bufSize, helloDelay, pingDelay, initCount, msgDelay, callback) {
         var matching = new Matching(this.context, thread, mode, maxPeers, port, bufSize, helloDelay, pingDelay, initCount, msgDelay, callback);
         matching.id = this.matchings.allocate(matching);
         return matching.id;
     };
+    /** Select a matching target */
     sceNetAdhocMatching.prototype.sceNetAdhocMatchingSelectTarget = function (matchingId, macStream, dataLength, dataPointer) {
         var matching = this.matchings.get(matchingId);
         var mac = macStream.readBytes(6);
@@ -20429,55 +25888,51 @@ var sceNetAdhocMatching = (function () {
         matching.cancelTarget(mac.readBytes(6));
         return 0;
     };
+    /** Delete an Adhoc matching object */
     sceNetAdhocMatching.prototype.sceNetAdhocMatchingDelete = function (matchingId) {
         this.matchings.remove(matchingId);
         return 0;
     };
+    /** Start a matching object */
     sceNetAdhocMatching.prototype.sceNetAdhocMatchingStart = function (matchingId, evthPri, evthStack, inthPri, inthStack, optLen, optData) {
+        //throw (new Error("sceNetAdhocMatchingStart"));
         var matching = this.matchings.get(matchingId);
         matching.hello = optData.readBytes(optLen);
         matching.start();
         return 0;
     };
+    /** Stop a matching object */
     sceNetAdhocMatching.prototype.sceNetAdhocMatchingStop = function (matchingId) {
         var matching = this.matchings.get(matchingId);
         matching.stop();
         return 0;
     };
-    Object.defineProperty(sceNetAdhocMatching.prototype, "sceNetAdhocMatchingInit",
-        __decorate([
-            nativeFunction(0x2A2A1E07, 150, 'int', 'int')
-        ], sceNetAdhocMatching.prototype, "sceNetAdhocMatchingInit", Object.getOwnPropertyDescriptor(sceNetAdhocMatching.prototype, "sceNetAdhocMatchingInit")));
-    Object.defineProperty(sceNetAdhocMatching.prototype, "sceNetAdhocMatchingTerm",
-        __decorate([
-            nativeFunction(0x7945ECDA, 150, 'int', '')
-        ], sceNetAdhocMatching.prototype, "sceNetAdhocMatchingTerm", Object.getOwnPropertyDescriptor(sceNetAdhocMatching.prototype, "sceNetAdhocMatchingTerm")));
-    Object.defineProperty(sceNetAdhocMatching.prototype, "sceNetAdhocMatchingCreate",
-        __decorate([
-            nativeFunction(0xCA5EDA6F, 150, 'int', 'Thread/int/int/int/int/int/int/int/int/uint')
-        ], sceNetAdhocMatching.prototype, "sceNetAdhocMatchingCreate", Object.getOwnPropertyDescriptor(sceNetAdhocMatching.prototype, "sceNetAdhocMatchingCreate")));
-    Object.defineProperty(sceNetAdhocMatching.prototype, "sceNetAdhocMatchingSelectTarget",
-        __decorate([
-            nativeFunction(0x5E3D4B79, 150, 'int', 'int/void*/int/void*')
-        ], sceNetAdhocMatching.prototype, "sceNetAdhocMatchingSelectTarget", Object.getOwnPropertyDescriptor(sceNetAdhocMatching.prototype, "sceNetAdhocMatchingSelectTarget")));
-    Object.defineProperty(sceNetAdhocMatching.prototype, "sceNetAdhocMatchingCancelTarget",
-        __decorate([
-            nativeFunction(0xEA3C6108, 150, 'int', 'int/void*')
-        ], sceNetAdhocMatching.prototype, "sceNetAdhocMatchingCancelTarget", Object.getOwnPropertyDescriptor(sceNetAdhocMatching.prototype, "sceNetAdhocMatchingCancelTarget")));
-    Object.defineProperty(sceNetAdhocMatching.prototype, "sceNetAdhocMatchingDelete",
-        __decorate([
-            nativeFunction(0xF16EAF4F, 150, 'int', 'int')
-        ], sceNetAdhocMatching.prototype, "sceNetAdhocMatchingDelete", Object.getOwnPropertyDescriptor(sceNetAdhocMatching.prototype, "sceNetAdhocMatchingDelete")));
-    Object.defineProperty(sceNetAdhocMatching.prototype, "sceNetAdhocMatchingStart",
-        __decorate([
-            nativeFunction(0x93EF3843, 150, 'int', 'int/int/int/int/int/int/void*')
-        ], sceNetAdhocMatching.prototype, "sceNetAdhocMatchingStart", Object.getOwnPropertyDescriptor(sceNetAdhocMatching.prototype, "sceNetAdhocMatchingStart")));
-    Object.defineProperty(sceNetAdhocMatching.prototype, "sceNetAdhocMatchingStop",
-        __decorate([
-            nativeFunction(0x32B156B3, 150, 'int', 'int')
-        ], sceNetAdhocMatching.prototype, "sceNetAdhocMatchingStop", Object.getOwnPropertyDescriptor(sceNetAdhocMatching.prototype, "sceNetAdhocMatchingStop")));
     return sceNetAdhocMatching;
-})();
+}());
+__decorate([
+    nativeFunction(0x2A2A1E07, 150, 'int', 'int')
+], sceNetAdhocMatching.prototype, "sceNetAdhocMatchingInit", null);
+__decorate([
+    nativeFunction(0x7945ECDA, 150, 'int', '')
+], sceNetAdhocMatching.prototype, "sceNetAdhocMatchingTerm", null);
+__decorate([
+    nativeFunction(0xCA5EDA6F, 150, 'int', 'Thread/int/int/int/int/int/int/int/int/uint')
+], sceNetAdhocMatching.prototype, "sceNetAdhocMatchingCreate", null);
+__decorate([
+    nativeFunction(0x5E3D4B79, 150, 'int', 'int/void*/int/void*')
+], sceNetAdhocMatching.prototype, "sceNetAdhocMatchingSelectTarget", null);
+__decorate([
+    nativeFunction(0xEA3C6108, 150, 'int', 'int/void*')
+], sceNetAdhocMatching.prototype, "sceNetAdhocMatchingCancelTarget", null);
+__decorate([
+    nativeFunction(0xF16EAF4F, 150, 'int', 'int')
+], sceNetAdhocMatching.prototype, "sceNetAdhocMatchingDelete", null);
+__decorate([
+    nativeFunction(0x93EF3843, 150, 'int', 'int/int/int/int/int/int/void*')
+], sceNetAdhocMatching.prototype, "sceNetAdhocMatchingStart", null);
+__decorate([
+    nativeFunction(0x32B156B3, 150, 'int', 'int')
+], sceNetAdhocMatching.prototype, "sceNetAdhocMatchingStop", null);
 exports.sceNetAdhocMatching = sceNetAdhocMatching;
 var Matching = (function () {
     function Matching(context, thread, mode, maxPeers, port, bufSize, helloDelay, pingDelay, initCount, msgDelay, callback) {
@@ -20499,10 +25954,10 @@ var Matching = (function () {
         this.helloTimer = -1;
         this.dataTimer = -1;
         this.onMessageCancelable = null;
-        this.state = 0;
+        this.state = 0 /* START */;
     }
     Matching.prototype.sendHello = function () {
-        if (this.state != 0)
+        if (this.state != 0 /* START */)
             return;
         this.sendMessage(Event.Hello, Matching.MAC_ALL, this.hello);
     };
@@ -20527,22 +25982,26 @@ var Matching = (function () {
     Matching.prototype.selectTarget = function (mac, data) {
         var macstr = mac2string(mac);
         console.info("net.adhoc: selectTarget", macstr);
-        if ((this.state == 1) && (macstr == this.joinMac)) {
-            this.state = 2;
+        // Accept
+        if ((this.state == 1 /* JOIN_WAIT_RESPONSE */) && (macstr == this.joinMac)) {
+            this.state = 2 /* JOIN_WAIT_COMPLETE */;
             this.sendMessage(Event.Accept, mac, data);
         }
         else {
-            this.state = 1;
+            this.state = 1 /* JOIN_WAIT_RESPONSE */;
             this.sendMessage(Event.Join, mac, data);
         }
     };
     Matching.prototype.cancelTarget = function (mac) {
+        // Cancel
         var macstr = mac2string(mac);
         console.info("net.adhoc: cancelTarget", macstr);
-        this.state = 0;
+        this.state = 0 /* START */;
         this.sendMessage(Event.Cancel, mac, null);
     };
+    //private messageQueue = [];
     Matching.prototype.sendMessage = function (event, tomac, data) {
+        //this.messageQueue.push({ event: event, tomac: ArrayBufferUtils.cloneBytes(tomac), data: ArrayBufferUtils.cloneBytes(data) });
         if (!data)
             data = new Uint8Array(0);
         if (event != Event.Hello) {
@@ -20558,7 +26017,7 @@ var Matching = (function () {
         }
         switch (event) {
             case Event.Join:
-                this.state = 1;
+                this.state = 1 /* JOIN_WAIT_RESPONSE */;
                 this.joinMac = mac2string(frommac);
                 break;
         }
@@ -20568,20 +26027,24 @@ var Matching = (function () {
         var dataPartition = this.context.memoryManager.kernelPartition.allocateLow(Math.max(8, MathUtils.nextAligned(data.length, 8)), 'Matching.data');
         this.context.memory.memset(dataPartition.low, 0, dataPartition.size);
         this.context.memory.writeUint8Array(dataPartition.low, data);
+        //// @TODO: Enqueue callback instead of executing now?
         this.context.callbackManager.executeLater(this.callback, [
             this.id, event, macPartition.low, data.length, data.length ? dataPartition.low : 0
         ]);
+        //this.context.interop.execute(this.thread.state, this.callback, [
+        //	this.id, event, macPartition.low, data.length, data.length ? dataPartition.low : 0
+        //]);
         dataPartition.deallocate();
         macPartition.deallocate();
         switch (event) {
             case Event.Accept:
                 this.sendMessage(Event.Complete, frommac, data);
-                this.state = 2;
+                this.state = 2 /* JOIN_WAIT_COMPLETE */;
                 break;
             case Event.Complete:
-                if (this.state == 2) {
+                if (this.state == 2 /* JOIN_WAIT_COMPLETE */) {
                     this.sendMessage(Event.Complete, frommac, data);
-                    this.state = 3;
+                    this.state = 3 /* COMPLETED */;
                 }
                 break;
             case Event.Data:
@@ -20589,14 +26052,15 @@ var Matching = (function () {
                 break;
             case Event.Disconnect:
             case Event.Left:
-                this.state = 0;
+                this.state = 0 /* START */;
                 break;
         }
     };
-    Matching.MAC_ALL = new Uint8Array([0, 0, 0, 0, 0, 0]);
     return Matching;
-})();
+}());
+Matching.MAC_ALL = new Uint8Array([0, 0, 0, 0, 0, 0]);
 exports.Matching = Matching;
+var Event;
 (function (Event) {
     Event[Event["Hello"] = 1] = "Hello";
     Event[Event["Join"] = 2] = "Join";
@@ -20611,21 +26075,20 @@ exports.Matching = Matching;
     Event[Event["Data"] = 11] = "Data";
     Event[Event["DataConfirm"] = 12] = "DataConfirm";
     Event[Event["DataTimeout"] = 13] = "DataTimeout";
-})(exports.Event || (exports.Event = {}));
-var Event = exports.Event;
+    //InternalPing = 100, // Internal ping message.
+})(Event = exports.Event || (exports.Event = {}));
 
 },
 "src/hle/module/sceNetAdhocctl": function(module, exports, require) {
 ///<reference path="../../global.d.ts" />
+"use strict";
 var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
-    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") return Reflect.decorate(decorators, target, key, desc);
-    switch (arguments.length) {
-        case 2: return decorators.reduceRight(function(o, d) { return (d && d(o)) || o; }, target);
-        case 3: return decorators.reduceRight(function(o, d) { return (d && d(target, key)), void 0; }, void 0);
-        case 4: return decorators.reduceRight(function(o, d) { return (d && d(target, key, o)) || o; }, desc);
-    }
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
 };
-var _utils = require('../utils');
+var _utils = require("../utils");
 var nativeFunction = _utils.nativeFunction;
 var sceNetAdhocctl = (function () {
     function sceNetAdhocctl(context) {
@@ -20635,13 +26098,16 @@ var sceNetAdhocctl = (function () {
         this.connectHandlers = [];
         this.handlers = new UidCollection(1);
     }
+    /** Initialise the Adhoc control library */
     sceNetAdhocctl.prototype.sceNetAdhocctlInit = function (stacksize, priority, product) {
         this.currentState = State.Disconnected;
         return 0;
     };
+    /** Terminate the Adhoc control library */
     sceNetAdhocctl.prototype.sceNetAdhocctlTerm = function () {
         return 0;
     };
+    /** Connect to the Adhoc control */
     sceNetAdhocctl.prototype.sceNetAdhocctlConnect = function (name) {
         var _this = this;
         this.currentName = name;
@@ -20660,6 +26126,7 @@ var sceNetAdhocctl = (function () {
         this.context.netManager.connectOnce();
         return 0;
     };
+    /** Disconnect from the Adhoc control */
     sceNetAdhocctl.prototype.sceNetAdhocctlDisconnect = function () {
         while (this.connectHandlers.length)
             this.connectHandlers.shift().cancel();
@@ -20681,38 +26148,32 @@ var sceNetAdhocctl = (function () {
         if (error === void 0) { error = 0; }
         this.handlers.list().forEach(function (callback) {
             _this.context.callbackManager.executeLater(callback.callback, [event, error, callback.argument]);
+            //this.context.interop.execute(this.context.threadManager.current.state, callback.callback, [event, error, callback.argument]);
         });
     };
-    Object.defineProperty(sceNetAdhocctl.prototype, "sceNetAdhocctlInit",
-        __decorate([
-            nativeFunction(0xE26F226E, 150, 'int', 'int/int/void*')
-        ], sceNetAdhocctl.prototype, "sceNetAdhocctlInit", Object.getOwnPropertyDescriptor(sceNetAdhocctl.prototype, "sceNetAdhocctlInit")));
-    Object.defineProperty(sceNetAdhocctl.prototype, "sceNetAdhocctlTerm",
-        __decorate([
-            nativeFunction(0x9D689E13, 150, 'int', '')
-        ], sceNetAdhocctl.prototype, "sceNetAdhocctlTerm", Object.getOwnPropertyDescriptor(sceNetAdhocctl.prototype, "sceNetAdhocctlTerm")));
-    Object.defineProperty(sceNetAdhocctl.prototype, "sceNetAdhocctlConnect",
-        __decorate([
-            nativeFunction(0x0AD043ED, 150, 'int', 'string')
-        ], sceNetAdhocctl.prototype, "sceNetAdhocctlConnect", Object.getOwnPropertyDescriptor(sceNetAdhocctl.prototype, "sceNetAdhocctlConnect")));
-    Object.defineProperty(sceNetAdhocctl.prototype, "sceNetAdhocctlDisconnect",
-        __decorate([
-            nativeFunction(0x34401D65, 150, 'int', '')
-        ], sceNetAdhocctl.prototype, "sceNetAdhocctlDisconnect", Object.getOwnPropertyDescriptor(sceNetAdhocctl.prototype, "sceNetAdhocctlDisconnect")));
-    Object.defineProperty(sceNetAdhocctl.prototype, "sceNetAdhocctlAddHandler",
-        __decorate([
-            nativeFunction(0x20B317A0, 150, 'int', 'int/int')
-        ], sceNetAdhocctl.prototype, "sceNetAdhocctlAddHandler", Object.getOwnPropertyDescriptor(sceNetAdhocctl.prototype, "sceNetAdhocctlAddHandler")));
-    Object.defineProperty(sceNetAdhocctl.prototype, "sceNetAdhocctlDelHandler",
-        __decorate([
-            nativeFunction(0x6402490B, 150, 'int', 'int')
-        ], sceNetAdhocctl.prototype, "sceNetAdhocctlDelHandler", Object.getOwnPropertyDescriptor(sceNetAdhocctl.prototype, "sceNetAdhocctlDelHandler")));
-    Object.defineProperty(sceNetAdhocctl.prototype, "sceNetAdhocctlGetState",
-        __decorate([
-            nativeFunction(0x75ECD386, 150, 'int', 'void*')
-        ], sceNetAdhocctl.prototype, "sceNetAdhocctlGetState", Object.getOwnPropertyDescriptor(sceNetAdhocctl.prototype, "sceNetAdhocctlGetState")));
     return sceNetAdhocctl;
-})();
+}());
+__decorate([
+    nativeFunction(0xE26F226E, 150, 'int', 'int/int/void*')
+], sceNetAdhocctl.prototype, "sceNetAdhocctlInit", null);
+__decorate([
+    nativeFunction(0x9D689E13, 150, 'int', '')
+], sceNetAdhocctl.prototype, "sceNetAdhocctlTerm", null);
+__decorate([
+    nativeFunction(0x0AD043ED, 150, 'int', 'string')
+], sceNetAdhocctl.prototype, "sceNetAdhocctlConnect", null);
+__decorate([
+    nativeFunction(0x34401D65, 150, 'int', '')
+], sceNetAdhocctl.prototype, "sceNetAdhocctlDisconnect", null);
+__decorate([
+    nativeFunction(0x20B317A0, 150, 'int', 'int/int')
+], sceNetAdhocctl.prototype, "sceNetAdhocctlAddHandler", null);
+__decorate([
+    nativeFunction(0x6402490B, 150, 'int', 'int')
+], sceNetAdhocctl.prototype, "sceNetAdhocctlDelHandler", null);
+__decorate([
+    nativeFunction(0x75ECD386, 150, 'int', 'void*')
+], sceNetAdhocctl.prototype, "sceNetAdhocctlGetState", null);
 exports.sceNetAdhocctl = sceNetAdhocctl;
 var HandlerCallback = (function () {
     function HandlerCallback(callback, argument) {
@@ -20720,7 +26181,7 @@ var HandlerCallback = (function () {
         this.argument = argument;
     }
     return HandlerCallback;
-})();
+}());
 var State;
 (function (State) {
     State[State["Disconnected"] = 0] = "Disconnected";
@@ -20756,122 +26217,132 @@ var MAX_GAME_MODE_MACS = 16;
 },
 "src/hle/module/sceNetApctl": function(module, exports, require) {
 ///<reference path="../../global.d.ts" />
+"use strict";
 var sceNetApctl = (function () {
     function sceNetApctl(context) {
         this.context = context;
     }
     return sceNetApctl;
-})();
+}());
 exports.sceNetApctl = sceNetApctl;
 
 },
 "src/hle/module/sceNetInet": function(module, exports, require) {
 ///<reference path="../../global.d.ts" />
+"use strict";
 var sceNetInet = (function () {
     function sceNetInet(context) {
         this.context = context;
     }
     return sceNetInet;
-})();
+}());
 exports.sceNetInet = sceNetInet;
 
 },
 "src/hle/module/sceNetResolver": function(module, exports, require) {
 ///<reference path="../../global.d.ts" />
+"use strict";
 var sceNetResolver = (function () {
     function sceNetResolver(context) {
         this.context = context;
     }
     return sceNetResolver;
-})();
+}());
 exports.sceNetResolver = sceNetResolver;
 
 },
 "src/hle/module/sceNp": function(module, exports, require) {
 ///<reference path="../../global.d.ts" />
+"use strict";
 var sceNp = (function () {
     function sceNp(context) {
         this.context = context;
     }
     return sceNp;
-})();
+}());
 exports.sceNp = sceNp;
 
 },
 "src/hle/module/sceNpAuth": function(module, exports, require) {
 ///<reference path="../../global.d.ts" />
+"use strict";
 var sceNpAuth = (function () {
     function sceNpAuth(context) {
         this.context = context;
     }
     return sceNpAuth;
-})();
+}());
 exports.sceNpAuth = sceNpAuth;
 
 },
 "src/hle/module/sceNpService": function(module, exports, require) {
 ///<reference path="../../global.d.ts" />
+"use strict";
 var sceNpService = (function () {
     function sceNpService(context) {
         this.context = context;
     }
     return sceNpService;
-})();
+}());
 exports.sceNpService = sceNpService;
 
 },
 "src/hle/module/sceOpenPSID": function(module, exports, require) {
 ///<reference path="../../global.d.ts" />
+"use strict";
 var sceOpenPSID = (function () {
     function sceOpenPSID(context) {
         this.context = context;
     }
     return sceOpenPSID;
-})();
+}());
 exports.sceOpenPSID = sceOpenPSID;
 
 },
 "src/hle/module/sceParseHttp": function(module, exports, require) {
 ///<reference path="../../global.d.ts" />
+"use strict";
 var sceParseHttp = (function () {
     function sceParseHttp(context) {
         this.context = context;
     }
     return sceParseHttp;
-})();
+}());
 exports.sceParseHttp = sceParseHttp;
 
 },
 "src/hle/module/sceParseUri": function(module, exports, require) {
 ///<reference path="../../global.d.ts" />
+"use strict";
 var sceParseUri = (function () {
     function sceParseUri(context) {
         this.context = context;
     }
     return sceParseUri;
-})();
+}());
 exports.sceParseUri = sceParseUri;
 
 },
 "src/hle/module/scePower": function(module, exports, require) {
 ///<reference path="../../global.d.ts" />
+"use strict";
 var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
-    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") return Reflect.decorate(decorators, target, key, desc);
-    switch (arguments.length) {
-        case 2: return decorators.reduceRight(function(o, d) { return (d && d(o)) || o; }, target);
-        case 3: return decorators.reduceRight(function(o, d) { return (d && d(target, key)), void 0; }, void 0);
-        case 4: return decorators.reduceRight(function(o, d) { return (d && d(target, key, o)) || o; }, desc);
-    }
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
 };
-var _utils = require('../utils');
+var _utils = require("../utils");
 var nativeFunction = _utils.nativeFunction;
-var SceKernelErrors = require('../SceKernelErrors');
+var SceKernelErrors = require("../SceKernelErrors");
 var scePower = (function () {
     function scePower(context) {
         this.context = context;
-        this.cpuMult = 511;
+        // 222/111
+        // 333/166
+        this.cpuMult = 511; // 222mhz
         this.pllFreq = 222;
-        this.busFreq = 111;
+        this.busFreq = 111; // MAX BUS: 166
     }
     scePower.prototype._getCpuMult = function () {
         return 0.43444227005871 * (this.busFreq / 111);
@@ -20940,6 +26411,7 @@ var scePower = (function () {
     scePower.prototype.scePowerSetBusClockFrequency = function (busFreq) {
         if (!this._isValidBusFreq(busFreq))
             return SceKernelErrors.ERROR_INVALID_VALUE;
+        //this.busFreq = busFreq;
         this.busFreq = 111;
         return 0;
     };
@@ -20954,129 +26426,102 @@ var scePower = (function () {
     scePower.prototype.scePowerIsBatteryExist = function () { return 1; };
     scePower.prototype.scePowerIsLowBattery = function () { return +this.context.battery.isLowBattery; };
     scePower.prototype.scePowerIsBatteryCharging = function () { return +this.context.battery.charging; };
+    // in minutes
     scePower.prototype.scePowerGetBatteryLifeTime = function () { return (this.context.battery.lifetime / 60) | 0; };
     scePower.prototype.scePowerGetBatteryVolt = function () { return 4135; };
     scePower.prototype.scePowerGetBatteryTemp = function () { return 28; };
     scePower.prototype.scePowerLock = function (unknown) { return 0; };
     scePower.prototype.scePowerUnlock = function (unknown) { return 0; };
-    scePower.prototype.scePowerTick = function (type) { return 0; };
+    scePower.prototype.scePowerTick = function (type) { return 0; }; // all = 0, suspend = 1, display = 6
     scePower.prototype.scePowerGetBatteryChargingStatus = function () {
         return PowerFlagsSet.BatteryExists | PowerFlagsSet.AcPower | PowerFlagsSet.BatteryPower;
     };
-    Object.defineProperty(scePower.prototype, "scePowerRegisterCallback",
-        __decorate([
-            nativeFunction(0x04B7766E, 150, 'int', 'int/int')
-        ], scePower.prototype, "scePowerRegisterCallback", Object.getOwnPropertyDescriptor(scePower.prototype, "scePowerRegisterCallback")));
-    Object.defineProperty(scePower.prototype, "scePowerUnregitserCallback",
-        __decorate([
-            nativeFunction(0xDB9D28DD, 150, 'int', 'int')
-        ], scePower.prototype, "scePowerUnregitserCallback", Object.getOwnPropertyDescriptor(scePower.prototype, "scePowerUnregitserCallback")));
-    Object.defineProperty(scePower.prototype, "scePowerUnregisterCallback",
-        __decorate([
-            nativeFunction(0xDFA8BAF8, 150, 'int', 'int')
-        ], scePower.prototype, "scePowerUnregisterCallback", Object.getOwnPropertyDescriptor(scePower.prototype, "scePowerUnregisterCallback")));
-    Object.defineProperty(scePower.prototype, "scePowerSetClockFrequency",
-        __decorate([
-            nativeFunction(0x737486F2, 150, 'int', 'int/int/int')
-        ], scePower.prototype, "scePowerSetClockFrequency", Object.getOwnPropertyDescriptor(scePower.prototype, "scePowerSetClockFrequency")));
-    Object.defineProperty(scePower.prototype, "scePowerSetClockFrequency2",
-        __decorate([
-            nativeFunction(0xEBD177D6, 150, 'int', 'int/int/int')
-        ], scePower.prototype, "scePowerSetClockFrequency2", Object.getOwnPropertyDescriptor(scePower.prototype, "scePowerSetClockFrequency2")));
-    Object.defineProperty(scePower.prototype, "scePowerSetClockFrequency3",
-        __decorate([
-            nativeFunction(0x469989AD, 150, 'int', 'int/int/int')
-        ], scePower.prototype, "scePowerSetClockFrequency3", Object.getOwnPropertyDescriptor(scePower.prototype, "scePowerSetClockFrequency3")));
-    Object.defineProperty(scePower.prototype, "scePowerGetCpuClockFrequency",
-        __decorate([
-            nativeFunction(0xFEE03A2F, 150, 'int', '')
-        ], scePower.prototype, "scePowerGetCpuClockFrequency", Object.getOwnPropertyDescriptor(scePower.prototype, "scePowerGetCpuClockFrequency")));
-    Object.defineProperty(scePower.prototype, "scePowerGetCpuClockFrequencyInt",
-        __decorate([
-            nativeFunction(0xFDB5BFE9, 150, 'int', '')
-        ], scePower.prototype, "scePowerGetCpuClockFrequencyInt", Object.getOwnPropertyDescriptor(scePower.prototype, "scePowerGetCpuClockFrequencyInt")));
-    Object.defineProperty(scePower.prototype, "scePowerGetCpuClockFrequencyFloat",
-        __decorate([
-            nativeFunction(0xB1A52C83, 150, 'float', '')
-        ], scePower.prototype, "scePowerGetCpuClockFrequencyFloat", Object.getOwnPropertyDescriptor(scePower.prototype, "scePowerGetCpuClockFrequencyFloat")));
-    Object.defineProperty(scePower.prototype, "scePowerGetBusClockFrequency",
-        __decorate([
-            nativeFunction(0x478FE6F5, 150, 'int', '')
-        ], scePower.prototype, "scePowerGetBusClockFrequency", Object.getOwnPropertyDescriptor(scePower.prototype, "scePowerGetBusClockFrequency")));
-    Object.defineProperty(scePower.prototype, "scePowerGetBusClockFrequencyInt",
-        __decorate([
-            nativeFunction(0xBD681969, 150, 'int', '')
-        ], scePower.prototype, "scePowerGetBusClockFrequencyInt", Object.getOwnPropertyDescriptor(scePower.prototype, "scePowerGetBusClockFrequencyInt")));
-    Object.defineProperty(scePower.prototype, "scePowerGetBusClockFrequencyFloat",
-        __decorate([
-            nativeFunction(0x9BADB3EB, 150, 'float', '')
-        ], scePower.prototype, "scePowerGetBusClockFrequencyFloat", Object.getOwnPropertyDescriptor(scePower.prototype, "scePowerGetBusClockFrequencyFloat")));
-    Object.defineProperty(scePower.prototype, "scePowerGetPllClockFrequencyInt",
-        __decorate([
-            nativeFunction(0x34F9C463, 150, 'int', '')
-        ], scePower.prototype, "scePowerGetPllClockFrequencyInt", Object.getOwnPropertyDescriptor(scePower.prototype, "scePowerGetPllClockFrequencyInt")));
-    Object.defineProperty(scePower.prototype, "scePowerGetPllClockFrequencyFloat",
-        __decorate([
-            nativeFunction(0xEA382A27, 150, 'float', '')
-        ], scePower.prototype, "scePowerGetPllClockFrequencyFloat", Object.getOwnPropertyDescriptor(scePower.prototype, "scePowerGetPllClockFrequencyFloat")));
-    Object.defineProperty(scePower.prototype, "scePowerSetBusClockFrequency",
-        __decorate([
-            nativeFunction(0xB8D7B3FB, 150, 'int', 'int')
-        ], scePower.prototype, "scePowerSetBusClockFrequency", Object.getOwnPropertyDescriptor(scePower.prototype, "scePowerSetBusClockFrequency")));
-    Object.defineProperty(scePower.prototype, "scePowerSetCpuClockFrequency",
-        __decorate([
-            nativeFunction(0x843FBF43, 150, 'int', 'int')
-        ], scePower.prototype, "scePowerSetCpuClockFrequency", Object.getOwnPropertyDescriptor(scePower.prototype, "scePowerSetCpuClockFrequency")));
-    Object.defineProperty(scePower.prototype, "scePowerGetBatteryLifePercent",
-        __decorate([
-            nativeFunction(0x2085D15D, 150, 'int', '')
-        ], scePower.prototype, "scePowerGetBatteryLifePercent", Object.getOwnPropertyDescriptor(scePower.prototype, "scePowerGetBatteryLifePercent")));
-    Object.defineProperty(scePower.prototype, "scePowerIsPowerOnline",
-        __decorate([
-            nativeFunction(0x87440F5E, 150, 'int', '')
-        ], scePower.prototype, "scePowerIsPowerOnline", Object.getOwnPropertyDescriptor(scePower.prototype, "scePowerIsPowerOnline")));
-    Object.defineProperty(scePower.prototype, "scePowerIsBatteryExist",
-        __decorate([
-            nativeFunction(0x0AFD0D8B, 150, 'int', '')
-        ], scePower.prototype, "scePowerIsBatteryExist", Object.getOwnPropertyDescriptor(scePower.prototype, "scePowerIsBatteryExist")));
-    Object.defineProperty(scePower.prototype, "scePowerIsLowBattery",
-        __decorate([
-            nativeFunction(0xD3075926, 150, 'int', '')
-        ], scePower.prototype, "scePowerIsLowBattery", Object.getOwnPropertyDescriptor(scePower.prototype, "scePowerIsLowBattery")));
-    Object.defineProperty(scePower.prototype, "scePowerIsBatteryCharging",
-        __decorate([
-            nativeFunction(0x1E490401, 150, 'int', '')
-        ], scePower.prototype, "scePowerIsBatteryCharging", Object.getOwnPropertyDescriptor(scePower.prototype, "scePowerIsBatteryCharging")));
-    Object.defineProperty(scePower.prototype, "scePowerGetBatteryLifeTime",
-        __decorate([
-            nativeFunction(0x8EFB3FA2, 150, 'int', '')
-        ], scePower.prototype, "scePowerGetBatteryLifeTime", Object.getOwnPropertyDescriptor(scePower.prototype, "scePowerGetBatteryLifeTime")));
-    Object.defineProperty(scePower.prototype, "scePowerGetBatteryVolt",
-        __decorate([
-            nativeFunction(0x483CE86B, 150, 'int', '')
-        ], scePower.prototype, "scePowerGetBatteryVolt", Object.getOwnPropertyDescriptor(scePower.prototype, "scePowerGetBatteryVolt")));
-    Object.defineProperty(scePower.prototype, "scePowerGetBatteryTemp",
-        __decorate([
-            nativeFunction(0x28E12023, 150, 'int', '')
-        ], scePower.prototype, "scePowerGetBatteryTemp", Object.getOwnPropertyDescriptor(scePower.prototype, "scePowerGetBatteryTemp")));
-    Object.defineProperty(scePower.prototype, "scePowerLock",
-        __decorate([
-            nativeFunction(0xD6D016EF, 150, 'int', 'int')
-        ], scePower.prototype, "scePowerLock", Object.getOwnPropertyDescriptor(scePower.prototype, "scePowerLock")));
-    Object.defineProperty(scePower.prototype, "scePowerUnlock",
-        __decorate([
-            nativeFunction(0xCA3D34C1, 150, 'int', 'int')
-        ], scePower.prototype, "scePowerUnlock", Object.getOwnPropertyDescriptor(scePower.prototype, "scePowerUnlock")));
-    Object.defineProperty(scePower.prototype, "scePowerTick",
-        __decorate([
-            nativeFunction(0xEFD3C963, 150, 'int', 'int')
-        ], scePower.prototype, "scePowerTick", Object.getOwnPropertyDescriptor(scePower.prototype, "scePowerTick")));
-    Object.defineProperty(scePower.prototype, "scePowerGetBatteryChargingStatus",
-        __decorate([
-            nativeFunction(0xB4432BC8, 150, 'int', '')
-        ], scePower.prototype, "scePowerGetBatteryChargingStatus", Object.getOwnPropertyDescriptor(scePower.prototype, "scePowerGetBatteryChargingStatus")));
     return scePower;
-})();
+}());
+__decorate([
+    nativeFunction(0x04B7766E, 150, 'int', 'int/int')
+], scePower.prototype, "scePowerRegisterCallback", null);
+__decorate([
+    nativeFunction(0xDB9D28DD, 150, 'int', 'int')
+], scePower.prototype, "scePowerUnregitserCallback", null);
+__decorate([
+    nativeFunction(0xDFA8BAF8, 150, 'int', 'int')
+], scePower.prototype, "scePowerUnregisterCallback", null);
+__decorate([
+    nativeFunction(0x737486F2, 150, 'int', 'int/int/int')
+], scePower.prototype, "scePowerSetClockFrequency", null);
+__decorate([
+    nativeFunction(0xEBD177D6, 150, 'int', 'int/int/int')
+], scePower.prototype, "scePowerSetClockFrequency2", null);
+__decorate([
+    nativeFunction(0x469989AD, 150, 'int', 'int/int/int')
+], scePower.prototype, "scePowerSetClockFrequency3", null);
+__decorate([
+    nativeFunction(0xFEE03A2F, 150, 'int', '')
+], scePower.prototype, "scePowerGetCpuClockFrequency", null);
+__decorate([
+    nativeFunction(0xFDB5BFE9, 150, 'int', '')
+], scePower.prototype, "scePowerGetCpuClockFrequencyInt", null);
+__decorate([
+    nativeFunction(0xB1A52C83, 150, 'float', '')
+], scePower.prototype, "scePowerGetCpuClockFrequencyFloat", null);
+__decorate([
+    nativeFunction(0x478FE6F5, 150, 'int', '')
+], scePower.prototype, "scePowerGetBusClockFrequency", null);
+__decorate([
+    nativeFunction(0xBD681969, 150, 'int', '')
+], scePower.prototype, "scePowerGetBusClockFrequencyInt", null);
+__decorate([
+    nativeFunction(0x9BADB3EB, 150, 'float', '')
+], scePower.prototype, "scePowerGetBusClockFrequencyFloat", null);
+__decorate([
+    nativeFunction(0x34F9C463, 150, 'int', '')
+], scePower.prototype, "scePowerGetPllClockFrequencyInt", null);
+__decorate([
+    nativeFunction(0xEA382A27, 150, 'float', '')
+], scePower.prototype, "scePowerGetPllClockFrequencyFloat", null);
+__decorate([
+    nativeFunction(0xB8D7B3FB, 150, 'int', 'int')
+], scePower.prototype, "scePowerSetBusClockFrequency", null);
+__decorate([
+    nativeFunction(0x843FBF43, 150, 'int', 'int')
+], scePower.prototype, "scePowerSetCpuClockFrequency", null);
+__decorate([
+    nativeFunction(0x2085D15D, 150, 'int', '')
+], scePower.prototype, "scePowerGetBatteryLifePercent", null);
+__decorate([
+    nativeFunction(0x87440F5E, 150, 'int', '')
+], scePower.prototype, "scePowerIsPowerOnline", null);
+__decorate([
+    nativeFunction(0x0AFD0D8B, 150, 'int', '')
+], scePower.prototype, "scePowerIsBatteryExist", null);
+__decorate([
+    nativeFunction(0xD3075926, 150, 'int', '')
+], scePower.prototype, "scePowerIsLowBattery", null);
+__decorate([
+    nativeFunction(0x1E490401, 150, 'int', '')
+], scePower.prototype, "scePowerIsBatteryCharging", null);
+__decorate([
+    nativeFunction(0x8EFB3FA2, 150, 'int', '')
+], scePower.prototype, "scePowerGetBatteryLifeTime", null);
+__decorate([
+    nativeFunction(0x483CE86B, 150, 'int', '')
+], scePower.prototype, "scePowerGetBatteryVolt", null);
+__decorate([
+    nativeFunction(0x28E12023, 150, 'int', '')
+], scePower.prototype, "scePowerGetBatteryTemp", null);
+__decorate([
+    nativeFunction(0xD6D016EF, 150, 'int', 'int')
+], scePower.prototype, "scePowerLock", null);
+__decorate([
+    nativeFunction(0xCA3D34C1, 150, 'int', 'int')
+], scePower.prototype, "scePowerUnlock", null);
+__decorate([
+    nativeFunction(0xEFD3C963, 150, 'int', 'int')
+], scePower.prototype, "scePowerTick", null);
+__decorate([
+    nativeFunction(0xB4432BC8, 150, 'int', '')
+], scePower.prototype, "scePowerGetBatteryChargingStatus", null);
 exports.scePower = scePower;
 var CallbackStatus;
 (function (CallbackStatus) {
@@ -21101,26 +26546,26 @@ var PowerFlagsSet;
 },
 "src/hle/module/scePspNpDrm_user": function(module, exports, require) {
 ///<reference path="../../global.d.ts" />
+"use strict";
 var scePspNpDrm_user = (function () {
     function scePspNpDrm_user(context) {
         this.context = context;
     }
     return scePspNpDrm_user;
-})();
+}());
 exports.scePspNpDrm_user = scePspNpDrm_user;
 
 },
 "src/hle/module/sceReg": function(module, exports, require) {
 ///<reference path="../../global.d.ts" />
+"use strict";
 var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
-    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") return Reflect.decorate(decorators, target, key, desc);
-    switch (arguments.length) {
-        case 2: return decorators.reduceRight(function(o, d) { return (d && d(o)) || o; }, target);
-        case 3: return decorators.reduceRight(function(o, d) { return (d && d(target, key)), void 0; }, void 0);
-        case 4: return decorators.reduceRight(function(o, d) { return (d && d(target, key, o)) || o; }, desc);
-    }
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
 };
-var _utils = require('../utils');
+var _utils = require("../utils");
 var nativeFunction = _utils.nativeFunction;
 var sceReg = (function () {
     function sceReg(context) {
@@ -21160,69 +26605,60 @@ var sceReg = (function () {
         console.warn('sceRegCloseRegistry');
         return 0;
     };
-    Object.defineProperty(sceReg.prototype, "sceRegOpenRegistry",
-        __decorate([
-            nativeFunction(0x92E41280, 150, 'int', 'void*/int/void*')
-        ], sceReg.prototype, "sceRegOpenRegistry", Object.getOwnPropertyDescriptor(sceReg.prototype, "sceRegOpenRegistry")));
-    Object.defineProperty(sceReg.prototype, "sceRegOpenCategory",
-        __decorate([
-            nativeFunction(0x1D8A762E, 150, 'int', 'int/string/int/void*')
-        ], sceReg.prototype, "sceRegOpenCategory", Object.getOwnPropertyDescriptor(sceReg.prototype, "sceRegOpenCategory")));
-    Object.defineProperty(sceReg.prototype, "sceRegGetKeyInfo",
-        __decorate([
-            nativeFunction(0xD4475AA8, 150, 'int', 'int/string/void*/void*/void*')
-        ], sceReg.prototype, "sceRegGetKeyInfo", Object.getOwnPropertyDescriptor(sceReg.prototype, "sceRegGetKeyInfo")));
-    Object.defineProperty(sceReg.prototype, "sceRegGetKeyValue",
-        __decorate([
-            nativeFunction(0x28A8E98A, 150, 'int', 'int/int/void*/int')
-        ], sceReg.prototype, "sceRegGetKeyValue", Object.getOwnPropertyDescriptor(sceReg.prototype, "sceRegGetKeyValue")));
-    Object.defineProperty(sceReg.prototype, "sceRegFlushCategory",
-        __decorate([
-            nativeFunction(0x0D69BF40, 150, 'int', 'int')
-        ], sceReg.prototype, "sceRegFlushCategory", Object.getOwnPropertyDescriptor(sceReg.prototype, "sceRegFlushCategory")));
-    Object.defineProperty(sceReg.prototype, "sceRegCloseCategory",
-        __decorate([
-            nativeFunction(0x0CAE832B, 150, 'int', 'int')
-        ], sceReg.prototype, "sceRegCloseCategory", Object.getOwnPropertyDescriptor(sceReg.prototype, "sceRegCloseCategory")));
-    Object.defineProperty(sceReg.prototype, "sceRegFlushRegistry",
-        __decorate([
-            nativeFunction(0x39461B4D, 150, 'int', 'int')
-        ], sceReg.prototype, "sceRegFlushRegistry", Object.getOwnPropertyDescriptor(sceReg.prototype, "sceRegFlushRegistry")));
-    Object.defineProperty(sceReg.prototype, "sceRegCloseRegistry",
-        __decorate([
-            nativeFunction(0xFA8A5739, 150, 'int', 'int')
-        ], sceReg.prototype, "sceRegCloseRegistry", Object.getOwnPropertyDescriptor(sceReg.prototype, "sceRegCloseRegistry")));
     return sceReg;
-})();
+}());
+__decorate([
+    nativeFunction(0x92E41280, 150, 'int', 'void*/int/void*')
+], sceReg.prototype, "sceRegOpenRegistry", null);
+__decorate([
+    nativeFunction(0x1D8A762E, 150, 'int', 'int/string/int/void*')
+], sceReg.prototype, "sceRegOpenCategory", null);
+__decorate([
+    nativeFunction(0xD4475AA8, 150, 'int', 'int/string/void*/void*/void*')
+], sceReg.prototype, "sceRegGetKeyInfo", null);
+__decorate([
+    nativeFunction(0x28A8E98A, 150, 'int', 'int/int/void*/int')
+], sceReg.prototype, "sceRegGetKeyValue", null);
+__decorate([
+    nativeFunction(0x0D69BF40, 150, 'int', 'int')
+], sceReg.prototype, "sceRegFlushCategory", null);
+__decorate([
+    nativeFunction(0x0CAE832B, 150, 'int', 'int')
+], sceReg.prototype, "sceRegCloseCategory", null);
+__decorate([
+    nativeFunction(0x39461B4D, 150, 'int', 'int')
+], sceReg.prototype, "sceRegFlushRegistry", null);
+__decorate([
+    nativeFunction(0xFA8A5739, 150, 'int', 'int')
+], sceReg.prototype, "sceRegCloseRegistry", null);
 exports.sceReg = sceReg;
 var RegParam = (function () {
     function RegParam() {
     }
-    RegParam.struct = StructClass.create(RegParam, [
-        { regType: UInt32 },
-        { name: Stringz(256) },
-        { nameLength: Int32 },
-        { unknown2: Int32 },
-        { unknown3: Int32 },
-    ]);
     return RegParam;
-})();
+}());
+RegParam.struct = StructClass.create(RegParam, [
+    { regType: UInt32 },
+    { name: Stringz(256) },
+    { nameLength: Int32 },
+    { unknown2: Int32 },
+    { unknown3: Int32 },
+]);
 
 },
 "src/hle/module/sceRtc": function(module, exports, require) {
 ///<reference path="../../global.d.ts" />
+"use strict";
 var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
-    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") return Reflect.decorate(decorators, target, key, desc);
-    switch (arguments.length) {
-        case 2: return decorators.reduceRight(function(o, d) { return (d && d(o)) || o; }, target);
-        case 3: return decorators.reduceRight(function(o, d) { return (d && d(target, key)), void 0; }, void 0);
-        case 4: return decorators.reduceRight(function(o, d) { return (d && d(target, key, o)) || o; }, desc);
-    }
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
 };
-var _utils = require('../utils');
+var _utils = require("../utils");
 var nativeFunction = _utils.nativeFunction;
-var SceKernelErrors = require('../SceKernelErrors');
-var _structs = require('../structs');
+var SceKernelErrors = require("../SceKernelErrors");
+var _structs = require("../structs");
 var ScePspDateTime = _structs.ScePspDateTime;
 var sceRtc = (function () {
     function sceRtc(context) {
@@ -21258,59 +26694,52 @@ var sceRtc = (function () {
     };
     sceRtc.prototype.sceRtcGetCurrentClock = function (dateAddress, timezone) {
         //var currentDate = this.context.rtc.getCurrentUnixMicroseconds();
+        //currentDate += timezone * 60 * 1000000;
         var date = new Date();
         var pointer = this.context.memory.getPointerPointer(ScePspDateTime.struct, dateAddress);
         pointer.write(ScePspDateTime.fromDate(new Date()));
         return 0;
     };
-    Object.defineProperty(sceRtc.prototype, "sceRtcGetCurrentTick",
-        __decorate([
-            nativeFunction(0x3F7AD767, 150, 'int', 'void*')
-        ], sceRtc.prototype, "sceRtcGetCurrentTick", Object.getOwnPropertyDescriptor(sceRtc.prototype, "sceRtcGetCurrentTick")));
-    Object.defineProperty(sceRtc.prototype, "sceRtcGetDayOfWeek",
-        __decorate([
-            nativeFunction(0x57726BC1, 150, 'int', 'int/int/int')
-        ], sceRtc.prototype, "sceRtcGetDayOfWeek", Object.getOwnPropertyDescriptor(sceRtc.prototype, "sceRtcGetDayOfWeek")));
-    Object.defineProperty(sceRtc.prototype, "sceRtcGetDaysInMonth",
-        __decorate([
-            nativeFunction(0x05EF322C, 150, 'int', 'int/int')
-        ], sceRtc.prototype, "sceRtcGetDaysInMonth", Object.getOwnPropertyDescriptor(sceRtc.prototype, "sceRtcGetDaysInMonth")));
-    Object.defineProperty(sceRtc.prototype, "sceRtcGetTickResolution",
-        __decorate([
-            nativeFunction(0xC41C2853, 150, 'uint', 'void*')
-        ], sceRtc.prototype, "sceRtcGetTickResolution", Object.getOwnPropertyDescriptor(sceRtc.prototype, "sceRtcGetTickResolution")));
-    Object.defineProperty(sceRtc.prototype, "sceRtcSetTick",
-        __decorate([
-            nativeFunction(0x7ED29E40, 150, 'int', 'void*/void*')
-        ], sceRtc.prototype, "sceRtcSetTick", Object.getOwnPropertyDescriptor(sceRtc.prototype, "sceRtcSetTick")));
-    Object.defineProperty(sceRtc.prototype, "sceRtcGetTick",
-        __decorate([
-            nativeFunction(0x6FF40ACC, 150, 'int', 'void*/void*')
-        ], sceRtc.prototype, "sceRtcGetTick", Object.getOwnPropertyDescriptor(sceRtc.prototype, "sceRtcGetTick")));
-    Object.defineProperty(sceRtc.prototype, "sceRtcGetCurrentClock",
-        __decorate([
-            nativeFunction(0x4CFA57B0, 150, 'int', 'uint/int')
-        ], sceRtc.prototype, "sceRtcGetCurrentClock", Object.getOwnPropertyDescriptor(sceRtc.prototype, "sceRtcGetCurrentClock")));
     return sceRtc;
-})();
+}());
+__decorate([
+    nativeFunction(0x3F7AD767, 150, 'int', 'void*')
+], sceRtc.prototype, "sceRtcGetCurrentTick", null);
+__decorate([
+    nativeFunction(0x57726BC1, 150, 'int', 'int/int/int')
+], sceRtc.prototype, "sceRtcGetDayOfWeek", null);
+__decorate([
+    nativeFunction(0x05EF322C, 150, 'int', 'int/int')
+], sceRtc.prototype, "sceRtcGetDaysInMonth", null);
+__decorate([
+    nativeFunction(0xC41C2853, 150, 'uint', 'void*')
+], sceRtc.prototype, "sceRtcGetTickResolution", null);
+__decorate([
+    nativeFunction(0x7ED29E40, 150, 'int', 'void*/void*')
+], sceRtc.prototype, "sceRtcSetTick", null);
+__decorate([
+    nativeFunction(0x6FF40ACC, 150, 'int', 'void*/void*')
+], sceRtc.prototype, "sceRtcGetTick", null);
+__decorate([
+    nativeFunction(0x4CFA57B0, 150, 'int', 'uint/int')
+], sceRtc.prototype, "sceRtcGetCurrentClock", null);
 exports.sceRtc = sceRtc;
 
 },
 "src/hle/module/sceSasCore": function(module, exports, require) {
 ///<reference path="../../global.d.ts" />
+"use strict";
 var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
-    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") return Reflect.decorate(decorators, target, key, desc);
-    switch (arguments.length) {
-        case 2: return decorators.reduceRight(function(o, d) { return (d && d(o)) || o; }, target);
-        case 3: return decorators.reduceRight(function(o, d) { return (d && d(target, key)), void 0; }, void 0);
-        case 4: return decorators.reduceRight(function(o, d) { return (d && d(target, key, o)) || o; }, desc);
-    }
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
 };
-var _utils = require('../utils');
-var _audio = require('../../core/audio');
-var _vag = require('../../format/vag');
+var _utils = require("../utils");
+var _audio = require("../../core/audio");
+var _vag = require("../../format/vag");
 var nativeFunction = _utils.nativeFunction;
-var SceKernelErrors = require('../SceKernelErrors');
+var SceKernelErrors = require("../SceKernelErrors");
 var Sample = _audio.Sample;
 var VagSoundSource = _vag.VagSoundSource;
 var PSP_SAS_VOL_MAX = 0x1000;
@@ -21326,17 +26755,22 @@ var sceSasCore = (function () {
         if (sampleRate != 44100) {
             return SceKernelErrors.ERROR_SAS_INVALID_SAMPLE_RATE;
         }
+        //CheckGrains(GrainSamples);
         if (maxVoices < 1 || maxVoices > sceSasCore.PSP_SAS_VOICES_MAX) {
             return SceKernelErrors.ERROR_SAS_INVALID_MAX_VOICES;
         }
         if (outputMode != OutputMode.STEREO && outputMode != OutputMode.MULTICHANNEL) {
             return SceKernelErrors.ERROR_SAS_INVALID_OUTPUT_MODE;
         }
+        //var SasCore = GetSasCore(SasCorePointer, CreateIfNotExists: true);
         this.core.grainSamples = grainSamples;
         this.core.maxVoices = maxVoices;
         this.core.outputMode = outputMode;
         this.core.sampleRate = sampleRate;
         this.core.initialized = true;
+        //BufferTemp = new StereoIntSoundSample[SasCore.GrainSamples * 2];
+        //BufferShort = new StereoShortSoundSample[SasCore.GrainSamples * 2];
+        //MixBufferShort = new StereoShortSoundSample[SasCore.GrainSamples * 2];
         return 0;
     };
     sceSasCore.prototype.__sceSasSetGrain = function (sasCorePointer, grainSamples) {
@@ -21519,6 +26953,7 @@ var sceSasCore = (function () {
     sceSasCore.prototype.__sceSasRevParam = function (sasCorePointer, delay, feedback) {
         this.core.delay = delay;
         this.core.feedback = feedback;
+        // Not implemented
         return 0;
     };
     sceSasCore.prototype.__sceSasSetSimpleADSR = function (sasCorePointer, voiceId, env1Bitfield, env2Bitfield) {
@@ -21527,119 +26962,94 @@ var sceSasCore = (function () {
         var voice = this.getSasCoreVoice(sasCorePointer, voiceId);
         return 0;
     };
-    sceSasCore.PSP_SAS_VOICES_MAX = 32;
-    sceSasCore.PSP_SAS_GRAIN_SAMPLES = 256;
-    sceSasCore.PSP_SAS_LOOP_MODE_OFF = 0;
-    sceSasCore.PSP_SAS_LOOP_MODE_ON = 1;
-    sceSasCore.PSP_SAS_NOISE_FREQ_MAX = 0x3F;
-    sceSasCore.PSP_SAS_ENVELOPE_HEIGHT_MAX = 0x40000000;
-    sceSasCore.PSP_SAS_ENVELOPE_FREQ_MAX = 0x7FFFFFFF;
-    sceSasCore.PSP_SAS_ADSR_ATTACK = 1;
-    sceSasCore.PSP_SAS_ADSR_DECAY = 2;
-    sceSasCore.PSP_SAS_ADSR_SUSTAIN = 4;
-    sceSasCore.PSP_SAS_ADSR_RELEASE = 8;
-    Object.defineProperty(sceSasCore.prototype, "__sceSasInit",
-        __decorate([
-            nativeFunction(0x42778A9F, 150, 'uint', 'int/int/int/int/int')
-        ], sceSasCore.prototype, "__sceSasInit", Object.getOwnPropertyDescriptor(sceSasCore.prototype, "__sceSasInit")));
-    Object.defineProperty(sceSasCore.prototype, "__sceSasSetGrain",
-        __decorate([
-            nativeFunction(0xD1E0A01E, 150, 'uint', 'int/int')
-        ], sceSasCore.prototype, "__sceSasSetGrain", Object.getOwnPropertyDescriptor(sceSasCore.prototype, "__sceSasSetGrain")));
-    Object.defineProperty(sceSasCore.prototype, "__sceSasSetOutputmode",
-        __decorate([
-            nativeFunction(0xE855BF76, 150, 'uint', 'int/int')
-        ], sceSasCore.prototype, "__sceSasSetOutputmode", Object.getOwnPropertyDescriptor(sceSasCore.prototype, "__sceSasSetOutputmode")));
-    Object.defineProperty(sceSasCore.prototype, "__sceSasSetVoice",
-        __decorate([
-            nativeFunction(0x99944089, 150, 'uint', 'int/int/byte[]/int')
-        ], sceSasCore.prototype, "__sceSasSetVoice", Object.getOwnPropertyDescriptor(sceSasCore.prototype, "__sceSasSetVoice")));
-    Object.defineProperty(sceSasCore.prototype, "__sceSasSetVoicePCM",
-        __decorate([
-            nativeFunction(0xE1CD9561, 150, 'uint', 'int/int/byte[]/int')
-        ], sceSasCore.prototype, "__sceSasSetVoicePCM", Object.getOwnPropertyDescriptor(sceSasCore.prototype, "__sceSasSetVoicePCM")));
-    Object.defineProperty(sceSasCore.prototype, "__sceSasCoreWithMix",
-        __decorate([
-            nativeFunction(0x50A14DFC, 150, 'uint', 'int/void*/int/int')
-        ], sceSasCore.prototype, "__sceSasCoreWithMix", Object.getOwnPropertyDescriptor(sceSasCore.prototype, "__sceSasCoreWithMix")));
-    Object.defineProperty(sceSasCore.prototype, "__sceSasCore",
-        __decorate([
-            nativeFunction(0xA3589D81, 150, 'uint', 'int/void*')
-        ], sceSasCore.prototype, "__sceSasCore", Object.getOwnPropertyDescriptor(sceSasCore.prototype, "__sceSasCore")));
-    Object.defineProperty(sceSasCore.prototype, "__sceSasGetEndFlag",
-        __decorate([
-            nativeFunction(0x68A46B95, 150, 'uint', 'int')
-        ], sceSasCore.prototype, "__sceSasGetEndFlag", Object.getOwnPropertyDescriptor(sceSasCore.prototype, "__sceSasGetEndFlag")));
-    Object.defineProperty(sceSasCore.prototype, "__sceSasRevType",
-        __decorate([
-            nativeFunction(0x33D4AB37, 150, 'uint', 'int/int')
-        ], sceSasCore.prototype, "__sceSasRevType", Object.getOwnPropertyDescriptor(sceSasCore.prototype, "__sceSasRevType")));
-    Object.defineProperty(sceSasCore.prototype, "__sceSasRevVON",
-        __decorate([
-            nativeFunction(0xF983B186, 150, 'uint', 'int/int/int')
-        ], sceSasCore.prototype, "__sceSasRevVON", Object.getOwnPropertyDescriptor(sceSasCore.prototype, "__sceSasRevVON")));
-    Object.defineProperty(sceSasCore.prototype, "__sceSasRevEVOL",
-        __decorate([
-            nativeFunction(0xD5A229C9, 150, 'uint', 'int/int/int')
-        ], sceSasCore.prototype, "__sceSasRevEVOL", Object.getOwnPropertyDescriptor(sceSasCore.prototype, "__sceSasRevEVOL")));
-    Object.defineProperty(sceSasCore.prototype, "__sceSasSetADSR",
-        __decorate([
-            nativeFunction(0x019B25EB, 150, 'uint', 'int/int/int/int/int/int/int')
-        ], sceSasCore.prototype, "__sceSasSetADSR", Object.getOwnPropertyDescriptor(sceSasCore.prototype, "__sceSasSetADSR")));
-    Object.defineProperty(sceSasCore.prototype, "__sceSasSetADSRmode",
-        __decorate([
-            nativeFunction(0x9EC3676A, 150, 'uint', 'int/int/int/int/int/int/int')
-        ], sceSasCore.prototype, "__sceSasSetADSRmode", Object.getOwnPropertyDescriptor(sceSasCore.prototype, "__sceSasSetADSRmode")));
-    Object.defineProperty(sceSasCore.prototype, "__sceSasSetKeyOff",
-        __decorate([
-            nativeFunction(0xA0CF2FA4, 150, 'uint', 'int/int')
-        ], sceSasCore.prototype, "__sceSasSetKeyOff", Object.getOwnPropertyDescriptor(sceSasCore.prototype, "__sceSasSetKeyOff")));
-    Object.defineProperty(sceSasCore.prototype, "__sceSasSetKeyOn",
-        __decorate([
-            nativeFunction(0x76F01ACA, 150, 'uint', 'int/int')
-        ], sceSasCore.prototype, "__sceSasSetKeyOn", Object.getOwnPropertyDescriptor(sceSasCore.prototype, "__sceSasSetKeyOn")));
-    Object.defineProperty(sceSasCore.prototype, "__sceSasGetEnvelopeHeight",
-        __decorate([
-            nativeFunction(0x74AE582A, 150, 'uint', 'int/int')
-        ], sceSasCore.prototype, "__sceSasGetEnvelopeHeight", Object.getOwnPropertyDescriptor(sceSasCore.prototype, "__sceSasGetEnvelopeHeight")));
-    Object.defineProperty(sceSasCore.prototype, "__sceSasSetSL",
-        __decorate([
-            nativeFunction(0x5F9529F6, 150, 'uint', 'int/int/int')
-        ], sceSasCore.prototype, "__sceSasSetSL", Object.getOwnPropertyDescriptor(sceSasCore.prototype, "__sceSasSetSL")));
-    Object.defineProperty(sceSasCore.prototype, "__sceSasSetPause",
-        __decorate([
-            nativeFunction(0x787D04D5, 150, 'uint', 'int/int/int')
-        ], sceSasCore.prototype, "__sceSasSetPause", Object.getOwnPropertyDescriptor(sceSasCore.prototype, "__sceSasSetPause")));
-    Object.defineProperty(sceSasCore.prototype, "__sceSasGetPauseFlag",
-        __decorate([
-            nativeFunction(0x2C8E6AB3, 150, 'uint', 'int')
-        ], sceSasCore.prototype, "__sceSasGetPauseFlag", Object.getOwnPropertyDescriptor(sceSasCore.prototype, "__sceSasGetPauseFlag")));
-    Object.defineProperty(sceSasCore.prototype, "__sceSasGetAllEnvelopeHeights",
-        __decorate([
-            nativeFunction(0x07F58C24, 150, 'uint', 'int/void*')
-        ], sceSasCore.prototype, "__sceSasGetAllEnvelopeHeights", Object.getOwnPropertyDescriptor(sceSasCore.prototype, "__sceSasGetAllEnvelopeHeights")));
-    Object.defineProperty(sceSasCore.prototype, "__sceSasSetNoise",
-        __decorate([
-            nativeFunction(0xB7660A23, 150, 'uint', 'int/int/int')
-        ], sceSasCore.prototype, "__sceSasSetNoise", Object.getOwnPropertyDescriptor(sceSasCore.prototype, "__sceSasSetNoise")));
-    Object.defineProperty(sceSasCore.prototype, "__sceSasSetVolume",
-        __decorate([
-            nativeFunction(0x440CA7D8, 150, 'uint', 'int/int/int/int/int/int')
-        ], sceSasCore.prototype, "__sceSasSetVolume", Object.getOwnPropertyDescriptor(sceSasCore.prototype, "__sceSasSetVolume")));
-    Object.defineProperty(sceSasCore.prototype, "__sceSasSetPitch",
-        __decorate([
-            nativeFunction(0xAD84D37F, 150, 'uint', 'int/int/int')
-        ], sceSasCore.prototype, "__sceSasSetPitch", Object.getOwnPropertyDescriptor(sceSasCore.prototype, "__sceSasSetPitch")));
-    Object.defineProperty(sceSasCore.prototype, "__sceSasRevParam",
-        __decorate([
-            nativeFunction(0x267A6DD2, 150, 'uint', 'int/int/int')
-        ], sceSasCore.prototype, "__sceSasRevParam", Object.getOwnPropertyDescriptor(sceSasCore.prototype, "__sceSasRevParam")));
-    Object.defineProperty(sceSasCore.prototype, "__sceSasSetSimpleADSR",
-        __decorate([
-            nativeFunction(0xCBCD4F79, 150, 'uint', 'int/int/int/int')
-        ], sceSasCore.prototype, "__sceSasSetSimpleADSR", Object.getOwnPropertyDescriptor(sceSasCore.prototype, "__sceSasSetSimpleADSR")));
     return sceSasCore;
-})();
+}());
+sceSasCore.PSP_SAS_VOICES_MAX = 32;
+sceSasCore.PSP_SAS_GRAIN_SAMPLES = 256;
+sceSasCore.PSP_SAS_LOOP_MODE_OFF = 0;
+sceSasCore.PSP_SAS_LOOP_MODE_ON = 1;
+sceSasCore.PSP_SAS_NOISE_FREQ_MAX = 0x3F;
+sceSasCore.PSP_SAS_ENVELOPE_HEIGHT_MAX = 0x40000000;
+sceSasCore.PSP_SAS_ENVELOPE_FREQ_MAX = 0x7FFFFFFF;
+sceSasCore.PSP_SAS_ADSR_ATTACK = 1;
+sceSasCore.PSP_SAS_ADSR_DECAY = 2;
+sceSasCore.PSP_SAS_ADSR_SUSTAIN = 4;
+sceSasCore.PSP_SAS_ADSR_RELEASE = 8;
+__decorate([
+    nativeFunction(0x42778A9F, 150, 'uint', 'int/int/int/int/int')
+], sceSasCore.prototype, "___sceSasInit", null);
+__decorate([
+    nativeFunction(0xD1E0A01E, 150, 'uint', 'int/int')
+], sceSasCore.prototype, "___sceSasSetGrain", null);
+__decorate([
+    nativeFunction(0xE855BF76, 150, 'uint', 'int/int')
+], sceSasCore.prototype, "___sceSasSetOutputmode", null);
+__decorate([
+    nativeFunction(0x99944089, 150, 'uint', 'int/int/byte[]/int')
+], sceSasCore.prototype, "___sceSasSetVoice", null);
+__decorate([
+    nativeFunction(0xE1CD9561, 150, 'uint', 'int/int/byte[]/int')
+], sceSasCore.prototype, "___sceSasSetVoicePCM", null);
+__decorate([
+    nativeFunction(0x50A14DFC, 150, 'uint', 'int/void*/int/int')
+], sceSasCore.prototype, "___sceSasCoreWithMix", null);
+__decorate([
+    nativeFunction(0xA3589D81, 150, 'uint', 'int/void*')
+], sceSasCore.prototype, "___sceSasCore", null);
+__decorate([
+    nativeFunction(0x68A46B95, 150, 'uint', 'int')
+], sceSasCore.prototype, "___sceSasGetEndFlag", null);
+__decorate([
+    nativeFunction(0x33D4AB37, 150, 'uint', 'int/int')
+], sceSasCore.prototype, "___sceSasRevType", null);
+__decorate([
+    nativeFunction(0xF983B186, 150, 'uint', 'int/int/int')
+], sceSasCore.prototype, "___sceSasRevVON", null);
+__decorate([
+    nativeFunction(0xD5A229C9, 150, 'uint', 'int/int/int')
+], sceSasCore.prototype, "___sceSasRevEVOL", null);
+__decorate([
+    nativeFunction(0x019B25EB, 150, 'uint', 'int/int/int/int/int/int/int')
+], sceSasCore.prototype, "___sceSasSetADSR", null);
+__decorate([
+    nativeFunction(0x9EC3676A, 150, 'uint', 'int/int/int/int/int/int/int')
+], sceSasCore.prototype, "___sceSasSetADSRmode", null);
+__decorate([
+    nativeFunction(0xA0CF2FA4, 150, 'uint', 'int/int')
+], sceSasCore.prototype, "___sceSasSetKeyOff", null);
+__decorate([
+    nativeFunction(0x76F01ACA, 150, 'uint', 'int/int')
+], sceSasCore.prototype, "___sceSasSetKeyOn", null);
+__decorate([
+    nativeFunction(0x74AE582A, 150, 'uint', 'int/int')
+], sceSasCore.prototype, "___sceSasGetEnvelopeHeight", null);
+__decorate([
+    nativeFunction(0x5F9529F6, 150, 'uint', 'int/int/int')
+], sceSasCore.prototype, "___sceSasSetSL", null);
+__decorate([
+    nativeFunction(0x787D04D5, 150, 'uint', 'int/int/int')
+], sceSasCore.prototype, "___sceSasSetPause", null);
+__decorate([
+    nativeFunction(0x2C8E6AB3, 150, 'uint', 'int')
+], sceSasCore.prototype, "___sceSasGetPauseFlag", null);
+__decorate([
+    nativeFunction(0x07F58C24, 150, 'uint', 'int/void*')
+], sceSasCore.prototype, "___sceSasGetAllEnvelopeHeights", null);
+__decorate([
+    nativeFunction(0xB7660A23, 150, 'uint', 'int/int/int')
+], sceSasCore.prototype, "___sceSasSetNoise", null);
+__decorate([
+    nativeFunction(0x440CA7D8, 150, 'uint', 'int/int/int/int/int/int')
+], sceSasCore.prototype, "___sceSasSetVolume", null);
+__decorate([
+    nativeFunction(0xAD84D37F, 150, 'uint', 'int/int/int')
+], sceSasCore.prototype, "___sceSasSetPitch", null);
+__decorate([
+    nativeFunction(0x267A6DD2, 150, 'uint', 'int/int/int')
+], sceSasCore.prototype, "___sceSasRevParam", null);
+__decorate([
+    nativeFunction(0xCBCD4F79, 150, 'uint', 'int/int/int/int')
+], sceSasCore.prototype, "___sceSasSetSimpleADSR", null);
 exports.sceSasCore = sceSasCore;
 var SasCore = (function () {
     function SasCore() {
@@ -21674,6 +27084,9 @@ var SasCore = (function () {
             var voice = this.voices[n];
             if (!voice.onAndPlaying)
                 continue;
+            //var sampleLeftSum = 0, sampleRightSum = 0;
+            //var sampleLeftMax = 0, sampleRightMax = 0;
+            //var sampleCount = 0;
             var pos = 0;
             while (true) {
                 if ((voice.source != null) && (voice.source.hasMore)) {
@@ -21682,6 +27095,13 @@ var SasCore = (function () {
                         break;
                     var sample = voice.source.getNextSample();
                     for (var m = prevPosDiv + 1; m <= posDiv; m++) {
+                        //sampleLeftSum += voice.leftVolume;
+                        //sampleRightSum += voice.rightVolume;
+                        //
+                        //sampleLeftMax = Math.max(sampleLeftMax, Math.abs(voice.leftVolume));
+                        //sampleRightMax = Math.max(sampleRightMax, Math.abs(voice.rightVolume));
+                        //
+                        //sampleCount++;
                         this.bufferTempArray[m].addScaled(sample, voice.leftVolume / PSP_SAS_VOL_MAX, voice.rightVolume / PSP_SAS_VOL_MAX);
                     }
                     prevPosDiv = posDiv;
@@ -21704,7 +27124,7 @@ var SasCore = (function () {
         return 0;
     };
     return SasCore;
-})();
+}());
 var Voice = (function () {
     function Voice(index) {
         this.index = index;
@@ -21733,6 +27153,7 @@ var Voice = (function () {
     };
     Voice.prototype.setPlaying = function (set) {
         this.playing = set;
+        // CHECK. Reset on change?
         if (this.source)
             this.source.reset();
     };
@@ -21755,7 +27176,7 @@ var Voice = (function () {
         this.source.reset();
     };
     return Voice;
-})();
+}());
 var PcmSoundSource = (function () {
     function PcmSoundSource(stream, loopCount) {
     }
@@ -21772,7 +27193,7 @@ var PcmSoundSource = (function () {
         return null;
     };
     return PcmSoundSource;
-})();
+}());
 var Envelope = (function () {
     function Envelope() {
         this.attackRate = 0;
@@ -21782,7 +27203,7 @@ var Envelope = (function () {
         this.height = 0;
     }
     return Envelope;
-})();
+}());
 var OutputMode;
 (function (OutputMode) {
     OutputMode[OutputMode["STEREO"] = 0] = "STEREO";
@@ -21821,28 +27242,28 @@ var AdsrFlags;
 },
 "src/hle/module/sceSsl": function(module, exports, require) {
 ///<reference path="../../global.d.ts" />
+"use strict";
 var sceSsl = (function () {
     function sceSsl(context) {
         this.context = context;
     }
     return sceSsl;
-})();
+}());
 exports.sceSsl = sceSsl;
 
 },
 "src/hle/module/sceSuspendForUser": function(module, exports, require) {
 ///<reference path="../../global.d.ts" />
+"use strict";
 var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
-    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") return Reflect.decorate(decorators, target, key, desc);
-    switch (arguments.length) {
-        case 2: return decorators.reduceRight(function(o, d) { return (d && d(o)) || o; }, target);
-        case 3: return decorators.reduceRight(function(o, d) { return (d && d(target, key)), void 0; }, void 0);
-        case 4: return decorators.reduceRight(function(o, d) { return (d && d(target, key, o)) || o; }, desc);
-    }
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
 };
-var _utils = require('../utils');
+var _utils = require("../utils");
 var nativeFunction = _utils.nativeFunction;
-var SceKernelErrors = require('../SceKernelErrors');
+var SceKernelErrors = require("../SceKernelErrors");
 var sceSuspendForUser = (function () {
     function sceSuspendForUser(context) {
         this.context = context;
@@ -21858,38 +27279,35 @@ var sceSuspendForUser = (function () {
         return 0;
     };
     sceSuspendForUser.prototype.sceKernelPowerTick = function (value) {
+        // prevent screen from turning off!
         return 0;
     };
-    Object.defineProperty(sceSuspendForUser.prototype, "sceKernelPowerLock",
-        __decorate([
-            nativeFunction(0xEADB1BD7, 150, 'uint', 'uint')
-        ], sceSuspendForUser.prototype, "sceKernelPowerLock", Object.getOwnPropertyDescriptor(sceSuspendForUser.prototype, "sceKernelPowerLock")));
-    Object.defineProperty(sceSuspendForUser.prototype, "sceKernelPowerUnlock",
-        __decorate([
-            nativeFunction(0x3AEE7261, 150, 'uint', 'uint')
-        ], sceSuspendForUser.prototype, "sceKernelPowerUnlock", Object.getOwnPropertyDescriptor(sceSuspendForUser.prototype, "sceKernelPowerUnlock")));
-    Object.defineProperty(sceSuspendForUser.prototype, "sceKernelPowerTick",
-        __decorate([
-            nativeFunction(0x090CCB3F, 150, 'uint', 'uint')
-        ], sceSuspendForUser.prototype, "sceKernelPowerTick", Object.getOwnPropertyDescriptor(sceSuspendForUser.prototype, "sceKernelPowerTick")));
     return sceSuspendForUser;
-})();
+}());
+__decorate([
+    nativeFunction(0xEADB1BD7, 150, 'uint', 'uint')
+], sceSuspendForUser.prototype, "sceKernelPowerLock", null);
+__decorate([
+    nativeFunction(0x3AEE7261, 150, 'uint', 'uint')
+], sceSuspendForUser.prototype, "sceKernelPowerUnlock", null);
+__decorate([
+    nativeFunction(0x090CCB3F, 150, 'uint', 'uint')
+], sceSuspendForUser.prototype, "sceKernelPowerTick", null);
 exports.sceSuspendForUser = sceSuspendForUser;
 
 },
 "src/hle/module/sceUmdUser": function(module, exports, require) {
 ///<reference path="../../global.d.ts" />
+"use strict";
 var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
-    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") return Reflect.decorate(decorators, target, key, desc);
-    switch (arguments.length) {
-        case 2: return decorators.reduceRight(function(o, d) { return (d && d(o)) || o; }, target);
-        case 3: return decorators.reduceRight(function(o, d) { return (d && d(target, key)), void 0; }, void 0);
-        case 4: return decorators.reduceRight(function(o, d) { return (d && d(target, key, o)) || o; }, desc);
-    }
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
 };
-var _utils = require('../utils');
+var _utils = require("../utils");
 var nativeFunction = _utils.nativeFunction;
-var SceKernelErrors = require('../SceKernelErrors');
+var SceKernelErrors = require("../SceKernelErrors");
 var sceUmdUser = (function () {
     function sceUmdUser(context) {
         this.context = context;
@@ -21912,6 +27330,14 @@ var sceUmdUser = (function () {
     sceUmdUser.prototype._sceUmdWaitDriveStat = function (pspUmdState, acceptCallbacks) {
         this.context.callbackManager.executePendingWithinThread(this.context.threadManager.current);
         return 0;
+        /*
+        return new WaitingThreadInfo('sceUmdWaitDriveStatCB', this, new Promise2((resolve, reject) => {
+            var signalCallback = this.signal.add((result) => {
+                this.signal.remove(signalCallback);
+                resolve();
+            });
+        }), AcceptCallbacks.YES);
+        */
     };
     sceUmdUser.prototype.sceUmdWaitDriveStat = function (pspUmdState) {
         return this._sceUmdWaitDriveStat(pspUmdState, AcceptCallbacks.NO);
@@ -21923,6 +27349,7 @@ var sceUmdUser = (function () {
         var _this = this;
         this.signal.dispatch(data);
         this.callbackIds.forEach(function (callbackId) {
+            //var state = this.context.threadManager.current.state;
             _this.context.callbackManager.notify(callbackId, data);
         });
     };
@@ -21944,48 +27371,38 @@ var sceUmdUser = (function () {
         console.warn('called sceUmdGetErrorStat!');
         return Promise2.resolve(0);
     };
-    Object.defineProperty(sceUmdUser.prototype, "sceUmdRegisterUMDCallBack",
-        __decorate([
-            nativeFunction(0xAEE7404D, 150, 'uint', 'int')
-        ], sceUmdUser.prototype, "sceUmdRegisterUMDCallBack", Object.getOwnPropertyDescriptor(sceUmdUser.prototype, "sceUmdRegisterUMDCallBack")));
-    Object.defineProperty(sceUmdUser.prototype, "sceUmdUnRegisterUMDCallBack",
-        __decorate([
-            nativeFunction(0xBD2BDE07, 150, 'uint', 'int')
-        ], sceUmdUser.prototype, "sceUmdUnRegisterUMDCallBack", Object.getOwnPropertyDescriptor(sceUmdUser.prototype, "sceUmdUnRegisterUMDCallBack")));
-    Object.defineProperty(sceUmdUser.prototype, "sceUmdCheckMedium",
-        __decorate([
-            nativeFunction(0x46EBB729, 150, 'uint', '')
-        ], sceUmdUser.prototype, "sceUmdCheckMedium", Object.getOwnPropertyDescriptor(sceUmdUser.prototype, "sceUmdCheckMedium")));
-    Object.defineProperty(sceUmdUser.prototype, "sceUmdWaitDriveStat",
-        __decorate([
-            nativeFunction(0x8EF08FCE, 150, 'uint', 'uint')
-        ], sceUmdUser.prototype, "sceUmdWaitDriveStat", Object.getOwnPropertyDescriptor(sceUmdUser.prototype, "sceUmdWaitDriveStat")));
-    Object.defineProperty(sceUmdUser.prototype, "sceUmdWaitDriveStatCB",
-        __decorate([
-            nativeFunction(0x4A9E5E29, 150, 'uint', 'uint/uint')
-        ], sceUmdUser.prototype, "sceUmdWaitDriveStatCB", Object.getOwnPropertyDescriptor(sceUmdUser.prototype, "sceUmdWaitDriveStatCB")));
-    Object.defineProperty(sceUmdUser.prototype, "sceUmdActivate",
-        __decorate([
-            nativeFunction(0xC6183D47, 150, 'uint', 'int/string')
-        ], sceUmdUser.prototype, "sceUmdActivate", Object.getOwnPropertyDescriptor(sceUmdUser.prototype, "sceUmdActivate")));
-    Object.defineProperty(sceUmdUser.prototype, "sceUmdDeactivate",
-        __decorate([
-            nativeFunction(0xE83742BA, 150, 'uint', 'int/string')
-        ], sceUmdUser.prototype, "sceUmdDeactivate", Object.getOwnPropertyDescriptor(sceUmdUser.prototype, "sceUmdDeactivate")));
-    Object.defineProperty(sceUmdUser.prototype, "sceUmdGetDriveStat",
-        __decorate([
-            nativeFunction(0x6B4A146C, 150, 'uint', '')
-        ], sceUmdUser.prototype, "sceUmdGetDriveStat", Object.getOwnPropertyDescriptor(sceUmdUser.prototype, "sceUmdGetDriveStat")));
-    Object.defineProperty(sceUmdUser.prototype, "sceUmdWaitDriveStatWithTimer",
-        __decorate([
-            nativeFunction(0x56202973, 150, 'uint', 'uint/uint')
-        ], sceUmdUser.prototype, "sceUmdWaitDriveStatWithTimer", Object.getOwnPropertyDescriptor(sceUmdUser.prototype, "sceUmdWaitDriveStatWithTimer")));
-    Object.defineProperty(sceUmdUser.prototype, "sceUmdGetErrorStat",
-        __decorate([
-            nativeFunction(0x20628E6F, 150, 'uint', '')
-        ], sceUmdUser.prototype, "sceUmdGetErrorStat", Object.getOwnPropertyDescriptor(sceUmdUser.prototype, "sceUmdGetErrorStat")));
     return sceUmdUser;
-})();
+}());
+__decorate([
+    nativeFunction(0xAEE7404D, 150, 'uint', 'int')
+], sceUmdUser.prototype, "sceUmdRegisterUMDCallBack", null);
+__decorate([
+    nativeFunction(0xBD2BDE07, 150, 'uint', 'int')
+], sceUmdUser.prototype, "sceUmdUnRegisterUMDCallBack", null);
+__decorate([
+    nativeFunction(0x46EBB729, 150, 'uint', '')
+], sceUmdUser.prototype, "sceUmdCheckMedium", null);
+__decorate([
+    nativeFunction(0x8EF08FCE, 150, 'uint', 'uint')
+], sceUmdUser.prototype, "sceUmdWaitDriveStat", null);
+__decorate([
+    nativeFunction(0x4A9E5E29, 150, 'uint', 'uint/uint')
+], sceUmdUser.prototype, "sceUmdWaitDriveStatCB", null);
+__decorate([
+    nativeFunction(0xC6183D47, 150, 'uint', 'int/string')
+], sceUmdUser.prototype, "sceUmdActivate", null);
+__decorate([
+    nativeFunction(0xE83742BA, 150, 'uint', 'int/string')
+], sceUmdUser.prototype, "sceUmdDeactivate", null);
+__decorate([
+    nativeFunction(0x6B4A146C, 150, 'uint', '')
+], sceUmdUser.prototype, "sceUmdGetDriveStat", null);
+__decorate([
+    nativeFunction(0x56202973, 150, 'uint', 'uint/uint')
+], sceUmdUser.prototype, "sceUmdWaitDriveStatWithTimer", null);
+__decorate([
+    nativeFunction(0x20628E6F, 150, 'uint', '')
+], sceUmdUser.prototype, "sceUmdGetErrorStat", null);
 exports.sceUmdUser = sceUmdUser;
 var UmdCheckMedium;
 (function (UmdCheckMedium) {
@@ -22006,19 +27423,18 @@ var PspUmdState;
 },
 "src/hle/module/sceUtility": function(module, exports, require) {
 ///<reference path="../../global.d.ts" />
+"use strict";
 var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
-    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") return Reflect.decorate(decorators, target, key, desc);
-    switch (arguments.length) {
-        case 2: return decorators.reduceRight(function(o, d) { return (d && d(o)) || o; }, target);
-        case 3: return decorators.reduceRight(function(o, d) { return (d && d(target, key)), void 0; }, void 0);
-        case 4: return decorators.reduceRight(function(o, d) { return (d && d(target, key, o)) || o; }, desc);
-    }
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
 };
-var _utils = require('../utils');
-var _vfs = require('../vfs');
-var _emulator_ui = require('../../ui/emulator_ui');
+var _utils = require("../utils");
+var _vfs = require("../vfs");
+var _emulator_ui = require("../../ui/emulator_ui");
 var nativeFunction = _utils.nativeFunction;
-var SceKernelErrors = require('../SceKernelErrors');
+var SceKernelErrors = require("../SceKernelErrors");
 var FileOpenFlags = _vfs.FileOpenFlags;
 var sceUtility = (function () {
     function sceUtility(context) {
@@ -22047,6 +27463,7 @@ var sceUtility = (function () {
             var saveIcon0 = savePathFolder + "/ICON0.PNG";
             var savePic1 = savePathFolder + "/PIC1.PNG";
             _this.currentStep = DialogStepEnum.SUCCESS;
+            //debugger;
             console.info('mode:', PspUtilitySavedataMode[params.mode]);
             switch (params.mode) {
                 case PspUtilitySavedataMode.Autoload:
@@ -22075,50 +27492,56 @@ var sceUtility = (function () {
                     });
                 case PspUtilitySavedataMode.Read:
                 case PspUtilitySavedataMode.ReadSecure:
-                    {
-                        console.error("Not Implemented: sceUtilitySavedataInitStart.Read");
-                        return Promise2.resolve(0);
-                    }
-                    break;
+                    console.error("Not Implemented: sceUtilitySavedataInitStart.Read");
+                    //return Promise2.resolve(-1);
+                    return Promise2.resolve(0);
                 case PspUtilitySavedataMode.Sizes:
+                    var SceKernelError = SceKernelErrors.ERROR_OK;
+                    //Console.Error.WriteLine("Not Implemented: sceUtilitySavedataInitStart.Sizes");
+                    var SectorSize = 1024;
+                    var FreeSize = 32 * 1024 * 1024; // 32 MB
+                    var UsedSize = 0;
+                    // MS free size.
+                    // Gets the ammount of free space in the Memory Stick. If null,
+                    // the size is ignored and no error is returned.
                     {
-                        var SceKernelError = SceKernelErrors.ERROR_OK;
-                        var SectorSize = 1024;
-                        var FreeSize = 32 * 1024 * 1024;
-                        var UsedSize = 0;
-                        {
-                            var sizeFreeInfoPtr = _this.context.memory.getPointerPointer(SizeFreeInfo.struct, params.msFreeAddr);
-                            sizeFreeInfoPtr.readWrite(function (sizeFreeInfo) {
-                                sizeFreeInfo.sectorSize = SectorSize;
-                                sizeFreeInfo.freeSectors = FreeSize / SectorSize;
-                                sizeFreeInfo.freeKb = FreeSize / 1024;
-                                sizeFreeInfo.freeKbString = sizeFreeInfo.freeKb + 'KB';
+                        var sizeFreeInfoPtr = _this.context.memory.getPointerPointer(SizeFreeInfo.struct, params.msFreeAddr);
+                        sizeFreeInfoPtr.readWrite(function (sizeFreeInfo) {
+                            sizeFreeInfo.sectorSize = SectorSize;
+                            sizeFreeInfo.freeSectors = FreeSize / SectorSize;
+                            sizeFreeInfo.freeKb = FreeSize / 1024;
+                            sizeFreeInfo.freeKbString = sizeFreeInfo.freeKb + 'KB';
+                        });
+                    }
+                    // MS data size.
+                    // Gets the size of the data already saved in the Memory Stick.
+                    // If null, the size is ignored and no error is returned.
+                    {
+                        var sizeUsedInfoPtr = _this.context.memory.getPointerPointer(SizeUsedInfo.struct, params.msDataAddr);
+                    }
+                    // Utility data size.
+                    // Gets the size of the data to be saved in the Memory Stick.
+                    // If null, the size is ignored and no error is returned.
+                    {
+                        var sizeRequiredSpaceInfoPtr = _this.context.memory.getPointerPointer(SizeRequiredSpaceInfo.struct, params.utilityDataAddr);
+                        if (sizeRequiredSpaceInfoPtr != null) {
+                            var RequiredSize = 0;
+                            RequiredSize += params.icon0FileData.size;
+                            RequiredSize += params.icon1FileData.size;
+                            RequiredSize += params.pic1FileData.size;
+                            RequiredSize += params.snd0FileData.size;
+                            RequiredSize += params.dataSize;
+                            sizeRequiredSpaceInfoPtr.readWrite(function (sizeRequiredSpaceInfo) {
+                                sizeRequiredSpaceInfo.requiredSpaceSectors = MathUtils.requiredBlocks(RequiredSize, SectorSize);
+                                sizeRequiredSpaceInfo.requiredSpaceKb = MathUtils.requiredBlocks(RequiredSize, 1024);
+                                sizeRequiredSpaceInfo.requiredSpace32KB = MathUtils.requiredBlocks(RequiredSize, 32 * 1024);
+                                sizeRequiredSpaceInfo.requiredSpaceString = (sizeRequiredSpaceInfo.requiredSpaceKb) + "KB";
+                                sizeRequiredSpaceInfo.requiredSpace32KBString = (sizeRequiredSpaceInfo.requiredSpace32KB) + "KB";
                             });
                         }
-                        {
-                            var sizeUsedInfoPtr = _this.context.memory.getPointerPointer(SizeUsedInfo.struct, params.msDataAddr);
-                        }
-                        {
-                            var sizeRequiredSpaceInfoPtr = _this.context.memory.getPointerPointer(SizeRequiredSpaceInfo.struct, params.utilityDataAddr);
-                            if (sizeRequiredSpaceInfoPtr != null) {
-                                var RequiredSize = 0;
-                                RequiredSize += params.icon0FileData.size;
-                                RequiredSize += params.icon1FileData.size;
-                                RequiredSize += params.pic1FileData.size;
-                                RequiredSize += params.snd0FileData.size;
-                                RequiredSize += params.dataSize;
-                                sizeRequiredSpaceInfoPtr.readWrite(function (sizeRequiredSpaceInfo) {
-                                    sizeRequiredSpaceInfo.requiredSpaceSectors = MathUtils.requiredBlocks(RequiredSize, SectorSize);
-                                    sizeRequiredSpaceInfo.requiredSpaceKb = MathUtils.requiredBlocks(RequiredSize, 1024);
-                                    sizeRequiredSpaceInfo.requiredSpace32KB = MathUtils.requiredBlocks(RequiredSize, 32 * 1024);
-                                    sizeRequiredSpaceInfo.requiredSpaceString = (sizeRequiredSpaceInfo.requiredSpaceKb) + "KB";
-                                    sizeRequiredSpaceInfo.requiredSpace32KBString = (sizeRequiredSpaceInfo.requiredSpace32KB) + "KB";
-                                });
-                            }
-                        }
-                        if (SceKernelError != SceKernelErrors.ERROR_OK)
-                            return Promise2.resolve(SceKernelError);
                     }
+                    if (SceKernelError != SceKernelErrors.ERROR_OK)
+                        return Promise2.resolve(SceKernelError);
                     break;
                 default:
                     console.error("Not implemented " + params.mode + ": " + PspUtilitySavedataMode[params.mode]);
@@ -22135,10 +27558,14 @@ var sceUtility = (function () {
         });
     };
     sceUtility.prototype.sceUtilitySavedataShutdownStart = function () {
+        //console.log('sceUtilitySavedataShutdownStart');
+        //debugger;
         this.currentStep = DialogStepEnum.SHUTDOWN;
         return 0;
     };
     sceUtility.prototype.sceUtilitySavedataGetStatus = function () {
+        //console.log('sceUtilitySavedataGetStatus');
+        //debugger;
         try {
             return this.currentStep;
         }
@@ -22149,6 +27576,8 @@ var sceUtility = (function () {
     };
     sceUtility.prototype.sceUtilityMsgDialogInitStart = function (paramsPtr) {
         var _this = this;
+        // @TODO: should not stop
+        //_emulator_ui.EmulatorUI.openMessageAsync().then();
         var params = PspUtilityMsgDialogParams.struct.createProxy(paramsPtr);
         console.warn('sceUtilityMsgDialogInitStart:', params.message);
         return _emulator_ui.EmulatorUI.openMessageAsync(params.message).then(function () {
@@ -22187,6 +27616,7 @@ var sceUtility = (function () {
         throw (new Error("Invalid key " + id));
     };
     sceUtility.prototype.sceUtilityGetSystemParamInt = function (id, valuePtr) {
+        //console.warn("Not implemented sceUtilityGetSystemParamInt", id, PSP_SYSTEMPARAM_ID[id]);
         var value = parseInt(this._getKey(id));
         if (valuePtr)
             valuePtr.writeInt32(value);
@@ -22202,52 +27632,41 @@ var sceUtility = (function () {
     sceUtility.prototype.sceUtilityLoadAvModule = function (id) {
         return 0;
     };
-    Object.defineProperty(sceUtility.prototype, "sceUtilityLoadModule",
-        __decorate([
-            nativeFunction(0x2A2B3DE0, 150, 'uint', 'int')
-        ], sceUtility.prototype, "sceUtilityLoadModule", Object.getOwnPropertyDescriptor(sceUtility.prototype, "sceUtilityLoadModule")));
-    Object.defineProperty(sceUtility.prototype, "sceUtilitySavedataInitStart",
-        __decorate([
-            nativeFunction(0x50C4CD57, 150, 'uint', 'void*')
-        ], sceUtility.prototype, "sceUtilitySavedataInitStart", Object.getOwnPropertyDescriptor(sceUtility.prototype, "sceUtilitySavedataInitStart")));
-    Object.defineProperty(sceUtility.prototype, "sceUtilitySavedataShutdownStart",
-        __decorate([
-            nativeFunction(0x9790B33C, 150, 'uint', '')
-        ], sceUtility.prototype, "sceUtilitySavedataShutdownStart", Object.getOwnPropertyDescriptor(sceUtility.prototype, "sceUtilitySavedataShutdownStart")));
-    Object.defineProperty(sceUtility.prototype, "sceUtilitySavedataGetStatus",
-        __decorate([
-            nativeFunction(0x8874DBE0, 150, 'uint', '')
-        ], sceUtility.prototype, "sceUtilitySavedataGetStatus", Object.getOwnPropertyDescriptor(sceUtility.prototype, "sceUtilitySavedataGetStatus")));
-    Object.defineProperty(sceUtility.prototype, "sceUtilityMsgDialogInitStart",
-        __decorate([
-            nativeFunction(0x2AD8E239, 150, 'uint', 'void*')
-        ], sceUtility.prototype, "sceUtilityMsgDialogInitStart", Object.getOwnPropertyDescriptor(sceUtility.prototype, "sceUtilityMsgDialogInitStart")));
-    Object.defineProperty(sceUtility.prototype, "sceUtilityMsgDialogGetStatus",
-        __decorate([
-            nativeFunction(0x9A1C91D7, 150, 'uint', '')
-        ], sceUtility.prototype, "sceUtilityMsgDialogGetStatus", Object.getOwnPropertyDescriptor(sceUtility.prototype, "sceUtilityMsgDialogGetStatus")));
-    Object.defineProperty(sceUtility.prototype, "sceUtilityMsgDialogUpdate",
-        __decorate([
-            nativeFunction(0x9A1C91D7, 150, 'uint', 'int')
-        ], sceUtility.prototype, "sceUtilityMsgDialogUpdate", Object.getOwnPropertyDescriptor(sceUtility.prototype, "sceUtilityMsgDialogUpdate")));
-    Object.defineProperty(sceUtility.prototype, "sceUtilityLoadNetModule",
-        __decorate([
-            nativeFunction(0x1579A159, 150, 'uint', '')
-        ], sceUtility.prototype, "sceUtilityLoadNetModule", Object.getOwnPropertyDescriptor(sceUtility.prototype, "sceUtilityLoadNetModule")));
-    Object.defineProperty(sceUtility.prototype, "sceUtilityGetSystemParamInt",
-        __decorate([
-            nativeFunction(0xA5DA2406, 150, 'uint', 'int/void*')
-        ], sceUtility.prototype, "sceUtilityGetSystemParamInt", Object.getOwnPropertyDescriptor(sceUtility.prototype, "sceUtilityGetSystemParamInt")));
-    Object.defineProperty(sceUtility.prototype, "sceUtilityGetSystemParamString",
-        __decorate([
-            nativeFunction(0x34B78343, 150, 'uint', 'int/void*/int')
-        ], sceUtility.prototype, "sceUtilityGetSystemParamString", Object.getOwnPropertyDescriptor(sceUtility.prototype, "sceUtilityGetSystemParamString")));
-    Object.defineProperty(sceUtility.prototype, "sceUtilityLoadAvModule",
-        __decorate([
-            nativeFunction(0xC629AF26, 150, 'uint', 'int')
-        ], sceUtility.prototype, "sceUtilityLoadAvModule", Object.getOwnPropertyDescriptor(sceUtility.prototype, "sceUtilityLoadAvModule")));
     return sceUtility;
-})();
+}());
+__decorate([
+    nativeFunction(0x2A2B3DE0, 150, 'uint', 'int')
+], sceUtility.prototype, "sceUtilityLoadModule", null);
+__decorate([
+    nativeFunction(0x50C4CD57, 150, 'uint', 'void*')
+], sceUtility.prototype, "sceUtilitySavedataInitStart", null);
+__decorate([
+    nativeFunction(0x9790B33C, 150, 'uint', '')
+], sceUtility.prototype, "sceUtilitySavedataShutdownStart", null);
+__decorate([
+    nativeFunction(0x8874DBE0, 150, 'uint', '')
+], sceUtility.prototype, "sceUtilitySavedataGetStatus", null);
+__decorate([
+    nativeFunction(0x2AD8E239, 150, 'uint', 'void*')
+], sceUtility.prototype, "sceUtilityMsgDialogInitStart", null);
+__decorate([
+    nativeFunction(0x9A1C91D7, 150, 'uint', '')
+], sceUtility.prototype, "sceUtilityMsgDialogGetStatus", null);
+__decorate([
+    nativeFunction(0x9A1C91D7, 150, 'uint', 'int')
+], sceUtility.prototype, "sceUtilityMsgDialogUpdate", null);
+__decorate([
+    nativeFunction(0x1579A159, 150, 'uint', '')
+], sceUtility.prototype, "sceUtilityLoadNetModule", null);
+__decorate([
+    nativeFunction(0xA5DA2406, 150, 'uint', 'int/void*')
+], sceUtility.prototype, "sceUtilityGetSystemParamInt", null);
+__decorate([
+    nativeFunction(0x34B78343, 150, 'uint', 'int/void*/int')
+], sceUtility.prototype, "sceUtilityGetSystemParamString", null);
+__decorate([
+    nativeFunction(0xC629AF26, 150, 'uint', 'int')
+], sceUtility.prototype, "sceUtilityLoadAvModule", null);
 exports.sceUtility = sceUtility;
 var PSP_SYSTEMPARAM_ID;
 (function (PSP_SYSTEMPARAM_ID) {
@@ -22269,6 +27688,9 @@ var DialogStepEnum;
     DialogStepEnum[DialogStepEnum["SUCCESS"] = 3] = "SUCCESS";
     DialogStepEnum[DialogStepEnum["SHUTDOWN"] = 4] = "SHUTDOWN";
 })(DialogStepEnum || (DialogStepEnum = {}));
+/// <summary>
+/// Valid values for PSP_SYSTEMPARAM_ID_INT_ADHOC_CHANNEL
+/// </summary>
 var PSP_SYSTEMPARAM_ADHOC_CHANNEL;
 (function (PSP_SYSTEMPARAM_ADHOC_CHANNEL) {
     PSP_SYSTEMPARAM_ADHOC_CHANNEL[PSP_SYSTEMPARAM_ADHOC_CHANNEL["AUTOMATIC"] = 0] = "AUTOMATIC";
@@ -22276,27 +27698,42 @@ var PSP_SYSTEMPARAM_ADHOC_CHANNEL;
     PSP_SYSTEMPARAM_ADHOC_CHANNEL[PSP_SYSTEMPARAM_ADHOC_CHANNEL["C6"] = 6] = "C6";
     PSP_SYSTEMPARAM_ADHOC_CHANNEL[PSP_SYSTEMPARAM_ADHOC_CHANNEL["C11"] = 11] = "C11";
 })(PSP_SYSTEMPARAM_ADHOC_CHANNEL || (PSP_SYSTEMPARAM_ADHOC_CHANNEL = {}));
+/// <summary>
+/// Valid values for PSP_SYSTEMPARAM_ID_INT_WLAN_POWERSAVE
+/// </summary>
 var PSP_SYSTEMPARAM_WLAN_POWERSAVE;
 (function (PSP_SYSTEMPARAM_WLAN_POWERSAVE) {
     PSP_SYSTEMPARAM_WLAN_POWERSAVE[PSP_SYSTEMPARAM_WLAN_POWERSAVE["OFF"] = 0] = "OFF";
     PSP_SYSTEMPARAM_WLAN_POWERSAVE[PSP_SYSTEMPARAM_WLAN_POWERSAVE["ON"] = 1] = "ON";
 })(PSP_SYSTEMPARAM_WLAN_POWERSAVE || (PSP_SYSTEMPARAM_WLAN_POWERSAVE = {}));
+/// <summary>
+/// Valid values for PSP_SYSTEMPARAM_ID_INT_DATE_FORMAT
+/// </summary>
 var PSP_SYSTEMPARAM_DATE_FORMAT;
 (function (PSP_SYSTEMPARAM_DATE_FORMAT) {
     PSP_SYSTEMPARAM_DATE_FORMAT[PSP_SYSTEMPARAM_DATE_FORMAT["YYYYMMDD"] = 0] = "YYYYMMDD";
     PSP_SYSTEMPARAM_DATE_FORMAT[PSP_SYSTEMPARAM_DATE_FORMAT["MMDDYYYY"] = 1] = "MMDDYYYY";
     PSP_SYSTEMPARAM_DATE_FORMAT[PSP_SYSTEMPARAM_DATE_FORMAT["DDMMYYYY"] = 2] = "DDMMYYYY";
 })(PSP_SYSTEMPARAM_DATE_FORMAT || (PSP_SYSTEMPARAM_DATE_FORMAT = {}));
+/// <summary>
+/// Valid values for PSP_SYSTEMPARAM_ID_INT_TIME_FORMAT
+/// </summary>
 var PSP_SYSTEMPARAM_TIME_FORMAT;
 (function (PSP_SYSTEMPARAM_TIME_FORMAT) {
     PSP_SYSTEMPARAM_TIME_FORMAT[PSP_SYSTEMPARAM_TIME_FORMAT["_24HR"] = 0] = "_24HR";
     PSP_SYSTEMPARAM_TIME_FORMAT[PSP_SYSTEMPARAM_TIME_FORMAT["_12HR"] = 1] = "_12HR";
 })(PSP_SYSTEMPARAM_TIME_FORMAT || (PSP_SYSTEMPARAM_TIME_FORMAT = {}));
+/// <summary>
+/// Valid values for PSP_SYSTEMPARAM_ID_INT_DAYLIGHTSAVINGS
+/// </summary>
 var PSP_SYSTEMPARAM_DAYLIGHTSAVINGS;
 (function (PSP_SYSTEMPARAM_DAYLIGHTSAVINGS) {
     PSP_SYSTEMPARAM_DAYLIGHTSAVINGS[PSP_SYSTEMPARAM_DAYLIGHTSAVINGS["STD"] = 0] = "STD";
     PSP_SYSTEMPARAM_DAYLIGHTSAVINGS[PSP_SYSTEMPARAM_DAYLIGHTSAVINGS["SAVING"] = 1] = "SAVING";
 })(PSP_SYSTEMPARAM_DAYLIGHTSAVINGS || (PSP_SYSTEMPARAM_DAYLIGHTSAVINGS = {}));
+/// <summary>
+/// Valid values for PSP_SYSTEMPARAM_ID_INT_LANGUAGE
+/// </summary>
 var PSP_SYSTEMPARAM_LANGUAGE;
 (function (PSP_SYSTEMPARAM_LANGUAGE) {
     PSP_SYSTEMPARAM_LANGUAGE[PSP_SYSTEMPARAM_LANGUAGE["JAPANESE"] = 0] = "JAPANESE";
@@ -22312,10 +27749,19 @@ var PSP_SYSTEMPARAM_LANGUAGE;
     PSP_SYSTEMPARAM_LANGUAGE[PSP_SYSTEMPARAM_LANGUAGE["CHINESE_TRADITIONAL"] = 10] = "CHINESE_TRADITIONAL";
     PSP_SYSTEMPARAM_LANGUAGE[PSP_SYSTEMPARAM_LANGUAGE["CHINESE_SIMPLIFIED"] = 11] = "CHINESE_SIMPLIFIED";
 })(PSP_SYSTEMPARAM_LANGUAGE || (PSP_SYSTEMPARAM_LANGUAGE = {}));
+/// <summary>
+/// #9 seems to be Region or maybe X/O button swap.
+/// It doesn't exist on JAP v1.0
+/// is 1 on NA v1.5s
+/// is 0 on JAP v1.5s
+/// is read-only
+/// </summary>
 var PSP_SYSTEMPARAM_BUTTON_PREFERENCE;
 (function (PSP_SYSTEMPARAM_BUTTON_PREFERENCE) {
     PSP_SYSTEMPARAM_BUTTON_PREFERENCE[PSP_SYSTEMPARAM_BUTTON_PREFERENCE["JAP"] = 0] = "JAP";
     PSP_SYSTEMPARAM_BUTTON_PREFERENCE[PSP_SYSTEMPARAM_BUTTON_PREFERENCE["NA"] = 1] = "NA";
+    //CIRCLE = 0,
+    //CROSS = 1,
 })(PSP_SYSTEMPARAM_BUTTON_PREFERENCE || (PSP_SYSTEMPARAM_BUTTON_PREFERENCE = {}));
 var PspModule;
 (function (PspModule) {
@@ -22326,10 +27772,12 @@ var PspModule;
     PspModule[PspModule["PSP_MODULE_NET_PARSEHTTP"] = 260] = "PSP_MODULE_NET_PARSEHTTP";
     PspModule[PspModule["PSP_MODULE_NET_HTTP"] = 261] = "PSP_MODULE_NET_HTTP";
     PspModule[PspModule["PSP_MODULE_NET_SSL"] = 262] = "PSP_MODULE_NET_SSL";
+    // USB Modules
     PspModule[PspModule["PSP_MODULE_USB_PSPCM"] = 512] = "PSP_MODULE_USB_PSPCM";
     PspModule[PspModule["PSP_MODULE_USB_MIC"] = 513] = "PSP_MODULE_USB_MIC";
     PspModule[PspModule["PSP_MODULE_USB_CAM"] = 514] = "PSP_MODULE_USB_CAM";
     PspModule[PspModule["PSP_MODULE_USB_GPS"] = 515] = "PSP_MODULE_USB_GPS";
+    // Audio/video Modules
     PspModule[PspModule["PSP_MODULE_AV_AVCODEC"] = 768] = "PSP_MODULE_AV_AVCODEC";
     PspModule[PspModule["PSP_MODULE_AV_SASCORE"] = 769] = "PSP_MODULE_AV_SASCORE";
     PspModule[PspModule["PSP_MODULE_AV_ATRAC3PLUS"] = 770] = "PSP_MODULE_AV_ATRAC3PLUS";
@@ -22338,10 +27786,12 @@ var PspModule;
     PspModule[PspModule["PSP_MODULE_AV_VAUDIO"] = 773] = "PSP_MODULE_AV_VAUDIO";
     PspModule[PspModule["PSP_MODULE_AV_AAC"] = 774] = "PSP_MODULE_AV_AAC";
     PspModule[PspModule["PSP_MODULE_AV_G729"] = 775] = "PSP_MODULE_AV_G729";
+    // NP
     PspModule[PspModule["PSP_MODULE_NP_COMMON"] = 1024] = "PSP_MODULE_NP_COMMON";
     PspModule[PspModule["PSP_MODULE_NP_SERVICE"] = 1025] = "PSP_MODULE_NP_SERVICE";
     PspModule[PspModule["PSP_MODULE_NP_MATCHING2"] = 1026] = "PSP_MODULE_NP_MATCHING2";
     PspModule[PspModule["PSP_MODULE_NP_DRM"] = 1280] = "PSP_MODULE_NP_DRM";
+    // IrDA
     PspModule[PspModule["PSP_MODULE_IRDA"] = 1536] = "PSP_MODULE_IRDA";
 })(PspModule || (PspModule = {}));
 var PspUtilityMsgDialogMode;
@@ -22365,29 +27815,29 @@ var PspUtilityMsgDialogPressed;
 })(PspUtilityMsgDialogPressed || (PspUtilityMsgDialogPressed = {}));
 var PspUtilityDialogCommon = (function () {
     function PspUtilityDialogCommon() {
-        this.size = 0;
-        this.language = 3;
-        this.buttonSwap = 0;
-        this.graphicsThread = 0;
-        this.accessThread = 0;
-        this.fontThread = 0;
-        this.soundThread = 0;
-        this.result = SceKernelErrors.ERROR_OK;
-        this.reserved = [0, 0, 0, 0];
+        this.size = 0; // 0000 - Size of the structure
+        this.language = 3 /* SPANISH */; // 0004 - Language
+        this.buttonSwap = 0; // 0008 - Set to 1 for X/O button swap
+        this.graphicsThread = 0; // 000C - Graphics thread priority
+        this.accessThread = 0; // 0010 - Access/fileio thread priority (SceJobThread)
+        this.fontThread = 0; // 0014 - Font thread priority (ScePafThread)
+        this.soundThread = 0; // 0018 - Sound thread priority
+        this.result = SceKernelErrors.ERROR_OK; // 001C - Result
+        this.reserved = [0, 0, 0, 0]; // 0020 - Set to 0
     }
-    PspUtilityDialogCommon.struct = StructClass.create(PspUtilityDialogCommon, [
-        { size: Int32 },
-        { language: Int32 },
-        { buttonSwap: Int32 },
-        { graphicsThread: Int32 },
-        { accessThread: Int32 },
-        { fontThread: Int32 },
-        { soundThread: Int32 },
-        { result: Int32 },
-        { reserved: StructArray(Int32, 4) },
-    ]);
     return PspUtilityDialogCommon;
-})();
+}());
+PspUtilityDialogCommon.struct = StructClass.create(PspUtilityDialogCommon, [
+    { size: Int32 },
+    { language: Int32 },
+    { buttonSwap: Int32 },
+    { graphicsThread: Int32 },
+    { accessThread: Int32 },
+    { fontThread: Int32 },
+    { soundThread: Int32 },
+    { result: Int32 },
+    { reserved: StructArray(Int32, 4) },
+]);
 var PspUtilitySavedataMode;
 (function (PspUtilitySavedataMode) {
     PspUtilitySavedataMode[PspUtilitySavedataMode["Autoload"] = 0] = "Autoload";
@@ -22428,15 +27878,16 @@ var PspUtilitySavedataFocus;
 })(PspUtilitySavedataFocus || (PspUtilitySavedataFocus = {}));
 var PspUtilitySavedataFileData = (function () {
     function PspUtilitySavedataFileData() {
-        this.bufferPointer = 0;
-        this.bufferSize = 0;
-        this.size = 0;
-        this.unknown = 0;
+        this.bufferPointer = 0; // 0000 -
+        this.bufferSize = 0; // 0004 -
+        this.size = 0; // 0008 - why are there two sizes?
+        this.unknown = 0; // 000C -
     }
     Object.defineProperty(PspUtilitySavedataFileData.prototype, "used", {
         get: function () {
             if (this.bufferPointer == 0)
                 return false;
+            //if (BufferSize == 0) return false;
             if (this.size == 0)
                 return false;
             return true;
@@ -22444,171 +27895,173 @@ var PspUtilitySavedataFileData = (function () {
         enumerable: true,
         configurable: true
     });
-    PspUtilitySavedataFileData.struct = StructClass.create(PspUtilitySavedataFileData, [
-        { bufferPointer: Int32 },
-        { bufferSize: Int32 },
-        { size: Int32 },
-        { unknown: Int32 },
-    ]);
     return PspUtilitySavedataFileData;
-})();
+}());
+PspUtilitySavedataFileData.struct = StructClass.create(PspUtilitySavedataFileData, [
+    { bufferPointer: Int32 },
+    { bufferSize: Int32 },
+    { size: Int32 },
+    { unknown: Int32 },
+]);
 var PspUtilitySavedataSFOParam = (function () {
     function PspUtilitySavedataSFOParam() {
-        this.title = '';
-        this.savedataTitle = '';
-        this.detail = '';
-        this.parentalLevel = 0;
-        this.unknown = [0, 0, 0];
+        this.title = ''; // 0000 -
+        this.savedataTitle = ''; // 0080 -
+        this.detail = ''; // 0100 -
+        this.parentalLevel = 0; // 0500 -
+        this.unknown = [0, 0, 0]; // 0501 -
     }
-    PspUtilitySavedataSFOParam.struct = StructClass.create(PspUtilitySavedataSFOParam, [
-        { title: Stringz(0x80) },
-        { savedataTitle: Stringz(0x80) },
-        { detail: Stringz(0x400) },
-        { parentalLevel: UInt8 },
-        { unknown: StructArray(UInt8, 3) },
-    ]);
     return PspUtilitySavedataSFOParam;
-})();
+}());
+PspUtilitySavedataSFOParam.struct = StructClass.create(PspUtilitySavedataSFOParam, [
+    { title: Stringz(0x80) },
+    { savedataTitle: Stringz(0x80) },
+    { detail: Stringz(0x400) },
+    { parentalLevel: UInt8 },
+    { unknown: StructArray(UInt8, 3) },
+]);
 var SceUtilitySavedataParam = (function () {
     function SceUtilitySavedataParam() {
-        this.base = new PspUtilityDialogCommon();
-        this.mode = 0;
-        this.unknown1 = 0;
-        this.overwrite = 0;
-        this.gameName = '';
-        this.saveName = '';
-        this.saveNameListPointer = 0;
-        this.fileName = '';
-        this.dataBufPointer = 0;
-        this.dataBufSize = 0;
-        this.dataSize = 0;
-        this.sfoParam = new PspUtilitySavedataSFOParam();
-        this.icon0FileData = new PspUtilitySavedataFileData();
-        this.icon1FileData = new PspUtilitySavedataFileData();
-        this.pic1FileData = new PspUtilitySavedataFileData();
-        this.snd0FileData = new PspUtilitySavedataFileData();
-        this.newDataPointer = 0;
-        this.focus = PspUtilitySavedataFocus.PSP_UTILITY_SAVEDATA_FOCUS_UNKNOWN;
-        this.abortStatus = 0;
-        this.msFreeAddr = 0;
-        this.msDataAddr = 0;
-        this.utilityDataAddr = 0;
-        this.key = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-        this.secureVersion = 0;
-        this.multiStatus = 0;
-        this.idListAddr = 0;
-        this.fileListAddr = 0;
-        this.sizeAddr = 0;
-        this.unknown3 = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+        this.base = new PspUtilityDialogCommon(); // 0000 - PspUtilityDialogCommon
+        this.mode = 0; // 0030 - 
+        this.unknown1 = 0; // 0034 -
+        this.overwrite = 0; // 0038 -
+        this.gameName = ''; // 003C - GameName: name used from the game for saves, equal for all saves
+        this.saveName = ''; // 004C - SaveName: name of the particular save, normally a number
+        this.saveNameListPointer = 0; // 0060 - SaveNameList: used by multiple modes (char[20])
+        this.fileName = ''; // 0064 - FileName: Name of the data file of the game for example DATA.BIN
+        this.dataBufPointer = 0; // 0074 - Pointer to a buffer that will contain data file unencrypted data
+        this.dataBufSize = 0; // 0078 - Size of allocated space to dataBuf
+        this.dataSize = 0; // 007C -
+        this.sfoParam = new PspUtilitySavedataSFOParam(); // 0080 - (504?)
+        this.icon0FileData = new PspUtilitySavedataFileData(); // 0584 - (16)
+        this.icon1FileData = new PspUtilitySavedataFileData(); // 0594 - (16)
+        this.pic1FileData = new PspUtilitySavedataFileData(); // 05A4 - (16)
+        this.snd0FileData = new PspUtilitySavedataFileData(); // 05B4 - (16)
+        this.newDataPointer = 0; // 05C4 -Pointer to an PspUtilitySavedataListSaveNewData structure (PspUtilitySavedataListSaveNewData *)
+        this.focus = PspUtilitySavedataFocus.PSP_UTILITY_SAVEDATA_FOCUS_UNKNOWN; // 05C8 -Initial focus for lists
+        this.abortStatus = 0; // 05CC -
+        this.msFreeAddr = 0; // 05D0 -
+        this.msDataAddr = 0; // 05D4 -
+        this.utilityDataAddr = 0; // 05D8 -
+        //#if _PSP_FW_VERSION >= 200
+        this.key = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]; // 05E0 - Key: Encrypt/decrypt key for save with firmware >= 2.00
+        this.secureVersion = 0; // 05F0 -
+        this.multiStatus = 0; // 05F4 -
+        this.idListAddr = 0; // 05F8 -
+        this.fileListAddr = 0; // 05FC -
+        this.sizeAddr = 0; // 0600 -
+        this.unknown3 = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]; // 0604 -unknown3: ?
     }
-    SceUtilitySavedataParam.struct = StructClass.create(SceUtilitySavedataParam, [
-        { base: PspUtilityDialogCommon.struct },
-        { mode: Int32 },
-        { unknown1: Int32 },
-        { overwrite: Int32 },
-        { gameName: Stringz(16) },
-        { saveName: Stringz(20) },
-        { saveNameListPointer: UInt32 },
-        { fileName: Stringz(16) },
-        { dataBufPointer: UInt32 },
-        { dataBufSize: UInt32 },
-        { dataSize: UInt32 },
-        { sfoParam: PspUtilitySavedataSFOParam.struct },
-        { icon0FileData: PspUtilitySavedataFileData.struct },
-        { icon1FileData: PspUtilitySavedataFileData.struct },
-        { pic1FileData: PspUtilitySavedataFileData.struct },
-        { snd0FileData: PspUtilitySavedataFileData.struct },
-        { newDataPointer: UInt32 },
-        { focus: UInt32 },
-        { abortStatus: UInt32 },
-        { msFreeAddr: UInt32 },
-        { msDataAddr: UInt32 },
-        { utilityDataAddr: UInt32 },
-        { key: StructArray(UInt8, 16) },
-        { secureVersion: UInt32 },
-        { multiStatus: UInt32 },
-        { idListAddr: UInt32 },
-        { fileListAddr: UInt32 },
-        { sizeAddr: UInt32 },
-        { unknown3: StructArray(UInt8, 20 - 5) },
-    ]);
     return SceUtilitySavedataParam;
-})();
+}());
+//#endif
+SceUtilitySavedataParam.struct = StructClass.create(SceUtilitySavedataParam, [
+    { base: PspUtilityDialogCommon.struct },
+    { mode: Int32 },
+    { unknown1: Int32 },
+    { overwrite: Int32 },
+    { gameName: Stringz(16) },
+    { saveName: Stringz(20) },
+    { saveNameListPointer: UInt32 },
+    { fileName: Stringz(16) },
+    { dataBufPointer: UInt32 },
+    { dataBufSize: UInt32 },
+    { dataSize: UInt32 },
+    { sfoParam: PspUtilitySavedataSFOParam.struct },
+    { icon0FileData: PspUtilitySavedataFileData.struct },
+    { icon1FileData: PspUtilitySavedataFileData.struct },
+    { pic1FileData: PspUtilitySavedataFileData.struct },
+    { snd0FileData: PspUtilitySavedataFileData.struct },
+    { newDataPointer: UInt32 },
+    { focus: UInt32 },
+    { abortStatus: UInt32 },
+    { msFreeAddr: UInt32 },
+    { msDataAddr: UInt32 },
+    { utilityDataAddr: UInt32 },
+    { key: StructArray(UInt8, 16) },
+    { secureVersion: UInt32 },
+    { multiStatus: UInt32 },
+    { idListAddr: UInt32 },
+    { fileListAddr: UInt32 },
+    { sizeAddr: UInt32 },
+    { unknown3: StructArray(UInt8, 20 - 5) },
+]);
 var SizeFreeInfo = (function () {
     function SizeFreeInfo() {
     }
-    SizeFreeInfo.struct = StructClass.create(SizeFreeInfo, [
-        { sectorSize: UInt32 },
-        { freeSectors: UInt32 },
-        { freeKb: UInt32 },
-        { freeKbString: Stringz(8) },
-    ]);
     return SizeFreeInfo;
-})();
+}());
+SizeFreeInfo.struct = StructClass.create(SizeFreeInfo, [
+    { sectorSize: UInt32 },
+    { freeSectors: UInt32 },
+    { freeKb: UInt32 },
+    { freeKbString: Stringz(8) },
+]);
 var SizeUsedInfo = (function () {
     function SizeUsedInfo() {
     }
-    SizeUsedInfo.struct = StructClass.create(SizeUsedInfo, [
-        { gameName: Stringz(16) },
-        { saveName: Stringz(24) },
-        { usedSectors: UInt32 },
-        { usedKb: UInt32 },
-        { usedKbString: Stringz(8) },
-        { usedKb32: UInt32 },
-        { usedKb32String: Stringz(8) },
-    ]);
     return SizeUsedInfo;
-})();
+}());
+SizeUsedInfo.struct = StructClass.create(SizeUsedInfo, [
+    { gameName: Stringz(16) },
+    { saveName: Stringz(24) },
+    { usedSectors: UInt32 },
+    { usedKb: UInt32 },
+    { usedKbString: Stringz(8) },
+    { usedKb32: UInt32 },
+    { usedKb32String: Stringz(8) },
+]);
 var SizeRequiredSpaceInfo = (function () {
     function SizeRequiredSpaceInfo() {
     }
-    SizeRequiredSpaceInfo.struct = StructClass.create(SizeRequiredSpaceInfo, [
-        { requiredSpaceSectors: UInt32 },
-        { requiredSpaceKb: UInt32 },
-        { requiredSpaceString: Stringz(8) },
-        { requiredSpace32KB: UInt32 },
-        { requiredSpace32KBString: Stringz(8) },
-    ]);
     return SizeRequiredSpaceInfo;
-})();
+}());
+SizeRequiredSpaceInfo.struct = StructClass.create(SizeRequiredSpaceInfo, [
+    { requiredSpaceSectors: UInt32 },
+    { requiredSpaceKb: UInt32 },
+    { requiredSpaceString: Stringz(8) },
+    { requiredSpace32KB: UInt32 },
+    { requiredSpace32KBString: Stringz(8) },
+]);
 var PspUtilityMsgDialogParams = (function () {
     function PspUtilityMsgDialogParams() {
     }
-    PspUtilityMsgDialogParams.struct = StructClass.create(PspUtilityMsgDialogParams, [
-        { base: PspUtilityDialogCommon.struct },
-        { unknown: Int32 },
-        { mnode: Int32 },
-        { errorValue: Int32 },
-        { message: Utf8Stringz(512) },
-        { options: Int32 },
-        { buttonPressed: Int32 },
-    ]);
     return PspUtilityMsgDialogParams;
-})();
+}());
+PspUtilityMsgDialogParams.struct = StructClass.create(PspUtilityMsgDialogParams, [
+    { base: PspUtilityDialogCommon.struct },
+    { unknown: Int32 },
+    { mnode: Int32 },
+    { errorValue: Int32 },
+    { message: Utf8Stringz(512) },
+    { options: Int32 },
+    { buttonPressed: Int32 },
+]);
 
 },
 "src/hle/module/sceVaudio": function(module, exports, require) {
 ///<reference path="../../global.d.ts" />
+"use strict";
 var sceVaudio = (function () {
     function sceVaudio(context) {
         this.context = context;
     }
     return sceVaudio;
-})();
+}());
 exports.sceVaudio = sceVaudio;
 
 },
 "src/hle/module/sceWlanDrv": function(module, exports, require) {
 ///<reference path="../../global.d.ts" />
+"use strict";
 var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
-    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") return Reflect.decorate(decorators, target, key, desc);
-    switch (arguments.length) {
-        case 2: return decorators.reduceRight(function(o, d) { return (d && d(o)) || o; }, target);
-        case 3: return decorators.reduceRight(function(o, d) { return (d && d(target, key)), void 0; }, void 0);
-        case 4: return decorators.reduceRight(function(o, d) { return (d && d(target, key, o)) || o; }, desc);
-    }
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
 };
-var _utils = require('../utils');
+var _utils = require("../utils");
 var nativeFunction = _utils.nativeFunction;
 var sceWlanDrv = (function () {
     function sceWlanDrv(context) {
@@ -22617,29 +28070,27 @@ var sceWlanDrv = (function () {
     sceWlanDrv.prototype.sceWlanGetSwitchState = function () {
         return true;
     };
-    Object.defineProperty(sceWlanDrv.prototype, "sceWlanGetSwitchState",
-        __decorate([
-            nativeFunction(0xD7763699, 150, 'bool', '')
-        ], sceWlanDrv.prototype, "sceWlanGetSwitchState", Object.getOwnPropertyDescriptor(sceWlanDrv.prototype, "sceWlanGetSwitchState")));
     return sceWlanDrv;
-})();
+}());
+__decorate([
+    nativeFunction(0xD7763699, 150, 'bool', '')
+], sceWlanDrv.prototype, "sceWlanGetSwitchState", null);
 exports.sceWlanDrv = sceWlanDrv;
 
 },
 "src/hle/module/threadman/ThreadManForUser": function(module, exports, require) {
 ///<reference path="../../../global.d.ts" />
+"use strict";
 var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
-    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") return Reflect.decorate(decorators, target, key, desc);
-    switch (arguments.length) {
-        case 2: return decorators.reduceRight(function(o, d) { return (d && d(o)) || o; }, target);
-        case 3: return decorators.reduceRight(function(o, d) { return (d && d(target, key)), void 0; }, void 0);
-        case 4: return decorators.reduceRight(function(o, d) { return (d && d(target, key, o)) || o; }, desc);
-    }
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
 };
-var _utils = require('../../utils');
+var _utils = require("../../utils");
 var nativeFunction = _utils.nativeFunction;
-var SceKernelErrors = require('../../SceKernelErrors');
-var _manager = require('../../manager');
+var SceKernelErrors = require("../../SceKernelErrors");
+var _manager = require("../../manager");
 _manager.Thread;
 var OutOfMemoryError = _manager.OutOfMemoryError;
 var console = logger.named('module.ThreadManForUser');
@@ -22661,17 +28112,18 @@ var ThreadManForUser = (function () {
             name = name.substr(0, 31);
         if (stackSize > 2 * 1024 * 1024)
             return -3;
-        if ((attributes & (~-269459201)) != 0) {
+        if ((attributes & (~-269459201 /* ValidMask */)) != 0) {
+            //console.log(sprintf('Invalid mask %08X, %08X, %08X', attributes, PspThreadAttributes.ValidMask, (attributes & (~PspThreadAttributes.ValidMask))));
             return SceKernelErrors.ERROR_KERNEL_ILLEGAL_ATTR;
         }
-        attributes |= 2147483648;
-        attributes |= 255;
+        attributes |= 2147483648 /* User */;
+        attributes |= 255 /* LowFF */;
         try {
-            stackSize = Math.max(stackSize, 0x200);
-            stackSize = MathUtils.nextAligned(stackSize, 0x100);
+            stackSize = Math.max(stackSize, 0x200); // 512 byte min. (required for interrupts)
+            stackSize = MathUtils.nextAligned(stackSize, 0x100); // Aligned to 256 bytes.
             var newThread = this.context.threadManager.create(name, entryPoint, initPriority, stackSize, attributes);
             newThread.id = this.threadUids.allocate(newThread);
-            newThread.status = 16;
+            newThread.status = 16 /* DORMANT */;
             newThread.state.GP = currentThread.state.GP;
             console.info(sprintf('sceKernelCreateThread: %d:"%s":priority=%d, currentPriority=%d, entryPC=%08X', newThread.id, newThread.name, newThread.priority, currentThread.priority, entryPoint));
             return newThread.id;
@@ -22718,10 +28170,11 @@ var ThreadManForUser = (function () {
             return SceKernelErrors.ERROR_KERNEL_NOT_FOUND_THREAD;
         var newThread = this.getThreadById(threadId);
         newThread.exitStatus = SceKernelErrors.ERROR_KERNEL_THREAD_IS_NOT_DORMANT;
+        //if (!newThread) debugger;
         var newState = newThread.state;
         var memory = newState.memory;
         var currentStack = newThread.stackPartition;
-        newState.setRA(268435455);
+        newState.setRA(268435455 /* EXIT_THREAD */);
         if ((newThread.attributes & 0x00100000) == 0) {
             memory.memset(currentStack.low, 0xFF, currentStack.size);
         }
@@ -22830,6 +28283,7 @@ var ThreadManForUser = (function () {
         return 0;
     };
     ThreadManForUser.prototype.sceKernelGetSystemTimeWide = function () {
+        //console.warn('Not implemented ThreadManForUser.sceKernelGetSystemTimeLow');
         return Integer64.fromNumber(this._getCurrentMicroseconds());
     };
     ThreadManForUser.prototype.sceKernelGetThreadId = function (currentThread) {
@@ -22883,158 +28337,130 @@ var ThreadManForUser = (function () {
     ThreadManForUser.prototype.sceKernelUSec2SysClockWide = function (microseconds) {
         return microseconds;
     };
-    Object.defineProperty(ThreadManForUser.prototype, "sceKernelCreateThread",
-        __decorate([
-            nativeFunction(0x446D8DE6, 150, 'int', 'string/uint/int/int/int/int/Thread')
-        ], ThreadManForUser.prototype, "sceKernelCreateThread", Object.getOwnPropertyDescriptor(ThreadManForUser.prototype, "sceKernelCreateThread")));
-    Object.defineProperty(ThreadManForUser.prototype, "sceKernelDelayThread",
-        __decorate([
-            nativeFunction(0xCEADEB47, 150, 'uint', 'Thread/uint')
-        ], ThreadManForUser.prototype, "sceKernelDelayThread", Object.getOwnPropertyDescriptor(ThreadManForUser.prototype, "sceKernelDelayThread")));
-    Object.defineProperty(ThreadManForUser.prototype, "sceKernelDelayThreadCB",
-        __decorate([
-            nativeFunction(0x68DA9E36, 150, 'uint', 'Thread/uint')
-        ], ThreadManForUser.prototype, "sceKernelDelayThreadCB", Object.getOwnPropertyDescriptor(ThreadManForUser.prototype, "sceKernelDelayThreadCB")));
-    Object.defineProperty(ThreadManForUser.prototype, "sceKernelWaitThreadEndCB",
-        __decorate([
-            nativeFunction(0x840E8133, 150, 'uint', 'uint/void*')
-        ], ThreadManForUser.prototype, "sceKernelWaitThreadEndCB", Object.getOwnPropertyDescriptor(ThreadManForUser.prototype, "sceKernelWaitThreadEndCB")));
-    Object.defineProperty(ThreadManForUser.prototype, "sceKernelWaitThreadEnd",
-        __decorate([
-            nativeFunction(0x278C0DF5, 150, 'uint', 'uint/void*')
-        ], ThreadManForUser.prototype, "sceKernelWaitThreadEnd", Object.getOwnPropertyDescriptor(ThreadManForUser.prototype, "sceKernelWaitThreadEnd")));
-    Object.defineProperty(ThreadManForUser.prototype, "sceKernelGetThreadCurrentPriority",
-        __decorate([
-            nativeFunction(0x94AA61EE, 150, 'int', 'Thread')
-        ], ThreadManForUser.prototype, "sceKernelGetThreadCurrentPriority", Object.getOwnPropertyDescriptor(ThreadManForUser.prototype, "sceKernelGetThreadCurrentPriority")));
-    Object.defineProperty(ThreadManForUser.prototype, "sceKernelStartThread",
-        __decorate([
-            nativeFunction(0xF475845D, 150, 'uint', 'Thread/int/int/int')
-        ], ThreadManForUser.prototype, "sceKernelStartThread", Object.getOwnPropertyDescriptor(ThreadManForUser.prototype, "sceKernelStartThread")));
-    Object.defineProperty(ThreadManForUser.prototype, "sceKernelChangeThreadPriority",
-        __decorate([
-            nativeFunction(0x71BC9871, 150, 'uint', 'Thread/int/int')
-        ], ThreadManForUser.prototype, "sceKernelChangeThreadPriority", Object.getOwnPropertyDescriptor(ThreadManForUser.prototype, "sceKernelChangeThreadPriority")));
-    Object.defineProperty(ThreadManForUser.prototype, "sceKernelExitThread",
-        __decorate([
-            nativeFunction(0xAA73C935, 150, 'int', 'Thread/int')
-        ], ThreadManForUser.prototype, "sceKernelExitThread", Object.getOwnPropertyDescriptor(ThreadManForUser.prototype, "sceKernelExitThread")));
-    Object.defineProperty(ThreadManForUser.prototype, "sceKernelGetThreadExitStatus",
-        __decorate([
-            nativeFunction(0x3B183E26, 150, 'int', 'int')
-        ], ThreadManForUser.prototype, "sceKernelGetThreadExitStatus", Object.getOwnPropertyDescriptor(ThreadManForUser.prototype, "sceKernelGetThreadExitStatus")));
-    Object.defineProperty(ThreadManForUser.prototype, "sceKernelDeleteThread",
-        __decorate([
-            nativeFunction(0x9FA03CD3, 150, 'int', 'int')
-        ], ThreadManForUser.prototype, "sceKernelDeleteThread", Object.getOwnPropertyDescriptor(ThreadManForUser.prototype, "sceKernelDeleteThread")));
-    Object.defineProperty(ThreadManForUser.prototype, "sceKernelTerminateThread",
-        __decorate([
-            nativeFunction(0x616403BA, 150, 'int', 'int')
-        ], ThreadManForUser.prototype, "sceKernelTerminateThread", Object.getOwnPropertyDescriptor(ThreadManForUser.prototype, "sceKernelTerminateThread")));
-    Object.defineProperty(ThreadManForUser.prototype, "sceKernelExitDeleteThread",
-        __decorate([
-            nativeFunction(0x809CE29B, 150, 'uint', 'Thread/int')
-        ], ThreadManForUser.prototype, "sceKernelExitDeleteThread", Object.getOwnPropertyDescriptor(ThreadManForUser.prototype, "sceKernelExitDeleteThread")));
-    Object.defineProperty(ThreadManForUser.prototype, "sceKernelTerminateDeleteThread",
-        __decorate([
-            nativeFunction(0x383F7BCC, 150, 'int', 'int')
-        ], ThreadManForUser.prototype, "sceKernelTerminateDeleteThread", Object.getOwnPropertyDescriptor(ThreadManForUser.prototype, "sceKernelTerminateDeleteThread")));
-    Object.defineProperty(ThreadManForUser.prototype, "sceKernelSleepThreadCB",
-        __decorate([
-            nativeFunction(0x82826F70, 150, 'uint', 'Thread')
-        ], ThreadManForUser.prototype, "sceKernelSleepThreadCB", Object.getOwnPropertyDescriptor(ThreadManForUser.prototype, "sceKernelSleepThreadCB")));
-    Object.defineProperty(ThreadManForUser.prototype, "sceKernelSleepThread",
-        __decorate([
-            nativeFunction(0x9ACE131E, 150, 'uint', 'Thread')
-        ], ThreadManForUser.prototype, "sceKernelSleepThread", Object.getOwnPropertyDescriptor(ThreadManForUser.prototype, "sceKernelSleepThread")));
-    Object.defineProperty(ThreadManForUser.prototype, "sceKernelWakeupThread",
-        __decorate([
-            nativeFunction(0xD59EAD2F, 150, 'uint', 'int')
-        ], ThreadManForUser.prototype, "sceKernelWakeupThread", Object.getOwnPropertyDescriptor(ThreadManForUser.prototype, "sceKernelWakeupThread")));
-    Object.defineProperty(ThreadManForUser.prototype, "sceKernelUSec2SysClock",
-        __decorate([
-            nativeFunction(0x110DEC9A, 150, 'uint', 'uint/void*')
-        ], ThreadManForUser.prototype, "sceKernelUSec2SysClock", Object.getOwnPropertyDescriptor(ThreadManForUser.prototype, "sceKernelUSec2SysClock")));
-    Object.defineProperty(ThreadManForUser.prototype, "sceKernelGetSystemTimeLow",
-        __decorate([
-            nativeFunction(0x369ED59D, 150, 'uint', '')
-        ], ThreadManForUser.prototype, "sceKernelGetSystemTimeLow", Object.getOwnPropertyDescriptor(ThreadManForUser.prototype, "sceKernelGetSystemTimeLow")));
-    Object.defineProperty(ThreadManForUser.prototype, "sceKernelGetSystemTime",
-        __decorate([
-            nativeFunction(0xDB738F35, 150, 'uint', 'void*')
-        ], ThreadManForUser.prototype, "sceKernelGetSystemTime", Object.getOwnPropertyDescriptor(ThreadManForUser.prototype, "sceKernelGetSystemTime")));
-    Object.defineProperty(ThreadManForUser.prototype, "sceKernelGetSystemTimeWide",
-        __decorate([
-            nativeFunction(0x82BC5777, 150, 'long', '')
-        ], ThreadManForUser.prototype, "sceKernelGetSystemTimeWide", Object.getOwnPropertyDescriptor(ThreadManForUser.prototype, "sceKernelGetSystemTimeWide")));
-    Object.defineProperty(ThreadManForUser.prototype, "sceKernelGetThreadId",
-        __decorate([
-            nativeFunction(0x293B45B8, 150, 'int', 'Thread')
-        ], ThreadManForUser.prototype, "sceKernelGetThreadId", Object.getOwnPropertyDescriptor(ThreadManForUser.prototype, "sceKernelGetThreadId")));
-    Object.defineProperty(ThreadManForUser.prototype, "sceKernelSuspendThread",
-        __decorate([
-            nativeFunction(0x9944F31F, 150, 'int', 'int')
-        ], ThreadManForUser.prototype, "sceKernelSuspendThread", Object.getOwnPropertyDescriptor(ThreadManForUser.prototype, "sceKernelSuspendThread")));
-    Object.defineProperty(ThreadManForUser.prototype, "sceKernelResumeThread",
-        __decorate([
-            nativeFunction(0x75156E8F, 150, 'int', 'int')
-        ], ThreadManForUser.prototype, "sceKernelResumeThread", Object.getOwnPropertyDescriptor(ThreadManForUser.prototype, "sceKernelResumeThread")));
-    Object.defineProperty(ThreadManForUser.prototype, "sceKernelReferThreadStatus",
-        __decorate([
-            nativeFunction(0x17C1684E, 150, 'int', 'int/void*')
-        ], ThreadManForUser.prototype, "sceKernelReferThreadStatus", Object.getOwnPropertyDescriptor(ThreadManForUser.prototype, "sceKernelReferThreadStatus")));
-    Object.defineProperty(ThreadManForUser.prototype, "sceKernelChangeCurrentThreadAttr",
-        __decorate([
-            nativeFunction(0xEA748E31, 150, 'int', 'uint/uint/uint')
-        ], ThreadManForUser.prototype, "sceKernelChangeCurrentThreadAttr", Object.getOwnPropertyDescriptor(ThreadManForUser.prototype, "sceKernelChangeCurrentThreadAttr")));
-    Object.defineProperty(ThreadManForUser.prototype, "sceKernelUSec2SysClockWide",
-        __decorate([
-            nativeFunction(0xC8CD158C, 150, 'int', 'uint')
-        ], ThreadManForUser.prototype, "sceKernelUSec2SysClockWide", Object.getOwnPropertyDescriptor(ThreadManForUser.prototype, "sceKernelUSec2SysClockWide")));
     return ThreadManForUser;
-})();
+}());
+__decorate([
+    nativeFunction(0x446D8DE6, 150, 'int', 'string/uint/int/int/int/int/Thread')
+], ThreadManForUser.prototype, "sceKernelCreateThread", null);
+__decorate([
+    nativeFunction(0xCEADEB47, 150, 'uint', 'Thread/uint')
+], ThreadManForUser.prototype, "sceKernelDelayThread", null);
+__decorate([
+    nativeFunction(0x68DA9E36, 150, 'uint', 'Thread/uint')
+], ThreadManForUser.prototype, "sceKernelDelayThreadCB", null);
+__decorate([
+    nativeFunction(0x840E8133, 150, 'uint', 'uint/void*')
+], ThreadManForUser.prototype, "sceKernelWaitThreadEndCB", null);
+__decorate([
+    nativeFunction(0x278C0DF5, 150, 'uint', 'uint/void*')
+], ThreadManForUser.prototype, "sceKernelWaitThreadEnd", null);
+__decorate([
+    nativeFunction(0x94AA61EE, 150, 'int', 'Thread')
+], ThreadManForUser.prototype, "sceKernelGetThreadCurrentPriority", null);
+__decorate([
+    nativeFunction(0xF475845D, 150, 'uint', 'Thread/int/int/int')
+], ThreadManForUser.prototype, "sceKernelStartThread", null);
+__decorate([
+    nativeFunction(0x71BC9871, 150, 'uint', 'Thread/int/int')
+], ThreadManForUser.prototype, "sceKernelChangeThreadPriority", null);
+__decorate([
+    nativeFunction(0xAA73C935, 150, 'int', 'Thread/int')
+], ThreadManForUser.prototype, "sceKernelExitThread", null);
+__decorate([
+    nativeFunction(0x3B183E26, 150, 'int', 'int')
+], ThreadManForUser.prototype, "sceKernelGetThreadExitStatus", null);
+__decorate([
+    nativeFunction(0x9FA03CD3, 150, 'int', 'int')
+], ThreadManForUser.prototype, "sceKernelDeleteThread", null);
+__decorate([
+    nativeFunction(0x616403BA, 150, 'int', 'int')
+], ThreadManForUser.prototype, "sceKernelTerminateThread", null);
+__decorate([
+    nativeFunction(0x809CE29B, 150, 'uint', 'Thread/int')
+], ThreadManForUser.prototype, "sceKernelExitDeleteThread", null);
+__decorate([
+    nativeFunction(0x383F7BCC, 150, 'int', 'int')
+], ThreadManForUser.prototype, "sceKernelTerminateDeleteThread", null);
+__decorate([
+    nativeFunction(0x82826F70, 150, 'uint', 'Thread')
+], ThreadManForUser.prototype, "sceKernelSleepThreadCB", null);
+__decorate([
+    nativeFunction(0x9ACE131E, 150, 'uint', 'Thread')
+], ThreadManForUser.prototype, "sceKernelSleepThread", null);
+__decorate([
+    nativeFunction(0xD59EAD2F, 150, 'uint', 'int')
+], ThreadManForUser.prototype, "sceKernelWakeupThread", null);
+__decorate([
+    nativeFunction(0x110DEC9A, 150, 'uint', 'uint/void*')
+], ThreadManForUser.prototype, "sceKernelUSec2SysClock", null);
+__decorate([
+    nativeFunction(0x369ED59D, 150, 'uint', '')
+], ThreadManForUser.prototype, "sceKernelGetSystemTimeLow", null);
+__decorate([
+    nativeFunction(0xDB738F35, 150, 'uint', 'void*')
+], ThreadManForUser.prototype, "sceKernelGetSystemTime", null);
+__decorate([
+    nativeFunction(0x82BC5777, 150, 'long', '')
+], ThreadManForUser.prototype, "sceKernelGetSystemTimeWide", null);
+__decorate([
+    nativeFunction(0x293B45B8, 150, 'int', 'Thread')
+], ThreadManForUser.prototype, "sceKernelGetThreadId", null);
+__decorate([
+    nativeFunction(0x9944F31F, 150, 'int', 'int')
+], ThreadManForUser.prototype, "sceKernelSuspendThread", null);
+__decorate([
+    nativeFunction(0x75156E8F, 150, 'int', 'int')
+], ThreadManForUser.prototype, "sceKernelResumeThread", null);
+__decorate([
+    nativeFunction(0x17C1684E, 150, 'int', 'int/void*')
+], ThreadManForUser.prototype, "sceKernelReferThreadStatus", null);
+__decorate([
+    nativeFunction(0xEA748E31, 150, 'int', 'uint/uint/uint')
+], ThreadManForUser.prototype, "sceKernelChangeCurrentThreadAttr", null);
+__decorate([
+    nativeFunction(0xC8CD158C, 150, 'int', 'uint')
+], ThreadManForUser.prototype, "sceKernelUSec2SysClockWide", null);
 exports.ThreadManForUser = ThreadManForUser;
 var SceKernelThreadInfo = (function () {
     function SceKernelThreadInfo() {
     }
-    SceKernelThreadInfo.struct = StructClass.create(SceKernelThreadInfo, [
-        { size: Int32 },
-        { name: Stringz(32) },
-        { attributes: UInt32 },
-        { status: UInt32 },
-        { entryPoint: UInt32 },
-        { stackPointer: UInt32 },
-        { stackSize: Int32 },
-        { GP: UInt32 },
-        { priorityInit: Int32 },
-        { priority: Int32 },
-        { waitType: UInt32 },
-        { waitId: Int32 },
-        { wakeupCount: Int32 },
-        { exitStatus: Int32 },
-        { runClocksLow: Int32 },
-        { runClocksHigh: Int32 },
-        { interruptPreemptionCount: Int32 },
-        { threadPreemptionCount: Int32 },
-        { releaseCount: Int32 },
-    ]);
     return SceKernelThreadInfo;
-})();
+}());
+SceKernelThreadInfo.struct = StructClass.create(SceKernelThreadInfo, [
+    { size: Int32 },
+    { name: Stringz(32) },
+    { attributes: UInt32 },
+    { status: UInt32 },
+    { entryPoint: UInt32 },
+    { stackPointer: UInt32 },
+    { stackSize: Int32 },
+    { GP: UInt32 },
+    { priorityInit: Int32 },
+    { priority: Int32 },
+    { waitType: UInt32 },
+    { waitId: Int32 },
+    { wakeupCount: Int32 },
+    { exitStatus: Int32 },
+    { runClocksLow: Int32 },
+    { runClocksHigh: Int32 },
+    { interruptPreemptionCount: Int32 },
+    { threadPreemptionCount: Int32 },
+    { releaseCount: Int32 },
+]);
 
 },
 "src/hle/module/threadman/ThreadManForUser_callbacks": function(module, exports, require) {
 ///<reference path="../../../global.d.ts" />
+"use strict";
 var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
-    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") return Reflect.decorate(decorators, target, key, desc);
-    switch (arguments.length) {
-        case 2: return decorators.reduceRight(function(o, d) { return (d && d(o)) || o; }, target);
-        case 3: return decorators.reduceRight(function(o, d) { return (d && d(target, key)), void 0; }, void 0);
-        case 4: return decorators.reduceRight(function(o, d) { return (d && d(target, key, o)) || o; }, desc);
-    }
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
 };
-var _utils = require('../../utils');
+var _utils = require("../../utils");
 var nativeFunction = _utils.nativeFunction;
-var _manager = require('../../manager');
+var _manager = require("../../manager");
 _manager.Thread;
 var Callback = _manager.Callback;
 var ThreadManForUser = (function () {
@@ -23047,46 +28473,47 @@ var ThreadManForUser = (function () {
     ThreadManForUser.prototype.sceKernelDeleteCallback = function (callbackId) {
         this.context.callbackManager.remove(callbackId);
     };
+    /**
+     * Run all peding callbacks and return if executed any.
+     * Callbacks cannot be executed inside a interrupt.
+     * @return 0 no reported callbacks; 1 reported callbacks which were executed successfully.
+     */
     ThreadManForUser.prototype.sceKernelCheckCallback = function (thread) {
+        //console.warn('Not implemented ThreadManForUser.sceKernelCheckCallback');
         return this.context.callbackManager.executePendingWithinThread(thread) ? 1 : 0;
     };
     ThreadManForUser.prototype.sceKernelNotifyCallback = function (thread, callbackId, argument2) {
         return this.context.callbackManager.notify(callbackId, argument2);
     };
-    Object.defineProperty(ThreadManForUser.prototype, "sceKernelCreateCallback",
-        __decorate([
-            nativeFunction(0xE81CAF8F, 150, 'uint', 'string/int/uint')
-        ], ThreadManForUser.prototype, "sceKernelCreateCallback", Object.getOwnPropertyDescriptor(ThreadManForUser.prototype, "sceKernelCreateCallback")));
-    Object.defineProperty(ThreadManForUser.prototype, "sceKernelDeleteCallback",
-        __decorate([
-            nativeFunction(0xEDBA5844, 150, 'uint', 'int')
-        ], ThreadManForUser.prototype, "sceKernelDeleteCallback", Object.getOwnPropertyDescriptor(ThreadManForUser.prototype, "sceKernelDeleteCallback")));
-    Object.defineProperty(ThreadManForUser.prototype, "sceKernelCheckCallback",
-        __decorate([
-            nativeFunction(0x349D6D6C, 150, 'uint', 'Thread')
-        ], ThreadManForUser.prototype, "sceKernelCheckCallback", Object.getOwnPropertyDescriptor(ThreadManForUser.prototype, "sceKernelCheckCallback")));
-    Object.defineProperty(ThreadManForUser.prototype, "sceKernelNotifyCallback",
-        __decorate([
-            nativeFunction(0xC11BA8C4, 150, 'uint', 'Thread/int/int')
-        ], ThreadManForUser.prototype, "sceKernelNotifyCallback", Object.getOwnPropertyDescriptor(ThreadManForUser.prototype, "sceKernelNotifyCallback")));
     return ThreadManForUser;
-})();
+}());
+__decorate([
+    nativeFunction(0xE81CAF8F, 150, 'uint', 'string/int/uint')
+], ThreadManForUser.prototype, "sceKernelCreateCallback", null);
+__decorate([
+    nativeFunction(0xEDBA5844, 150, 'uint', 'int')
+], ThreadManForUser.prototype, "sceKernelDeleteCallback", null);
+__decorate([
+    nativeFunction(0x349D6D6C, 150, 'uint', 'Thread')
+], ThreadManForUser.prototype, "sceKernelCheckCallback", null);
+__decorate([
+    nativeFunction(0xC11BA8C4, 150, 'uint', 'Thread/int/int')
+], ThreadManForUser.prototype, "sceKernelNotifyCallback", null);
 exports.ThreadManForUser = ThreadManForUser;
 
 },
 "src/hle/module/threadman/ThreadManForUser_eventflag": function(module, exports, require) {
 ///<reference path="../../../global.d.ts" />
+"use strict";
 var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
-    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") return Reflect.decorate(decorators, target, key, desc);
-    switch (arguments.length) {
-        case 2: return decorators.reduceRight(function(o, d) { return (d && d(o)) || o; }, target);
-        case 3: return decorators.reduceRight(function(o, d) { return (d && d(target, key)), void 0; }, void 0);
-        case 4: return decorators.reduceRight(function(o, d) { return (d && d(target, key, o)) || o; }, desc);
-    }
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
 };
-var _utils = require('../../utils');
+var _utils = require("../../utils");
 var nativeFunction = _utils.nativeFunction;
-var SceKernelErrors = require('../../SceKernelErrors');
+var SceKernelErrors = require("../../SceKernelErrors");
 var ThreadManForUser = (function () {
     function ThreadManForUser(context) {
         this.context = context;
@@ -23097,6 +28524,7 @@ var ThreadManForUser = (function () {
             return SceKernelErrors.ERROR_ERROR;
         if ((attributes & 0x100) != 0 || attributes >= 0x300)
             return SceKernelErrors.ERROR_KERNEL_ILLEGAL_ATTR;
+        //console.warn(sprintf('Not implemented ThreadManForUser.sceKernelCreateEventFlag("%s", %d, %08X)', name, attributes, bitPattern));
         var eventFlag = new EventFlag();
         eventFlag.name = name;
         eventFlag.attributes = attributes;
@@ -23184,44 +28612,35 @@ var ThreadManForUser = (function () {
         console.warn('Not implemented ThreadManForUser.sceKernelReferEventFlagStatus');
         return 0;
     };
-    Object.defineProperty(ThreadManForUser.prototype, "sceKernelCreateEventFlag",
-        __decorate([
-            nativeFunction(0x55C20A00, 150, 'uint', 'string/int/int/void*')
-        ], ThreadManForUser.prototype, "sceKernelCreateEventFlag", Object.getOwnPropertyDescriptor(ThreadManForUser.prototype, "sceKernelCreateEventFlag")));
-    Object.defineProperty(ThreadManForUser.prototype, "sceKernelSetEventFlag",
-        __decorate([
-            nativeFunction(0x1FB15A32, 150, 'uint', 'int/uint')
-        ], ThreadManForUser.prototype, "sceKernelSetEventFlag", Object.getOwnPropertyDescriptor(ThreadManForUser.prototype, "sceKernelSetEventFlag")));
-    Object.defineProperty(ThreadManForUser.prototype, "sceKernelWaitEventFlag",
-        __decorate([
-            nativeFunction(0x402FCF22, 150, 'uint', 'int/uint/int/void*/void*')
-        ], ThreadManForUser.prototype, "sceKernelWaitEventFlag", Object.getOwnPropertyDescriptor(ThreadManForUser.prototype, "sceKernelWaitEventFlag")));
-    Object.defineProperty(ThreadManForUser.prototype, "sceKernelWaitEventFlagCB",
-        __decorate([
-            nativeFunction(0x328C546A, 150, 'uint', 'int/uint/int/void*/void*')
-        ], ThreadManForUser.prototype, "sceKernelWaitEventFlagCB", Object.getOwnPropertyDescriptor(ThreadManForUser.prototype, "sceKernelWaitEventFlagCB")));
-    Object.defineProperty(ThreadManForUser.prototype, "sceKernelPollEventFlag",
-        __decorate([
-            nativeFunction(0x30FD48F0, 150, 'uint', 'int/uint/int/void*')
-        ], ThreadManForUser.prototype, "sceKernelPollEventFlag", Object.getOwnPropertyDescriptor(ThreadManForUser.prototype, "sceKernelPollEventFlag")));
-    Object.defineProperty(ThreadManForUser.prototype, "sceKernelDeleteEventFlag",
-        __decorate([
-            nativeFunction(0xEF9E4C70, 150, 'uint', 'int')
-        ], ThreadManForUser.prototype, "sceKernelDeleteEventFlag", Object.getOwnPropertyDescriptor(ThreadManForUser.prototype, "sceKernelDeleteEventFlag")));
-    Object.defineProperty(ThreadManForUser.prototype, "sceKernelClearEventFlag",
-        __decorate([
-            nativeFunction(0x812346E4, 150, 'uint', 'int/uint')
-        ], ThreadManForUser.prototype, "sceKernelClearEventFlag", Object.getOwnPropertyDescriptor(ThreadManForUser.prototype, "sceKernelClearEventFlag")));
-    Object.defineProperty(ThreadManForUser.prototype, "sceKernelCancelEventFlag",
-        __decorate([
-            nativeFunction(0xCD203292, 150, 'uint', 'int/uint/void*')
-        ], ThreadManForUser.prototype, "sceKernelCancelEventFlag", Object.getOwnPropertyDescriptor(ThreadManForUser.prototype, "sceKernelCancelEventFlag")));
-    Object.defineProperty(ThreadManForUser.prototype, "sceKernelReferEventFlagStatus",
-        __decorate([
-            nativeFunction(0xA66B0120, 150, 'uint', 'int/void*')
-        ], ThreadManForUser.prototype, "sceKernelReferEventFlagStatus", Object.getOwnPropertyDescriptor(ThreadManForUser.prototype, "sceKernelReferEventFlagStatus")));
     return ThreadManForUser;
-})();
+}());
+__decorate([
+    nativeFunction(0x55C20A00, 150, 'uint', 'string/int/int/void*')
+], ThreadManForUser.prototype, "sceKernelCreateEventFlag", null);
+__decorate([
+    nativeFunction(0x1FB15A32, 150, 'uint', 'int/uint')
+], ThreadManForUser.prototype, "sceKernelSetEventFlag", null);
+__decorate([
+    nativeFunction(0x402FCF22, 150, 'uint', 'int/uint/int/void*/void*')
+], ThreadManForUser.prototype, "sceKernelWaitEventFlag", null);
+__decorate([
+    nativeFunction(0x328C546A, 150, 'uint', 'int/uint/int/void*/void*')
+], ThreadManForUser.prototype, "sceKernelWaitEventFlagCB", null);
+__decorate([
+    nativeFunction(0x30FD48F0, 150, 'uint', 'int/uint/int/void*')
+], ThreadManForUser.prototype, "sceKernelPollEventFlag", null);
+__decorate([
+    nativeFunction(0xEF9E4C70, 150, 'uint', 'int')
+], ThreadManForUser.prototype, "sceKernelDeleteEventFlag", null);
+__decorate([
+    nativeFunction(0x812346E4, 150, 'uint', 'int/uint')
+], ThreadManForUser.prototype, "sceKernelClearEventFlag", null);
+__decorate([
+    nativeFunction(0xCD203292, 150, 'uint', 'int/uint/void*')
+], ThreadManForUser.prototype, "sceKernelCancelEventFlag", null);
+__decorate([
+    nativeFunction(0xA66B0120, 150, 'uint', 'int/void*')
+], ThreadManForUser.prototype, "sceKernelReferEventFlagStatus", null);
 exports.ThreadManForUser = ThreadManForUser;
 var EventFlagWaitingThread = (function () {
     function EventFlagWaitingThread(bitsToMatch, waitType, outBits, eventFlag, wakeUp) {
@@ -23232,7 +28651,7 @@ var EventFlagWaitingThread = (function () {
         this.wakeUp = wakeUp;
     }
     return EventFlagWaitingThread;
-})();
+}());
 var EventFlag = (function () {
     function EventFlag() {
         this.waitingThreads = new SortedSet();
@@ -23252,7 +28671,7 @@ var EventFlag = (function () {
         if (outBits != null)
             outBits.writeInt32(this.currentPattern);
         if ((waitType & EventFlagWaitTypeSet.Or)
-            ? ((this.currentPattern & bitsToMatch) != 0)
+            ? ((this.currentPattern & bitsToMatch) != 0) // one or more bits of the mask
             : ((this.currentPattern & bitsToMatch) == bitsToMatch)) {
             this._doClear(bitsToMatch, waitType);
             return true;
@@ -23291,20 +28710,20 @@ var EventFlag = (function () {
         });
     };
     return EventFlag;
-})();
+}());
 var EventFlagInfo = (function () {
     function EventFlagInfo() {
     }
-    EventFlagInfo.struct = StructClass.create(EventFlagInfo, [
-        { size: Int32 },
-        { name: Stringz(32) },
-        { attributes: Int32 },
-        { initialPattern: UInt32 },
-        { currentPattern: UInt32 },
-        { numberOfWaitingThreads: Int32 },
-    ]);
     return EventFlagInfo;
-})();
+}());
+EventFlagInfo.struct = StructClass.create(EventFlagInfo, [
+    { size: Int32 },
+    { name: Stringz(32) },
+    { attributes: Int32 },
+    { initialPattern: UInt32 },
+    { currentPattern: UInt32 },
+    { numberOfWaitingThreads: Int32 },
+]);
 var EventFlagWaitTypeSet;
 (function (EventFlagWaitTypeSet) {
     EventFlagWaitTypeSet[EventFlagWaitTypeSet["And"] = 0] = "And";
@@ -23317,15 +28736,14 @@ var EventFlagWaitTypeSet;
 },
 "src/hle/module/threadman/ThreadManForUser_mutex": function(module, exports, require) {
 ///<reference path="../../../global.d.ts" />
+"use strict";
 var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
-    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") return Reflect.decorate(decorators, target, key, desc);
-    switch (arguments.length) {
-        case 2: return decorators.reduceRight(function(o, d) { return (d && d(o)) || o; }, target);
-        case 3: return decorators.reduceRight(function(o, d) { return (d && d(target, key)), void 0; }, void 0);
-        case 4: return decorators.reduceRight(function(o, d) { return (d && d(target, key, o)) || o; }, desc);
-    }
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
 };
-var _utils = require('../../utils');
+var _utils = require("../../utils");
 var nativeFunction = _utils.nativeFunction;
 var ThreadManForUser = (function () {
     function ThreadManForUser(context) {
@@ -23337,32 +28755,29 @@ var ThreadManForUser = (function () {
     ThreadManForUser.prototype.sceKernelLockMutexCB = function (mutexId, count, timeout) {
         return -1;
     };
-    Object.defineProperty(ThreadManForUser.prototype, "sceKernelCreateMutex",
-        __decorate([
-            nativeFunction(0xB7D098C6, 150, 'int', 'string/int/int')
-        ], ThreadManForUser.prototype, "sceKernelCreateMutex", Object.getOwnPropertyDescriptor(ThreadManForUser.prototype, "sceKernelCreateMutex")));
-    Object.defineProperty(ThreadManForUser.prototype, "sceKernelLockMutexCB",
-        __decorate([
-            nativeFunction(0x5BF4DD27, 150, 'int', 'int/int/void*')
-        ], ThreadManForUser.prototype, "sceKernelLockMutexCB", Object.getOwnPropertyDescriptor(ThreadManForUser.prototype, "sceKernelLockMutexCB")));
     return ThreadManForUser;
-})();
+}());
+__decorate([
+    nativeFunction(0xB7D098C6, 150, 'int', 'string/int/int')
+], ThreadManForUser.prototype, "sceKernelCreateMutex", null);
+__decorate([
+    nativeFunction(0x5BF4DD27, 150, 'int', 'int/int/void*')
+], ThreadManForUser.prototype, "sceKernelLockMutexCB", null);
 exports.ThreadManForUser = ThreadManForUser;
 
 },
 "src/hle/module/threadman/ThreadManForUser_sema": function(module, exports, require) {
 ///<reference path="../../../global.d.ts" />
+"use strict";
 var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
-    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") return Reflect.decorate(decorators, target, key, desc);
-    switch (arguments.length) {
-        case 2: return decorators.reduceRight(function(o, d) { return (d && d(o)) || o; }, target);
-        case 3: return decorators.reduceRight(function(o, d) { return (d && d(target, key)), void 0; }, void 0);
-        case 4: return decorators.reduceRight(function(o, d) { return (d && d(target, key, o)) || o; }, desc);
-    }
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
 };
-var _utils = require('../../utils');
+var _utils = require("../../utils");
 var nativeFunction = _utils.nativeFunction;
-var SceKernelErrors = require('../../SceKernelErrors');
+var SceKernelErrors = require("../../SceKernelErrors");
 var ThreadManForUser = (function () {
     function ThreadManForUser(context) {
         this.context = context;
@@ -23449,62 +28864,54 @@ var ThreadManForUser = (function () {
         semaphore.incrementCount(-signal);
         return 0;
     };
-    Object.defineProperty(ThreadManForUser.prototype, "sceKernelCreateSema",
-        __decorate([
-            nativeFunction(0xD6DA4BA1, 150, 'int', 'string/int/int/int/void*')
-        ], ThreadManForUser.prototype, "sceKernelCreateSema", Object.getOwnPropertyDescriptor(ThreadManForUser.prototype, "sceKernelCreateSema")));
-    Object.defineProperty(ThreadManForUser.prototype, "sceKernelDeleteSema",
-        __decorate([
-            nativeFunction(0x28B6489C, 150, 'int', 'int')
-        ], ThreadManForUser.prototype, "sceKernelDeleteSema", Object.getOwnPropertyDescriptor(ThreadManForUser.prototype, "sceKernelDeleteSema")));
-    Object.defineProperty(ThreadManForUser.prototype, "sceKernelCancelSema",
-        __decorate([
-            nativeFunction(0x8FFDF9A2, 150, 'uint', 'uint/uint/void*')
-        ], ThreadManForUser.prototype, "sceKernelCancelSema", Object.getOwnPropertyDescriptor(ThreadManForUser.prototype, "sceKernelCancelSema")));
-    Object.defineProperty(ThreadManForUser.prototype, "sceKernelWaitSemaCB",
-        __decorate([
-            nativeFunction(0x6D212BAC, 150, 'int', 'Thread/int/int/void*')
-        ], ThreadManForUser.prototype, "sceKernelWaitSemaCB", Object.getOwnPropertyDescriptor(ThreadManForUser.prototype, "sceKernelWaitSemaCB")));
-    Object.defineProperty(ThreadManForUser.prototype, "sceKernelWaitSema",
-        __decorate([
-            nativeFunction(0x4E3A1105, 150, 'int', 'Thread/int/int/void*')
-        ], ThreadManForUser.prototype, "sceKernelWaitSema", Object.getOwnPropertyDescriptor(ThreadManForUser.prototype, "sceKernelWaitSema")));
-    Object.defineProperty(ThreadManForUser.prototype, "sceKernelReferSemaStatus",
-        __decorate([
-            nativeFunction(0xBC6FEBC5, 150, 'int', 'int/void*')
-        ], ThreadManForUser.prototype, "sceKernelReferSemaStatus", Object.getOwnPropertyDescriptor(ThreadManForUser.prototype, "sceKernelReferSemaStatus")));
-    Object.defineProperty(ThreadManForUser.prototype, "sceKernelSignalSema",
-        __decorate([
-            nativeFunction(0x3F53E640, 150, 'int', 'Thread/int/int')
-        ], ThreadManForUser.prototype, "sceKernelSignalSema", Object.getOwnPropertyDescriptor(ThreadManForUser.prototype, "sceKernelSignalSema")));
-    Object.defineProperty(ThreadManForUser.prototype, "sceKernelPollSema",
-        __decorate([
-            nativeFunction(0x58B1F937, 150, 'int', 'Thread/int/int')
-        ], ThreadManForUser.prototype, "sceKernelPollSema", Object.getOwnPropertyDescriptor(ThreadManForUser.prototype, "sceKernelPollSema")));
     return ThreadManForUser;
-})();
+}());
+__decorate([
+    nativeFunction(0xD6DA4BA1, 150, 'int', 'string/int/int/int/void*')
+], ThreadManForUser.prototype, "sceKernelCreateSema", null);
+__decorate([
+    nativeFunction(0x28B6489C, 150, 'int', 'int')
+], ThreadManForUser.prototype, "sceKernelDeleteSema", null);
+__decorate([
+    nativeFunction(0x8FFDF9A2, 150, 'uint', 'uint/uint/void*')
+], ThreadManForUser.prototype, "sceKernelCancelSema", null);
+__decorate([
+    nativeFunction(0x6D212BAC, 150, 'int', 'Thread/int/int/void*')
+], ThreadManForUser.prototype, "sceKernelWaitSemaCB", null);
+__decorate([
+    nativeFunction(0x4E3A1105, 150, 'int', 'Thread/int/int/void*')
+], ThreadManForUser.prototype, "sceKernelWaitSema", null);
+__decorate([
+    nativeFunction(0xBC6FEBC5, 150, 'int', 'int/void*')
+], ThreadManForUser.prototype, "sceKernelReferSemaStatus", null);
+__decorate([
+    nativeFunction(0x3F53E640, 150, 'int', 'Thread/int/int')
+], ThreadManForUser.prototype, "sceKernelSignalSema", null);
+__decorate([
+    nativeFunction(0x58B1F937, 150, 'int', 'Thread/int/int')
+], ThreadManForUser.prototype, "sceKernelPollSema", null);
 exports.ThreadManForUser = ThreadManForUser;
 var SceKernelSemaInfo = (function () {
     function SceKernelSemaInfo() {
     }
-    SceKernelSemaInfo.struct = StructClass.create(SceKernelSemaInfo, [
-        { size: Int32 },
-        { name: Stringz(32) },
-        { attributes: Int32 },
-        { initialCount: Int32 },
-        { currentCount: Int32 },
-        { maximumCount: Int32 },
-        { numberOfWaitingThreads: Int32 },
-    ]);
     return SceKernelSemaInfo;
-})();
+}());
+SceKernelSemaInfo.struct = StructClass.create(SceKernelSemaInfo, [
+    { size: Int32 },
+    { name: Stringz(32) },
+    { attributes: Int32 },
+    { initialCount: Int32 },
+    { currentCount: Int32 },
+    { maximumCount: Int32 },
+    { numberOfWaitingThreads: Int32 },
+]);
 var WaitingSemaphoreThread = (function () {
     function WaitingSemaphoreThread(expectedCount, wakeUp) {
         this.expectedCount = expectedCount;
         this.wakeUp = wakeUp;
     }
     return WaitingSemaphoreThread;
-})();
+}());
 var Semaphore = (function () {
     function Semaphore(name, attributes, initialCount, maximumCount) {
         this.name = name;
@@ -23561,7 +28968,7 @@ var Semaphore = (function () {
     Semaphore.prototype.delete = function () {
     };
     return Semaphore;
-})();
+}());
 var SemaphoreAttribute;
 (function (SemaphoreAttribute) {
     SemaphoreAttribute[SemaphoreAttribute["FirstInFirstOut"] = 0] = "FirstInFirstOut";
@@ -23571,18 +28978,17 @@ var SemaphoreAttribute;
 },
 "src/hle/module/threadman/ThreadManForUser_vpl": function(module, exports, require) {
 ///<reference path="../../../global.d.ts" />
+"use strict";
 var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
-    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") return Reflect.decorate(decorators, target, key, desc);
-    switch (arguments.length) {
-        case 2: return decorators.reduceRight(function(o, d) { return (d && d(o)) || o; }, target);
-        case 3: return decorators.reduceRight(function(o, d) { return (d && d(target, key)), void 0; }, void 0);
-        case 4: return decorators.reduceRight(function(o, d) { return (d && d(target, key, o)) || o; }, desc);
-    }
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
 };
-var _utils = require('../../utils');
+var _utils = require("../../utils");
 var nativeFunction = _utils.nativeFunction;
-var SceKernelErrors = require('../../SceKernelErrors');
-var _manager = require('../../manager');
+var SceKernelErrors = require("../../SceKernelErrors");
+var _manager = require("../../manager");
 var MemoryAnchor = _manager.MemoryAnchor;
 var ThreadManForUser = (function () {
     function ThreadManForUser(context) {
@@ -23597,6 +29003,7 @@ var ThreadManForUser = (function () {
     };
     ThreadManForUser.prototype.sceKernelTryAllocateVpl = function (vplId, size, addressPtr) {
         var vpl = this.vplUid.get(vplId);
+        //console.log('sceKernelTryAllocateVpl', vplId, size, addressPtr);
         try {
             var item = vpl.partition.allocateLow(size);
             console.log('-->', item.low);
@@ -23609,16 +29016,14 @@ var ThreadManForUser = (function () {
             return SceKernelErrors.ERROR_KERNEL_NO_MEMORY;
         }
     };
-    Object.defineProperty(ThreadManForUser.prototype, "sceKernelCreateVpl",
-        __decorate([
-            nativeFunction(0x56C039B5, 150, 'int', 'string/int/int/int/void*')
-        ], ThreadManForUser.prototype, "sceKernelCreateVpl", Object.getOwnPropertyDescriptor(ThreadManForUser.prototype, "sceKernelCreateVpl")));
-    Object.defineProperty(ThreadManForUser.prototype, "sceKernelTryAllocateVpl",
-        __decorate([
-            nativeFunction(0xAF36D708, 150, 'int', 'int/int/void*')
-        ], ThreadManForUser.prototype, "sceKernelTryAllocateVpl", Object.getOwnPropertyDescriptor(ThreadManForUser.prototype, "sceKernelTryAllocateVpl")));
     return ThreadManForUser;
-})();
+}());
+__decorate([
+    nativeFunction(0x56C039B5, 150, 'int', 'string/int/int/int/void*')
+], ThreadManForUser.prototype, "sceKernelCreateVpl", null);
+__decorate([
+    nativeFunction(0xAF36D708, 150, 'int', 'int/int/void*')
+], ThreadManForUser.prototype, "sceKernelTryAllocateVpl", null);
 exports.ThreadManForUser = ThreadManForUser;
 var Vpl = (function () {
     function Vpl(name, partition) {
@@ -23626,7 +29031,7 @@ var Vpl = (function () {
         this.partition = partition;
     }
     return Vpl;
-})();
+}());
 var VplAttributeFlags;
 (function (VplAttributeFlags) {
     VplAttributeFlags[VplAttributeFlags["PSP_VPL_ATTR_MASK"] = 16895] = "PSP_VPL_ATTR_MASK";
@@ -23637,60 +29042,61 @@ var VplAttributeFlags;
 },
 "src/hle/pspmodules": function(module, exports, require) {
 ///<reference path="../global.d.ts" />
-var ExceptionManagerForKernel = require('./module/ExceptionManagerForKernel');
-var InterruptManager = require('./module/InterruptManager');
-var KDebugForKernel = require('./module/KDebugForKernel');
-var Kernel_Library = require('./module/Kernel_Library');
-var LoadCoreForKernel = require('./module/LoadCoreForKernel');
-var LoadExecForUser = require('./module/LoadExecForUser');
-var ModuleMgrForUser = require('./module/ModuleMgrForUser');
-var sceAtrac3plus = require('./module/sceAtrac3plus');
-var sceAudio = require('./module/sceAudio');
-var sceCtrl = require('./module/sceCtrl');
-var sceDisplay = require('./module/sceDisplay');
-var sceDmac = require('./module/sceDmac');
-var sceGe_user = require('./module/sceGe_user');
-var sceHprm = require('./module/sceHprm');
-var sceHttp = require('./module/sceHttp');
-var sceParseHttp = require('./module/sceParseHttp');
-var sceParseUri = require('./module/sceParseUri');
-var sceImpose = require('./module/sceImpose');
-var sceLibFont = require('./module/sceLibFont');
-var sceMp3 = require('./module/sceMp3');
-var sceMpeg = require('./module/sceMpeg');
-var sceNet = require('./module/sceNet');
-var sceNetAdhoc = require('./module/sceNetAdhoc');
-var sceNetAdhocctl = require('./module/sceNetAdhocctl');
-var sceNetAdhocMatching = require('./module/sceNetAdhocMatching');
-var sceNetApctl = require('./module/sceNetApctl');
-var sceNetInet = require('./module/sceNetInet');
-var sceNetResolver = require('./module/sceNetResolver');
-var sceNp = require('./module/sceNp');
-var sceNpAuth = require('./module/sceNpAuth');
-var sceNpService = require('./module/sceNpService');
-var sceOpenPSID = require('./module/sceOpenPSID');
-var scePower = require('./module/scePower');
-var scePspNpDrm_user = require('./module/scePspNpDrm_user');
-var sceReg = require('./module/sceReg');
-var sceRtc = require('./module/sceRtc');
-var sceSasCore = require('./module/sceSasCore');
-var sceSsl = require('./module/sceSsl');
-var sceSuspendForUser = require('./module/sceSuspendForUser');
-var sceUmdUser = require('./module/sceUmdUser');
-var sceUtility = require('./module/sceUtility');
-var sceVaudio = require('./module/sceVaudio');
-var sceWlanDrv = require('./module/sceWlanDrv');
-var StdioForUser = require('./module/StdioForUser');
-var SysMemUserForUser = require('./module/SysMemUserForUser');
-var UtilsForKernel = require('./module/UtilsForKernel');
-var UtilsForUser = require('./module/UtilsForUser');
-var IoFileMgrForUser = require('./module/iofilemgr/IoFileMgrForUser');
-var ThreadManForUser = require('./module/threadman/ThreadManForUser');
-var ThreadManForUser_callbacks = require('./module/threadman/ThreadManForUser_callbacks');
-var ThreadManForUser_sema = require('./module/threadman/ThreadManForUser_sema');
-var ThreadManForUser_eventflag = require('./module/threadman/ThreadManForUser_eventflag');
-var ThreadManForUser_vpl = require('./module/threadman/ThreadManForUser_vpl');
-var ThreadManForUser_mutex = require('./module/threadman/ThreadManForUser_mutex');
+"use strict";
+var ExceptionManagerForKernel = require("./module/ExceptionManagerForKernel");
+var InterruptManager = require("./module/InterruptManager");
+var KDebugForKernel = require("./module/KDebugForKernel");
+var Kernel_Library = require("./module/Kernel_Library");
+var LoadCoreForKernel = require("./module/LoadCoreForKernel");
+var LoadExecForUser = require("./module/LoadExecForUser");
+var ModuleMgrForUser = require("./module/ModuleMgrForUser");
+var sceAtrac3plus = require("./module/sceAtrac3plus");
+var sceAudio = require("./module/sceAudio");
+var sceCtrl = require("./module/sceCtrl");
+var sceDisplay = require("./module/sceDisplay");
+var sceDmac = require("./module/sceDmac");
+var sceGe_user = require("./module/sceGe_user");
+var sceHprm = require("./module/sceHprm");
+var sceHttp = require("./module/sceHttp");
+var sceParseHttp = require("./module/sceParseHttp");
+var sceParseUri = require("./module/sceParseUri");
+var sceImpose = require("./module/sceImpose");
+var sceLibFont = require("./module/sceLibFont");
+var sceMp3 = require("./module/sceMp3");
+var sceMpeg = require("./module/sceMpeg");
+var sceNet = require("./module/sceNet");
+var sceNetAdhoc = require("./module/sceNetAdhoc");
+var sceNetAdhocctl = require("./module/sceNetAdhocctl");
+var sceNetAdhocMatching = require("./module/sceNetAdhocMatching");
+var sceNetApctl = require("./module/sceNetApctl");
+var sceNetInet = require("./module/sceNetInet");
+var sceNetResolver = require("./module/sceNetResolver");
+var sceNp = require("./module/sceNp");
+var sceNpAuth = require("./module/sceNpAuth");
+var sceNpService = require("./module/sceNpService");
+var sceOpenPSID = require("./module/sceOpenPSID");
+var scePower = require("./module/scePower");
+var scePspNpDrm_user = require("./module/scePspNpDrm_user");
+var sceReg = require("./module/sceReg");
+var sceRtc = require("./module/sceRtc");
+var sceSasCore = require("./module/sceSasCore");
+var sceSsl = require("./module/sceSsl");
+var sceSuspendForUser = require("./module/sceSuspendForUser");
+var sceUmdUser = require("./module/sceUmdUser");
+var sceUtility = require("./module/sceUtility");
+var sceVaudio = require("./module/sceVaudio");
+var sceWlanDrv = require("./module/sceWlanDrv");
+var StdioForUser = require("./module/StdioForUser");
+var SysMemUserForUser = require("./module/SysMemUserForUser");
+var UtilsForKernel = require("./module/UtilsForKernel");
+var UtilsForUser = require("./module/UtilsForUser");
+var IoFileMgrForUser = require("./module/iofilemgr/IoFileMgrForUser");
+var ThreadManForUser = require("./module/threadman/ThreadManForUser");
+var ThreadManForUser_callbacks = require("./module/threadman/ThreadManForUser_callbacks");
+var ThreadManForUser_sema = require("./module/threadman/ThreadManForUser_sema");
+var ThreadManForUser_eventflag = require("./module/threadman/ThreadManForUser_eventflag");
+var ThreadManForUser_vpl = require("./module/threadman/ThreadManForUser_vpl");
+var ThreadManForUser_mutex = require("./module/threadman/ThreadManForUser_mutex");
 function _registerModules(manager) {
 }
 function _registerSyscall(syscallManager, moduleManager, id, moduleName, functionName) {
@@ -23772,6 +29178,7 @@ exports.registerModulesAndSyscalls = registerModulesAndSyscalls;
 
 },
 "src/hle/structs": function(module, exports, require) {
+"use strict";
 var ScePspDateTime = (function () {
     function ScePspDateTime() {
         this.year = 0;
@@ -23799,41 +29206,42 @@ var ScePspDateTime = (function () {
         return ScePspDateTime.fromDate(new Date(ticks.getNumber()));
     };
     ScePspDateTime.prototype.getTotalMicroseconds = function () {
-        return Integer64.fromNumber((Date.UTC(this.year + 1970, this.month - 1, this.day, this.hour, this.minute, this.second, this.microseconds / 1000) * 1000));
+        return Integer64.fromNumber((Date.UTC(this.year + 1970, this.month - 1, this.day, this.hour, this.minute, this.second, this.microseconds / 1000) * 1000) // + 62135596800000000
+        );
     };
-    ScePspDateTime.struct = StructClass.create(ScePspDateTime, [
-        { year: Int16 },
-        { month: Int16 },
-        { day: Int16 },
-        { hour: Int16 },
-        { minute: Int16 },
-        { second: Int16 },
-        { microsecond: Int32 },
-    ]);
     return ScePspDateTime;
-})();
+}());
+ScePspDateTime.struct = StructClass.create(ScePspDateTime, [
+    { year: Int16 },
+    { month: Int16 },
+    { day: Int16 },
+    { hour: Int16 },
+    { minute: Int16 },
+    { second: Int16 },
+    { microsecond: Int32 },
+]);
 exports.ScePspDateTime = ScePspDateTime;
 var SceIoStat = (function () {
     function SceIoStat() {
         this.mode = 0;
-        this.attributes = 32;
+        this.attributes = 32 /* File */;
         this.size = 0;
         this.timeCreation = new ScePspDateTime();
         this.timeLastAccess = new ScePspDateTime();
         this.timeLastModification = new ScePspDateTime();
         this.deviceDependentData = [0, 0, 0, 0, 0, 0];
     }
-    SceIoStat.struct = StructClass.create(SceIoStat, [
-        { mode: Int32 },
-        { attributes: Int32 },
-        { size: Int64 },
-        { timeCreation: ScePspDateTime.struct },
-        { timeLastAccess: ScePspDateTime.struct },
-        { timeLastModification: ScePspDateTime.struct },
-        { deviceDependentData: StructArray(Int32, 6) },
-    ]);
     return SceIoStat;
-})();
+}());
+SceIoStat.struct = StructClass.create(SceIoStat, [
+    { mode: Int32 },
+    { attributes: Int32 },
+    { size: Int64 },
+    { timeCreation: ScePspDateTime.struct },
+    { timeLastAccess: ScePspDateTime.struct },
+    { timeLastModification: ScePspDateTime.struct },
+    { deviceDependentData: StructArray(Int32, 6) },
+]);
 exports.SceIoStat = SceIoStat;
 var HleIoDirent = (function () {
     function HleIoDirent() {
@@ -23842,19 +29250,20 @@ var HleIoDirent = (function () {
         this.privateData = 0;
         this.dummy = 0;
     }
-    HleIoDirent.struct = StructClass.create(HleIoDirent, [
-        { stat: SceIoStat.struct },
-        { name: Stringz(256) },
-        { privateData: Int32 },
-        { dummy: Int32 },
-    ]);
     return HleIoDirent;
-})();
+}());
+HleIoDirent.struct = StructClass.create(HleIoDirent, [
+    { stat: SceIoStat.struct },
+    { name: Stringz(256) },
+    { privateData: Int32 },
+    { dummy: Int32 },
+]);
 exports.HleIoDirent = HleIoDirent;
 
 },
 "src/hle/utils": function(module, exports, require) {
-var _cpu = require('../core/cpu');
+"use strict";
+var _cpu = require("../core/cpu");
 exports.NativeFunction = _cpu.NativeFunction;
 var createNativeFunction = _cpu.createNativeFunction;
 function nativeFunction(exportId, firmwareVersion, retval, args, options) {
@@ -23871,25 +29280,26 @@ exports.nativeFunction = nativeFunction;
 
 },
 "src/hle/vfs": function(module, exports, require) {
-var _vfs = require('./vfs/vfs');
+"use strict";
+var _vfs = require("./vfs/vfs");
 _vfs.Vfs;
-var _zip = require('./vfs/vfs_zip');
+var _zip = require("./vfs/vfs_zip");
 _zip.ZipVfs;
-var _iso = require('./vfs/vfs_iso');
+var _iso = require("./vfs/vfs_iso");
 _iso.IsoVfs;
-var _uri = require('./vfs/vfs_uri');
+var _uri = require("./vfs/vfs_uri");
 _uri.UriVfs;
-var _ms = require('./vfs/vfs_ms');
+var _ms = require("./vfs/vfs_ms");
 _ms.MemoryStickVfs;
-var _memory = require('./vfs/vfs_memory');
+var _memory = require("./vfs/vfs_memory");
 _memory.MemoryVfs;
-var _mountable = require('./vfs/vfs_mountable');
+var _mountable = require("./vfs/vfs_mountable");
 _mountable.MountableVfs;
-var _storage = require('./vfs/vfs_storage');
+var _storage = require("./vfs/vfs_storage");
 _storage.StorageVfs;
-var _emulator = require('./vfs/vfs_emulator');
+var _emulator = require("./vfs/vfs_emulator");
 _emulator.EmulatorVfs;
-var _dropbox = require('./vfs/vfs_dropbox');
+var _dropbox = require("./vfs/vfs_dropbox");
 _dropbox.DropboxVfs;
 exports.FileOpenFlags = _vfs.FileOpenFlags;
 exports.Vfs = _vfs.Vfs;
@@ -23907,6 +29317,7 @@ exports.MemoryStickVfs = _ms.MemoryStickVfs;
 
 },
 "src/hle/vfs/indexeddb": function(module, exports, require) {
+"use strict";
 var console = logger.named('indexeddb');
 var MyStorageIndexedDb = (function () {
     function MyStorageIndexedDb(db) {
@@ -23918,6 +29329,8 @@ var MyStorageIndexedDb = (function () {
             var request = indexedDB.open(name, 1);
             request.onupgradeneeded = function (e) {
                 var db = request.result;
+                // A versionchange transaction is started automatically.
+                //request.transaction.onerror = html5rocks.indexedDB.onerror;
                 console.log('upgrade!');
                 if (db.objectStoreNames.contains('items'))
                     db.deleteObjectStore('items');
@@ -23989,11 +29402,12 @@ var MyStorageIndexedDb = (function () {
         });
     };
     return MyStorageIndexedDb;
-})();
+}());
 var MyStorageFake = (function () {
     function MyStorageFake(name) {
         this.name = name;
         this.items = {};
+        //console.log('new MyStorageFake(' + name + ')');
     }
     MyStorageFake.prototype.putAsync = function (key, value) {
         console.log('putAsync', key, value);
@@ -24016,7 +29430,7 @@ var MyStorageFake = (function () {
         return Promise2.resolve(result);
     };
     return MyStorageFake;
-})();
+}());
 function openAsync(name, version, stores) {
     if (typeof indexedDB == "undefined") {
         return Promise2.resolve(new MyStorageFake(name));
@@ -24029,6 +29443,7 @@ exports.openAsync = openAsync;
 
 },
 "src/hle/vfs/vfs": function(module, exports, require) {
+"use strict";
 var __extends = (this && this.__extends) || function (d, b) {
     for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
     function __() { this.constructor = d; }
@@ -24039,13 +29454,11 @@ var Vfs = (function () {
     }
     Vfs.prototype.devctlAsync = function (command, input, output) {
         console.error('VfsMustOverride devctlAsync', this);
-        throw (new Error("Must override devctlAsync : " + this));
-        return null;
+        throw new Error("Must override devctlAsync : " + this);
     };
     Vfs.prototype.openAsync = function (path, flags, mode) {
         console.error('VfsMustOverride openAsync', this);
-        throw (new Error("Must override openAsync : " + this));
-        return null;
+        throw new Error("Must override openAsync : " + this);
     };
     Vfs.prototype.readAllAsync = function (path) {
         return this.openAsync(path, FileOpenFlags.Read, parseInt('0777', 8)).then(function (entry) { return entry.readAllAsync(); });
@@ -24054,8 +29467,7 @@ var Vfs = (function () {
         return this.openAsync(path, FileOpenFlags.Create | FileOpenFlags.Truncate | FileOpenFlags.Write, parseInt('0777', 8)).then(function (entry) { return entry.writeAllAsync(data); });
     };
     Vfs.prototype.deleteAsync = function (path) {
-        throw (new Error("Must override openAsync : " + this));
-        return null;
+        throw new Error("Must override openAsync : " + this);
     };
     Vfs.prototype.openDirectoryAsync = function (path) {
         return this.openAsync(path, FileOpenFlags.Read, parseInt('0777', 8));
@@ -24067,13 +29479,14 @@ var Vfs = (function () {
         return this.getStatAsync(path).then(function () { return true; }).catch(function () { return false; });
     };
     return Vfs;
-})();
+}());
 exports.Vfs = Vfs;
 var ProxyVfs = (function (_super) {
     __extends(ProxyVfs, _super);
     function ProxyVfs(parentVfsList) {
-        _super.call(this);
-        this.parentVfsList = parentVfsList;
+        var _this = _super.call(this) || this;
+        _this.parentVfsList = parentVfsList;
+        return _this;
     }
     ProxyVfs.prototype._callChainWhenError = function (callback) {
         var promise = Promise2.reject(new Error());
@@ -24110,7 +29523,7 @@ var ProxyVfs = (function (_super) {
         });
     };
     return ProxyVfs;
-})(Vfs);
+}(Vfs));
 exports.ProxyVfs = ProxyVfs;
 var VfsEntry = (function () {
     function VfsEntry() {
@@ -24135,13 +29548,14 @@ var VfsEntry = (function () {
     VfsEntry.prototype.stat = function () { throw (new Error("Must override stat")); };
     VfsEntry.prototype.close = function () { };
     return VfsEntry;
-})();
+}());
 exports.VfsEntry = VfsEntry;
 var VfsEntryStream = (function (_super) {
     __extends(VfsEntryStream, _super);
     function VfsEntryStream(asyncStream) {
-        _super.call(this);
-        this.asyncStream = asyncStream;
+        var _this = _super.call(this) || this;
+        _this.asyncStream = asyncStream;
+        return _this;
     }
     Object.defineProperty(VfsEntryStream.prototype, "size", {
         get: function () { return this.asyncStream.size; },
@@ -24163,8 +29577,9 @@ var VfsEntryStream = (function (_super) {
         };
     };
     return VfsEntryStream;
-})(VfsEntry);
+}(VfsEntry));
 exports.VfsEntryStream = VfsEntryStream;
+var FileOpenFlags;
 (function (FileOpenFlags) {
     FileOpenFlags[FileOpenFlags["Read"] = 1] = "Read";
     FileOpenFlags[FileOpenFlags["Write"] = 2] = "Write";
@@ -24179,17 +29594,17 @@ exports.VfsEntryStream = VfsEntryStream;
     FileOpenFlags[FileOpenFlags["NoWait"] = 32768] = "NoWait";
     FileOpenFlags[FileOpenFlags["Unknown2"] = 983040] = "Unknown2";
     FileOpenFlags[FileOpenFlags["Unknown3"] = 33554432] = "Unknown3";
-})(exports.FileOpenFlags || (exports.FileOpenFlags = {}));
-var FileOpenFlags = exports.FileOpenFlags;
+})(FileOpenFlags = exports.FileOpenFlags || (exports.FileOpenFlags = {}));
 
 },
 "src/hle/vfs/vfs_dropbox": function(module, exports, require) {
+"use strict";
 var __extends = (this && this.__extends) || function (d, b) {
     for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
     function __() { this.constructor = d; }
     d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
 };
-var _vfs = require('./vfs');
+var _vfs = require("./vfs");
 var Vfs = _vfs.Vfs;
 var VfsEntry = _vfs.VfsEntry;
 var FileOpenFlags = _vfs.FileOpenFlags;
@@ -24206,6 +29621,8 @@ var AsyncClient = (function () {
         if (!this.initPromise) {
             this.client = new Dropbox.Client({ key: this.key });
             if (this.client.isAuthenticated()) {
+                //DropboxLogged();
+                // Client is authenticated. Display UI.
                 var dropboxhtml = document.getElementById('dropbox');
                 if (dropboxhtml)
                     dropboxhtml.innerHTML = 'logged';
@@ -24329,7 +29746,7 @@ var AsyncClient = (function () {
         });
     };
     return AsyncClient;
-})();
+}());
 exports.AsyncClient = AsyncClient;
 function getDirectoryPath(fullpath) {
     return fullpath.split('/').slice(0, -1).join('/');
@@ -24352,11 +29769,28 @@ function normalizePath(fullpath) {
     return out.join('/');
 }
 var client = new AsyncClient('4mdwp62ogo4tna1');
+/*
+client.mkdirAsync('PSP').then(() => {
+    console.log('resilt');
+}).catch(e => {
+    console.error(e);
+});
+*/
+//client.mkdirAsync('PSP/GAME');
+//client.mkdirAsync('PSP/GAME/virtual');
+/*
+client.writeFileAsync('/PSP/GAME/virtual/lsdlmidi.bin', new Uint8Array([1, 2, 3, 4]).buffer).then((result) => {
+    console.log(result);
+}).catch((error) => {
+    console.error(error);
+});
+*/
 var DropboxVfs = (function (_super) {
     __extends(DropboxVfs, _super);
     function DropboxVfs() {
-        _super.call(this);
-        this.enabled = true;
+        var _this = _super.call(this) || this;
+        _this.enabled = true;
+        return _this;
     }
     DropboxVfs.tryLoginAsync = function () {
         return client.initOnceAsync();
@@ -24368,24 +29802,27 @@ var DropboxVfs = (function (_super) {
         return DropboxVfsEntry.fromPathAsync(path, flags, mode);
     };
     return DropboxVfs;
-})(Vfs);
+}(Vfs));
 exports.DropboxVfs = DropboxVfs;
 var DropboxVfsEntry = (function (_super) {
     __extends(DropboxVfsEntry, _super);
     function DropboxVfsEntry(path, name, _size, isFile, date) {
-        _super.call(this);
-        this.path = path;
-        this.name = name;
-        this._size = _size;
-        this.isFile = isFile;
-        this.date = date;
-        this.writeTimer = -1;
+        var _this = _super.call(this) || this;
+        _this.path = path;
+        _this.name = name;
+        _this._size = _size;
+        _this.isFile = isFile;
+        _this.date = date;
+        _this.writeTimer = -1;
+        return _this;
     }
     DropboxVfsEntry.fromPathAsync = function (path, flags, mode) {
         function readedErrorAsync(e) {
             if (flags & FileOpenFlags.Create) {
+                //console.log('creating file!');
                 var entry = new DropboxVfsEntry(path, path.split('/').pop(), 0, true, new Date());
                 return client.writeFileAsync(path, new ArrayBuffer(0)).then(function () {
+                    //console.log('created file!');
                     return entry;
                 }).catch(function (e) {
                     console.error(e);
@@ -24402,6 +29839,7 @@ var DropboxVfsEntry = (function (_super) {
                 return readedErrorAsync(new Error("file not exists"));
             }
             else {
+                //console.log(info);
                 return new DropboxVfsEntry(path, info.name, info.size, info.isFile, info.modifiedAt);
             }
         })
@@ -24424,18 +29862,22 @@ var DropboxVfsEntry = (function (_super) {
             });
         }
         else {
+            //console.log('read dropbox file ' + this.path);
             return client.readFileAsync(this.path, offset, offset + length);
         }
     };
     DropboxVfsEntry.prototype.writeChunkAsync = function (offset, dataToWrite) {
         var _this = this;
         return this.readChunkAsync(0, this._size).then(function (base) {
+            //console.log('dropbox: write chunk!', this.path, offset, dataToWrite.byteLength);
             var newContent = new ArrayBuffer(Math.max(base.byteLength, offset + dataToWrite.byteLength));
             var newContentArray = new Uint8Array(newContent);
             newContentArray.set(new Uint8Array(base), 0);
             newContentArray.set(new Uint8Array(dataToWrite), offset);
             _this._size = newContent.byteLength;
             _this.cachedContent = newContent;
+            //return client.writeFileAsync(this.path, newContent).then(() => data.byteLength);
+            //console.log(newContentArray);
             clearTimeout(_this.writeTimer);
             _this.writeTimer = setTimeout(function () {
                 client.writeFileAsync(_this.path, newContent);
@@ -24458,40 +29900,58 @@ var DropboxVfsEntry = (function (_super) {
     DropboxVfsEntry.prototype.close = function () {
     };
     return DropboxVfsEntry;
-})(VfsEntry);
+}(VfsEntry));
 exports.DropboxVfsEntry = DropboxVfsEntry;
+/*
+var dvfs = new DropboxVfs();
+
+dvfs.openAsync('/test', FileOpenFlags.Create | FileOpenFlags.Write | FileOpenFlags.Truncate, <FileMode>parseIntFormat('0777')).then(value => {
+    console.info('dvfs result:', value);
+}).catch(e => {
+        console.error('dvfs error:', e);
+});
+*/
+/*
+client.readdirAsync('/PSP/GAME/virtual/SAVE/SharewareDoom').then(result => {
+    console.log(result);
+});
+*/ 
 
 },
 "src/hle/vfs/vfs_emulator": function(module, exports, require) {
+"use strict";
 var __extends = (this && this.__extends) || function (d, b) {
     for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
     function __() { this.constructor = d; }
     d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
 };
-var _vfs = require('./vfs');
+var _vfs = require("./vfs");
 _vfs.Vfs;
 var EmulatorVfs = (function (_super) {
     __extends(EmulatorVfs, _super);
     function EmulatorVfs(context) {
-        _super.call(this);
-        this.context = context;
-        this.output = '';
-        this.screenshot = null;
+        var _this = _super.call(this) || this;
+        _this.context = context;
+        _this.output = '';
+        _this.screenshot = null;
+        return _this;
     }
     EmulatorVfs.prototype.devctlAsync = function (command, input, output) {
         switch (command) {
-            case 1:
+            case 1 /* GetHasDisplay */:
                 if (output)
                     output.writeInt32(0);
+                //output.writeInt32(1);
                 break;
-            case 2:
+            case 2 /* SendOutput */:
                 var str = input.readString(input.length);
                 this.output += str;
                 this.context.onStdout.dispatch(str);
                 return immediateAsync().then(function (_) { return 0; });
-            case 3:
-                return 0;
-            case 32:
+            //return 0;
+            case 3 /* IsEmulator */:
+                return 0; // Running on emulator
+            case 32 /* EmitScreenshot */:
                 this.screenshot = input.toUInt8Array();
                 console.warn('emit screenshot!');
                 return 0;
@@ -24501,24 +29961,26 @@ var EmulatorVfs = (function (_super) {
         return 0;
     };
     return EmulatorVfs;
-})(_vfs.Vfs);
+}(_vfs.Vfs));
 exports.EmulatorVfs = EmulatorVfs;
 
 },
 "src/hle/vfs/vfs_iso": function(module, exports, require) {
+"use strict";
 var __extends = (this && this.__extends) || function (d, b) {
     for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
     function __() { this.constructor = d; }
     d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
 };
-var _vfs = require('./vfs');
+var _vfs = require("./vfs");
 var Vfs = _vfs.Vfs;
 var VfsEntry = _vfs.VfsEntry;
 var IsoVfs = (function (_super) {
     __extends(IsoVfs, _super);
     function IsoVfs(iso) {
-        _super.call(this);
-        this.iso = iso;
+        var _this = _super.call(this) || this;
+        _this.iso = iso;
+        return _this;
     }
     IsoVfs.prototype.openAsync = function (path, flags, mode) {
         try {
@@ -24529,13 +29991,14 @@ var IsoVfs = (function (_super) {
         }
     };
     return IsoVfs;
-})(Vfs);
+}(Vfs));
 exports.IsoVfs = IsoVfs;
 var IsoVfsFile = (function (_super) {
     __extends(IsoVfsFile, _super);
     function IsoVfsFile(node) {
-        _super.call(this);
-        this.node = node;
+        var _this = _super.call(this) || this;
+        _this.node = node;
+        return _this;
     }
     Object.defineProperty(IsoVfsFile.prototype, "isDirectory", {
         get: function () { return this.node.isDirectory; },
@@ -24567,24 +30030,26 @@ var IsoVfsFile = (function (_super) {
         return Promise2.resolve(this.node.childs.map(function (node) { return IsoVfsFile.statNode(node); }));
     };
     return IsoVfsFile;
-})(VfsEntry);
+}(VfsEntry));
 
 },
 "src/hle/vfs/vfs_memory": function(module, exports, require) {
+"use strict";
 var __extends = (this && this.__extends) || function (d, b) {
     for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
     function __() { this.constructor = d; }
     d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
 };
-var _vfs = require('./vfs');
+var _vfs = require("./vfs");
 var Vfs = _vfs.Vfs;
 var VfsEntry = _vfs.VfsEntry;
 var FileOpenFlags = _vfs.FileOpenFlags;
 var MemoryVfs = (function (_super) {
     __extends(MemoryVfs, _super);
     function MemoryVfs() {
-        _super.apply(this, arguments);
-        this.files = {};
+        var _this = _super.apply(this, arguments) || this;
+        _this.files = {};
+        return _this;
     }
     MemoryVfs.prototype.addFile = function (name, data) {
         this.files[name] = new MemoryVfsEntry(name, data);
@@ -24610,14 +30075,15 @@ var MemoryVfs = (function (_super) {
         }
     };
     return MemoryVfs;
-})(Vfs);
+}(Vfs));
 exports.MemoryVfs = MemoryVfs;
 var MemoryVfsEntry = (function (_super) {
     __extends(MemoryVfsEntry, _super);
     function MemoryVfsEntry(name, data) {
-        _super.call(this);
-        this.name = name;
-        this.data = data;
+        var _this = _super.call(this) || this;
+        _this.name = name;
+        _this.data = data;
+        return _this;
     }
     Object.defineProperty(MemoryVfsEntry.prototype, "isDirectory", {
         get: function () { return false; },
@@ -24650,25 +30116,27 @@ var MemoryVfsEntry = (function (_super) {
         return Promise2.resolve([]);
     };
     return MemoryVfsEntry;
-})(VfsEntry);
+}(VfsEntry));
 exports.MemoryVfsEntry = MemoryVfsEntry;
 
 },
 "src/hle/vfs/vfs_mountable": function(module, exports, require) {
+"use strict";
 var __extends = (this && this.__extends) || function (d, b) {
     for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
     function __() { this.constructor = d; }
     d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
 };
-var _vfs = require('./vfs');
-var _vfs_memory = require('./vfs_memory');
+var _vfs = require("./vfs");
+var _vfs_memory = require("./vfs_memory");
 var MemoryVfsEntry = _vfs_memory.MemoryVfsEntry;
 var Vfs = _vfs.Vfs;
 var MountableVfs = (function (_super) {
     __extends(MountableVfs, _super);
     function MountableVfs() {
-        _super.apply(this, arguments);
-        this.mounts = [];
+        var _this = _super.apply(this, arguments) || this;
+        _this.mounts = [];
+        return _this;
     }
     MountableVfs.prototype.mountVfs = function (path, vfs) {
         this.mounts.unshift(new MountableEntry(this.normalizePath(path), vfs, null));
@@ -24683,6 +30151,7 @@ var MountableVfs = (function (_super) {
         path = this.normalizePath(path);
         for (var n = 0; n < this.mounts.length; n++) {
             var mount = this.mounts[n];
+            //console.log(mount.path + ' -- ' + path);
             if (path.startsWith(mount.path)) {
                 var part = path.substr(mount.path.length);
                 return { mount: mount, part: part };
@@ -24723,7 +30192,7 @@ var MountableVfs = (function (_super) {
         return info.mount.vfs.deleteAsync(info.part);
     };
     return MountableVfs;
-})(Vfs);
+}(Vfs));
 exports.MountableVfs = MountableVfs;
 var MountableEntry = (function () {
     function MountableEntry(path, vfs, file) {
@@ -24732,49 +30201,73 @@ var MountableEntry = (function () {
         this.file = file;
     }
     return MountableEntry;
-})();
+}());
+//window.indexedDB = window.indexedDB || window.mozIndexedDB || window.webkitIndexedDB || window.msIndexedDB;
+//window.IDBTransaction = window.IDBTransaction || window.webkitIDBTransaction || window.msIDBTransaction;
+//window.IDBKeyRange = window.IDBKeyRange || window.webkitIDBKeyRange || window.msIDBKeyRange;
+//export class IndexedDbVfs extends Vfs {
+//	initAsync() {
+//		var request = indexedDB.open("mydatabase");
+//
+//		request.onsuccess = (e) => {
+//			var db = <IDBDatabase>request.result;
+//			
+//			var trans = db.transaction(["objectstore1", "objectstore2", READ_WRITE);
+//			trans.objectStore("objectstore1").put(myblob, "somekey");
+//			trans.objectStore("objectstore2").put(myblob, "otherkey");
+//		};
+//		request.onerror = (e) => {
+//		};
+//	}
+//}
 
 },
 "src/hle/vfs/vfs_ms": function(module, exports, require) {
+"use strict";
 var __extends = (this && this.__extends) || function (d, b) {
     for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
     function __() { this.constructor = d; }
     d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
 };
-var _vfs = require('./vfs');
-var _manager = require('../manager');
+var _vfs = require("./vfs");
+var _manager = require("../manager");
 _manager.CallbackManager;
-var SceKernelErrors = require('../SceKernelErrors');
+var SceKernelErrors = require("../SceKernelErrors");
 var ProxyVfs = _vfs.ProxyVfs;
 var MemoryStickVfs = (function (_super) {
     __extends(MemoryStickVfs, _super);
     function MemoryStickVfs(parentVfsList, callbackManager, memory) {
-        _super.call(this, parentVfsList);
-        this.callbackManager = callbackManager;
-        this.memory = memory;
+        var _this = _super.call(this, parentVfsList) || this;
+        _this.callbackManager = callbackManager;
+        _this.memory = memory;
+        return _this;
     }
     MemoryStickVfs.prototype.devctlAsync = function (command, input, output) {
         switch (command) {
-            case 37902371:
+            case 37902371 /* CheckInserted */:
                 if (output == null || output.length < 4)
                     return SceKernelErrors.ERROR_ERRNO_INVALID_ARGUMENT;
+                // 0 - Device is not assigned (callback not registered).
+                // 1 - Device is assigned (callback registered).
                 output.writeInt32(1);
                 return 0;
-            case 37836833:
+            case 37836833 /* MScmRegisterMSInsertEjectCallback */:
                 if (input == null || input.length < 4)
                     return SceKernelErrors.ERROR_ERRNO_INVALID_ARGUMENT;
                 var callbackId = input.readInt32();
                 this.callbackManager.notify(callbackId, 1);
                 return 0;
-            case 37836834:
+            case 37836834 /* MScmUnregisterMSInsertEjectCallback */:
+                // Ignore.
                 return 0;
-            case 37902360:
+            case 37902360 /* GetMemoryStickCapacity */:
                 if (input == null || input.length < 4)
                     return SceKernelErrors.ERROR_ERRNO_INVALID_ARGUMENT;
                 var structAddress = input.readInt32();
                 var structStream = this.memory.getPointerStream(structAddress, SizeInfoStruct.struct.length);
                 var sizeInfo = new SizeInfoStruct();
                 var memoryStickSectorSize = (32 * 1024);
+                //var TotalSpaceInBytes = 2L * 1024 * 1024 * 1024;
                 var freeSpaceInBytes = 1 * 1024 * 1024 * 1024;
                 sizeInfo.sectorSize = 0x200;
                 sizeInfo.sectorCount = (memoryStickSectorSize / sizeInfo.sectorSize);
@@ -24783,52 +30276,54 @@ var MemoryStickVfs = (function (_super) {
                 sizeInfo.maxSectors = sizeInfo.maxClusters;
                 SizeInfoStruct.struct.write(structStream, sizeInfo);
                 return 0;
-            case 33708038:
+            case 33708038 /* CheckMemoryStickIsInserted */:
                 output.writeInt32(1);
                 return 0;
-            case 33708033:
+            case 33708033 /* CheckMemoryStickStatus */:
+                // 0 <- Busy
+                // 1 <- Ready
                 output.writeInt32(4);
                 return 0;
             default:
-                throw (new Error("Invalid MemoryStick command '" + command + "'"));
-                break;
+                throw new Error("Invalid MemoryStick command '" + command + "'");
         }
-        return 0;
     };
     return MemoryStickVfs;
-})(ProxyVfs);
+}(ProxyVfs));
 exports.MemoryStickVfs = MemoryStickVfs;
 var SizeInfoStruct = (function () {
     function SizeInfoStruct() {
     }
-    SizeInfoStruct.struct = StructClass.create(SizeInfoStruct, [
-        { maxClusters: UInt32 },
-        { freeClusters: UInt32 },
-        { maxSectors: UInt32 },
-        { sectorSize: UInt32 },
-        { sectorCount: UInt32 },
-    ]);
     return SizeInfoStruct;
-})();
+}());
+SizeInfoStruct.struct = StructClass.create(SizeInfoStruct, [
+    { maxClusters: UInt32 },
+    { freeClusters: UInt32 },
+    { maxSectors: UInt32 },
+    { sectorSize: UInt32 },
+    { sectorCount: UInt32 },
+]);
 
 },
 "src/hle/vfs/vfs_storage": function(module, exports, require) {
+"use strict";
 var __extends = (this && this.__extends) || function (d, b) {
     for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
     function __() { this.constructor = d; }
     d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
 };
-var _vfs = require('./vfs');
+var _vfs = require("./vfs");
 var Vfs = _vfs.Vfs;
 var VfsEntry = _vfs.VfsEntry;
 var FileOpenFlags = _vfs.FileOpenFlags;
-var storage = require('./indexeddb');
+var storage = require("./indexeddb");
 var console = logger.named('vfs.storage');
 var StorageVfs = (function (_super) {
     __extends(StorageVfs, _super);
     function StorageVfs(key) {
-        _super.call(this);
-        this.key = key;
+        var _this = _super.call(this) || this;
+        _this.key = key;
+        return _this;
     }
     StorageVfs.prototype.initializeOnceAsync = function () {
         var _this = this;
@@ -24853,14 +30348,15 @@ var StorageVfs = (function (_super) {
         });
     };
     return StorageVfs;
-})(Vfs);
+}(Vfs));
 exports.StorageVfs = StorageVfs;
 var StorageVfsEntry = (function (_super) {
     __extends(StorageVfsEntry, _super);
     function StorageVfsEntry(db, name) {
-        _super.call(this);
-        this.db = db;
-        this.name = name;
+        var _this = _super.call(this) || this;
+        _this.db = db;
+        _this.name = name;
+        return _this;
     }
     StorageVfsEntry.prototype.initAsync = function (flags, mode) {
         var _this = this;
@@ -24904,6 +30400,7 @@ var StorageVfsEntry = (function (_super) {
         throw (new Error("Must override enumerateAsync : " + this));
     };
     StorageVfsEntry.prototype.readChunkAsync = function (offset, length) {
+        //console.log(this.file);
         return Promise2.resolve(this.file.content.buffer.slice(offset, offset + length));
     };
     StorageVfsEntry.prototype.writeChunkAsync = function (offset, data) {
@@ -24929,17 +30426,18 @@ var StorageVfsEntry = (function (_super) {
     StorageVfsEntry.prototype.close = function () {
     };
     return StorageVfsEntry;
-})(VfsEntry);
+}(VfsEntry));
 
 },
 "src/hle/vfs/vfs_uri": function(module, exports, require) {
+"use strict";
 var __extends = (this && this.__extends) || function (d, b) {
     for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
     function __() { this.constructor = d; }
     d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
 };
-var _vfs = require('./vfs');
-var _vfs_memory = require('./vfs_memory');
+var _vfs = require("./vfs");
+var _vfs_memory = require("./vfs_memory");
 var MemoryVfsEntry = _vfs_memory.MemoryVfsEntry;
 var Vfs = _vfs.Vfs;
 var VfsEntryStream = _vfs.VfsEntryStream;
@@ -24947,8 +30445,9 @@ var FileOpenFlags = _vfs.FileOpenFlags;
 var UriVfs = (function (_super) {
     __extends(UriVfs, _super);
     function UriVfs(baseUri) {
-        _super.call(this);
-        this.baseUri = baseUri;
+        var _this = _super.call(this) || this;
+        _this.baseUri = baseUri;
+        return _this;
     }
     UriVfs.prototype.getAbsoluteUrl = function (path) {
         return this.baseUri + '/' + path;
@@ -24968,7 +30467,7 @@ var UriVfs = (function (_super) {
         return statUrlAsync(url);
     };
     return UriVfs;
-})(Vfs);
+}(Vfs));
 exports.UriVfs = UriVfs;
 function urlStatToVfsStat(url, info) {
     return {
@@ -24986,20 +30485,22 @@ function statUrlAsync(url) {
 
 },
 "src/hle/vfs/vfs_zip": function(module, exports, require) {
+"use strict";
 var __extends = (this && this.__extends) || function (d, b) {
     for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
     function __() { this.constructor = d; }
     d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
 };
-var _vfs = require('./vfs');
+var _vfs = require("./vfs");
 var Vfs = _vfs.Vfs;
 var VfsEntry = _vfs.VfsEntry;
 var ZipVfs = (function (_super) {
     __extends(ZipVfs, _super);
     function ZipVfs(zip, writeVfs) {
-        _super.call(this);
-        this.zip = zip;
-        this.writeVfs = writeVfs;
+        var _this = _super.call(this) || this;
+        _this.zip = zip;
+        _this.writeVfs = writeVfs;
+        return _this;
     }
     ZipVfs.prototype.openAsync = function (path, flags, mode) {
         try {
@@ -25010,13 +30511,14 @@ var ZipVfs = (function (_super) {
         }
     };
     return ZipVfs;
-})(Vfs);
+}(Vfs));
 exports.ZipVfs = ZipVfs;
 var ZipVfsFile = (function (_super) {
     __extends(ZipVfsFile, _super);
     function ZipVfsFile(node) {
-        _super.call(this);
-        this.node = node;
+        var _this = _super.call(this) || this;
+        _this.node = node;
+        return _this;
     }
     Object.defineProperty(ZipVfsFile.prototype, "isDirectory", {
         get: function () { return this.node.isDirectory; },
@@ -25047,11 +30549,337 @@ var ZipVfsFile = (function (_super) {
         return Promise2.resolve(this.node.getChildList().map(function (node) { return ZipVfsFile.statNode(node); }));
     };
     return ZipVfsFile;
-})(VfsEntry);
+}(VfsEntry));
+
+},
+"src/html5/Html5Audio": function(module, exports, require) {
+///<reference path="../global.d.ts" />
+"use strict";
+var PspAudioBuffer = (function () {
+    function PspAudioBuffer(readedCallback, data) {
+        this.readedCallback = readedCallback;
+        this.data = data;
+        this.offset = 0;
+    }
+    PspAudioBuffer.prototype.resolve = function () {
+        if (this.readedCallback)
+            this.readedCallback();
+        this.readedCallback = null;
+    };
+    Object.defineProperty(PspAudioBuffer.prototype, "hasMore", {
+        get: function () { return this.offset < this.length; },
+        enumerable: true,
+        configurable: true
+    });
+    PspAudioBuffer.prototype.read = function () { return this.data[this.offset++]; };
+    Object.defineProperty(PspAudioBuffer.prototype, "available", {
+        get: function () { return this.length - this.offset; },
+        enumerable: true,
+        configurable: true
+    });
+    Object.defineProperty(PspAudioBuffer.prototype, "length", {
+        get: function () { return this.data.length; },
+        enumerable: true,
+        configurable: true
+    });
+    return PspAudioBuffer;
+}());
+exports.PspAudioBuffer = PspAudioBuffer;
+var Audio2Channel = (function () {
+    function Audio2Channel(id, context) {
+        var _this = this;
+        this.id = id;
+        this.context = context;
+        this.buffers = [];
+        if (this.context) {
+            this.node = this.context.createScriptProcessor(1024, 2, 2);
+            this.node.onaudioprocess = function (e) { _this.process(e); };
+        }
+    }
+    Audio2Channel.convertS16ToF32 = function (channels, input, leftVolume, rightVolume) {
+        var output = new Float32Array(input.length * 2 / channels);
+        var optimized = leftVolume == 1.0 && rightVolume == 1.0;
+        switch (channels) {
+            case 2:
+                if (optimized) {
+                    for (var n = 0; n < output.length; n++)
+                        output[n] = input[n] / 32767.0;
+                }
+                else {
+                    for (var n = 0; n < output.length; n += 2) {
+                        output[n + 0] = (input[n + 0] / 32767.0) * leftVolume;
+                        output[n + 1] = (input[n + 1] / 32767.0) * rightVolume;
+                    }
+                }
+                break;
+            case 1:
+                if (optimized) {
+                    for (var n = 0, m = 0; n < input.length; n++) {
+                        output[m++] = output[m++] = (input[n] / 32767.0);
+                    }
+                }
+                else {
+                    for (var n = 0, m = 0; n < input.length; n++) {
+                        var sample = (input[n] / 32767.0);
+                        output[m++] = sample * leftVolume;
+                        output[m++] = sample * rightVolume;
+                    }
+                }
+                break;
+        }
+        return output;
+    };
+    Audio2Channel.prototype.start = function () {
+        if (this.node)
+            this.node.connect(this.context.destination);
+    };
+    Audio2Channel.prototype.stop = function () {
+        if (this.node)
+            this.node.disconnect();
+    };
+    Audio2Channel.prototype.process = function (e) {
+        var left = e.outputBuffer.getChannelData(0);
+        var right = e.outputBuffer.getChannelData(1);
+        var sampleCount = left.length;
+        var hidden = document.hidden;
+        for (var n = 0; n < sampleCount; n++) {
+            if (!this.currentBuffer) {
+                if (this.buffers.length == 0)
+                    break;
+                for (var m = 0; m < Math.min(3, this.buffers.length); m++) {
+                    this.buffers[m].resolve();
+                }
+                this.currentBuffer = this.buffers.shift();
+                this.currentBuffer.resolve();
+            }
+            if (this.currentBuffer.available >= 2) {
+                left[n] = this.currentBuffer.read();
+                right[n] = this.currentBuffer.read();
+            }
+            else {
+                this.currentBuffer = null;
+                n--;
+            }
+            if (hidden)
+                left[n] = right[n] = 0;
+        }
+    };
+    Audio2Channel.prototype.playAsync = function (data) {
+        var _this = this;
+        if (!this.node)
+            return waitAsync(10).then(function () { return 0; });
+        if (this.buffers.length < 8) {
+            //if (this.buffers.length < 16) {
+            //(data.length / 2)
+            this.buffers.push(new PspAudioBuffer(null, data));
+            //return 0;
+            return Promise2.resolve(0);
+        }
+        else {
+            return new Promise2(function (resolved, rejected) {
+                _this.buffers.push(new PspAudioBuffer(resolved, data));
+                return 0;
+            });
+        }
+    };
+    Audio2Channel.prototype.playDataAsync = function (channels, data, leftVolume, rightVolume) {
+        //console.log(channels, data);
+        return this.playAsync(Audio2Channel.convertS16ToF32(channels, data, leftVolume, rightVolume));
+    };
+    return Audio2Channel;
+}());
+var Html5Audio2 = (function () {
+    function Html5Audio2() {
+        this.channels = new Map();
+        this.context = new AudioContext();
+    }
+    Html5Audio2.prototype.getChannel = function (id) {
+        if (!this.channels.has(id))
+            this.channels.set(id, new Audio2Channel(id, this.context));
+        return this.channels.get(id);
+    };
+    Html5Audio2.prototype.startChannel = function (id) {
+        return this.getChannel(id).start();
+    };
+    Html5Audio2.prototype.stopChannel = function (id) {
+        return this.getChannel(id).stop();
+    };
+    Html5Audio2.prototype.playDataAsync = function (id, channels, data, leftVolume, rightVolume) {
+        return this.getChannel(id).playDataAsync(channels, data, leftVolume, rightVolume);
+    };
+    return Html5Audio2;
+}());
+exports.Html5Audio2 = Html5Audio2;
+
+},
+"src/html5/Html5Battery": function(module, exports, require) {
+"use strict";
+var Html5Battery = (function () {
+    function Html5Battery(manager) {
+        this.manager = manager;
+        Html5Battery.instance = this;
+    }
+    Object.defineProperty(Html5Battery.prototype, "lifetime", {
+        get: function () {
+            // Up to 10 hours, to avoid too high/infinite values
+            if (this.manager != null)
+                return Math.min(10 * 3600, this.manager.dischargingTime);
+            return 3 * 3600;
+        },
+        enumerable: true,
+        configurable: true
+    });
+    Object.defineProperty(Html5Battery.prototype, "charging", {
+        get: function () {
+            if (this.manager != null)
+                return this.manager.charging;
+            return true;
+        },
+        enumerable: true,
+        configurable: true
+    });
+    Object.defineProperty(Html5Battery.prototype, "level", {
+        get: function () {
+            if (this.manager != null)
+                return this.manager.level;
+            return 1.0;
+        },
+        enumerable: true,
+        configurable: true
+    });
+    Html5Battery.getAsync = function () {
+        if (this.instance)
+            return Promise2.resolve(this.instance);
+        if (this.promise)
+            return this.promise;
+        if (navigator.battery)
+            return Promise2.resolve(new Html5Battery(navigator.battery));
+        if (navigator.getBattery) {
+            return this.promise = Promise2.fromThenable(navigator.getBattery()).then(function (v) {
+                return new Html5Battery(v);
+            });
+        }
+        return Promise2.resolve(new Html5Battery(null));
+    };
+    Html5Battery.registerAndSetCallback = function (callback) {
+        setTimeout(function () {
+            Html5Battery.getAsync().then(function (battery) {
+                function sendData() {
+                    callback({
+                        charging: battery.charging,
+                        level: battery.level,
+                        lifetime: battery.lifetime,
+                    });
+                }
+                setInterval(function () {
+                    sendData();
+                }, 300);
+                sendData();
+            });
+        }, 0);
+    };
+    return Html5Battery;
+}());
+Html5Battery.instance = null;
+Html5Battery.promise = null;
+exports.Html5Battery = Html5Battery;
+
+},
+"src/html5/Html5Gamepad": function(module, exports, require) {
+"use strict";
+var Html5Gamepad = (function () {
+    function Html5Gamepad() {
+    }
+    Html5Gamepad.prototype.register = function (controller) {
+        var navigator = (typeof window != 'undefined') ? window.navigator : null;
+        var getGamepads = (navigator && navigator.getGamepads) ? navigator.getGamepads.bind(navigator) : null;
+        var gamepadButtonMapping = [
+            16384 /* cross */,
+            8192 /* circle */,
+            32768 /* square */,
+            4096 /* triangle */,
+            256 /* leftTrigger */,
+            512 /* rightTrigger */,
+            1048576 /* volumeUp */,
+            2097152 /* volumeDown */,
+            1 /* select */,
+            8 /* start */,
+            65536 /* home */,
+            8388608 /* note */,
+            16 /* up */,
+            64 /* down */,
+            128 /* left */,
+            32 /* right */,
+        ];
+        function gamepadsFrame() {
+            if (!getGamepads)
+                return;
+            window.requestAnimationFrame(gamepadsFrame);
+            //console.log('bbbbbbbbb');
+            var gamepads = getGamepads();
+            if (gamepads[0]) {
+                //console.log('aaaaaaaa');
+                var gamepad = gamepads[0];
+                var buttons = gamepad['buttons'];
+                var axes = gamepad['axes'];
+                var checkButton = function (button) {
+                    if (typeof button == 'number') {
+                        return button != 0;
+                    }
+                    else {
+                        return button ? !!(button.pressed) : false;
+                    }
+                };
+                var buttonsData = new Uint8Array(16);
+                for (var n = 0; n < 16; n++) {
+                    buttonsData[gamepadButtonMapping[n]] = checkButton(buttons[n]) ? 1 : 0;
+                }
+                var payload = { x: axes[0], y: axes[1], buttons: buttonsData };
+                controller.setGamepadFrame(payload.x, payload.y, payload.buttons);
+            }
+        }
+        gamepadsFrame();
+    };
+    return Html5Gamepad;
+}());
+module.exports = Html5Gamepad;
+
+},
+"src/html5/Html5Icons": function(module, exports, require) {
+"use strict";
+function changeFavicon(src) {
+    if (typeof document == 'undefined')
+        return;
+    var link = document.createElement('link'), oldLink = document.getElementById('dynamic-favicon');
+    link.id = 'dynamic-favicon';
+    link.rel = 'shortcut icon';
+    link.href = src;
+    if (oldLink) {
+        document.head.removeChild(oldLink);
+    }
+    document.head.appendChild(link);
+}
+exports.changeFavicon = changeFavicon;
+var Html5Icons = (function () {
+    function Html5Icons() {
+    }
+    Html5Icons.setPic0 = function (data) {
+        changeFavicon(Stream.fromUint8Array(data).toImageUrl());
+    };
+    Html5Icons.setPic1 = function (data) {
+        document.body.style.backgroundRepeat = 'no-repeat';
+        document.body.style.backgroundSize = 'cover';
+        document.body.style.backgroundPosition = 'center center';
+        document.body.style.backgroundImage = 'url("' + Stream.fromUint8Array(data).toImageUrl() + '")';
+    };
+    return Html5Icons;
+}());
+exports.Html5Icons = Html5Icons;
 
 },
 "src/ui/emulator_ui": function(module, exports, require) {
 ///<reference path="../global.d.ts" />
+"use strict";
 var EmulatorUI = (function () {
     function EmulatorUI() {
     }
@@ -25060,12 +30888,13 @@ var EmulatorUI = (function () {
         return Promise2.resolve(true);
     };
     return EmulatorUI;
-})();
+}());
 exports.EmulatorUI = EmulatorUI;
 
 },
 "src/util/IndentStringGenerator": function(module, exports, require) {
 ///<reference path="../global.d.ts" />
+"use strict";
 var IndentStringGenerator = (function () {
     function IndentStringGenerator() {
         this.indentation = 0;
@@ -25104,11 +30933,42 @@ var IndentStringGenerator = (function () {
         this.newLine = true;
     };
     return IndentStringGenerator;
-})();
+}());
 module.exports = IndentStringGenerator;
 
 },
 "src/util/difflib": function(module, exports, require) {
+"use strict";
+/***
+ This is part of jsdifflib v1.0. <http://snowtide.com/jsdifflib>
+
+ Copyright (c) 2007, Snowtide Informatics Systems, Inc.
+ All rights reserved.
+
+ Redistribution and use in source and binary forms, with or without modification,
+ are permitted provided that the following conditions are met:
+
+ * Redistributions of source code must retain the above copyright notice, this
+ list of conditions and the following disclaimer.
+ * Redistributions in binary form must reproduce the above copyright notice,
+ this list of conditions and the following disclaimer in the documentation
+ and/or other materials provided with the distribution.
+ * Neither the name of the Snowtide Informatics Systems nor the names of its
+ contributors may be used to endorse or promote products derived from this
+ software without specific prior written permission.
+
+ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY
+ EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+ OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT
+ SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+ INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
+ TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+ BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+ ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
+ DAMAGE.
+ ***/
+/* Author: Chas Emerick <cemerick@snowtide.com> */
 var __whitespace = { " ": true, "\t": true, "\n": true, "\f": true, "\r": true };
 var difflib = {
     defaultJunkFunction: function (c) {
@@ -25125,6 +30985,7 @@ var difflib = {
         }
         return lines;
     },
+    // iteration-based reduce implementation
     __reduce: function (func, list, initial) {
         if (initial != null) {
             var value = initial;
@@ -25142,6 +31003,7 @@ var difflib = {
         }
         return value;
     },
+    // comparison function for sorting lists of numeric tuples
     __ntuplecomp: function (a, b) {
         var mlen = Math.max(a.length, b.length);
         for (var i = 0; i < mlen; i++) {
@@ -25155,9 +31017,13 @@ var difflib = {
     __calculate_ratio: function (matches, length) {
         return length ? 2.0 * matches / length : 1.0;
     },
+    // returns a function that returns true if a key passed to the returned function
+    // is in the dict (js object) provided to this function; replaces being able to
+    // carry around dict.has_key in python...
     __isindict: function (dict) {
         return function (key) { return dict.hasOwnProperty(key); };
     },
+    // replacement for python's dict.get function -- need easy default values
     __dictget: function (dict, key, defaultValue) {
         return dict.hasOwnProperty(key) ? dict[key] : defaultValue;
     },
@@ -25201,24 +31067,24 @@ var difflib = {
                     b2j[elt] = [i];
                 }
             }
-            for (var elt in populardict) {
-                if (populardict.hasOwnProperty(elt)) {
-                    delete b2j[elt];
+            for (var elt_1 in populardict) {
+                if (populardict.hasOwnProperty(elt_1)) {
+                    delete b2j[elt_1];
                 }
             }
             var isjunk = this.isjunk;
             var junkdict = {};
             if (isjunk) {
-                for (var elt in populardict) {
-                    if (populardict.hasOwnProperty(elt) && isjunk(elt)) {
-                        junkdict[elt] = 1;
-                        delete populardict[elt];
+                for (var elt_2 in populardict) {
+                    if (populardict.hasOwnProperty(elt_2) && isjunk(elt_2)) {
+                        junkdict[elt_2] = 1;
+                        delete populardict[elt_2];
                     }
                 }
-                for (var elt in b2j) {
-                    if (b2j.hasOwnProperty(elt) && isjunk(elt)) {
-                        junkdict[elt] = 1;
-                        delete b2j[elt];
+                for (var elt_3 in b2j) {
+                    if (b2j.hasOwnProperty(elt_3) && isjunk(elt_3)) {
+                        junkdict[elt_3] = 1;
+                        delete b2j[elt_3];
                     }
                 }
             }
@@ -25368,6 +31234,8 @@ var difflib = {
             }
             return answer;
         };
+        // this is a generator function in the python lib, which of course is not supported in javascript
+        // the reimplementation builds up the grouped opcodes into a list in their entirety and returns that.
         this.get_grouped_opcodes = function (n) {
             if (!n)
                 n = 3;
@@ -25450,6 +31318,14 @@ var difflib = {
             }
             return difflib.__calculate_ratio(matches, this.a.length + this.b.length);
         };
+        /*
+        this.real_quick_ratio = function () {
+            var la = this.a.length;
+            var lb = this.b.length;
+
+            return difflib._calculate_ratio(Math.min(la, lb), la + lb);
+        };
+        */
         this.isjunk = isjunk ? isjunk : difflib.defaultJunkFunction;
         this.a = this.b = null;
         this.set_seqs(a, b);
@@ -25460,54 +31336,71 @@ module.exports = difflib;
 },
 "test/_tests": function(module, exports, require) {
 ///<reference path="./global.d.ts" />
-exports.promisetest = require('./promisetest');
-exports.memorytest = require('./memorytest');
-exports.reloopertest = require('./codegen/reloopertest');
-var pspTest = require('./format/pspTest');
+"use strict";
+//declare function require(name: string): any;
+exports.promisetest = require("./promisetest");
+exports.memorytest = require("./memorytest");
+exports.reloopertest = require("./codegen/reloopertest");
+var pspTest = require("./format/pspTest");
 pspTest.ref();
-var csoTest = require('./format/csoTest');
+var csoTest = require("./format/csoTest");
 csoTest.ref();
-var isoTest = require('./format/isoTest');
+var isoTest = require("./format/isoTest");
 isoTest.ref();
-var pbpTest = require('./format/pbpTest');
+var pbpTest = require("./format/pbpTest");
 pbpTest.ref();
-var psfTest = require('./format/psfTest');
+var psfTest = require("./format/psfTest");
 psfTest.ref();
-var zipTest = require('./format/zipTest');
+var zipTest = require("./format/zipTest");
 zipTest.ref();
-var vagTest = require('./format/vagTest');
+var vagTest = require("./format/vagTest");
 vagTest.ref();
-var memorymanagerTest = require('./hle/memorymanagerTest');
+var memorymanagerTest = require("./hle/memorymanagerTest");
 memorymanagerTest.ref();
-var vfsTest = require('./hle/vfsTest');
+var vfsTest = require("./hle/vfsTest");
 vfsTest.ref();
-var utilsTest = require('./util/utilsTest');
+var utilsTest = require("./util/utilsTest");
 utilsTest.ref();
-var testasm = require('./testasm');
+var testasm = require("./testasm");
 testasm.ref();
-var gpuTest = require('./gpuTest');
+var gpuTest = require("./gpuTest");
 gpuTest.ref();
-var instructionTest = require('./instructionTest');
+var instructionTest = require("./instructionTest");
 instructionTest.ref();
-var elfTest = require('./hle/elfTest');
+var elfTest = require("./hle/elfTest");
 elfTest.ref();
-var pspautotests = require('./pspautotests');
+var pspautotests = require("./pspautotests");
 pspautotests.ref();
 
 },
 "test/codegen/reloopertest": function(module, exports, require) {
+"use strict";
 describe('codegen', function () {
     describe('relooper', function () {
+        /*
+        it('simplest', () => {
+            assert.equal('console.log(1);', _relooper.processSimple(sr => {
+                var b1 = sr.addBlock("console.log(1);")
+            }));
+        });
+        it('simple loop', () => {
+            assert.equal('', _relooper.processSimple(sr => {
+                var b1 = sr.addBlock("console.log(1);")
+                sr.addBranch(b1, b1, 'true');
+            }));
+        });
+        */
     });
 });
 
 },
 "test/format/csoTest": function(module, exports, require) {
+"use strict";
 ///<reference path="../global.d.ts" />
-function ref() { }
+function ref() { } // Workaround to allow typescript to include this module
 exports.ref = ref;
-var _cso = require('../../src/format/cso');
-var _iso = require('../../src/format/iso');
+var _cso = require("../../src/format/cso");
+var _iso = require("../../src/format/iso");
 describe('cso', function () {
     var testCsoArrayBuffer;
     before(function () {
@@ -25517,12 +31410,14 @@ describe('cso', function () {
     });
     it('should load fine', function () {
         return _cso.Cso.fromStreamAsync(MemoryAsyncStream.fromArrayBuffer(testCsoArrayBuffer)).then(function (cso) {
+            //cso.readChunkAsync(0x10 * 0x800 - 10, 0x800).then(data => {
             return cso.readChunkAsync(0x10 * 0x800 - 10, 0x800).then(function (data) {
                 var stream = Stream.fromArrayBuffer(data);
                 stream.skip(10);
                 var CD0001 = stream.readStringz(6);
                 assert.equal(CD0001, '\u0001CD001');
             });
+            //console.log(cso);
         });
     });
     it('should work with iso', function () {
@@ -25536,10 +31431,11 @@ describe('cso', function () {
 
 },
 "test/format/isoTest": function(module, exports, require) {
+"use strict";
 ///<reference path="../global.d.ts" />
-function ref() { }
+function ref() { } // Workaround to allow typescript to include this module
 exports.ref = ref;
-var _iso = require('../../src/format/iso');
+var _iso = require("../../src/format/iso");
 describe('iso', function () {
     var isoData;
     before(function () {
@@ -25557,10 +31453,11 @@ describe('iso', function () {
 
 },
 "test/format/pbpTest": function(module, exports, require) {
+"use strict";
 ///<reference path="../global.d.ts" />
-function ref() { }
+function ref() { } // Workaround to allow typescript to include this module
 exports.ref = ref;
-var _pbp = require('../../src/format/pbp');
+var _pbp = require("../../src/format/pbp");
 var Pbp = _pbp.Pbp;
 describe('pbp', function () {
     var rtctestPbpArrayBuffer;
@@ -25579,10 +31476,11 @@ describe('pbp', function () {
 
 },
 "test/format/psfTest": function(module, exports, require) {
+"use strict";
 ///<reference path="../global.d.ts" />
-function ref() { }
+function ref() { } // Workaround to allow typescript to include this module
 exports.ref = ref;
-var _psf = require('../../src/format/psf');
+var _psf = require("../../src/format/psf");
 var Psf = _psf.Psf;
 describe('psf', function () {
     var rtctestPsfArrayBuffer;
@@ -25607,10 +31505,11 @@ describe('psf', function () {
 
 },
 "test/format/pspTest": function(module, exports, require) {
+"use strict";
 ///<reference path="../global.d.ts" />
-function ref() { }
+function ref() { } // Workaround to allow typescript to include this module
 exports.ref = ref;
-var elf_crypted_prx = require('../../src/hle/elf_crypted_prx');
+var elf_crypted_prx = require("../../src/hle/elf_crypted_prx");
 describe('psp', function () {
     var testInputStream;
     var testExpectedStream;
@@ -25636,10 +31535,11 @@ describe('psp', function () {
 
 },
 "test/format/vagTest": function(module, exports, require) {
+"use strict";
 ///<reference path="../global.d.ts" />
-function ref() { }
+function ref() { } // Workaround to allow typescript to include this module
 exports.ref = ref;
-var _vag = require('../../src/format/vag');
+var _vag = require("../../src/format/vag");
 describe('vag', function () {
     var vagData;
     var vagDataExpected;
@@ -25662,6 +31562,7 @@ describe('vag', function () {
             var sample = vag.getNextSample();
             var expectedLeft = expected.readInt16();
             var expectedRight = expected.readInt16();
+            //console.log(n, sample.left, "=", expectedLeft);
             resultArray.push(sample.left, sample.right);
             expectedArray.push(expectedLeft, expectedRight);
         }
@@ -25671,11 +31572,12 @@ describe('vag', function () {
 
 },
 "test/format/zipTest": function(module, exports, require) {
+"use strict";
 ///<reference path="../global.d.ts" />
-function ref() { }
+function ref() { } // Workaround to allow typescript to include this module
 exports.ref = ref;
-var _zip = require('../../src/format/zip');
-var _vfs = require('../../src/hle/vfs');
+var _zip = require("../../src/format/zip");
+var _vfs = require("../../src/hle/vfs");
 describe('zip', function () {
     var arrayBuffer;
     before(function () {
@@ -25690,6 +31592,7 @@ describe('zip', function () {
             assert.equal(63548, zip.get('/DATA/SOUNDS/Bullet.Wav').uncompressedSize);
             return zip.get('/DATA/SOUNDS/Bullet.Wav').readAsync().then(function (data) {
                 assert.equal(63548, data.length);
+                //console.log(data);
             });
         });
     });
@@ -25706,33 +31609,75 @@ describe('zip', function () {
 
 },
 "test/gpuTest": function(module, exports, require) {
+"use strict";
 ///<reference path="./global.d.ts" />
-function ref() { }
+function ref() { } // Workaround to allow typescript to include this module
 exports.ref = ref;
+//import VertexReaderFactory = _gpu.VertexReaderFactory;
 describe('gpu', function () {
     describe('vertex reading', function () {
         it('should work', function () {
+            /*
+            var vertexInfo = new _state.VertexInfo();
+            vertexInfo.size = 10;
+        
+            vertexInfo.texture = _state.NumericEnum.Void;
+            vertexInfo.color = _state.ColorEnum.Void;
+            vertexInfo.normal = _state.NumericEnum.Void;
+            vertexInfo.position = _state.NumericEnum.Short;
+            vertexInfo.weight = _state.NumericEnum.Void;
+            vertexInfo.index = _state.IndexEnum.Void;
+            vertexInfo.weightCount = 1;
+            vertexInfo.morphingVertexCount = 1;
+            vertexInfo.transform2D = true;
+            vertexInfo.textureComponentsCount = 2;
+            vertexInfo.updateSizeAndPositions();
+
+            var vertexReader = VertexReaderFactory.get(vertexInfo)
+
+            var vi2 = new ArrayBuffer(128);
+            var vi8 = new Uint8Array(vi2);
+            var vertexInput = new DataView(vi2);
+            vertexInput.setInt16(0, 100, true);
+            vertexInput.setInt16(2, 200, true);
+            vertexInput.setInt16(4, 0, true);
+
+            vertexInput.setInt16(10, 200, true);
+            vertexInput.setInt16(12, 300, true);
+            vertexInput.setInt16(14, 400, true);
+
+            var vertex1 = new _state.Vertex();
+            var vertex2 = new _state.Vertex();
+
+            //console.log(vertexReader.readCode);
+
+            vertexReader.readCount([vertex1, vertex2], 0, vi8, 0, null, null, 2, vertexInfo.hasIndex);
+
+            assert.equal(vertex1.px, 100);
+            assert.equal(vertex1.py, 200);
+            assert.equal(vertex1.pz, 0);
+
+            assert.equal(vertex2.px, 200);
+            assert.equal(vertex2.py, 300);
+            assert.equal(vertex2.pz, 400);
+            */
         });
     });
 });
 
 },
 "test/hle/elfTest": function(module, exports, require) {
+"use strict";
 ///<reference path="../global.d.ts" />
-function ref() { }
+function ref() { } // Workaround to allow typescript to include this module
 exports.ref = ref;
-var _memory = require('../../src/core/memory');
-var _cpu = require('../../src/core/cpu');
-var _display = require('../../src/core/display');
-var _manager = require('../../src/hle/manager');
-var _elf_psp = require('../../src/hle/elf_psp');
-var _context = require('../../src/context');
-var pspmodules = require('../../src/hle/pspmodules');
-var PspElfLoader = _elf_psp.PspElfLoader;
-var ModuleManager = _manager.ModuleManager;
-var SyscallManager = _cpu.SyscallManager;
-var DummyPspDisplay = _display.DummyPspDisplay;
-var EmulatorContext = _context.EmulatorContext;
+var cpu_1 = require("../../src/core/cpu");
+var display_1 = require("../../src/core/display");
+var manager_1 = require("../../src/hle/manager");
+var elf_psp_1 = require("../../src/hle/elf_psp");
+var context_1 = require("../../src/context");
+var _memory = require("../../src/core/memory");
+var pspmodules = require("../../src/hle/pspmodules");
 describe('elf', function () {
     var stream;
     before(function () {
@@ -25741,25 +31686,27 @@ describe('elf', function () {
         });
     });
     it('load', function () {
+        //var stream = Stream.fromBase64(minifireElfBase64);
         var memory = _memory.getInstance();
-        var memoryManager = new _manager.MemoryManager();
-        var display = new DummyPspDisplay();
-        var syscallManager = new SyscallManager(context);
-        var context = new EmulatorContext();
-        var moduleManager = new ModuleManager(context);
+        var memoryManager = new manager_1.MemoryManager();
+        var display = new display_1.DummyPspDisplay();
+        var syscallManager = new cpu_1.SyscallManager(context);
+        var context = new context_1.EmulatorContext();
+        var moduleManager = new manager_1.ModuleManager(context);
         pspmodules.registerModulesAndSyscalls(syscallManager, moduleManager);
         context.init(null, display, null, null, memoryManager, null, null, memory, null, null, null, null, null, null, null, null);
-        var elf = new PspElfLoader(memory, memoryManager, moduleManager, syscallManager);
+        var elf = new elf_psp_1.PspElfLoader(memory, memoryManager, moduleManager, syscallManager);
         elf.load(stream);
     });
 });
 
 },
 "test/hle/memorymanagerTest": function(module, exports, require) {
+"use strict";
 ///<reference path="../global.d.ts" />
-function ref() { }
+function ref() { } // Workaround to allow typescript to include this module
 exports.ref = ref;
-var _manager = require('../../src/hle/manager');
+var _manager = require("../../src/hle/manager");
 var MemoryAnchor = _manager.MemoryAnchor;
 var MemoryPartition = _manager.MemoryPartition;
 describe("memorymanager", function () {
@@ -25792,6 +31739,7 @@ describe("memorymanager", function () {
         assert.equal(partition.getTotalFreeMemory(), 50);
         assert.equal(partition.getMaxContiguousFreeMemory(), 50);
         p1.unallocate();
+        //console.info(partition);
         assert.equal(partition.getTotalFreeMemory(), 75);
         assert.equal(partition.getMaxContiguousFreeMemory(), 50);
     });
@@ -25815,12 +31763,13 @@ describe("memorymanager", function () {
 
 },
 "test/hle/vfsTest": function(module, exports, require) {
+"use strict";
 ///<reference path="../global.d.ts" />
-function ref() { }
+function ref() { } // Workaround to allow typescript to include this module
 exports.ref = ref;
-var _iso = require('../../src/format/iso');
-var _psf = require('../../src/format/psf');
-var _vfs = require('../../src/hle/vfs');
+var _iso = require("../../src/format/iso");
+var _psf = require("../../src/format/psf");
+var _vfs = require("../../src/hle/vfs");
 _vfs.StorageVfs;
 var StorageVfs = _vfs.StorageVfs;
 var MemoryVfs = _vfs.MemoryVfs;
@@ -25932,6 +31881,7 @@ describe('vfs', function () {
         })
             .then(function () {
             return msVfs.getStatAsync('simple1').then(function (stat) {
+                //console.log(stat);
                 assert.equal('simple1', stat.name);
                 assert.equal(5, stat.size);
             });
@@ -25947,10 +31897,11 @@ describe('vfs', function () {
 
 },
 "test/instructionTest": function(module, exports, require) {
+"use strict";
 ///<reference path="./global.d.ts" />
-function ref() { }
+function ref() { } // Workaround to allow typescript to include this module
 exports.ref = ref;
-var _cpu = require('../src/core/cpu');
+var _cpu = require("../src/core/cpu");
 var Instructions = _cpu.Instructions;
 describe('instruction lookup', function () {
     var instructions = Instructions.instance;
@@ -25972,7 +31923,8 @@ describe('instruction lookup', function () {
 
 },
 "test/memorytest": function(module, exports, require) {
-var _memory = require('../src/core/memory');
+"use strict";
+var _memory = require("../src/core/memory");
 function ext() { }
 exports.ext = ext;
 var memory = _memory.getInstance();
@@ -25986,8 +31938,9 @@ describe('memory', function () {
 
 },
 "test/promisetest": function(module, exports, require) {
+"use strict";
 ///<reference path="./global.d.ts" />
-function ref() { }
+function ref() { } // Workaround to allow typescript to include this module
 exports.ref = ref;
 describe('promise', function () {
     it('simple', function () {
@@ -26020,6 +31973,9 @@ describe('promise', function () {
         return Promise2.resolve(10).then(function (value) {
             return Promise2.resolve(11).then(function () {
                 return 'test';
+                //return Promise2.resolve(12).then(() => {
+                //	return waitAsync(10).then('test');
+                //});
             });
         }).then(function (value) {
             assert.equal('test', value);
@@ -26028,6 +31984,7 @@ describe('promise', function () {
     it('pipe3', function () {
         return Promise2.resolve(10).then(function (value) {
             return Promise2.resolve(11).then(function () {
+                //return waitAsync(10).then(() => 'test');
                 return Promise2.resolve('test');
             });
         }).then(function (value) {
@@ -26067,26 +32024,88 @@ describe('promise', function () {
 
 },
 "test/pspautotests": function(module, exports, require) {
+"use strict";
 ///<reference path="./global.d.ts" />
-function ref() { }
+function ref() { } // Workaround to allow typescript to include this module
 exports.ref = ref;
-var _emulator = require('../src/emulator');
-var _vfs = require('../src/hle/vfs');
-var difflib = require('../src/util/difflib');
+var _emulator = require("../src/emulator");
+var _vfs = require("../src/hle/vfs");
+var difflib = require("../src/util/difflib");
 var Emulator = _emulator.Emulator;
 var _console = global.console;
 var console = logger.named('');
 describe('pspautotests', function () {
     this.timeout(5000);
     var tests = [
+        //{ "audio/atrac": ["atractest", "decode", "ids", "resetting", "setdata"] },
+        //{ "audio/mp3": ["mp3test"] },
+        //{ "audio/sascore": ["adsrcurve", "getheight", "keyoff", "keyon", "noise", "outputmode", "pause", "pcm", "pitch", "sascore", "setadsr", "vag"] },
+        //{ "audio/sceaudio": ["datalen", "output", "reserve"] },
         { "cpu/cpu_alu": ["cpu_alu", "cpu_branch"] },
+        //{ "cpu/fpu": ["fpu"] },
+        //{ "cpu/fpu": ["fcr", "fpu"] },
         { "cpu/icache": ["icache"] },
         { "cpu/lsu": ["lsu"] },
         { "cpu/vfpu": ["colors", "gum", "matrix", "vavg"] },
+        //{ "cpu/vfpu": ["colors", "convert", "gum", "matrix", "prefixes", "vector", "vregs", "vavg"] },
+        //{ "ctrl": ["ctrl", "vblank"] },
+        //{ "ctrl/idle": ["idle"] },
+        //{ "ctrl/sampling": ["sampling"] },
+        //{ "ctrl/sampling2": ["sampling2"] },
+        //{ "display": ["display", "hcount", "vblankmulti"] },
+        //{ "dmac": ["dmactest"] },
+        //{ "font": ["altcharcode", "charglyphimage", "charglyphimageclip", "charimagerect", "charinfo", "find", "fontinfo", "fontinfobyindex", "fontlist", "fonttest", "newlib", "open", "openfile", "openmem", "optimum", "resolution", "shadowglyphimage", "shadowglyphimageclip", "shadowimagerect", "shadowinfo"] },
+        //{ "gpu/callbacks": ["ge_callbacks"] },
+        //{ "gpu/commands": ["basic", "blocktransfer", "material"] },
+        //{ "gpu/complex": ["complex"] },
+        //{ "gpu/displaylist": ["state"] },
+        //{ "gpu/ge": ["break", "context", "edram", "get", "queue"] },
+        //{ "gpu/reflection": ["reflection"] },
+        //{ "gpu/rendertarget": ["rendertarget"] },
+        //{ "gpu/signals": ["continue", "jumps", "pause", "simple", "suspend", "sync"] },
+        //{ "gpu/simple": ["simple"] },
+        //{ "gpu/triangle": ["triangle"] },
+        //{ "hash": ["hash"] },
+        //{ "hle": ["check_not_used_uids"] },
+        //{ "intr": ["intr", "suspended", "waits"] },
+        //{ "intr/vblank": ["vblank"] },
+        //{ "io/cwd": ["cwd"] },
+        //{ "io/directory": ["directory"] },
+        //{ "io/file": ["file", "rename"] },
+        //{ "io/io": ["io"] },
+        //{ "io/iodrv": ["iodrv"] },
+        //{ "kirk": ["kirk"] },
         { "loader/bss": ["bss"] },
         { "malloc": ["malloc"] },
+        //{ "misc": ["dcache", "testgp"] },
+        //{ "misc": ["libc", "testgp"] },
         { "misc": ["testgp"] },
+        //{ "misc": ["dcache", "deadbeef", "libc", "sdkver", "testgp", "timeconv"] },
+        //{ "modules/loadexec": ["loader"] },
+        //{ "mstick": ["mstick"] },
+        //{ "net/http": ["http"] },
+        //{ "net/primary": ["ether"] },
+        //{ "power": ["cpu", "freq", "power"] },
+        //{ "power/volatile": ["lock", "trylock", "unlock"] },
+        //{ "rtc": ["arithmetic", "convert", "lookup", "rtc"] },
+        //{ "rtc": ["arithmetic", "convert", "lookup", "rtc"] },
         { "string": ["string"] },
+        //{ "sysmem": ["freesize", "memblock", "partition", "sysmem"] },
+        //{ "threads/alarm": ["alarm"] },
+        //{ "threads/alarm/cancel": ["cancel"] },
+        //{ "threads/alarm/refer": ["refer"] },
+        //{ "threads/alarm/set": ["set"] },
+        //{ "threads/callbacks": ["callbacks", "cancel", "check", "count", "create", "delete", "exit", "notify", "refer"] },
+        //{ "threads/events/cancel": ["cancel"] },
+        //{ "threads/events/clear": ["clear"] },
+        //{ "threads/events/create": ["create"] },
+        //{ "threads/events/delete": ["delete"] },
+        //{ "threads/events": ["events"] },
+        //{ "threads/events/poll": ["poll"] },
+        //{ "threads/events/refer": ["refer"] },
+        //{ "threads/events/set": ["set"] },
+        //{ "threads/events/wait": ["wait"] },
+        //{ "threads/fpl": ["allocate", "cancel", "create", "delete", "fpl", "free", "priority", "refer", "tryallocate"] },
         { "threads/k0": ["k0"] },
     ];
     function normalizeString(string) {
@@ -26184,6 +32203,7 @@ describe('pspautotests', function () {
                         var emulator = new Emulator();
                         var file_base = './data/pspautotests/tests/' + testGroupName + '/' + testName;
                         var file_prx = file_base + '.prx';
+                        //var file_prx = file_base + '.iso';
                         var file_expected = file_base + '.expected';
                         if (!groupCollapsed)
                             console.groupEnd();
@@ -26219,16 +32239,17 @@ describe('pspautotests', function () {
 
 },
 "test/testasm": function(module, exports, require) {
+"use strict";
 var __extends = (this && this.__extends) || function (d, b) {
     for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
     function __() { this.constructor = d; }
     d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
 };
 ///<reference path="./global.d.ts" />
-function ref() { }
+function ref() { } // Workaround to allow typescript to include this module
 exports.ref = ref;
-var _cpu = require('../src/core/cpu');
-var _memory = require('../src/core/memory');
+var _cpu = require("../src/core/cpu");
+var _memory = require("../src/core/memory");
 var CpuState = _cpu.CpuState;
 var assembler = new _cpu.MipsAssembler();
 var disassembler = new _cpu.MipsDisassembler();
@@ -26236,12 +32257,12 @@ var memory = _memory.getInstance();
 var TestSyscallManager = (function (_super) {
     __extends(TestSyscallManager, _super);
     function TestSyscallManager() {
-        _super.call(this, null);
+        return _super.call(this, null) || this;
     }
     TestSyscallManager.prototype.call = function (state, id) {
     };
     return TestSyscallManager;
-})(_cpu.SyscallManager);
+}(_cpu.SyscallManager));
 function executeProgram(gprInitial, program) {
     program = program.slice(0);
     program.push('break 0');
@@ -26287,6 +32308,7 @@ function generateGpr3Matrix(op, vector) {
 }
 function assertProgram(description, gprInitial, program, gprAssertions) {
     var state = executeProgram(gprInitial, program);
+    //console.log(state);
     for (var key in gprAssertions) {
         var value = 0;
         if (key.substr(0, 1) == '$') {
@@ -26447,8 +32469,9 @@ describe('testasm cpu running', function () {
 
 },
 "test/util/utilsTest": function(module, exports, require) {
+"use strict";
 ///<reference path="../global.d.ts" />
-function ref() { }
+function ref() { } // Workaround to allow typescript to include this module
 exports.ref = ref;
 describe('utils', function () {
     describe('string repeat', function () {
@@ -26468,6 +32491,16 @@ describe('utils', function () {
             assert.equal(Int16.read(stream), 0x0201);
             assert.equal(Int16.read(stream), 0x0403);
         });
+        /*
+        it('should read simple struct', () => {
+            var stream = Stream.fromArray([0x01, 0x02, 0x03, 0x04]);
+            var MyStruct = Struct.create([
+                { item1: Int16 },
+                { item2: Int16 }
+            ]);
+            assert.equal(JSON.stringify(MyStruct.read(stream)), JSON.stringify({ item1: 0x0201, item2: 0x0403 }));
+        });
+        */
     });
     describe('Binary search', function () {
         it('none', function () {

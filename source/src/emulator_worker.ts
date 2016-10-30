@@ -1,6 +1,5 @@
-///<reference path="./emulator_bridge.d.ts" />
-
 import { Emulator } from './emulator';
+import { BatteryInfo } from './core/battery';
 import _vertex = require('./core/gpu/gpu_vertex');
 
 declare var self: any;

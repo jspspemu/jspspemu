@@ -165,9 +165,9 @@ export class MipsDisassembler {
 		var instructionType = this.instructions.findByData(instruction.data);
 		var args = instructionType.format.replace(/(\%\w+)/g, (type) => {
 			switch (type) {
-				case '%s': return this.encodeRegister(instruction.rs); break;
-				case '%d': return this.encodeRegister(instruction.rd); break;
-				case '%t': return this.encodeRegister(instruction.rt); break;
+				case '%s': return this.encodeRegister(instruction.rs);
+				case '%d': return this.encodeRegister(instruction.rd);
+				case '%t': return this.encodeRegister(instruction.rt);
 				default: throw ("MipsDisassembler.Disassemble: Unknown type '" + type + "'");
 			}
 		});

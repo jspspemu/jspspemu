@@ -177,7 +177,7 @@ class Stream {
 		return new Stream(new DataView(buffer));
 	}
 
-	toImageUrl() {
+	toImageUrl(): string {
 		try {
 			var urlCreator = (<any>window)['URL'] || (<any>window)['webkitURL'];
 			var blob = new Blob([this.toUInt8Array()], { type: "image/jpeg" });

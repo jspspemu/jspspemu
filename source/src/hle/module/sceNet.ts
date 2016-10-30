@@ -22,14 +22,12 @@ export class sceNet {
 
 	@nativeFunction(0x50647530, 150, 'int', 'int')
 	sceNetFreeThreadinfo(threadId: number) {
-		throw(new Error("Not implemented"));
-		return -1;
+		throw new Error("Not implemented");
 	}
 
 	@nativeFunction(0xAD6844c6, 150, 'int', 'int')
 	sceNetThreadAbort(threadId: number) {
-		throw (new Error("Not implemented"));
-		return -1;
+		throw new Error("Not implemented");
 	}
 
 	/** Convert string to a Mac address **/
@@ -56,7 +54,6 @@ export class sceNet {
 
 	@nativeFunction(0xCC393E48, 150, 'int', 'void*')
 	sceNetGetMallocStat(statPtr: Stream) {
-		throw (new Error("Not implemented"));
-		return -1;
+		throw new Error("Not implemented");
 	}
 }

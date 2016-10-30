@@ -25,14 +25,12 @@ export class ModuleMgrForUser {
 		thread.state.printCallstack(this.context.symbolLookup);
 		//this.context.instructionCache.functionGenerator.getInstructionUsageCount().forEach((item) => { console.log(item.name, ':', item.count); });
 		console.warn(sprintf('Not implemented ModuleMgrForUser.sceKernelSelfStopUnloadModule(%d, %d, %d)', unknown, argsize, argp));
-		throw (new Error("sceKernelSelfStopUnloadModule"));
-		return 0;
+		throw new Error("sceKernelSelfStopUnloadModule");
 	}
 
 	@nativeFunction(0xCC1D3699, 150, 'uint', 'int/int/int/Thread')
 	sceKernelStopUnloadSelfModule(argsize: number, argp: number, optionsAddress:number, thread: Thread) {
-		throw (new Error("sceKernelStopUnloadSelfModule"));
-		return 0;
+		throw new Error("sceKernelStopUnloadSelfModule");
 	}
 
 	@nativeFunction(0x977DE386, 150, 'uint', 'string/uint/void*')

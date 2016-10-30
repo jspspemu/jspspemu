@@ -659,9 +659,9 @@ function kirk_CMD1(output: Stream, input: Stream) {
 
 export function hleUtilsBufferCopyWithRange(output: Stream, input: Stream, command: CommandEnum) {
 	switch (command) {
-		case CommandEnum.DECRYPT_PRIVATE: return kirk_CMD1(output, input); break;
+		case CommandEnum.DECRYPT_PRIVATE: return kirk_CMD1(output, input);
 		//case CommandEnum.ENCRYPT_IV_0: return kirk_CMD4(output, input); break;
-		case CommandEnum.DECRYPT_IV_0: return kirk_CMD7(output, input); break;
+		case CommandEnum.DECRYPT_IV_0: return kirk_CMD7(output, input);
 		//case CommandEnum.PRIV_SIG_CHECK: return kirk_CMD10(input); break;
 		//case CommandEnum.SHA1_HASH: return kirk_CMD11(output, input); break;
 		//case CommandEnum.ECDSA_GEN_KEYS: return kirk_CMD12(output); break;

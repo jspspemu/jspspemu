@@ -3,11 +3,11 @@
         "module": "commonjs",
         "target": "es5",
         "noImplicitAny": true,
-        "removeComments": true,
+        "removeComments": false,
         "experimentalDecorators": true,
         "outDir": "../js"
     },
- 
+
     "files": [
         "bootstrap.ts"
     ]

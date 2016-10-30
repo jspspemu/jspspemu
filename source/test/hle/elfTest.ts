@@ -1,21 +1,15 @@
 ﻿///<reference path="../global.d.ts" />
 export function ref() { } // Workaround to allow typescript to include this module
 
+import { SyscallManager } from '../../src/core/cpu';
+import { DummyPspDisplay } from '../../src/core/display';
+import { MemoryManager, ModuleManager } from '../../src/hle/manager';
+import { PspElfLoader } from '../../src/hle/elf_psp';
+import { EmulatorContext } from '../../src/context';
+
 import _elf = require('../../src/format/elf');
 import _memory = require('../../src/core/memory');
-import _cpu = require('../../src/core/cpu');
-import _display = require('../../src/core/display');
-import _manager = require('../../src/hle/manager');
-import _elf_psp = require('../../src/hle/elf_psp');
-import _context = require('../../src/context');
 import pspmodules = require('../../src/hle/pspmodules');
-
-import PspElfLoader = _elf_psp.PspElfLoader;
-import MemoryManager = _manager.MemoryManager;
-import ModuleManager = _manager.ModuleManager;
-import SyscallManager = _cpu.SyscallManager;
-import DummyPspDisplay = _display.DummyPspDisplay;
-import EmulatorContext = _context.EmulatorContext;
 
 describe('elf', () => {
 	var stream:Stream;
@@ -29,7 +23,7 @@ describe('elf', () => {
     it('load', () => {
         //var stream = Stream.fromBase64(minifireElfBase64);
 		var memory = _memory.getInstance();
-		var memoryManager = new _manager.MemoryManager();
+		var memoryManager = new MemoryManager();
         var display = new DummyPspDisplay();
         var syscallManager = new SyscallManager(context);
         var context = new EmulatorContext();

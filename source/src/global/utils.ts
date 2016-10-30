@@ -408,9 +408,9 @@ _self['polyfills'] = _self['polyfills'] || {};
 _self['polyfills']['ArrayBuffer_slice'] = !ArrayBuffer.prototype.slice;
 _self['polyfills']['performance'] = !self.performance;
 
-if (!self['performance']) {
-	self['performance'] = <any>{};
-	self['performance']['now'] = function() {
+if (!_self['performance']) {
+	_self['performance'] = <any>{};
+	_self['performance']['now'] = function() {
 		return Date.now();
 	};
 }
@@ -843,11 +843,11 @@ class Signal1<T1> {
 	get length() { return this.callbacks.length; }
 	clear() { this.callbacks = []; }
 
-	pipeTo(other:Signal1<T1>) {
+	pipeTo(other:Signal1<T1>): Signal1Cancelable<T1> {
 		return this.add(v => other.dispatch(v));
 	}
 
-	add(callback: (v1: T1) => void) {
+	add(callback: (v1: T1) => void): Signal1Cancelable<T1> {
 		this.callbacks.push(callback);
 		return new Signal1Cancelable(this, callback);
 	}
@@ -859,7 +859,7 @@ class Signal1<T1> {
 		}
 	}
 
-	once(callback: (v1: T1) => void) {
+	once(callback: (v1: T1) => void): Signal1Cancelable<T1> {
 		var once = (v1: T1) => {
 			this.remove(once);
 			callback(v1);
@@ -881,11 +881,11 @@ class Signal2<T1, T2> {
 	get length() { return this.callbacks.length; }
 	clear() { this.callbacks = []; }
 
-	pipeTo(other:Signal2<T1, T2>) {
+	pipeTo(other:Signal2<T1, T2>): Signal2Cancelable<T1, T2> {
 		return this.add((v1, v2) => other.dispatch(v1, v2));
 	}
 
-	add(callback: (v1: T1, v2: T2) => void) {
+	add(callback: (v1: T1, v2: T2) => void): Signal2Cancelable<T1, T2> {
 		this.callbacks.push(callback);
 		return new Signal2Cancelable(this, callback);
 	}
@@ -897,7 +897,7 @@ class Signal2<T1, T2> {
 		}
 	}
 
-	once(callback: (v1: T1, v2: T2) => void) {
+	once(callback: (v1: T1, v2: T2) => void): Signal2Cancelable<T1, T2> {
 		var once = (v1: T1, v2: T2) => {
 			this.remove(once);
 			callback(v1, v2);
