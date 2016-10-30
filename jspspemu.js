@@ -26735,10 +26735,9 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
     else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
     return c > 3 && r && Object.defineProperty(target, key, r), r;
 };
-var _utils = require("../utils");
+var utils_1 = require("../utils");
 var _audio = require("../../core/audio");
 var _vag = require("../../format/vag");
-var nativeFunction = _utils.nativeFunction;
 var SceKernelErrors = require("../SceKernelErrors");
 var Sample = _audio.Sample;
 var VagSoundSource = _vag.VagSoundSource;
@@ -26751,7 +26750,7 @@ var sceSasCore = (function () {
         this.context = context;
         this.core = new SasCore();
     }
-    sceSasCore.prototype.__sceSasInit = function (sasCorePointer, grainSamples, maxVoices, outputMode, sampleRate) {
+    sceSasCore.prototype.sceSasInit = function (sasCorePointer, grainSamples, maxVoices, outputMode, sampleRate) {
         if (sampleRate != 44100) {
             return SceKernelErrors.ERROR_SAS_INVALID_SAMPLE_RATE;
         }
@@ -26773,15 +26772,15 @@ var sceSasCore = (function () {
         //MixBufferShort = new StereoShortSoundSample[SasCore.GrainSamples * 2];
         return 0;
     };
-    sceSasCore.prototype.__sceSasSetGrain = function (sasCorePointer, grainSamples) {
+    sceSasCore.prototype.sceSasSetGrain = function (sasCorePointer, grainSamples) {
         this.core.grainSamples = grainSamples;
         return 0;
     };
-    sceSasCore.prototype.__sceSasSetOutputmode = function (sasCorePointer, outputMode) {
+    sceSasCore.prototype.sceSasSetOutputmode = function (sasCorePointer, outputMode) {
         this.core.outputMode = outputMode;
         return 0;
     };
-    sceSasCore.prototype.__sceSasSetVoice = function (sasCorePointer, voiceId, data, loop) {
+    sceSasCore.prototype.sceSasSetVoice = function (sasCorePointer, voiceId, data, loop) {
         if (!this.hasSasCoreVoice(sasCorePointer, voiceId))
             return SceKernelErrors.ERROR_SAS_INVALID_VOICE;
         var voice = this.getSasCoreVoice(sasCorePointer, voiceId);
@@ -26807,7 +26806,7 @@ var sceSasCore = (function () {
         }
         return 0;
     };
-    sceSasCore.prototype.__sceSasSetVoicePCM = function (sasCorePointer, voiceId, data, loop) {
+    sceSasCore.prototype.sceSasSetVoicePCM = function (sasCorePointer, voiceId, data, loop) {
         if (!this.hasSasCoreVoice(sasCorePointer, voiceId))
             return SceKernelErrors.ERROR_SAS_INVALID_VOICE;
         var voice = this.getSasCoreVoice(sasCorePointer, voiceId);
@@ -26819,25 +26818,25 @@ var sceSasCore = (function () {
         }
         return 0;
     };
-    sceSasCore.prototype.__sceSasCoreWithMix = function (sasCorePointer, sasOut, leftVolume, rightVolume) {
+    sceSasCore.prototype.sceSasCoreWithMix = function (sasCorePointer, sasOut, leftVolume, rightVolume) {
         return this.core.mix(sasCorePointer, sasOut, leftVolume, rightVolume);
     };
-    sceSasCore.prototype.__sceSasCore = function (sasCorePointer, sasOut) {
+    sceSasCore.prototype.sceSasCore = function (sasCorePointer, sasOut) {
         return this.core.mix(sasCorePointer, sasOut, PSP_SAS_VOL_MAX, PSP_SAS_VOL_MAX);
     };
-    sceSasCore.prototype.__sceSasGetEndFlag = function (sasCorePointer) {
+    sceSasCore.prototype.sceSasGetEndFlag = function (sasCorePointer) {
         return this.core.endFlags;
     };
-    sceSasCore.prototype.__sceSasRevType = function (sasCorePointer, waveformEffectType) {
+    sceSasCore.prototype.sceSasRevType = function (sasCorePointer, waveformEffectType) {
         this.core.waveformEffectType = waveformEffectType;
         return 0;
     };
-    sceSasCore.prototype.__sceSasRevVON = function (sasCorePointer, waveformEffectIsDry, waveformEffectIsWet) {
+    sceSasCore.prototype.sceSasRevVON = function (sasCorePointer, waveformEffectIsDry, waveformEffectIsWet) {
         this.core.waveformEffectIsDry = waveformEffectIsDry;
         this.core.waveformEffectIsWet = waveformEffectIsWet;
         return 0;
     };
-    sceSasCore.prototype.__sceSasRevEVOL = function (sasCorePointer, leftVolume, rightVolume) {
+    sceSasCore.prototype.sceSasRevEVOL = function (sasCorePointer, leftVolume, rightVolume) {
         this.core.leftVolume = leftVolume;
         this.core.rightVolume = rightVolume;
         return 0;
@@ -26848,7 +26847,7 @@ var sceSasCore = (function () {
     sceSasCore.prototype.getSasCoreVoice = function (sasCorePointer, voiceId) {
         return this.core.voices[voiceId];
     };
-    sceSasCore.prototype.__sceSasSetADSR = function (sasCorePointer, voiceId, flags, attackRate, decayRate, sustainRate, releaseRate) {
+    sceSasCore.prototype.sceSasSetADSR = function (sasCorePointer, voiceId, flags, attackRate, decayRate, sustainRate, releaseRate) {
         if (!this.hasSasCoreVoice(sasCorePointer, voiceId))
             return SceKernelErrors.ERROR_SAS_INVALID_VOICE;
         var voice = this.getSasCoreVoice(sasCorePointer, voiceId);
@@ -26862,11 +26861,11 @@ var sceSasCore = (function () {
             voice.envelope.releaseRate = releaseRate;
         return 0;
     };
-    sceSasCore.prototype.__sceSasSetADSRmode = function (sasCorePointer, voiceId, flags, attackCurveMode, decayCurveMode, sustainCurveMode, releaseCurveMode) {
+    sceSasCore.prototype.sceSasSetADSRmode = function (sasCorePointer, voiceId, flags, attackCurveMode, decayCurveMode, sustainCurveMode, releaseCurveMode) {
         console.warn('__sceSasSetADSRmode not implemented!');
         return 0;
     };
-    sceSasCore.prototype.__sceSasSetKeyOff = function (sasCorePointer, voiceId) {
+    sceSasCore.prototype.sceSasSetKeyOff = function (sasCorePointer, voiceId) {
         if (!this.hasSasCoreVoice(sasCorePointer, voiceId))
             return SceKernelErrors.ERROR_SAS_INVALID_VOICE;
         var voice = this.getSasCoreVoice(sasCorePointer, voiceId);
@@ -26875,27 +26874,27 @@ var sceSasCore = (function () {
         voice.setOn(false);
         return 0;
     };
-    sceSasCore.prototype.__sceSasSetKeyOn = function (sasCorePointer, voiceId) {
+    sceSasCore.prototype.sceSasSetKeyOn = function (sasCorePointer, voiceId) {
         if (!this.hasSasCoreVoice(sasCorePointer, voiceId))
             return SceKernelErrors.ERROR_SAS_INVALID_VOICE;
         var voice = this.getSasCoreVoice(sasCorePointer, voiceId);
         voice.setOn(true);
         return 0;
     };
-    sceSasCore.prototype.__sceSasGetEnvelopeHeight = function (sasCorePointer, voiceId) {
+    sceSasCore.prototype.sceSasGetEnvelopeHeight = function (sasCorePointer, voiceId) {
         if (!this.hasSasCoreVoice(sasCorePointer, voiceId))
             return SceKernelErrors.ERROR_SAS_INVALID_VOICE;
         var voice = this.getSasCoreVoice(sasCorePointer, voiceId);
         return voice.envelope.height;
     };
-    sceSasCore.prototype.__sceSasSetSL = function (sasCorePointer, voiceId, sustainLevel) {
+    sceSasCore.prototype.sceSasSetSL = function (sasCorePointer, voiceId, sustainLevel) {
         if (!this.hasSasCoreVoice(sasCorePointer, voiceId))
             return SceKernelErrors.ERROR_SAS_INVALID_VOICE;
         var voice = this.getSasCoreVoice(sasCorePointer, voiceId);
         voice.sustainLevel = sustainLevel;
         return 0;
     };
-    sceSasCore.prototype.__sceSasSetPause = function (sasCorePointer, voiceBits, pause) {
+    sceSasCore.prototype.sceSasSetPause = function (sasCorePointer, voiceBits, pause) {
         this.core.voices.forEach(function (voice) {
             if (voiceBits & (1 << voice.index)) {
                 voice.paused = pause;
@@ -26903,20 +26902,20 @@ var sceSasCore = (function () {
         });
         return 0;
     };
-    sceSasCore.prototype.__sceSasGetPauseFlag = function (sasCorePointer) {
+    sceSasCore.prototype.sceSasGetPauseFlag = function (sasCorePointer) {
         var voiceBits = 0;
         this.core.voices.forEach(function (voice) {
             voiceBits |= (voice.paused ? 1 : 0) << voice.index;
         });
         return voiceBits;
     };
-    sceSasCore.prototype.__sceSasGetAllEnvelopeHeights = function (sasCorePointer, heightPtr) {
+    sceSasCore.prototype.sceSasGetAllEnvelopeHeights = function (sasCorePointer, heightPtr) {
         this.core.voices.forEach(function (voice) {
             heightPtr.writeInt32(voice.envelope.height);
         });
         return 0;
     };
-    sceSasCore.prototype.__sceSasSetNoise = function (sasCorePointer, voiceId, noiseFrequency) {
+    sceSasCore.prototype.sceSasSetNoise = function (sasCorePointer, voiceId, noiseFrequency) {
         if (noiseFrequency < 0 || noiseFrequency >= 64)
             return SceKernelErrors.ERROR_SAS_INVALID_NOISE_CLOCK;
         if (!this.hasSasCoreVoice(sasCorePointer, voiceId))
@@ -26924,7 +26923,7 @@ var sceSasCore = (function () {
         var voice = this.getSasCoreVoice(sasCorePointer, voiceId);
         return 0;
     };
-    sceSasCore.prototype.__sceSasSetVolume = function (sasCorePointer, voiceId, leftVolume, rightVolume, effectLeftVol, effectRightVol) {
+    sceSasCore.prototype.sceSasSetVolume = function (sasCorePointer, voiceId, leftVolume, rightVolume, effectLeftVol, effectRightVol) {
         if (!this.hasSasCoreVoice(sasCorePointer, voiceId))
             return SceKernelErrors.ERROR_SAS_INVALID_VOICE;
         var voice = this.getSasCoreVoice(sasCorePointer, voiceId);
@@ -26941,7 +26940,7 @@ var sceSasCore = (function () {
         voice.effectRightVolume = effectRightVol;
         return 0;
     };
-    sceSasCore.prototype.__sceSasSetPitch = function (sasCorePointer, voiceId, pitch) {
+    sceSasCore.prototype.sceSasSetPitch = function (sasCorePointer, voiceId, pitch) {
         if (!this.hasSasCoreVoice(sasCorePointer, voiceId))
             return SceKernelErrors.ERROR_SAS_INVALID_VOICE;
         var voice = this.getSasCoreVoice(sasCorePointer, voiceId);
@@ -26950,13 +26949,13 @@ var sceSasCore = (function () {
         voice.pitch = pitch;
         return 0;
     };
-    sceSasCore.prototype.__sceSasRevParam = function (sasCorePointer, delay, feedback) {
+    sceSasCore.prototype.sceSasRevParam = function (sasCorePointer, delay, feedback) {
         this.core.delay = delay;
         this.core.feedback = feedback;
         // Not implemented
         return 0;
     };
-    sceSasCore.prototype.__sceSasSetSimpleADSR = function (sasCorePointer, voiceId, env1Bitfield, env2Bitfield) {
+    sceSasCore.prototype.sceSasSetSimpleADSR = function (sasCorePointer, voiceId, env1Bitfield, env2Bitfield) {
         if (!this.hasSasCoreVoice(sasCorePointer, voiceId))
             return SceKernelErrors.ERROR_SAS_INVALID_VOICE;
         var voice = this.getSasCoreVoice(sasCorePointer, voiceId);
@@ -26976,80 +26975,80 @@ sceSasCore.PSP_SAS_ADSR_DECAY = 2;
 sceSasCore.PSP_SAS_ADSR_SUSTAIN = 4;
 sceSasCore.PSP_SAS_ADSR_RELEASE = 8;
 __decorate([
-    nativeFunction(0x42778A9F, 150, 'uint', 'int/int/int/int/int')
-], sceSasCore.prototype, "___sceSasInit", null);
+    utils_1.nativeFunction(0x42778A9F, 150, 'uint', 'int/int/int/int/int', { originalName: "__sceSasInit" })
+], sceSasCore.prototype, "sceSasInit", null);
 __decorate([
-    nativeFunction(0xD1E0A01E, 150, 'uint', 'int/int')
-], sceSasCore.prototype, "___sceSasSetGrain", null);
+    utils_1.nativeFunction(0xD1E0A01E, 150, 'uint', 'int/int', { originalName: "__sceSasSetGrain" })
+], sceSasCore.prototype, "sceSasSetGrain", null);
 __decorate([
-    nativeFunction(0xE855BF76, 150, 'uint', 'int/int')
-], sceSasCore.prototype, "___sceSasSetOutputmode", null);
+    utils_1.nativeFunction(0xE855BF76, 150, 'uint', 'int/int', { originalName: "__sceSasSetOutputmode" })
+], sceSasCore.prototype, "sceSasSetOutputmode", null);
 __decorate([
-    nativeFunction(0x99944089, 150, 'uint', 'int/int/byte[]/int')
-], sceSasCore.prototype, "___sceSasSetVoice", null);
+    utils_1.nativeFunction(0x99944089, 150, 'uint', 'int/int/byte[]/int', { originalName: "__sceSasSetVoice" })
+], sceSasCore.prototype, "sceSasSetVoice", null);
 __decorate([
-    nativeFunction(0xE1CD9561, 150, 'uint', 'int/int/byte[]/int')
-], sceSasCore.prototype, "___sceSasSetVoicePCM", null);
+    utils_1.nativeFunction(0xE1CD9561, 150, 'uint', 'int/int/byte[]/int', { originalName: "__sceSasSetVoicePCM" })
+], sceSasCore.prototype, "sceSasSetVoicePCM", null);
 __decorate([
-    nativeFunction(0x50A14DFC, 150, 'uint', 'int/void*/int/int')
-], sceSasCore.prototype, "___sceSasCoreWithMix", null);
+    utils_1.nativeFunction(0x50A14DFC, 150, 'uint', 'int/void*/int/int', { originalName: "__sceSasCoreWithMix" })
+], sceSasCore.prototype, "sceSasCoreWithMix", null);
 __decorate([
-    nativeFunction(0xA3589D81, 150, 'uint', 'int/void*')
-], sceSasCore.prototype, "___sceSasCore", null);
+    utils_1.nativeFunction(0xA3589D81, 150, 'uint', 'int/void*', { originalName: "__sceSasCore" })
+], sceSasCore.prototype, "sceSasCore", null);
 __decorate([
-    nativeFunction(0x68A46B95, 150, 'uint', 'int')
-], sceSasCore.prototype, "___sceSasGetEndFlag", null);
+    utils_1.nativeFunction(0x68A46B95, 150, 'uint', 'int', { originalName: "__sceSasGetEndFlag" })
+], sceSasCore.prototype, "sceSasGetEndFlag", null);
 __decorate([
-    nativeFunction(0x33D4AB37, 150, 'uint', 'int/int')
-], sceSasCore.prototype, "___sceSasRevType", null);
+    utils_1.nativeFunction(0x33D4AB37, 150, 'uint', 'int/int', { originalName: "__sceSasRevType" })
+], sceSasCore.prototype, "sceSasRevType", null);
 __decorate([
-    nativeFunction(0xF983B186, 150, 'uint', 'int/int/int')
-], sceSasCore.prototype, "___sceSasRevVON", null);
+    utils_1.nativeFunction(0xF983B186, 150, 'uint', 'int/int/int', { originalName: "__sceSasRevVON" })
+], sceSasCore.prototype, "sceSasRevVON", null);
 __decorate([
-    nativeFunction(0xD5A229C9, 150, 'uint', 'int/int/int')
-], sceSasCore.prototype, "___sceSasRevEVOL", null);
+    utils_1.nativeFunction(0xD5A229C9, 150, 'uint', 'int/int/int', { originalName: "__sceSasRevEVOL" })
+], sceSasCore.prototype, "sceSasRevEVOL", null);
 __decorate([
-    nativeFunction(0x019B25EB, 150, 'uint', 'int/int/int/int/int/int/int')
-], sceSasCore.prototype, "___sceSasSetADSR", null);
+    utils_1.nativeFunction(0x019B25EB, 150, 'uint', 'int/int/int/int/int/int/int', { originalName: "__sceSasSetADSR" })
+], sceSasCore.prototype, "sceSasSetADSR", null);
 __decorate([
-    nativeFunction(0x9EC3676A, 150, 'uint', 'int/int/int/int/int/int/int')
-], sceSasCore.prototype, "___sceSasSetADSRmode", null);
+    utils_1.nativeFunction(0x9EC3676A, 150, 'uint', 'int/int/int/int/int/int/int', { originalName: "__sceSasSetADSRmode" })
+], sceSasCore.prototype, "sceSasSetADSRmode", null);
 __decorate([
-    nativeFunction(0xA0CF2FA4, 150, 'uint', 'int/int')
-], sceSasCore.prototype, "___sceSasSetKeyOff", null);
+    utils_1.nativeFunction(0xA0CF2FA4, 150, 'uint', 'int/int', { originalName: "__sceSasSetKeyOff" })
+], sceSasCore.prototype, "sceSasSetKeyOff", null);
 __decorate([
-    nativeFunction(0x76F01ACA, 150, 'uint', 'int/int')
-], sceSasCore.prototype, "___sceSasSetKeyOn", null);
+    utils_1.nativeFunction(0x76F01ACA, 150, 'uint', 'int/int', { originalName: "__sceSasSetKeyOn" })
+], sceSasCore.prototype, "sceSasSetKeyOn", null);
 __decorate([
-    nativeFunction(0x74AE582A, 150, 'uint', 'int/int')
-], sceSasCore.prototype, "___sceSasGetEnvelopeHeight", null);
+    utils_1.nativeFunction(0x74AE582A, 150, 'uint', 'int/int', { originalName: "__sceSasGetEnvelopeHeight" })
+], sceSasCore.prototype, "sceSasGetEnvelopeHeight", null);
 __decorate([
-    nativeFunction(0x5F9529F6, 150, 'uint', 'int/int/int')
-], sceSasCore.prototype, "___sceSasSetSL", null);
+    utils_1.nativeFunction(0x5F9529F6, 150, 'uint', 'int/int/int', { originalName: "__sceSasSetSL" })
+], sceSasCore.prototype, "sceSasSetSL", null);
 __decorate([
-    nativeFunction(0x787D04D5, 150, 'uint', 'int/int/int')
-], sceSasCore.prototype, "___sceSasSetPause", null);
+    utils_1.nativeFunction(0x787D04D5, 150, 'uint', 'int/int/int', { originalName: "__sceSasSetPause" })
+], sceSasCore.prototype, "sceSasSetPause", null);
 __decorate([
-    nativeFunction(0x2C8E6AB3, 150, 'uint', 'int')
-], sceSasCore.prototype, "___sceSasGetPauseFlag", null);
+    utils_1.nativeFunction(0x2C8E6AB3, 150, 'uint', 'int', { originalName: "__sceSasGetPauseFlag" })
+], sceSasCore.prototype, "sceSasGetPauseFlag", null);
 __decorate([
-    nativeFunction(0x07F58C24, 150, 'uint', 'int/void*')
-], sceSasCore.prototype, "___sceSasGetAllEnvelopeHeights", null);
+    utils_1.nativeFunction(0x07F58C24, 150, 'uint', 'int/void*', { originalName: "__sceSasGetAllEnvelopeHeights" })
+], sceSasCore.prototype, "sceSasGetAllEnvelopeHeights", null);
 __decorate([
-    nativeFunction(0xB7660A23, 150, 'uint', 'int/int/int')
-], sceSasCore.prototype, "___sceSasSetNoise", null);
+    utils_1.nativeFunction(0xB7660A23, 150, 'uint', 'int/int/int', { originalName: "__sceSasSetNoise" })
+], sceSasCore.prototype, "sceSasSetNoise", null);
 __decorate([
-    nativeFunction(0x440CA7D8, 150, 'uint', 'int/int/int/int/int/int')
-], sceSasCore.prototype, "___sceSasSetVolume", null);
+    utils_1.nativeFunction(0x440CA7D8, 150, 'uint', 'int/int/int/int/int/int', { originalName: "__sceSasSetVolume" })
+], sceSasCore.prototype, "sceSasSetVolume", null);
 __decorate([
-    nativeFunction(0xAD84D37F, 150, 'uint', 'int/int/int')
-], sceSasCore.prototype, "___sceSasSetPitch", null);
+    utils_1.nativeFunction(0xAD84D37F, 150, 'uint', 'int/int/int', { originalName: "__sceSasSetPitch" })
+], sceSasCore.prototype, "sceSasSetPitch", null);
 __decorate([
-    nativeFunction(0x267A6DD2, 150, 'uint', 'int/int/int')
-], sceSasCore.prototype, "___sceSasRevParam", null);
+    utils_1.nativeFunction(0x267A6DD2, 150, 'uint', 'int/int/int', { originalName: "__sceSasRevParam" })
+], sceSasCore.prototype, "sceSasRevParam", null);
 __decorate([
-    nativeFunction(0xCBCD4F79, 150, 'uint', 'int/int/int/int')
-], sceSasCore.prototype, "___sceSasSetSimpleADSR", null);
+    utils_1.nativeFunction(0xCBCD4F79, 150, 'uint', 'int/int/int/int', { originalName: "__sceSasSetSimpleADSR" })
+], sceSasCore.prototype, "sceSasSetSimpleADSR", null);
 exports.sceSasCore = sceSasCore;
 var SasCore = (function () {
     function SasCore() {
@@ -29268,8 +29267,15 @@ exports.NativeFunction = _cpu.NativeFunction;
 var createNativeFunction = _cpu.createNativeFunction;
 function nativeFunction(exportId, firmwareVersion, retval, args, options) {
     return function (target, key, descriptor) {
+        //console.log(target, key, descriptor);
         if (typeof target.natives == 'undefined')
             target.natives = [];
+        if (!descriptor) {
+            console.error("descriptor == null");
+            console.error(target);
+            console.error(key);
+            console.error(descriptor);
+        }
         target.natives.push(function (target) {
             return createNativeFunction(exportId, firmwareVersion, retval, args, target, descriptor.value, options, "" + target.constructor.name, key);
         });
@@ -32226,7 +32232,8 @@ describe('pspautotests', function () {
                                 });
                             });
                         }, function (err) {
-                            console.error(err);
+                            _console.log(file_prx);
+                            _console.error(err);
                             assert.fail(err);
                             return err;
                         });

@@ -251,7 +251,8 @@ describe('pspautotests', function () {
 								});
 							});
 						}, (err) => {
-							console.error(err);
+							_console.log(file_prx);
+							_console.error(err);
 							assert.fail(err);
 							return err;
 						});
