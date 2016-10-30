@@ -8526,7 +8526,13 @@ var MipsAstBuilder = (function (_super) {
     MipsAstBuilder.prototype.gpr = function (index) {
         if (index === 0)
             return new ANodeExprLValueVar('0');
-        return new ANodeExprLValueVar(cpu_core_1.CpuState.GPR_access('state', index));
+        if (cpu_core_1.CpuState.GPR_require_castToInt()) {
+            return new ANodeExprLValueVar(cpu_core_1.CpuState.GPR_access('state', index));
+        }
+        else {
+            // Fast access
+            return new ANodeExprLValueVar(cpu_core_1.CpuState.GPR_access(null, index));
+        }
     };
     MipsAstBuilder.prototype.gpr_f = function (index) {
         if (index === 0)
@@ -8556,7 +8562,12 @@ var MipsAstBuilder = (function (_super) {
         if (index == 0)
             return this.stm();
         //return this.stm(this.assign(this.gpr(index), expr));
-        return this.stm(this.assign(this.gpr(index), this.binop(expr, '|', this.imm32(0))));
+        if (cpu_core_1.CpuState.GPR_require_castToInt()) {
+            return this.stm(this.assign(this.gpr(index), this.binop(expr, '|', this.imm32(0))));
+        }
+        else {
+            return this.stm(this.assign(this.gpr(index), expr));
+        }
     };
     MipsAstBuilder.prototype.assignIC = function (expr) { return this.stm(this.assign(this.ic(), expr)); };
     MipsAstBuilder.prototype.assignFpr = function (index, expr) { return this.stm(this.assign(this.fpr(index), expr)); };
@@ -10230,6 +10241,9 @@ var CpuState = (function () {
             return "gpr[" + n + "]";
         return base + (".gpr[" + n + "]");
     };
+    CpuState.GPR_require_castToInt = function () {
+        return false;
+    };
     Object.defineProperty(CpuState.prototype, "V0", {
         /*
         gpr1 = 0;
@@ -10345,6 +10359,10 @@ var CpuState = (function () {
             //return base + `.gpr[${n}]`;
             if (base == null) return `gpr${n}`;
             return `${base}.gpr${n}`;
+        }
+    
+        static GPR_require_castToInt() {
+            return true;
         }
         */
         get: function () { return this.getGPR(2); },

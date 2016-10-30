@@ -280,7 +280,12 @@ export class MipsAstBuilder extends AstBuilder {
 
 	gpr(index: number): ANodeExprLValueVar {
 		if (index === 0) return new ANodeExprLValueVar('0');
-		return new ANodeExprLValueVar(CpuState.GPR_access('state', index));
+		if (CpuState.GPR_require_castToInt()) {
+			return new ANodeExprLValueVar(CpuState.GPR_access('state', index));
+		} else {
+			// Fast access
+			return new ANodeExprLValueVar(CpuState.GPR_access(null, index));
+		}
 	}
 
 	gpr_f(index: number): ANodeExprLValueVar {
@@ -312,7 +317,11 @@ export class MipsAstBuilder extends AstBuilder {
 	assignGpr(index: number, expr: ANodeStm) {
 		if (index == 0) return this.stm();
 		//return this.stm(this.assign(this.gpr(index), expr));
-		return this.stm(this.assign(this.gpr(index), this.binop(expr, '|', this.imm32(0))));
+		if (CpuState.GPR_require_castToInt()) {
+			return this.stm(this.assign(this.gpr(index), this.binop(expr, '|', this.imm32(0))));
+		} else {
+			return this.stm(this.assign(this.gpr(index), expr));
+		}
 	}
 
 	assignIC(expr: ANodeStm) { return this.stm(this.assign(this.ic(), expr)); }

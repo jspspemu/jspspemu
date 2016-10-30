@@ -511,6 +511,10 @@ export class CpuState {
 		return base + `.gpr[${n}]`;
 	}
 
+	static GPR_require_castToInt() {
+		return false;
+	}
+
 	/*
 	gpr1 = 0;
 	gpr2 = 0;
@@ -625,6 +629,10 @@ export class CpuState {
 		//return base + `.gpr[${n}]`;
 		if (base == null) return `gpr${n}`;
 		return `${base}.gpr${n}`;
+	}
+
+	static GPR_require_castToInt() {
+		return true;
 	}
 	*/
 
