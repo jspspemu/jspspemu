@@ -1,0 +1,29 @@
+[x] Init
+
+[x] sceFontNewLib primary params:
+[r]   Normal: OK (allocated 5644)
+
+[x] sceFontNewLib numFonts:
+[r]   -1: OK (allocated 8824)
+[r]   0: OK (allocated 3100)
+[r]   1: OK (allocated 3736)
+[r]   2: OK (allocated 4372)
+[r]   4: OK (allocated 5644)
+[r]   8: OK (allocated 8188)
+[r]   9: OK (allocated 8824)
+[r]   10: OK (allocated 8824)
+[r]   100: OK (allocated 8824)
+
+[x] sceFontNewLib callbacks:
+[x]   No callbacks set: Failed (00000000, 80460003)
+[x]   Alloc only: Failed (00000000, 80460003)
+[x]   Free only: Failed (00000000, 80460003)
+[r]   Alloc and free: OK (allocated 3100)
+[x]   Failing alloc: Failed (00000000, 80460001)
+
+[x] sceFontNewLib Twice
+[r]   Second lib: OK (allocated 5644)
+
+[x] FontLib data layout
+[r]   Params: 0
+[x]   unk1=0000, unk2=0000 hRes=128.000000, vRes=128.000000, internal count=18, altCharCode=005f, unk5=0000

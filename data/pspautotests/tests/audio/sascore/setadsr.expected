@@ -1,0 +1,263 @@
+[x] __sceSasSetADSRmode:
+
+[x] Basic usage:
+[x]   Normal: OK (0, 1, 1, 1)
+[x]   Voice -1: Failed (80420010)
+[x]   Voice 32: Failed (80420010)
+[x]   No update: OK (0, 1, 1, 1)
+[x]   Update -1: OK (0, 1, 1, 1)
+
+[x] Modes:
+[x] Mode ffffffff
+[x]   Attack mode ffffffff: Failed (80420013)
+[x]   Decay mode ffffffff: Failed (80420013)
+[x]   Sustain mode ffffffff: Failed (80420013)
+[x]   Release mode ffffffff: Failed (80420013)
+[x]   Update none mode ffffffff: OK (0, 1, 1, 1)
+[x] Mode 0
+[x]   Attack mode 0: OK (0, 1, 1, 1)
+[x]   Decay mode 0: Failed (80420013)
+[x]   Sustain mode 0: OK (0, 1, 0, 1)
+[x]   Release mode 0: Failed (80420013)
+[x]   Update none mode 0: OK (0, 1, 0, 1)
+[x] Mode 1
+[x]   Attack mode 1: Failed (80420013)
+[x]   Decay mode 1: OK (0, 1, 0, 1)
+[x]   Sustain mode 1: OK (0, 1, 1, 1)
+[x]   Release mode 1: OK (0, 1, 1, 1)
+[x]   Update none mode 1: OK (0, 1, 1, 1)
+[x] Mode 2
+[x]   Attack mode 2: OK (2, 1, 1, 1)
+[x]   Decay mode 2: Failed (80420013)
+[x]   Sustain mode 2: OK (2, 1, 2, 1)
+[x]   Release mode 2: Failed (80420013)
+[x]   Update none mode 2: OK (2, 1, 2, 1)
+[x] Mode 3
+[x]   Attack mode 3: Failed (80420013)
+[x]   Decay mode 3: OK (2, 3, 2, 1)
+[x]   Sustain mode 3: OK (2, 3, 3, 1)
+[x]   Release mode 3: OK (2, 3, 3, 3)
+[x]   Update none mode 3: OK (2, 3, 3, 3)
+[x] Mode 4
+[x]   Attack mode 4: OK (4, 3, 3, 3)
+[x]   Decay mode 4: Failed (80420013)
+[x]   Sustain mode 4: OK (4, 3, 4, 3)
+[x]   Release mode 4: Failed (80420013)
+[x]   Update none mode 4: OK (4, 3, 4, 3)
+[x] Mode 5
+[x]   Attack mode 5: Failed (80420013)
+[x]   Decay mode 5: OK (4, 5, 4, 3)
+[x]   Sustain mode 5: OK (4, 5, 5, 3)
+[x]   Release mode 5: OK (4, 5, 5, 5)
+[x]   Update none mode 5: OK (4, 5, 5, 5)
+[x] Mode 6
+[x]   Attack mode 6: Failed (80420013)
+[x]   Decay mode 6: Failed (80420013)
+[x]   Sustain mode 6: Failed (80420013)
+[x]   Release mode 6: Failed (80420013)
+[x]   Update none mode 6: OK (4, 5, 5, 5)
+[x] Mode 7
+[x]   Attack mode 7: Failed (80420013)
+[x]   Decay mode 7: Failed (80420013)
+[x]   Sustain mode 7: Failed (80420013)
+[x]   Release mode 7: Failed (80420013)
+[x]   Update none mode 7: OK (4, 5, 5, 5)
+[x] Mode 1001
+[x]   Attack mode 1001: Failed (80420013)
+[x]   Decay mode 1001: Failed (80420013)
+[x]   Sustain mode 1001: Failed (80420013)
+[x]   Release mode 1001: Failed (80420013)
+[x]   Update none mode 1001: OK (4, 5, 5, 5)
+[x] Mode 10001
+[x]   Attack mode 10001: Failed (80420013)
+[x]   Decay mode 10001: Failed (80420013)
+[x]   Sustain mode 10001: Failed (80420013)
+[x]   Release mode 10001: Failed (80420013)
+[x]   Update none mode 10001: OK (4, 5, 5, 5)
+[x] Mode 40000001
+[x]   Attack mode 40000001: Failed (80420013)
+[x]   Decay mode 40000001: Failed (80420013)
+[x]   Sustain mode 40000001: Failed (80420013)
+[x]   Release mode 40000001: Failed (80420013)
+[x]   Update none mode 40000001: OK (4, 5, 5, 5)
+[x] Mode 80000001
+[x]   Attack mode 80000001: Failed (80420013)
+[x]   Decay mode 80000001: OK (4, 1, 5, 5)
+[x]   Sustain mode 80000001: OK (4, 1, 1, 5)
+[x]   Release mode 80000001: OK (4, 1, 1, 1)
+[x]   Update none mode 80000001: OK (4, 1, 1, 1)
+[x]   All to direct at once: Failed (80420013)
+
+[x] __sceSasSetADSR:
+
+[x] Basic usage:
+[x]   Normal: OK (1000, 1000, 1000, 1000)
+[x]   Voice -1: Failed (80420010)
+[x]   Voice 32: Failed (80420010)
+[x]   No update: OK (1000, 1000, 1000, 1000)
+[x]   Update -1: OK (1000, 1000, 1000, 1000)
+
+[x] Values:
+[x]   Value ffffffff: Failed (80420019)
+[x]   Value 0: OK (0, 0, 0, 0)
+[x]   Value 1: OK (1, 1, 1, 1)
+[x]   Value 2: OK (2, 2, 2, 2)
+[x]   Value 3: OK (3, 3, 3, 3)
+[x]   Value 7fffffff: OK (7fffffff, 7fffffff, 7fffffff, 7fffffff)
+[x]   Value 80000000: Failed (80420019)
+[x]   Update none to invalid value: OK (7fffffff, 7fffffff, 7fffffff, 7fffffff)
+[x]   Update invalid to invalid value: OK (7fffffff, 7fffffff, 7fffffff, 7fffffff)
+
+[x] __sceSasSetSimpleADSR:
+
+[x] Basic usage:
+[x]   Normal: OK (0, 3, 0, 1 - 1c000000, 7fffffff, 1c000000, 10000000 - 4000000)
+[x]   Voice -1: Failed (80420010)
+[x]   Voice 32: Failed (80420010)
+[x]   Unknown value: Failed (80420013)
+
+[x] Attack:
+[x] * Attack Type 0
+[x]   Attack rate 1: OK (0, 3, 0, 1 - 18000000, 7fffffff, 1c000000, 10000000 - 4000000)
+[x]   Attack rate 2: OK (0, 3, 0, 1 - 14000000, 7fffffff, 1c000000, 10000000 - 4000000)
+[x]   Attack rate 60: OK (0, 3, 0, 1 - 1c, 7fffffff, 1c000000, 10000000 - 4000000)
+[x]   Attack rate 69: OK (0, 3, 0, 1 - 6, 7fffffff, 1c000000, 10000000 - 4000000)
+[x]   Attack rate 6a: OK (0, 3, 0, 1 - 5, 7fffffff, 1c000000, 10000000 - 4000000)
+[x]   Attack rate 6b: OK (0, 3, 0, 1 - 4, 7fffffff, 1c000000, 10000000 - 4000000)
+[x]   Attack rate 6c: OK (0, 3, 0, 1 - 3, 7fffffff, 1c000000, 10000000 - 4000000)
+[x]   Attack rate 6f: OK (0, 3, 0, 1 - 2, 7fffffff, 1c000000, 10000000 - 4000000)
+[x]   Attack rate 70: OK (0, 3, 0, 1 - 1, 7fffffff, 1c000000, 10000000 - 4000000)
+[x]   Attack rate 7e: OK (0, 3, 0, 1 - 1, 7fffffff, 1c000000, 10000000 - 4000000)
+[x]   Attack rate 7f: OK (0, 3, 0, 1 - 0, 7fffffff, 1c000000, 10000000 - 4000000)
+[x] * Attack Type 1
+[x]   Attack rate 1: OK (2, 3, 0, 1 - 18000000, 7fffffff, 1c000000, 10000000 - 4000000)
+[x]   Attack rate 2: OK (2, 3, 0, 1 - 14000000, 7fffffff, 1c000000, 10000000 - 4000000)
+[x]   Attack rate 60: OK (2, 3, 0, 1 - 1c, 7fffffff, 1c000000, 10000000 - 4000000)
+[x]   Attack rate 69: OK (2, 3, 0, 1 - 6, 7fffffff, 1c000000, 10000000 - 4000000)
+[x]   Attack rate 6a: OK (2, 3, 0, 1 - 5, 7fffffff, 1c000000, 10000000 - 4000000)
+[x]   Attack rate 6b: OK (2, 3, 0, 1 - 4, 7fffffff, 1c000000, 10000000 - 4000000)
+[x]   Attack rate 6c: OK (2, 3, 0, 1 - 3, 7fffffff, 1c000000, 10000000 - 4000000)
+[x]   Attack rate 6f: OK (2, 3, 0, 1 - 2, 7fffffff, 1c000000, 10000000 - 4000000)
+[x]   Attack rate 70: OK (2, 3, 0, 1 - 1, 7fffffff, 1c000000, 10000000 - 4000000)
+[x]   Attack rate 7e: OK (2, 3, 0, 1 - 1, 7fffffff, 1c000000, 10000000 - 4000000)
+[x]   Attack rate 7f: OK (2, 3, 0, 1 - 0, 7fffffff, 1c000000, 10000000 - 4000000)
+
+[x] Decay:
+[x]   Decay rate 0x1: OK (0, 3, 0, 1 - 1c000000, 40000000, 1c000000, 10000000 - 4000000)
+[x]   Decay rate 0x2: OK (0, 3, 0, 1 - 1c000000, 20000000, 1c000000, 10000000 - 4000000)
+[x]   Decay rate 0xd: OK (0, 3, 0, 1 - 1c000000, 40000, 1c000000, 10000000 - 4000000)
+[x]   Decay rate 0xe: OK (0, 3, 0, 1 - 1c000000, 20000, 1c000000, 10000000 - 4000000)
+[x]   Decay rate 0xf: OK (0, 3, 0, 1 - 1c000000, 10000, 1c000000, 10000000 - 4000000)
+
+[x] Sustain:
+[x] * Sustain Type 0
+[x]   Sustain rate 1: OK (0, 3, 0, 1 - 1c000000, 7fffffff, 18000000, 10000000 - 4000000)
+[x]   Sustain rate 2: OK (0, 3, 0, 1 - 1c000000, 7fffffff, 14000000, 10000000 - 4000000)
+[x]   Sustain rate 60: OK (0, 3, 0, 1 - 1c000000, 7fffffff, 1c, 10000000 - 4000000)
+[x]   Sustain rate 69: OK (0, 3, 0, 1 - 1c000000, 7fffffff, 6, 10000000 - 4000000)
+[x]   Sustain rate 6a: OK (0, 3, 0, 1 - 1c000000, 7fffffff, 5, 10000000 - 4000000)
+[x]   Sustain rate 6b: OK (0, 3, 0, 1 - 1c000000, 7fffffff, 4, 10000000 - 4000000)
+[x]   Sustain rate 6c: OK (0, 3, 0, 1 - 1c000000, 7fffffff, 3, 10000000 - 4000000)
+[x]   Sustain rate 6f: OK (0, 3, 0, 1 - 1c000000, 7fffffff, 2, 10000000 - 4000000)
+[x]   Sustain rate 70: OK (0, 3, 0, 1 - 1c000000, 7fffffff, 1, 10000000 - 4000000)
+[x]   Sustain rate 7e: OK (0, 3, 0, 1 - 1c000000, 7fffffff, 1, 10000000 - 4000000)
+[x]   Sustain rate 7f: OK (0, 3, 0, 1 - 1c000000, 7fffffff, 0, 10000000 - 4000000)
+[x] * Sustain Type 1
+[x]   Sustain rate 1: OK (0, 3, 1, 1 - 1c000000, 7fffffff, 18000000, 10000000 - 4000000)
+[x]   Sustain rate 2: OK (0, 3, 1, 1 - 1c000000, 7fffffff, 14000000, 10000000 - 4000000)
+[x]   Sustain rate 60: OK (0, 3, 1, 1 - 1c000000, 7fffffff, 1c, 10000000 - 4000000)
+[x]   Sustain rate 69: OK (0, 3, 1, 1 - 1c000000, 7fffffff, 6, 10000000 - 4000000)
+[x]   Sustain rate 6a: OK (0, 3, 1, 1 - 1c000000, 7fffffff, 5, 10000000 - 4000000)
+[x]   Sustain rate 6b: OK (0, 3, 1, 1 - 1c000000, 7fffffff, 4, 10000000 - 4000000)
+[x]   Sustain rate 6c: OK (0, 3, 1, 1 - 1c000000, 7fffffff, 3, 10000000 - 4000000)
+[x]   Sustain rate 6f: OK (0, 3, 1, 1 - 1c000000, 7fffffff, 2, 10000000 - 4000000)
+[x]   Sustain rate 70: OK (0, 3, 1, 1 - 1c000000, 7fffffff, 1, 10000000 - 4000000)
+[x]   Sustain rate 7e: OK (0, 3, 1, 1 - 1c000000, 7fffffff, 1, 10000000 - 4000000)
+[x]   Sustain rate 7f: OK (0, 3, 1, 1 - 1c000000, 7fffffff, 0, 10000000 - 4000000)
+[x] * Sustain Type 2
+[x]   Sustain rate 1: OK (0, 3, 2, 1 - 1c000000, 7fffffff, 18000000, 10000000 - 4000000)
+[x]   Sustain rate 2: OK (0, 3, 2, 1 - 1c000000, 7fffffff, 14000000, 10000000 - 4000000)
+[x]   Sustain rate 60: OK (0, 3, 2, 1 - 1c000000, 7fffffff, 1c, 10000000 - 4000000)
+[x]   Sustain rate 69: OK (0, 3, 2, 1 - 1c000000, 7fffffff, 6, 10000000 - 4000000)
+[x]   Sustain rate 6a: OK (0, 3, 2, 1 - 1c000000, 7fffffff, 5, 10000000 - 4000000)
+[x]   Sustain rate 6b: OK (0, 3, 2, 1 - 1c000000, 7fffffff, 4, 10000000 - 4000000)
+[x]   Sustain rate 6c: OK (0, 3, 2, 1 - 1c000000, 7fffffff, 3, 10000000 - 4000000)
+[x]   Sustain rate 6f: OK (0, 3, 2, 1 - 1c000000, 7fffffff, 2, 10000000 - 4000000)
+[x]   Sustain rate 70: OK (0, 3, 2, 1 - 1c000000, 7fffffff, 1, 10000000 - 4000000)
+[x]   Sustain rate 7e: OK (0, 3, 2, 1 - 1c000000, 7fffffff, 1, 10000000 - 4000000)
+[x]   Sustain rate 7f: OK (0, 3, 2, 1 - 1c000000, 7fffffff, 0, 10000000 - 4000000)
+[x] * Sustain Type 3
+[x]   Sustain rate 1: OK (0, 3, 3, 1 - 1c000000, 7fffffff, 6000000, 10000000 - 4000000)
+[x]   Sustain rate 2: OK (0, 3, 3, 1 - 1c000000, 7fffffff, 5000000, 10000000 - 4000000)
+[x]   Sustain rate 60: OK (0, 3, 3, 1 - 1c000000, 7fffffff, 7, 10000000 - 4000000)
+[x]   Sustain rate 69: OK (0, 3, 3, 1 - 1c000000, 7fffffff, 1, 10000000 - 4000000)
+[x]   Sustain rate 6a: OK (0, 3, 3, 1 - 1c000000, 7fffffff, 1, 10000000 - 4000000)
+[x]   Sustain rate 6b: OK (0, 3, 3, 1 - 1c000000, 7fffffff, 1, 10000000 - 4000000)
+[x]   Sustain rate 6c: OK (0, 3, 3, 1 - 1c000000, 7fffffff, 1, 10000000 - 4000000)
+[x]   Sustain rate 6f: OK (0, 3, 3, 1 - 1c000000, 7fffffff, 1, 10000000 - 4000000)
+[x]   Sustain rate 70: OK (0, 3, 3, 1 - 1c000000, 7fffffff, 1, 10000000 - 4000000)
+[x]   Sustain rate 7e: OK (0, 3, 3, 1 - 1c000000, 7fffffff, 1, 10000000 - 4000000)
+[x]   Sustain rate 7f: OK (0, 3, 3, 1 - 1c000000, 7fffffff, 0, 10000000 - 4000000)
+
+[x] Sustain levels:
+[x]   Sustain level 0x1: OK (0, 3, 0, 1 - 1c000000, 7fffffff, 1c000000, 10000000 - 8000000)
+[x]   Sustain level 0x2: OK (0, 3, 0, 1 - 1c000000, 7fffffff, 1c000000, 10000000 - c000000)
+[x]   Sustain level 0xd: OK (0, 3, 0, 1 - 1c000000, 7fffffff, 1c000000, 10000000 - 38000000)
+[x]   Sustain level 0xe: OK (0, 3, 0, 1 - 1c000000, 7fffffff, 1c000000, 10000000 - 3c000000)
+[x]   Sustain level 0xf: OK (0, 3, 0, 1 - 1c000000, 7fffffff, 1c000000, 10000000 - 40000000)
+
+[x] Release:
+[x] * Release Type 0
+[x]   Release rate 1: OK (0, 3, 0, 1 - 1c000000, 7fffffff, 1c000000, 8000000 - 4000000)
+[x]   Release rate 2: OK (0, 3, 0, 1 - 1c000000, 7fffffff, 1c000000, 4000000 - 4000000)
+[x]   Release rate 9: OK (0, 3, 0, 1 - 1c000000, 7fffffff, 1c000000, 80000 - 4000000)
+[x]   Release rate a: OK (0, 3, 0, 1 - 1c000000, 7fffffff, 1c000000, 40000 - 4000000)
+[x]   Release rate b: OK (0, 3, 0, 1 - 1c000000, 7fffffff, 1c000000, 20000 - 4000000)
+[x]   Release rate c: OK (0, 3, 0, 1 - 1c000000, 7fffffff, 1c000000, 10000 - 4000000)
+[x]   Release rate f: OK (0, 3, 0, 1 - 1c000000, 7fffffff, 1c000000, 2000 - 4000000)
+[x]   Release rate 10: OK (0, 3, 0, 1 - 1c000000, 7fffffff, 1c000000, 1000 - 4000000)
+[x]   Release rate 1a: OK (0, 3, 0, 1 - 1c000000, 7fffffff, 1c000000, 4 - 4000000)
+[x]   Release rate 1b: OK (0, 3, 0, 1 - 1c000000, 7fffffff, 1c000000, 2 - 4000000)
+[x]   Release rate 1c: OK (0, 3, 0, 1 - 1c000000, 7fffffff, 1c000000, 1 - 4000000)
+[x]   Release rate 1d: OK (0, 3, 0, 1 - 1c000000, 7fffffff, 1c000000, 1 - 4000000)
+[x]   Release rate 1e: OK (0, 3, 0, 1 - 1c000000, 7fffffff, 1c000000, 40000000 - 4000000)
+[x]   Release rate 1f: OK (0, 3, 0, 1 - 1c000000, 7fffffff, 1c000000, 0 - 4000000)
+[x] * Release Type 1
+[x]   Release rate 1: OK (0, 3, 0, 3 - 1c000000, 7fffffff, 1c000000, 40000000 - 4000000)
+[x]   Release rate 2: OK (0, 3, 0, 3 - 1c000000, 7fffffff, 1c000000, 20000000 - 4000000)
+[x]   Release rate 9: OK (0, 3, 0, 3 - 1c000000, 7fffffff, 1c000000, 400000 - 4000000)
+[x]   Release rate a: OK (0, 3, 0, 3 - 1c000000, 7fffffff, 1c000000, 200000 - 4000000)
+[x]   Release rate b: OK (0, 3, 0, 3 - 1c000000, 7fffffff, 1c000000, 100000 - 4000000)
+[x]   Release rate c: OK (0, 3, 0, 3 - 1c000000, 7fffffff, 1c000000, 80000 - 4000000)
+[x]   Release rate f: OK (0, 3, 0, 3 - 1c000000, 7fffffff, 1c000000, 10000 - 4000000)
+[x]   Release rate 10: OK (0, 3, 0, 3 - 1c000000, 7fffffff, 1c000000, 8000 - 4000000)
+[x]   Release rate 1a: OK (0, 3, 0, 3 - 1c000000, 7fffffff, 1c000000, 20 - 4000000)
+[x]   Release rate 1b: OK (0, 3, 0, 3 - 1c000000, 7fffffff, 1c000000, 10 - 4000000)
+[x]   Release rate 1c: OK (0, 3, 0, 3 - 1c000000, 7fffffff, 1c000000, 8 - 4000000)
+[x]   Release rate 1d: OK (0, 3, 0, 3 - 1c000000, 7fffffff, 1c000000, 4 - 4000000)
+[x]   Release rate 1e: OK (0, 3, 0, 3 - 1c000000, 7fffffff, 1c000000, 2 - 4000000)
+[x]   Release rate 1f: OK (0, 3, 0, 3 - 1c000000, 7fffffff, 1c000000, 0 - 4000000)
+[x]   ARG: OK (2, 3, 2, 3 - 1c000000, 7fffffff, 0, 7fffffff - 40000000)
+
+[x] Before key on:
+[r] Core: 00000000
+[x] Height change: 00000000 -> 00060000
+
+[x] After key on:
+[r] Core: 00000000
+[x] Height change: 00000000 -> 00060000
+
+[x] While playing:
+[r] Core: 00000000
+[x] Height change: 00060000 -> 000e0000
+[x] Set mode: 00000000
+[x] Set rate: 00000000
+[r] Core: 00000000
+[x] Height change: 000e0000 -> 001e0000
+
+[x] Before key on:
+[x] keyon: 00000000
+[r] Core: 00000000
+[x] Height change: 00000000 -> 00060000
+[r] Core: 00000000
+[x] Height change: 00060000 -> 000e0000

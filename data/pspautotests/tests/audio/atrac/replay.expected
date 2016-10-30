@@ -1,0 +1,625 @@
+filesize = 0x0000b500
+at3size = 0x0000b508
+Audio modules: OK
+at3: 08835C40-08841148
+Header: RIFF
+sceAtracSetDataAndGetID: OK, size=00005a80
+0=sceAtracGetBitrate: 64
+0=sceAtracGetChannel: 2
+sceAtracSetLoopNum: -2140995551
+sceAtracGetMaxSample: 00000000, 2048
+sceAudioChReserve: 00000000
+sceAtracGetSecondBufferInfo: 80630022, 0, 0
+0=sceAtracGetStreamDataInfo: 08835cc8, 00000150, 00005a80
+0=sceAtracDecodeData: samples: 00000690, end: 00000000, remainFrame: 59
+sceAudioOutputBlocking
+
+0=sceAtracAddStreamData: 00000150
+0=sceAtracGetStreamDataInfo: 08835e18, 00000178, 00005bd0
+0=sceAtracDecodeData: samples: 00000800, end: 00000000, remainFrame: 59
+sceAudioOutputBlocking
+
+0=sceAtracAddStreamData: 00000178
+0=sceAtracGetStreamDataInfo: 08835f90, 00000178, 00005d48
+0=sceAtracDecodeData: samples: 00000800, end: 00000000, remainFrame: 59
+sceAudioOutputBlocking
+
+0=sceAtracAddStreamData: 00000178
+0=sceAtracGetStreamDataInfo: 08836108, 00000178, 00005ec0
+0=sceAtracDecodeData: samples: 00000800, end: 00000000, remainFrame: 59
+sceAudioOutputBlocking
+
+0=sceAtracAddStreamData: 00000178
+0=sceAtracGetStreamDataInfo: 08836280, 00000178, 00006038
+0=sceAtracDecodeData: samples: 00000800, end: 00000000, remainFrame: 59
+sceAudioOutputBlocking
+
+0=sceAtracAddStreamData: 00000178
+0=sceAtracGetStreamDataInfo: 088363f8, 00000178, 000061b0
+0=sceAtracDecodeData: samples: 00000800, end: 00000000, remainFrame: 59
+sceAudioOutputBlocking
+
+0=sceAtracAddStreamData: 00000178
+0=sceAtracGetStreamDataInfo: 08836570, 00000178, 00006328
+0=sceAtracDecodeData: samples: 00000800, end: 00000000, remainFrame: 59
+sceAudioOutputBlocking
+
+0=sceAtracAddStreamData: 00000178
+0=sceAtracGetStreamDataInfo: 088366e8, 00000178, 000064a0
+0=sceAtracDecodeData: samples: 00000800, end: 00000000, remainFrame: 59
+sceAudioOutputBlocking
+
+0=sceAtracAddStreamData: 00000178
+0=sceAtracGetStreamDataInfo: 08836860, 00000178, 00006618
+0=sceAtracDecodeData: samples: 00000800, end: 00000000, remainFrame: 59
+sceAudioOutputBlocking
+
+0=sceAtracAddStreamData: 00000178
+0=sceAtracGetStreamDataInfo: 088369d8, 00000178, 00006790
+0=sceAtracDecodeData: samples: 00000800, end: 00000000, remainFrame: 59
+sceAudioOutputBlocking
+
+0=sceAtracAddStreamData: 00000178
+0=sceAtracGetStreamDataInfo: 08836b50, 00000178, 00006908
+0=sceAtracDecodeData: samples: 00000800, end: 00000000, remainFrame: 59
+sceAudioOutputBlocking
+
+0=sceAtracAddStreamData: 00000178
+0=sceAtracGetStreamDataInfo: 08836cc8, 00000178, 00006a80
+0=sceAtracDecodeData: samples: 00000800, end: 00000000, remainFrame: 59
+sceAudioOutputBlocking
+
+0=sceAtracAddStreamData: 00000178
+0=sceAtracGetStreamDataInfo: 08836e40, 00000178, 00006bf8
+0=sceAtracDecodeData: samples: 00000800, end: 00000000, remainFrame: 59
+sceAudioOutputBlocking
+
+0=sceAtracAddStreamData: 00000178
+0=sceAtracGetStreamDataInfo: 08836fb8, 00000178, 00006d70
+0=sceAtracDecodeData: samples: 00000800, end: 00000000, remainFrame: 59
+sceAudioOutputBlocking
+
+0=sceAtracAddStreamData: 00000178
+0=sceAtracGetStreamDataInfo: 08837130, 00000178, 00006ee8
+0=sceAtracDecodeData: samples: 00000800, end: 00000000, remainFrame: 59
+sceAudioOutputBlocking
+
+0=sceAtracAddStreamData: 00000178
+0=sceAtracGetStreamDataInfo: 088372a8, 00000178, 00007060
+0=sceAtracDecodeData: samples: 00000800, end: 00000000, remainFrame: 59
+sceAudioOutputBlocking
+
+0=sceAtracAddStreamData: 00000178
+0=sceAtracGetStreamDataInfo: 08837420, 00000178, 000071d8
+0=sceAtracDecodeData: samples: 00000800, end: 00000000, remainFrame: 59
+sceAudioOutputBlocking
+
+0=sceAtracAddStreamData: 00000178
+0=sceAtracGetStreamDataInfo: 08837598, 00000178, 00007350
+0=sceAtracDecodeData: samples: 00000800, end: 00000000, remainFrame: 59
+sceAudioOutputBlocking
+
+0=sceAtracAddStreamData: 00000178
+0=sceAtracGetStreamDataInfo: 08837710, 00000178, 000074c8
+0=sceAtracDecodeData: samples: 00000800, end: 00000000, remainFrame: 59
+sceAudioOutputBlocking
+
+0=sceAtracAddStreamData: 00000178
+0=sceAtracGetStreamDataInfo: 08837888, 00000178, 00007640
+0=sceAtracDecodeData: samples: 00000800, end: 00000000, remainFrame: 59
+sceAudioOutputBlocking
+
+0=sceAtracAddStreamData: 00000178
+0=sceAtracGetStreamDataInfo: 08837a00, 00000178, 000077b8
+0=sceAtracDecodeData: samples: 00000800, end: 00000000, remainFrame: 59
+sceAudioOutputBlocking
+
+0=sceAtracAddStreamData: 00000178
+0=sceAtracGetStreamDataInfo: 08837b78, 00000178, 00007930
+0=sceAtracDecodeData: samples: 00000800, end: 00000000, remainFrame: 59
+sceAudioOutputBlocking
+
+0=sceAtracAddStreamData: 00000178
+0=sceAtracGetStreamDataInfo: 08837cf0, 00000178, 00007aa8
+0=sceAtracDecodeData: samples: 00000800, end: 00000000, remainFrame: 59
+sceAudioOutputBlocking
+
+0=sceAtracAddStreamData: 00000178
+0=sceAtracGetStreamDataInfo: 08837e68, 00000178, 00007c20
+0=sceAtracDecodeData: samples: 00000800, end: 00000000, remainFrame: 59
+sceAudioOutputBlocking
+
+0=sceAtracAddStreamData: 00000178
+0=sceAtracGetStreamDataInfo: 08837fe0, 00000178, 00007d98
+0=sceAtracDecodeData: samples: 00000800, end: 00000000, remainFrame: 59
+sceAudioOutputBlocking
+
+0=sceAtracAddStreamData: 00000178
+0=sceAtracGetStreamDataInfo: 08838158, 00000178, 00007f10
+0=sceAtracDecodeData: samples: 00000800, end: 00000000, remainFrame: 59
+sceAudioOutputBlocking
+
+0=sceAtracAddStreamData: 00000178
+0=sceAtracGetStreamDataInfo: 088382d0, 00000178, 00008088
+0=sceAtracDecodeData: samples: 00000800, end: 00000000, remainFrame: 59
+sceAudioOutputBlocking
+
+0=sceAtracAddStreamData: 00000178
+0=sceAtracGetStreamDataInfo: 08838448, 00000178, 00008200
+0=sceAtracDecodeData: samples: 00000800, end: 00000000, remainFrame: 59
+sceAudioOutputBlocking
+
+0=sceAtracAddStreamData: 00000178
+0=sceAtracGetStreamDataInfo: 088385c0, 00000178, 00008378
+0=sceAtracDecodeData: samples: 00000800, end: 00000000, remainFrame: 59
+sceAudioOutputBlocking
+
+0=sceAtracAddStreamData: 00000178
+0=sceAtracGetStreamDataInfo: 08838738, 00000178, 000084f0
+0=sceAtracDecodeData: samples: 00000800, end: 00000000, remainFrame: 59
+sceAudioOutputBlocking
+
+0=sceAtracAddStreamData: 00000178
+0=sceAtracGetStreamDataInfo: 088388b0, 00000178, 00008668
+0=sceAtracDecodeData: samples: 00000800, end: 00000000, remainFrame: 59
+sceAudioOutputBlocking
+
+0=sceAtracAddStreamData: 00000178
+0=sceAtracGetStreamDataInfo: 08838a28, 00000178, 000087e0
+0=sceAtracDecodeData: samples: 00000800, end: 00000000, remainFrame: 59
+sceAudioOutputBlocking
+
+0=sceAtracAddStreamData: 00000178
+0=sceAtracGetStreamDataInfo: 08838ba0, 00000178, 00008958
+0=sceAtracDecodeData: samples: 00000800, end: 00000000, remainFrame: 59
+sceAudioOutputBlocking
+
+0=sceAtracAddStreamData: 00000178
+0=sceAtracGetStreamDataInfo: 08838d18, 00000178, 00008ad0
+0=sceAtracDecodeData: samples: 00000800, end: 00000000, remainFrame: 59
+sceAudioOutputBlocking
+
+0=sceAtracAddStreamData: 00000178
+0=sceAtracGetStreamDataInfo: 08838e90, 00000178, 00008c48
+0=sceAtracDecodeData: samples: 00000800, end: 00000000, remainFrame: 59
+sceAudioOutputBlocking
+
+0=sceAtracAddStreamData: 00000178
+0=sceAtracGetStreamDataInfo: 08839008, 00000178, 00008dc0
+0=sceAtracDecodeData: samples: 00000800, end: 00000000, remainFrame: 59
+sceAudioOutputBlocking
+
+0=sceAtracAddStreamData: 00000178
+0=sceAtracGetStreamDataInfo: 08839180, 00000178, 00008f38
+0=sceAtracDecodeData: samples: 00000800, end: 00000000, remainFrame: 59
+sceAudioOutputBlocking
+
+0=sceAtracAddStreamData: 00000178
+0=sceAtracGetStreamDataInfo: 088392f8, 00000178, 000090b0
+0=sceAtracDecodeData: samples: 00000800, end: 00000000, remainFrame: 59
+sceAudioOutputBlocking
+
+0=sceAtracAddStreamData: 00000178
+0=sceAtracGetStreamDataInfo: 08839470, 00000178, 00009228
+0=sceAtracDecodeData: samples: 00000800, end: 00000000, remainFrame: 59
+sceAudioOutputBlocking
+
+0=sceAtracAddStreamData: 00000178
+0=sceAtracGetStreamDataInfo: 088395e8, 00000178, 000093a0
+0=sceAtracDecodeData: samples: 00000800, end: 00000000, remainFrame: 59
+sceAudioOutputBlocking
+
+0=sceAtracAddStreamData: 00000178
+0=sceAtracGetStreamDataInfo: 08839760, 00000178, 00009518
+0=sceAtracDecodeData: samples: 00000800, end: 00000000, remainFrame: 59
+sceAudioOutputBlocking
+
+0=sceAtracAddStreamData: 00000178
+0=sceAtracGetStreamDataInfo: 088398d8, 00000178, 00009690
+0=sceAtracDecodeData: samples: 00000800, end: 00000000, remainFrame: 59
+sceAudioOutputBlocking
+
+0=sceAtracAddStreamData: 00000178
+0=sceAtracGetStreamDataInfo: 08839a50, 00000178, 00009808
+0=sceAtracDecodeData: samples: 00000800, end: 00000000, remainFrame: 59
+sceAudioOutputBlocking
+
+0=sceAtracAddStreamData: 00000178
+0=sceAtracGetStreamDataInfo: 08839bc8, 00000178, 00009980
+0=sceAtracDecodeData: samples: 00000800, end: 00000000, remainFrame: 59
+sceAudioOutputBlocking
+
+0=sceAtracAddStreamData: 00000178
+0=sceAtracGetStreamDataInfo: 08839d40, 00000178, 00009af8
+0=sceAtracDecodeData: samples: 00000800, end: 00000000, remainFrame: 59
+sceAudioOutputBlocking
+
+0=sceAtracAddStreamData: 00000178
+0=sceAtracGetStreamDataInfo: 08839eb8, 00000178, 00009c70
+0=sceAtracDecodeData: samples: 00000800, end: 00000000, remainFrame: 59
+sceAudioOutputBlocking
+
+0=sceAtracAddStreamData: 00000178
+0=sceAtracGetStreamDataInfo: 0883a030, 00000178, 00009de8
+0=sceAtracDecodeData: samples: 00000800, end: 00000000, remainFrame: 59
+sceAudioOutputBlocking
+
+0=sceAtracAddStreamData: 00000178
+0=sceAtracGetStreamDataInfo: 0883a1a8, 00000178, 00009f60
+0=sceAtracDecodeData: samples: 00000800, end: 00000000, remainFrame: 59
+sceAudioOutputBlocking
+
+0=sceAtracAddStreamData: 00000178
+0=sceAtracGetStreamDataInfo: 0883a320, 00000178, 0000a0d8
+0=sceAtracDecodeData: samples: 00000800, end: 00000000, remainFrame: 59
+sceAudioOutputBlocking
+
+0=sceAtracAddStreamData: 00000178
+0=sceAtracGetStreamDataInfo: 0883a498, 00000178, 0000a250
+0=sceAtracDecodeData: samples: 00000800, end: 00000000, remainFrame: 59
+sceAudioOutputBlocking
+
+0=sceAtracAddStreamData: 00000178
+0=sceAtracGetStreamDataInfo: 0883a610, 00000178, 0000a3c8
+0=sceAtracDecodeData: samples: 00000800, end: 00000000, remainFrame: 59
+sceAudioOutputBlocking
+
+0=sceAtracAddStreamData: 00000178
+0=sceAtracGetStreamDataInfo: 0883a788, 00000178, 0000a540
+0=sceAtracDecodeData: samples: 00000800, end: 00000000, remainFrame: 59
+sceAudioOutputBlocking
+
+0=sceAtracAddStreamData: 00000178
+0=sceAtracGetStreamDataInfo: 0883a900, 00000178, 0000a6b8
+0=sceAtracDecodeData: samples: 00000800, end: 00000000, remainFrame: 59
+sceAudioOutputBlocking
+
+0=sceAtracAddStreamData: 00000178
+0=sceAtracGetStreamDataInfo: 0883aa78, 00000178, 0000a830
+0=sceAtracDecodeData: samples: 00000800, end: 00000000, remainFrame: 59
+sceAudioOutputBlocking
+
+0=sceAtracAddStreamData: 00000178
+0=sceAtracGetStreamDataInfo: 0883abf0, 00000178, 0000a9a8
+0=sceAtracDecodeData: samples: 00000800, end: 00000000, remainFrame: 59
+sceAudioOutputBlocking
+
+0=sceAtracAddStreamData: 00000178
+0=sceAtracGetStreamDataInfo: 0883ad68, 00000178, 0000ab20
+0=sceAtracDecodeData: samples: 00000800, end: 00000000, remainFrame: 59
+sceAudioOutputBlocking
+
+0=sceAtracAddStreamData: 00000178
+0=sceAtracGetStreamDataInfo: 0883aee0, 00000178, 0000ac98
+0=sceAtracDecodeData: samples: 00000800, end: 00000000, remainFrame: 59
+sceAudioOutputBlocking
+
+0=sceAtracAddStreamData: 00000178
+0=sceAtracGetStreamDataInfo: 0883b058, 00000178, 0000ae10
+0=sceAtracDecodeData: samples: 00000800, end: 00000000, remainFrame: 59
+sceAudioOutputBlocking
+
+0=sceAtracAddStreamData: 00000178
+0=sceAtracGetStreamDataInfo: 0883b1d0, 00000178, 0000af88
+0=sceAtracDecodeData: samples: 00000800, end: 00000000, remainFrame: 59
+sceAudioOutputBlocking
+
+0=sceAtracAddStreamData: 00000178
+0=sceAtracGetStreamDataInfo: 0883b348, 00000178, 0000b100
+0=sceAtracDecodeData: samples: 00000800, end: 00000000, remainFrame: 59
+sceAudioOutputBlocking
+
+0=sceAtracAddStreamData: 00000178
+0=sceAtracGetStreamDataInfo: 0883b4c0, 00000118, 0000b278
+0=sceAtracDecodeData: samples: 00000800, end: 00000000, remainFrame: 59
+sceAudioOutputBlocking
+
+0=sceAtracAddStreamData: 00000118
+0=sceAtracGetStreamDataInfo: 08835c40, 00000178, 0000b390
+0=sceAtracDecodeData: samples: 00000800, end: 00000000, remainFrame: 59
+sceAudioOutputBlocking
+
+0=sceAtracAddStreamData: 00000178
+0=sceAtracGetStreamDataInfo: 08835c40, 00000000, 00000000
+0=sceAtracDecodeData: samples: 00000800, end: 00000000, remainFrame: -2
+sceAudioOutputBlocking
+
+0=sceAtracAddStreamData: 00000000
+0=sceAtracGetStreamDataInfo: 08835c40, 00000000, 00000000
+0=sceAtracDecodeData: samples: 00000800, end: 00000000, remainFrame: -2
+sceAudioOutputBlocking
+
+0=sceAtracAddStreamData: 00000000
+0=sceAtracGetStreamDataInfo: 08835c40, 00000000, 00000000
+0=sceAtracDecodeData: samples: 00000800, end: 00000000, remainFrame: -2
+sceAudioOutputBlocking
+
+0=sceAtracAddStreamData: 00000000
+0=sceAtracGetStreamDataInfo: 08835c40, 00000000, 00000000
+0=sceAtracDecodeData: samples: 00000800, end: 00000000, remainFrame: -2
+sceAudioOutputBlocking
+
+0=sceAtracAddStreamData: 00000000
+0=sceAtracGetStreamDataInfo: 08835c40, 00000000, 00000000
+0=sceAtracDecodeData: samples: 00000800, end: 00000000, remainFrame: -2
+sceAudioOutputBlocking
+
+0=sceAtracAddStreamData: 00000000
+0=sceAtracGetStreamDataInfo: 08835c40, 00000000, 00000000
+0=sceAtracDecodeData: samples: 00000800, end: 00000000, remainFrame: -2
+sceAudioOutputBlocking
+
+0=sceAtracAddStreamData: 00000000
+0=sceAtracGetStreamDataInfo: 08835c40, 00000000, 00000000
+0=sceAtracDecodeData: samples: 00000800, end: 00000000, remainFrame: -2
+sceAudioOutputBlocking
+
+0=sceAtracAddStreamData: 00000000
+0=sceAtracGetStreamDataInfo: 08835c40, 00000000, 00000000
+0=sceAtracDecodeData: samples: 00000800, end: 00000000, remainFrame: -2
+sceAudioOutputBlocking
+
+0=sceAtracAddStreamData: 00000000
+0=sceAtracGetStreamDataInfo: 08835c40, 00000000, 00000000
+0=sceAtracDecodeData: samples: 00000800, end: 00000000, remainFrame: -2
+sceAudioOutputBlocking
+
+0=sceAtracAddStreamData: 00000000
+0=sceAtracGetStreamDataInfo: 08835c40, 00000000, 00000000
+0=sceAtracDecodeData: samples: 00000800, end: 00000000, remainFrame: -2
+sceAudioOutputBlocking
+
+0=sceAtracAddStreamData: 00000000
+0=sceAtracGetStreamDataInfo: 08835c40, 00000000, 00000000
+0=sceAtracDecodeData: samples: 00000800, end: 00000000, remainFrame: -2
+sceAudioOutputBlocking
+
+0=sceAtracAddStreamData: 00000000
+0=sceAtracGetStreamDataInfo: 08835c40, 00000000, 00000000
+0=sceAtracDecodeData: samples: 00000800, end: 00000000, remainFrame: -2
+sceAudioOutputBlocking
+
+0=sceAtracAddStreamData: 00000000
+0=sceAtracGetStreamDataInfo: 08835c40, 00000000, 00000000
+0=sceAtracDecodeData: samples: 00000800, end: 00000000, remainFrame: -2
+sceAudioOutputBlocking
+
+0=sceAtracAddStreamData: 00000000
+0=sceAtracGetStreamDataInfo: 08835c40, 00000000, 00000000
+0=sceAtracDecodeData: samples: 00000800, end: 00000000, remainFrame: -2
+sceAudioOutputBlocking
+
+0=sceAtracAddStreamData: 00000000
+0=sceAtracGetStreamDataInfo: 08835c40, 00000000, 00000000
+0=sceAtracDecodeData: samples: 00000800, end: 00000000, remainFrame: -2
+sceAudioOutputBlocking
+
+0=sceAtracAddStreamData: 00000000
+0=sceAtracGetStreamDataInfo: 08835c40, 00000000, 00000000
+0=sceAtracDecodeData: samples: 00000800, end: 00000000, remainFrame: -2
+sceAudioOutputBlocking
+
+0=sceAtracAddStreamData: 00000000
+0=sceAtracGetStreamDataInfo: 08835c40, 00000000, 00000000
+0=sceAtracDecodeData: samples: 00000800, end: 00000000, remainFrame: -2
+sceAudioOutputBlocking
+
+0=sceAtracAddStreamData: 00000000
+0=sceAtracGetStreamDataInfo: 08835c40, 00000000, 00000000
+0=sceAtracDecodeData: samples: 00000800, end: 00000000, remainFrame: -2
+sceAudioOutputBlocking
+
+0=sceAtracAddStreamData: 00000000
+0=sceAtracGetStreamDataInfo: 08835c40, 00000000, 00000000
+0=sceAtracDecodeData: samples: 00000800, end: 00000000, remainFrame: -2
+sceAudioOutputBlocking
+
+0=sceAtracAddStreamData: 00000000
+0=sceAtracGetStreamDataInfo: 08835c40, 00000000, 00000000
+0=sceAtracDecodeData: samples: 00000800, end: 00000000, remainFrame: -2
+sceAudioOutputBlocking
+
+0=sceAtracAddStreamData: 00000000
+0=sceAtracGetStreamDataInfo: 08835c40, 00000000, 00000000
+0=sceAtracDecodeData: samples: 00000800, end: 00000000, remainFrame: -2
+sceAudioOutputBlocking
+
+0=sceAtracAddStreamData: 00000000
+0=sceAtracGetStreamDataInfo: 08835c40, 00000000, 00000000
+0=sceAtracDecodeData: samples: 00000800, end: 00000000, remainFrame: -2
+sceAudioOutputBlocking
+
+0=sceAtracAddStreamData: 00000000
+0=sceAtracGetStreamDataInfo: 08835c40, 00000000, 00000000
+0=sceAtracDecodeData: samples: 00000800, end: 00000000, remainFrame: -2
+sceAudioOutputBlocking
+
+0=sceAtracAddStreamData: 00000000
+0=sceAtracGetStreamDataInfo: 08835c40, 00000000, 00000000
+0=sceAtracDecodeData: samples: 00000800, end: 00000000, remainFrame: -2
+sceAudioOutputBlocking
+
+0=sceAtracAddStreamData: 00000000
+0=sceAtracGetStreamDataInfo: 08835c40, 00000000, 00000000
+0=sceAtracDecodeData: samples: 00000800, end: 00000000, remainFrame: -2
+sceAudioOutputBlocking
+
+0=sceAtracAddStreamData: 00000000
+0=sceAtracGetStreamDataInfo: 08835c40, 00000000, 00000000
+0=sceAtracDecodeData: samples: 00000800, end: 00000000, remainFrame: -2
+sceAudioOutputBlocking
+
+0=sceAtracAddStreamData: 00000000
+0=sceAtracGetStreamDataInfo: 08835c40, 00000000, 00000000
+0=sceAtracDecodeData: samples: 00000800, end: 00000000, remainFrame: -2
+sceAudioOutputBlocking
+
+0=sceAtracAddStreamData: 00000000
+0=sceAtracGetStreamDataInfo: 08835c40, 00000000, 00000000
+0=sceAtracDecodeData: samples: 00000800, end: 00000000, remainFrame: -2
+sceAudioOutputBlocking
+
+0=sceAtracAddStreamData: 00000000
+0=sceAtracGetStreamDataInfo: 08835c40, 00000000, 00000000
+0=sceAtracDecodeData: samples: 00000800, end: 00000000, remainFrame: -2
+sceAudioOutputBlocking
+
+0=sceAtracAddStreamData: 00000000
+0=sceAtracGetStreamDataInfo: 08835c40, 00000000, 00000000
+0=sceAtracDecodeData: samples: 00000800, end: 00000000, remainFrame: -2
+sceAudioOutputBlocking
+
+0=sceAtracAddStreamData: 00000000
+0=sceAtracGetStreamDataInfo: 08835c40, 00000000, 00000000
+0=sceAtracDecodeData: samples: 00000800, end: 00000000, remainFrame: -2
+sceAudioOutputBlocking
+
+0=sceAtracAddStreamData: 00000000
+0=sceAtracGetStreamDataInfo: 08835c40, 00000000, 00000000
+0=sceAtracDecodeData: samples: 00000800, end: 00000000, remainFrame: -2
+sceAudioOutputBlocking
+
+0=sceAtracAddStreamData: 00000000
+0=sceAtracGetStreamDataInfo: 08835c40, 00000000, 00000000
+0=sceAtracDecodeData: samples: 00000800, end: 00000000, remainFrame: -2
+sceAudioOutputBlocking
+
+0=sceAtracAddStreamData: 00000000
+0=sceAtracGetStreamDataInfo: 08835c40, 00000000, 00000000
+0=sceAtracDecodeData: samples: 00000800, end: 00000000, remainFrame: -2
+sceAudioOutputBlocking
+
+0=sceAtracAddStreamData: 00000000
+0=sceAtracGetStreamDataInfo: 08835c40, 00000000, 00000000
+0=sceAtracDecodeData: samples: 00000800, end: 00000000, remainFrame: -2
+sceAudioOutputBlocking
+
+0=sceAtracAddStreamData: 00000000
+0=sceAtracGetStreamDataInfo: 08835c40, 00000000, 00000000
+0=sceAtracDecodeData: samples: 00000800, end: 00000000, remainFrame: -2
+sceAudioOutputBlocking
+
+0=sceAtracAddStreamData: 00000000
+0=sceAtracGetStreamDataInfo: 08835c40, 00000000, 00000000
+0=sceAtracDecodeData: samples: 00000800, end: 00000000, remainFrame: -2
+sceAudioOutputBlocking
+
+0=sceAtracAddStreamData: 00000000
+0=sceAtracGetStreamDataInfo: 08835c40, 00000000, 00000000
+0=sceAtracDecodeData: samples: 00000800, end: 00000000, remainFrame: -2
+sceAudioOutputBlocking
+
+0=sceAtracAddStreamData: 00000000
+0=sceAtracGetStreamDataInfo: 08835c40, 00000000, 00000000
+0=sceAtracDecodeData: samples: 00000800, end: 00000000, remainFrame: -2
+sceAudioOutputBlocking
+
+0=sceAtracAddStreamData: 00000000
+0=sceAtracGetStreamDataInfo: 08835c40, 00000000, 00000000
+0=sceAtracDecodeData: samples: 00000800, end: 00000000, remainFrame: -2
+sceAudioOutputBlocking
+
+0=sceAtracAddStreamData: 00000000
+0=sceAtracGetStreamDataInfo: 08835c40, 00000000, 00000000
+0=sceAtracDecodeData: samples: 00000800, end: 00000000, remainFrame: -2
+sceAudioOutputBlocking
+
+0=sceAtracAddStreamData: 00000000
+0=sceAtracGetStreamDataInfo: 08835c40, 00000000, 00000000
+0=sceAtracDecodeData: samples: 00000800, end: 00000000, remainFrame: -2
+sceAudioOutputBlocking
+
+0=sceAtracAddStreamData: 00000000
+0=sceAtracGetStreamDataInfo: 08835c40, 00000000, 00000000
+0=sceAtracDecodeData: samples: 00000800, end: 00000000, remainFrame: -2
+sceAudioOutputBlocking
+
+0=sceAtracAddStreamData: 00000000
+0=sceAtracGetStreamDataInfo: 08835c40, 00000000, 00000000
+0=sceAtracDecodeData: samples: 00000800, end: 00000000, remainFrame: -2
+sceAudioOutputBlocking
+
+0=sceAtracAddStreamData: 00000000
+0=sceAtracGetStreamDataInfo: 08835c40, 00000000, 00000000
+0=sceAtracDecodeData: samples: 00000800, end: 00000000, remainFrame: -2
+sceAudioOutputBlocking
+
+0=sceAtracAddStreamData: 00000000
+0=sceAtracGetStreamDataInfo: 08835c40, 00000000, 00000000
+0=sceAtracDecodeData: samples: 00000800, end: 00000000, remainFrame: -2
+sceAudioOutputBlocking
+
+0=sceAtracAddStreamData: 00000000
+0=sceAtracGetStreamDataInfo: 08835c40, 00000000, 00000000
+0=sceAtracDecodeData: samples: 00000800, end: 00000000, remainFrame: -2
+sceAudioOutputBlocking
+
+0=sceAtracAddStreamData: 00000000
+0=sceAtracGetStreamDataInfo: 08835c40, 00000000, 00000000
+0=sceAtracDecodeData: samples: 00000800, end: 00000000, remainFrame: -2
+sceAudioOutputBlocking
+
+0=sceAtracAddStreamData: 00000000
+0=sceAtracGetStreamDataInfo: 08835c40, 00000000, 00000000
+0=sceAtracDecodeData: samples: 00000800, end: 00000000, remainFrame: -2
+sceAudioOutputBlocking
+
+0=sceAtracAddStreamData: 00000000
+0=sceAtracGetStreamDataInfo: 08835c40, 00000000, 00000000
+0=sceAtracDecodeData: samples: 00000800, end: 00000000, remainFrame: -2
+sceAudioOutputBlocking
+
+0=sceAtracAddStreamData: 00000000
+0=sceAtracGetStreamDataInfo: 08835c40, 00000000, 00000000
+0=sceAtracDecodeData: samples: 00000800, end: 00000000, remainFrame: -2
+sceAudioOutputBlocking
+
+0=sceAtracAddStreamData: 00000000
+0=sceAtracGetStreamDataInfo: 08835c40, 00000000, 00000000
+0=sceAtracDecodeData: samples: 00000800, end: 00000000, remainFrame: -2
+sceAudioOutputBlocking
+
+0=sceAtracAddStreamData: 00000000
+0=sceAtracGetStreamDataInfo: 08835c40, 00000000, 00000000
+0=sceAtracDecodeData: samples: 00000800, end: 00000000, remainFrame: -2
+sceAudioOutputBlocking
+
+0=sceAtracAddStreamData: 00000000
+0=sceAtracGetStreamDataInfo: 08835c40, 00000000, 00000000
+0=sceAtracDecodeData: samples: 00000800, end: 00000000, remainFrame: -2
+sceAudioOutputBlocking
+
+0=sceAtracAddStreamData: 00000000
+0=sceAtracGetStreamDataInfo: 08835c40, 00000000, 00000000
+0=sceAtracDecodeData: samples: 00000800, end: 00000000, remainFrame: -2
+sceAudioOutputBlocking
+
+0=sceAtracAddStreamData: 00000000
+0=sceAtracGetStreamDataInfo: 08835c40, 00000000, 00000000
+0=sceAtracDecodeData: samples: 00000800, end: 00000000, remainFrame: -2
+sceAudioOutputBlocking
+
+0=sceAtracAddStreamData: 00000000
+0=sceAtracGetStreamDataInfo: 08835c40, 00000000, 00000000
+0=sceAtracDecodeData: samples: 00000800, end: 00000000, remainFrame: -2
+sceAudioOutputBlocking
+
+0=sceAtracAddStreamData: 00000000
+0=sceAtracGetStreamDataInfo: 08835c40, 00000000, 00000000
+0=sceAtracDecodeData: samples: 00000800, end: 00000000, remainFrame: -2
+sceAudioOutputBlocking
+
+0=sceAtracAddStreamData: 00000000
+0=sceAtracGetStreamDataInfo: 08835c40, 00000000, 00000000
+0=sceAtracDecodeData: samples: 00000800, end: 00000000, remainFrame: -2
+sceAudioOutputBlocking
+
+0=sceAtracAddStreamData: 00000000
+0=sceAtracGetStreamDataInfo: 08835c40, 00000000, 00000000
+0=sceAtracDecodeData: samples: 0000003d, end: 00000001, remainFrame: -2
+sceAudioOutputBlocking
+
+0=sceAtracAddStreamData: 00000000
+sceAudioChRelease: 00000000
+sceAtracReleaseAtracID: 00000000
+

@@ -1,0 +1,106 @@
+[x] Init
+
+[x] Players (get):
+[r]   Initial: OK (status=1)  mode=0, speed=1
+[r]   Standby: OK (status=2)  mode=0, speed=1
+[r]   Playing: OK (status=4)  mode=0, speed=1
+[x]   Twice: OK (status=4)  mode=0, speed=1
+[x]   Copy: OK (status=4)  mode=0, speed=1
+[r]   Finished: OK (status=200)  mode=0, speed=1
+[x]   Zero: Failed: 80616001
+
+[x] Modes (get):
+[r]   Mode -2: OK (status=2)  mode=0, speed=1
+[r]   Mode -1: OK (status=2)  mode=0, speed=1
+[r]   Mode 0: OK (status=4)  mode=0, speed=1
+[r]   Mode 1: OK (status=4)  mode=1, speed=1
+[r]   Mode 2: OK (status=4)  mode=2, speed=1
+[r]   Mode 3: OK (status=4)  mode=3, speed=1
+[r]   Mode 4: OK (status=2)  mode=0, speed=1
+[r]   Mode 5: OK (status=2)  mode=0, speed=1
+[r]   Mode 6: OK (status=2)  mode=0, speed=1
+[r]   Mode 7: OK (status=2)  mode=0, speed=1
+[r]   Mode 8: OK (status=2)  mode=0, speed=1
+[r]   Mode 10: OK (status=2)  mode=0, speed=1
+[r]   Mode 16: OK (status=2)  mode=0, speed=1
+[r]   Mode -2147483648: OK (status=2)  mode=0, speed=1
+
+[x] Speeds (get):
+[r]   Speed -2: OK (status=4)  mode=0, speed=-2
+[r]   Speed -1: OK (status=4)  mode=0, speed=-1
+[r]   Speed 0: OK (status=4)  mode=0, speed=0
+[r]   Speed 1: OK (status=4)  mode=0, speed=1
+[r]   Speed 2: OK (status=4)  mode=0, speed=2
+[r]   Speed 3: OK (status=4)  mode=0, speed=3
+[r]   Speed 4: OK (status=4)  mode=0, speed=4
+[r]   Speed 5: OK (status=4)  mode=0, speed=5
+[r]   Speed 10: OK (status=4)  mode=0, speed=10
+[r]   Speed 16: OK (status=4)  mode=0, speed=16
+[r]   Speed -2147483648: OK (status=4)  mode=0, speed=-2147483648
+
+[x] Players (change):
+[r]   Initial: Failed: 80616001
+[r]   Standby: Failed: 80616001
+[r]   Playing: OK (status=4)  mode=0, speed=1
+[x]   Twice: OK (status=4)  mode=0, speed=1
+[x]   Copy: OK (status=4)  mode=0, speed=1
+[r]   Finished: OK (status=200)  mode=0, speed=1
+
+[x] Modes (change):
+[r]   Mode -2: Failed: 80616006
+[r]   Mode -1: Failed: 80616006
+[r]   Mode 0: OK (status=4)  mode=0, speed=1
+[r]   Mode 1: OK (status=4)  mode=1, speed=1
+[r]   Mode 2: OK (status=4)  mode=2, speed=1
+[r]   Mode 3: OK (status=4)  mode=3, speed=1
+[r]   Mode 4: Failed: 80616003
+[r]   Mode 5: Failed: 80616003
+[r]   Mode 6: Failed: 80616006
+[r]   Mode 7: Failed: 80616006
+[r]   Mode 8: Failed: 80616006
+[r]   Mode 10: Failed: 80616006
+[r]   Mode 16: Failed: 80616006
+[r]   Mode -2147483648: Failed: 80616006
+
+[x] Speeds (change):
+[r]   Speed -2: OK (status=4)  mode=0, speed=1
+[r]   Speed -1: OK (status=4)  mode=0, speed=1
+[r]   Speed 0: OK (status=4)  mode=0, speed=1
+[r]   Speed 1: OK (status=4)  mode=0, speed=1
+[r]   Speed 2: OK (status=4)  mode=0, speed=1
+[r]   Speed 3: OK (status=4)  mode=0, speed=1
+[r]   Speed 4: OK (status=4)  mode=0, speed=1
+[r]   Speed 5: OK (status=4)  mode=0, speed=1
+[r]   Speed 10: OK (status=4)  mode=0, speed=1
+[r]   Speed 16: OK (status=4)  mode=0, speed=1
+[r]   Speed -2147483648: OK (status=4)  mode=0, speed=1
+
+[x] Play mode 0:
+[r]   Set mode: OK (status=4)  mode=0, speed=1
+[r] Pts changes 49, updates 51, pts delta 1471
+[x] Pts: 141141 -> 288288
+
+[x] Play mode 1:
+[r]   Set mode: OK (status=4)  mode=1, speed=1
+[r] Pts changes 17, updates 32, pts delta 510
+[x] Pts: 126126 -> 177177
+
+[x] Play mode 2:
+[r]   Set mode: OK (status=4)  mode=2, speed=1
+[r] Pts changes 1, updates 3, pts delta 30
+[x] Pts: 126126 -> 129129
+
+[x] Play mode 3:
+[r]   Set mode: OK (status=4)  mode=3, speed=1
+[r] Pts changes 1, updates 2, pts delta 30
+[x] Pts: 126126 -> 129129
+
+[x] Play mode 4:
+[r]   Set mode: Failed: 80616003
+[r] Pts changes 49, updates 51, pts delta 1471
+[x] Pts: 126126 -> 273273
+
+[x] Play mode 5:
+[r]   Set mode: Failed: 80616003
+[r] Pts changes 49, updates 51, pts delta 1471
+[x] Pts: 126126 -> 273273

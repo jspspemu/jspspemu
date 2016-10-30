@@ -1,0 +1,54 @@
+[x] sceCccUTF8toUTF16:
+[x]   Normal: OK (19) - 0048 0065 006c 006c
+[x]   Short: OK (2) - 0041 0042 0000 cccc
+[x]   NULL dst: OK (0)
+[x]   Invalid data: OK (0) - 0000 cccc cccc cccc
+[x]   Truncate to 1: OK (0) - cccc cccc cccc cccc
+[x]   Truncate to 2: OK (0) - 0000 cccc cccc cccc
+[x]   Truncate to 4: OK (1) - 0048 0000 cccc cccc
+
+[x] sceCccUTF8toSJIS:
+[r]   *** Loaded Ccc tables.
+[x]   Normal: OK (19) - 48 65 6c 6c
+[x]   Short: OK (2) - 41 42 00 cc
+[x]   NULL dst: OK (0)
+[x]   Invalid data: OK (0) - 00 cc cc cc
+[x]   Truncate to 1: OK (0) - 00 cc cc cc
+[x]   Truncate to 2: OK (1) - 48 00 cc cc
+[x]   Truncate to 4: OK (3) - 48 65 6c 00
+
+[x] sceCccUTF16toUTF8:
+[x]   Normal: OK (19) - 48 65 6c 6c
+[x]   Short: OK (2) - 41 42 00 cc
+[x]   NULL dst: OK (0)
+[x]   Invalid data: OK (0) - 00 cc cc cc
+[x]   Truncate to 1: OK (0) - 00 cc cc cc
+[x]   Truncate to 2: OK (1) - 48 00 cc cc
+[x]   Truncate to 4: OK (3) - 48 65 6c 00
+
+[x] sceCccUTF16toSJIS:
+[x]   Normal: OK (19) - 48 65 6c 6c
+[x]   Short: OK (2) - 41 42 00 cc
+[x]   NULL dst: OK (0)
+[x]   Invalid data: OK (0) - 00 cc cc cc
+[x]   Truncate to 1: OK (0) - 00 cc cc cc
+[x]   Truncate to 2: OK (1) - 48 00 cc cc
+[x]   Truncate to 4: OK (3) - 48 65 6c 00
+
+[x] sceCccSJIStoUTF8:
+[x]   Normal: OK (19) - 48 65 6c 6c
+[x]   Short: OK (2) - 41 42 00 cc
+[x]   NULL dst: OK (0)
+[x]   Invalid data: OK (0) - 00 cc cc cc
+[x]   Truncate to 1: OK (0) - 00 cc cc cc
+[x]   Truncate to 2: OK (1) - 48 00 cc cc
+[x]   Truncate to 4: OK (3) - 48 65 6c 00
+
+[x] sceCccSJIStoUTF16:
+[x]   Normal: OK (19) - 0048 0065 006c 006c
+[x]   Short: OK (2) - 0041 0042 0000 cccc
+[x]   NULL dst: OK (0)
+[x]   Invalid data: OK (0) - 0000 cccc cccc cccc
+[x]   Truncate to 1: OK (0) - cccc cccc cccc cccc
+[x]   Truncate to 2: OK (0) - 0000 cccc cccc cccc
+[x]   Truncate to 4: OK (1) - 0048 0000 cccc cccc

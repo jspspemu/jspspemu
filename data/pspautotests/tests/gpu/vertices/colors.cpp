@@ -1,0 +1,96 @@
+#include "shared.h"
+
+static const int BOX_W = 40;
+static const int BOX_H = 40;
+static const int BOX_SPACE = 10;
+
+void nextBox(u32 c, int t) {
+	static int x = 10;
+	static int y = 10;
+
+	Vertices v(t);
+	v.CP(c, x, y, 0);
+	v.CP(c, x + BOX_W, y, 0);
+	v.CP(c, x + BOX_W, y + BOX_H, 0);
+	v.CP(c, x, y + BOX_H, 0);
+
+	void *p = sceGuGetMemory(v.Size());
+	memcpy(p, v.Ptr(), v.Size());
+	sceGuDrawArray(GU_TRIANGLE_FAN, v.VType(), 4, NULL, p);
+
+	x += BOX_W + BOX_SPACE;
+	if (x + BOX_W >= 480) {
+		x = 10;
+		y += BOX_H + BOX_SPACE;
+	}
+}
+
+void draw() {
+	startFrame();
+	sceGuDisable(GU_TEXTURE);
+	sceGuDisable(GU_BLEND);
+
+	nextBox(0xFF0000FF, GU_COLOR_5650 | GU_VERTEX_16BIT | GU_TRANSFORM_3D);
+	nextBox(0xFF00FF00, GU_COLOR_5551 | GU_VERTEX_16BIT | GU_TRANSFORM_3D);
+	nextBox(0xFFFF0000, GU_COLOR_4444 | GU_VERTEX_16BIT | GU_TRANSFORM_3D);
+	nextBox(0xFF00FFFF, GU_COLOR_8888 | GU_VERTEX_16BIT | GU_TRANSFORM_3D);
+
+	// Blend so we can see alpha.
+	sceGuEnable(GU_BLEND);
+	sceGuBlendFunc(GU_ADD, GU_SRC_ALPHA, GU_ONE_MINUS_SRC_ALPHA, 0, 0);
+
+	nextBox(0x800000FF, GU_COLOR_5650 | GU_VERTEX_16BIT | GU_TRANSFORM_3D);
+	nextBox(0x7F00FF00, GU_COLOR_5551 | GU_VERTEX_16BIT | GU_TRANSFORM_3D);
+	nextBox(0x80FF0000, GU_COLOR_5551 | GU_VERTEX_16BIT | GU_TRANSFORM_3D);
+	nextBox(0x8000FFFF, GU_COLOR_4444 | GU_VERTEX_16BIT | GU_TRANSFORM_3D);
+	nextBox(0x80FFFF00, GU_COLOR_8888 | GU_VERTEX_16BIT | GU_TRANSFORM_3D);
+
+	sceGuDisable(GU_BLEND);
+
+	nextBox(0xFF0000FF, GU_COLOR_5650 | GU_VERTEX_16BIT | GU_TRANSFORM_2D);
+	nextBox(0xFF00FF00, GU_COLOR_5551 | GU_VERTEX_16BIT | GU_TRANSFORM_2D);
+	nextBox(0xFFFF0000, GU_COLOR_4444 | GU_VERTEX_16BIT | GU_TRANSFORM_2D);
+	nextBox(0xFF00FFFF, GU_COLOR_8888 | GU_VERTEX_16BIT | GU_TRANSFORM_2D);
+
+	sceGuEnable(GU_BLEND);
+	sceGuBlendFunc(GU_ADD, GU_SRC_ALPHA, GU_ONE_MINUS_SRC_ALPHA, 0, 0);
+
+	nextBox(0x800000FF, GU_COLOR_5650 | GU_VERTEX_16BIT | GU_TRANSFORM_2D);
+	nextBox(0x7F00FF00, GU_COLOR_5551 | GU_VERTEX_16BIT | GU_TRANSFORM_2D);
+	nextBox(0x80FF0000, GU_COLOR_5551 | GU_VERTEX_16BIT | GU_TRANSFORM_2D);
+	nextBox(0x8000FFFF, GU_COLOR_4444 | GU_VERTEX_16BIT | GU_TRANSFORM_2D);
+	nextBox(0x80FFFF00, GU_COLOR_8888 | GU_VERTEX_16BIT | GU_TRANSFORM_2D);
+
+	// Let's try clear mode.
+	sceGuSendCommandi(211, 1 | ((GU_COLOR_BUFFER_BIT | GU_STENCIL_BUFFER_BIT) << 8));
+	sceGuDisable(GU_BLEND);
+
+	nextBox(0xFF0000FF, GU_COLOR_5650 | GU_VERTEX_16BIT | GU_TRANSFORM_2D);
+	nextBox(0xFF00FF00, GU_COLOR_5551 | GU_VERTEX_16BIT | GU_TRANSFORM_2D);
+	nextBox(0xFFFF0000, GU_COLOR_4444 | GU_VERTEX_16BIT | GU_TRANSFORM_2D);
+	nextBox(0xFF00FFFF, GU_COLOR_8888 | GU_VERTEX_16BIT | GU_TRANSFORM_2D);
+
+	sceGuEnable(GU_BLEND);
+	sceGuBlendFunc(GU_ADD, GU_SRC_ALPHA, GU_ONE_MINUS_SRC_ALPHA, 0, 0);
+
+	nextBox(0x800000FF, GU_COLOR_5650 | GU_VERTEX_16BIT | GU_TRANSFORM_2D);
+	nextBox(0x7F00FF00, GU_COLOR_5551 | GU_VERTEX_16BIT | GU_TRANSFORM_2D);
+	nextBox(0x80FF0000, GU_COLOR_5551 | GU_VERTEX_16BIT | GU_TRANSFORM_2D);
+	nextBox(0x8000FFFF, GU_COLOR_4444 | GU_VERTEX_16BIT | GU_TRANSFORM_2D);
+	nextBox(0x80FFFF00, GU_COLOR_8888 | GU_VERTEX_16BIT | GU_TRANSFORM_2D);
+
+	sceGuSendCommandi(211, 0);
+
+	endFrame();
+}
+
+extern "C" int main(int argc, char *argv[]) {
+	initDisplay();
+
+	draw();
+
+	emulatorEmitScreenshot();
+	sceGuTerm();
+
+	return 0;
+}

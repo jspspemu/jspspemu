@@ -1,0 +1,18 @@
+[x] Init
+[r] Initial value: 005f
+
+[x] Libraries:
+[x]   Normal: OK (005f)
+[x]   Done: OK (005f)
+[x]   NULL: Failed (80460002)
+
+[x] Codes:
+[x]   0: OK (0000)
+[x]   -1: OK (ffff)
+[x]   0xFFFF: OK (ffff)
+[x]   0x10000: OK (0000)
+
+[x] Fallbacks:
+[x]   sceFontGetCharInfo 0xFFFF (0x0000): 00000000, 0
+[x]   sceFontGetCharInfo 0xFFFF (0x005F): 00000000, 2
+[x]   sceFontGetCharInfo 0xFFFF (0xFFFF): 00000000, 0

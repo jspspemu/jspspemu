@@ -1,0 +1,18 @@
+[x] Init
+
+[x] Players:
+[x]   Normal: OK (status=1)
+[x]   Copy: OK (status=1)
+[r]   Deleted: Failed: 80616001
+[r]   Already set: Failed: 80616001
+
+[x] Buffer pointers:
+[x]   NULL: OK (status=1)
+[x]   Invalid: OK (status=1)
+
+[x] Buffer sizes:
+[x]   0: Failed: 80616008
+[x]   1: Failed: 80616008
+[x]   0x0000FFFF: Failed: 80616008
+[x]   0x00010000: OK (status=1)
+[x]   0x80000000: OK (status=1)

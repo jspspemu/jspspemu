@@ -1,0 +1,23 @@
+[x] SDK version 00000000
+[x]   * ge_finish: 0 at 5c000003, listsync: 00000000, drawsync: 00000000
+[x]   Delay: 00000000
+[x]   Continue: 00000000
+[r]   Delay: 00000000
+[x]   Done: 5c000003
+[x]   * ge_finish: 0 at 5c000003, listsync: 00000000, drawsync: 00000000
+[x]   Delay: 00000000
+[x]   Continue: 00000000
+[r]   Delay: 00000000
+[x]   Done: 5c000003
+
+[x] SDK version 06060010
+[x]   * ge_finish: 0 at 5c000003, listsync: 00000000, drawsync: 00000000
+[r]   Delay: 00000000
+[x]   Continue: 00000000
+[r]   Delay: 00000000
+[x]   Done: 5c000003
+[x]   * ge_finish: 0 at 5c000003, listsync: 00000000, drawsync: 00000000
+[r]   Delay: 00000000
+[x]   Continue: 00000000
+[r]   Delay: 00000000
+[x]   Done: 5c000003

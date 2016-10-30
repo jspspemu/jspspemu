@@ -1,0 +1,29 @@
+[x] Normal (FIFO):
+[r]   ** started waiting thread 1
+[r]   ** started waiting thread 2
+[r]   ** started waiting thread 3
+Tlspl: OK (size=60,name=tls,attr=00000000,index=0,blockSize=00000100,totalBlocks=00000001,freeBlocks=00000000,wait=2)
+[r]   ** waiting thread 1 got result: 09d35700, received = ptr
+[r]   ** waiting thread 1 delayed: 00000000
+[r]   ** waiting thread 1 freed: 8002019d
+[r]   ** waiting thread 2 got result: 09d35700, received = ptr
+[r]   ** waiting thread 2 delayed: 00000000
+[r]   ** waiting thread 2 freed: 8002019d
+[r]   ** waiting thread 3 got result: 09d35700, received = ptr
+[r]   ** waiting thread 3 delayed: 00000000
+[r]   ** waiting thread 3 freed: 8002019d
+
+[x] Priority:
+[r]   ** started waiting thread 1
+[r]   ** started waiting thread 2
+[r]   ** started waiting thread 3
+Tlspl: OK (size=60,name=tls,attr=00000100,index=0,blockSize=00000100,totalBlocks=00000001,freeBlocks=00000000,wait=2)
+[r]   ** waiting thread 1 got result: 09d35700, received = ptr
+[r]   ** waiting thread 1 delayed: 00000000
+[r]   ** waiting thread 1 freed: 8002019d
+[r]   ** waiting thread 3 got result: 09d35700, received = ptr
+[r]   ** waiting thread 3 delayed: 00000000
+[r]   ** waiting thread 3 freed: 8002019d
+[r]   ** waiting thread 2 got result: 09d35700, received = ptr
+[r]   ** waiting thread 2 delayed: 00000000
+[r]   ** waiting thread 2 freed: 8002019d

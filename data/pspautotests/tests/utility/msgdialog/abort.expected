@@ -1,0 +1,15 @@
+[x] sceUtilityMsgDialogAbort:
+[x]   Before init: 80110005
+[x]   InitStart: 00000000
+[x]   During init: 80110001
+[r]   Abort: 00000000
+[x]   Twice: 00000000
+[x]   GetStatus: 00000002
+[r]   Update: 00000000
+[x]   GetStatus: 00000003
+[x]   Third abort: 80110001
+[x]   ShutdownStart: 00000000
+[x]   During shutdown: 80110001
+[x]   After shutdown: 80110001
+[r]   GetStatus: 00000000
+[x]   After reset: 80110001

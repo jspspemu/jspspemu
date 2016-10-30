@@ -1,0 +1,14 @@
+[x] Atrac IDs:
+[x]   Normal: OK (00000000), end=0003c6cc, loopStart=ffffffff, loopEnd=ffffffff
+[x]   Invalid ID: Error (ffffffff, 80630005), end=fffffac7, loopStart=fffffac7, loopEnd=fffffac7
+[x]   Unused ID: Failed (80630010), end=fffffac7, loopStart=fffffac7, loopEnd=fffffac7
+
+[x] Other states:
+[x]   No data: Failed (80630010), end=fffffac7, loopStart=fffffac7, loopEnd=fffffac7
+[x]   State 8: Failed (80630031), end=fffffac7, loopStart=fffffac7, loopEnd=fffffac7
+[x]   State 16: Failed (80630040), end=fffffac7, loopStart=fffffac7, loopEnd=fffffac7
+
+[x] Loop
+[r]   Loop full: OK (00000000), end=0003c6cc, loopStart=00000000, loopEnd=0003c6cc
+[r]   Loop start: OK (00000000), end=0003c6cc, loopStart=00000000, loopEnd=00001800
+[r]   Loop zero: OK (00000000), end=0003c6cc, loopStart=fffff800, loopEnd=00000000

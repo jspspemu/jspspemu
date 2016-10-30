@@ -1,0 +1,88 @@
+[x] Threads dormant:
+[x]   Normal threads (+1 dormant): res=1 c=1 n=1
+[x]   Sleeping threads (+1 dormant): res=0 c=0 n=0
+[x]   Delaying threads (+1 dormant): res=0 c=0 n=0
+[x]   Suspended threads (+1 dormant): res=0 c=0 n=0
+[x]   Dormant threads (+1 dormant): res=1 c=1 n=1
+
+[x] Threads sleeping:
+[x]   Normal threads (+1 sleeping): res=1 c=1 n=1
+[x]   Sleeping threads (+1 sleeping): res=1 c=1 n=1
+[x]   Delaying threads (+1 sleeping): res=0 c=0 n=0
+[x]   Suspended threads (+1 sleeping): res=0 c=0 n=0
+[x]   Dormant threads (+1 sleeping): res=0 c=0 n=0
+
+[x] Threads delaying:
+[x]   Normal threads (+1 delaying): res=1 c=1 n=1
+[x]   Sleeping threads (+1 delaying): res=0 c=0 n=0
+[x]   Delaying threads (+1 delaying): res=1 c=1 n=1
+[x]   Suspended threads (+1 delaying): res=0 c=0 n=0
+[x]   Dormant threads (+1 delaying): res=0 c=0 n=0
+
+[x] Threads suspended:
+[x]   Normal threads (+1 suspended): res=1 c=1 n=1
+[x]   Sleeping threads (+1 suspended): res=0 c=0 n=0
+[x]   Delaying threads (+1 suspended): res=0 c=0 n=0
+[x]   Suspended threads (+1 suspended): res=1 c=1 n=1
+[x]   Dormant threads (+1 suspended): res=0 c=0 n=0
+
+[x] Types:
+[x]   Type ffffffff: res=800201bb c=-1337
+[x]   Type 0: res=800201bb c=-1337
+[x]   Type 1: res=00001337 c=1337
+[x]   Type 2: res=00001337 c=1337
+[x]   Type 3: res=00001337 c=1337
+[x]   Type 4: res=00001337 c=1337
+[x]   Type 5: res=00001337 c=1337
+[x]   Type 6: res=00001337 c=1337
+[x]   Type 7: res=00001337 c=1337
+[x]   Type 8: res=00001337 c=1337
+[x]   Type 9: res=00001337 c=1337
+[x]   Type a: res=00001337 c=1337
+[x]   Type b: res=00001337 c=1337
+[x]   Type c: res=00001337 c=1337
+[x]   Type d: res=00001337 c=1337
+[x]   Type e: res=00001337 c=1337
+[x]   Type f: res=800201bb c=-1337
+[x]   Type 10: res=800201bb c=-1337
+[x]   Type 11: res=800201bb c=-1337
+[x]   Type 12: res=800201bb c=-1337
+[x]   Type 13: res=800201bb c=-1337
+[x]   Type 14: res=800201bb c=-1337
+[x]   Type 15: res=800201bb c=-1337
+[x]   Type 16: res=800201bb c=-1337
+[x]   Type 17: res=800201bb c=-1337
+[x]   Type 18: res=800201bb c=-1337
+[x]   Type 40: res=00001337 c=1337
+[x]   Type 41: res=00001337 c=1337
+[x]   Type 42: res=00001337 c=1337
+[x]   Type 43: res=00001337 c=1337
+[x]   Type 44: res=800201bb c=-1337
+[x]   Type 45: res=800201bb c=-1337
+[x]   Type 46: res=800201bb c=-1337
+[x]   Type 47: res=800201bb c=-1337
+[x]   Type 48: res=800201bb c=-1337
+[x]   Type 80: res=800201bb c=-1337
+[x]   Type 81: res=800201bb c=-1337
+[x]   Type 100: res=800201bb c=-1337
+[x]   Type 101: res=800201bb c=-1337
+[x]   Type 200: res=800201bb c=-1337
+[x]   Type 201: res=800201bb c=-1337
+[x]   Type 1000: res=800201bb c=-1337
+[x]   Type 1001: res=800201bb c=-1337
+[x]   Type 100001: res=800201bb c=-1337
+[x]   Type 80000000: res=800201bb c=-1337
+[x]   Tlspl (+1): res=1 c=1 n=1
+
+[x] Sizes:
+[x]   Size fffffffe: res=800200d3 c=-1337
+[x]   Size ffffffff: res=800200d3 c=-1337
+[x]   Size 0: res=00001337 c=1337
+[x]   Size 1: res=00001337 c=1337
+[x]   Size 2: res=00001337 c=1337
+[x]   Size 3: res=00001337 c=1337
+[x]   Size 4: res=00001337 c=1337
+
+[x] Pointers:
+[x]   No buffer, no size: res=00001337 c=1337
+[x]   No count: res=00001337 c=-1337

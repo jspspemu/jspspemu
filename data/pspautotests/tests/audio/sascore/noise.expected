@@ -1,0 +1,41 @@
+[x] After init:
+[x] Normal: OK (00000000)
+[x] Voice -1: Failed (80420010)
+[x] Voice 32: Failed (80420010)
+
+[x] After voice setup:
+[x] Normal: OK (00000000)
+[x] While paused: OK (00000000)
+[x] Still paused: ffffffff
+
+[x] With core:
+[x] Key on: 00000000
+[r] Core: 00000000
+[r] Core: 00000000
+[r] Core: 00000000
+[r] Core: 00000000
+[x] After processing: OK (00000000)
+[x] Still playing: fffffffe
+
+[x] Frequencies:
+[x]   Freq -1: Failed (80420011)
+[x]   Freq 0: OK (00000000)
+[x]   Freq 1: OK (00000000)
+[x]   Freq 2: OK (00000000)
+[x]   Freq 3: OK (00000000)
+[x]   Freq 4: OK (00000000)
+[x]   Freq 5: OK (00000000)
+[x]   Freq 6: OK (00000000)
+[x]   Freq 7: OK (00000000)
+[x]   Freq 8: OK (00000000)
+[x]   Freq 9: OK (00000000)
+[x]   Freq 16: OK (00000000)
+[x]   Freq 31: OK (00000000)
+[x]   Freq 32: OK (00000000)
+[x]   Freq 33: OK (00000000)
+[x]   Freq 63: OK (00000000)
+[x]   Freq 64: Failed (80420011)
+[x]   Freq 128: Failed (80420011)
+[x]   Freq 256: Failed (80420011)
+[x]   Freq 441: Failed (80420011)
+[x]   Freq 44100: Failed (80420011)

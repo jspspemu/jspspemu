@@ -1,0 +1,50 @@
+[x] Objects:
+[x]   Normal: OK (09d35800) Tlspl: OK (size=60,name=tls1,attr=00000000,index=0,blockSize=00000010,totalBlocks=00000008,freeBlocks=00000007,wait=0)
+[x]   Twice: OK (09d35800) Tlspl: OK (size=60,name=tls1,attr=00000000,index=0,blockSize=00000010,totalBlocks=00000008,freeBlocks=00000007,wait=0)
+[x]   Second: OK (09d35900) Tlspl: OK (size=60,name=tls2,attr=00000000,index=1,blockSize=00000010,totalBlocks=00000008,freeBlocks=00000007,wait=0)
+[x]   0: OK (09d35800) Tlspl: Failed (00000000)
+[x]   1: OK (09d35800) Tlspl: Invalid (800201D0)
+[x]   -1: Failed Tlspl: Failed (FFFFFFFF)
+[x]   0xF: OK (09d35900) Tlspl: Invalid (800201D0)
+[x]   0x10: Failed Tlspl: Invalid (800201D0)
+[x]   0x17: Failed Tlspl: Invalid (800201D0)
+[x]   0x18: Failed Tlspl: Invalid (800201D0)
+[x]   Invalid: Failed Tlspl: Failed (DEADBEEF)
+[x]   Deleted: Failed Tlspl: Invalid (800201D0)
+
+[x] Allocation order
+[x]   Alloc #1: OK (09d35800) Tlspl: OK (size=60,name=tls,attr=00000000,index=0,blockSize=00000010,totalBlocks=00000003,freeBlocks=00000002,wait=0)
+[x]   Alloc #2: OK (09d35810) Tlspl: OK (size=60,name=tls,attr=00000000,index=0,blockSize=00000010,totalBlocks=00000003,freeBlocks=00000002,wait=0)
+[x]   Alloc #3: OK (09d35820) Tlspl: OK (size=60,name=tls,attr=00000000,index=0,blockSize=00000010,totalBlocks=00000003,freeBlocks=00000002,wait=0)
+[x]   Alloc #4: OK (09d35800) Tlspl: OK (size=60,name=tls,attr=00000000,index=0,blockSize=00000010,totalBlocks=00000003,freeBlocks=00000002,wait=0)
+
+[x] Allocation order (high)
+[x]   Alloc #1: OK (0bafdf00) Tlspl: OK (size=60,name=tls,attr=00004000,index=0,blockSize=00000010,totalBlocks=00000003,freeBlocks=00000002,wait=0)
+[x]   Alloc #2: OK (0bafdf10) Tlspl: OK (size=60,name=tls,attr=00004000,index=0,blockSize=00000010,totalBlocks=00000003,freeBlocks=00000002,wait=0)
+[x]   Alloc #3: OK (0bafdf20) Tlspl: OK (size=60,name=tls,attr=00004000,index=0,blockSize=00000010,totalBlocks=00000003,freeBlocks=00000002,wait=0)
+[x]   Alloc #4: OK (0bafdf00) Tlspl: OK (size=60,name=tls,attr=00004000,index=0,blockSize=00000010,totalBlocks=00000003,freeBlocks=00000002,wait=0)
+
+[x] Allocation alignment (0x100)
+[x]   Alloc #1: OK (09d35a00) Tlspl: OK (size=60,name=tls,attr=00000000,index=0,blockSize=00000001,totalBlocks=00000003,freeBlocks=00000002,wait=0)
+[x]   Alloc #2: OK (09d35b00) Tlspl: OK (size=60,name=tls,attr=00000000,index=0,blockSize=00000001,totalBlocks=00000003,freeBlocks=00000002,wait=0)
+[x]   Alloc #3: OK (09d35c00) Tlspl: OK (size=60,name=tls,attr=00000000,index=0,blockSize=00000001,totalBlocks=00000003,freeBlocks=00000002,wait=0)
+[x]   Alloc #4: OK (09d35a00) Tlspl: OK (size=60,name=tls,attr=00000000,index=0,blockSize=00000001,totalBlocks=00000003,freeBlocks=00000002,wait=0)
+
+[x] Allocation alignment (1)
+[x]   Alloc #1: OK (09d35800) Tlspl: OK (size=60,name=tls,attr=00000000,index=0,blockSize=00000001,totalBlocks=00000003,freeBlocks=00000002,wait=0)
+[x]   Alloc #2: OK (09d35804) Tlspl: OK (size=60,name=tls,attr=00000000,index=0,blockSize=00000001,totalBlocks=00000003,freeBlocks=00000002,wait=0)
+[x]   Alloc #3: OK (09d35808) Tlspl: OK (size=60,name=tls,attr=00000000,index=0,blockSize=00000001,totalBlocks=00000003,freeBlocks=00000002,wait=0)
+[x]   Alloc #4: OK (09d35800) Tlspl: OK (size=60,name=tls,attr=00000000,index=0,blockSize=00000001,totalBlocks=00000003,freeBlocks=00000002,wait=0)
+
+[x] Allocation alignment (0)
+[x]   Alloc #1: OK (09d35800) Tlspl: OK (size=60,name=tls,attr=00000000,index=0,blockSize=00000001,totalBlocks=00000003,freeBlocks=00000002,wait=0)
+[x]   Alloc #2: OK (09d35804) Tlspl: OK (size=60,name=tls,attr=00000000,index=0,blockSize=00000001,totalBlocks=00000003,freeBlocks=00000002,wait=0)
+[x]   Alloc #3: OK (09d35808) Tlspl: OK (size=60,name=tls,attr=00000000,index=0,blockSize=00000001,totalBlocks=00000003,freeBlocks=00000002,wait=0)
+[x]   Alloc #4: OK (09d35800) Tlspl: OK (size=60,name=tls,attr=00000000,index=0,blockSize=00000001,totalBlocks=00000003,freeBlocks=00000002,wait=0)
+
+[x] Clearing:
+[x]   Before get: cccccccc
+[x]   After get 1: 00000000
+[x]   After get 2: cccccccc
+[x]   After delete: cccccccc
+[x]   After create: cccccccc

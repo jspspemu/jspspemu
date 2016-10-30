@@ -1,0 +1,69 @@
+[x] Init
+
+[x] Players:
+[r]   Initial: Failed: 80616001 / 1337c0de
+[r]   Standby: Failed: 80616001 / 1337c0de
+[r]   Deleted: Failed: 80616001 / 1337c0de
+[r]   Playing: Failed: 8061600c / 1337c0de
+[r]   Twice: OK (status=4)  pts=0
+[r]   Copy: OK (status=4)  pts=0
+[r]   Finished: OK (status=200)  pts=567567
+
+[x] Params:
+[x]   Missing displaybuf: Failed: 8061600c / 1337c0de
+[r]   Missing displaybuf (warmed up): Failed: 80000103 / 1337c0de
+
+[x] Buffer widths:
+[x]   Width -1: Failed: 80000023 / 1337c0de
+[x]    -> Video data blank start=0, end=-1
+[r]   Width 0: OK (status=4)  pts=0
+[x]    -> Video data blank start=144, end=512
+[x]   Width 1: Failed: 800001fe / 1337c0de
+[x]    -> Video data blank start=0, end=-1
+[x]   Width 128: Failed: 800001fe / 1337c0de
+[x]    -> Video data blank start=0, end=-1
+[x]   Width 143: Failed: 800001fe / 1337c0de
+[x]    -> Video data blank start=0, end=-1
+[r]   Width 144: OK (status=4)  pts=0
+[x]    -> Video data blank start=-1, end=-1
+[r]   Width 160: OK (status=4)  pts=0
+[x]    -> Video data blank start=144, end=160
+[r]   Width 192: OK (status=4)  pts=0
+[x]    -> Video data blank start=144, end=192
+[r]   Width 256: OK (status=4)  pts=0
+[x]    -> Video data blank start=144, end=256
+[r]   Width 510: OK (status=4)  pts=0
+[x]    -> Video data blank start=144, end=510
+[r]   Width 511: OK (status=4)  pts=0
+[x]    -> Video data blank start=144, end=510
+[r]   Width 512: OK (status=4)  pts=0
+[x]    -> Video data blank start=144, end=512
+[r]   Width 513: OK (status=4)  pts=0
+[x]    -> Video data blank start=144, end=512
+
+[x] Frame write
+[r]   Paused: OK (status=4)  pts=0
+[x]    -> Video data blank start=144, end=512
+[r]   Finished: OK (status=200)  pts=567567
+[x]    -> Video data blank start=144, end=512
+
+[x] Video sync better priority:
+[r]   Last frame is 567567
+[r]   * At last frame? (status=4)  pts=564564
+[r]   Read video 1: OK (status=4)  pts=567567
+[x]   * Read frame 1 (status=4)  pts=564564
+[r]   Read video 2: OK (status=4)  pts=567567
+[x]   * Read frame 2 (status=4)  pts=564564
+[x]   After last frame 3: Status=200, result=00000000
+[r]   Read video 3: OK (status=200)  pts=567567
+[x]   * Read frame 3 (status=200)  pts=564564
+
+[x] Video sync worse priority:
+[r]   Last frame is 567567
+[r]   * At last frame? (status=4)  pts=564564
+[r]   Read video 1: OK (status=4)  pts=567567
+[x]   * Read frame 1 (status=4)  pts=564564
+[r]   Read video 2: OK (status=4)  pts=567567
+[x]   * Read frame 2 (status=4)  pts=564564
+[r]   Read video 3: OK (status=200)  pts=567567
+[x]   * Read frame 3 (status=200)  pts=564564

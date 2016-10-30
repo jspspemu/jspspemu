@@ -1,0 +1,5 @@
+[x] Normal: 00000000
+[x] Twice: 00000000
+[x] Invalid: 00000000
+[x] NULL: 00000000
+[x] After destruct: Ringbuffer: OK (packets=100,r=2/w=53/f=90,data=1,cb=1,arg=00001234,end=1048576,sema?=00000000,mpeg=0,gp=1)

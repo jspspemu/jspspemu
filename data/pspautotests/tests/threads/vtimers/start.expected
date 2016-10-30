@@ -1,0 +1,9 @@
+[x] Objects
+[x]   Normal: 00000000
+[x]   Twice: 00000001
+[x]   NULL: 800201bf
+[x]   Invalid: 800201be
+[x]   Deleted: 800201be
+
+[x] While scheduled
+[r]   After start: 1

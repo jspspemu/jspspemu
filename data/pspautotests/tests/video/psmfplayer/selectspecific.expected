@@ -1,0 +1,26 @@
+[x] Init
+
+[x] scePsmfPlayerSelectVideo:
+
+[x] Players:
+[r]   Initial: Failed: 80616001
+[r]   Standby: Failed: 80616001
+[r]   Deleted: Failed: 80616001
+[r]   Playing: Failed: 80616003
+[x]   Twice: Failed: 80616003
+[x]   Copy: Failed: 80616003
+[r]   Finished: Failed: 80616001
+
+[x] Multiple streams:
+[r]   Stream 0: Failed: 80616003
+[x]   Stream 1: Failed: 80616003
+[x]   Stream -1: Failed: 80616003
+[x]   Stream 2: Failed: 80616003
+[x]   Video codec 00000000: Failed: 80616003
+[x]   Video codec 00000001: Failed: 80616003
+[x]   Video codec 0000000e: Failed: 80616003
+[x]   Video codec 0000000f: Failed: 80616003
+[x]   Video codec 0000001e: Failed: 80616003
+[x]   Video codec 0000001f: Failed: 80616003
+[x]   Video codec 8000000e: Failed: 80616003
+[x]   Video codec 8000000f: Failed: 80616003

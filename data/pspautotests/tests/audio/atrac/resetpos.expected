@@ -1,0 +1,73 @@
+[x] IDs:
+[x]   Unallocated: 80630005
+[x]   Invalid: 80630005
+[r]   Valid: 00000000
+
+[x] Sample values:
+[r]   00000000: 00000000
+[r]   00000001: 00000000
+[r]   000007fe: 00000000
+[r]   000007ff: 00000000
+[r]   00001000: 00000000
+[r]   000047ff: 00000000
+[r]   00010000: 00000000
+[r]   0003c6cb: 00000000
+[r]   0003c6cc: 00000000
+[x]   0003c6cd: 80630015
+[x]   00100000: 80630015
+[x]   01000000: 80630015
+[x]   7fffffff: 80630015
+[r]   ffffffff: 00000000
+[r]   fffffffe: 00000000
+[r]   fffff800: 80630002
+[x]   fffff000: 80630015
+
+[x] Other states:
+[x]   No data: 80630010
+[x]   State 8: 80630031
+[x]   State 16: 80630040
+
+[x] Entire buffer:
+[r]   Sample = 0: 00000000
+[r]   Sample = 65536: 00000000
+[r]   Sample = 196608: 00000000
+[x]   First size = ffffffff: 80630016
+[x]   Second size = ffffffff: 80630017
+[r]   First size = 00000000: 00000000
+[r]   Second size = 00000000: 00000000
+[x]   First size = 00000100: 80630016
+[x]   Second size = 00000100: 80630017
+[x]   First size = 00001000: 80630016
+[x]   Second size = 00001000: 80630017
+[x]   First size = 00100000: 80630016
+[x]   Second size = 00100000: 80630017
+
+[x] Half buffer:
+[r]   Sample = 0: 00000000
+[r]   Sample = 65536: 00000000
+[r]   Sample = 196608: 00000000
+[x]   First size = ffffffff: 80630016
+[x]   Second size = ffffffff: 80630017
+[r]   First size = 00000000: 00000000
+[r]   Second size = 00000000: 00000000
+[r]   First size = 00000100: 00000000
+[x]   Second size = 00000100: 80630017
+[r]   First size = 00001000: 00000000
+[x]   Second size = 00001000: 80630017
+[x]   First size = 00100000: 80630016
+[x]   Second size = 00100000: 80630017
+
+[x] Streamed buffer:
+[r]   Sample = 0: 00000000
+[r]   Sample = 65536: 00000000
+[r]   Sample = 196608: 00000000
+[x]   First size = ffffffff: 80630016
+[x]   Second size = ffffffff: 80630016
+[x]   First size = 00000000: 80630016
+[x]   Second size = 00000000: 80630016
+[x]   First size = 00000100: 80630016
+[x]   Second size = 00000100: 80630016
+[r]   First size = 00001000: 00000000
+[x]   Second size = 00001000: 80630016
+[x]   First size = 00100000: 80630016
+[x]   Second size = 00100000: 80630016

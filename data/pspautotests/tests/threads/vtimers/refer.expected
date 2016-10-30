@@ -1,0 +1,19 @@
+[x] Objects
+[x]   Normal: 00000000
+[x]   Twice: 00000000
+[x]   NULL: 800201be
+[x]   Invalid: 800201be
+[x]   Deleted: 800201be
+
+[x] Sizes
+[x]   size -1 => 72, 00000000
+[x]   size 0 => 0, cccccccc
+[x]   size 1 => 72, cccccccc
+[x]   size 4 => 72, cccccccc
+[x]   size 8 => 72, cccccccc
+[x]   size 9 => 72, cccccccc
+[x]   size 32 => 72, cccccccc
+[x]   size 64 => 72, cccccccc
+[x]   size 70 => 72, cccc0000
+[x]   size 72 => 72, 00000000
+[x]   size 800 => 72, 00000000

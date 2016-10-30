@@ -1,0 +1,21 @@
+[x] Init
+
+[x] sceFontGetFontList libraries:
+[r]   Normal: OK Font Style: h=10.125000 (128.000000), v=10.125000 (128.000000), w=0.000000, family=1, style=103 / 0, lang=1, reg=0, country=1, name=FTT-NewRodin Pro DB, file=jpn0.pgf, attr=00000000, exp=0
+[x]   NULL: Failed (80460002)
+[r]   Done: OK Font Style: h=0.000000 (0.000000), v=0.000000 (0.000000), w=0.000000, family=0, style=0 / 0, lang=0, reg=0, country=0, name=, file=, attr=00000000, exp=0
+
+[x] sceFontGetFontList counts:
+[r]   -1: OK Font Style: h=0.000000 (0.000000), v=0.000000 (0.000000), w=0.000000, family=0, style=0 / 0, lang=0, reg=0, country=0, name=, file=, attr=00000000, exp=0
+[r]   0: OK Font Style: h=0.000000 (0.000000), v=0.000000 (0.000000), w=0.000000, family=0, style=0 / 0, lang=0, reg=0, country=0, name=, file=, attr=00000000, exp=0
+[r]   1: OK Font Style: h=10.125000 (128.000000), v=10.125000 (128.000000), w=0.000000, family=1, style=103 / 0, lang=1, reg=0, country=1, name=FTT-NewRodin Pro DB, file=jpn0.pgf, attr=00000000, exp=0
+[r]   30: OK Font Style: h=10.125000 (128.000000), v=10.125000 (128.000000), w=0.000000, family=1, style=103 / 0, lang=1, reg=0, country=1, name=FTT-NewRodin Pro DB, file=jpn0.pgf, attr=00000000, exp=0
+
+[x] sceFontGetFontList styles:
+[x]   Missing: Failed (80460003)
+[r]   Data size: 00000000 dddddddd dddddddd dddddddd
+
+[x] sceFontGetFontList libraries:
+[x]   Normal: OK (18, 00000000)
+[x]   NULL: OK (0, 80460002)
+[x]   Done: OK (0, 00000000)

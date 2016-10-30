@@ -1,0 +1,15 @@
+[x] Threads:
+[x]   Dormant thread: 00000001
+[x]   Sleeping thread: 00000001
+[x]   Delaying thread: 00000001
+[x]   Suspended thread: 00000001
+[x]   Deleted thread: 800200d2
+
+[x] Special values:
+[x]   -1: 800200d2
+[x]   0: 800200d2
+[x]   1: 800200d2
+
+[x] Other types:
+[x]   PartitionMemoryBlock: 800200d2
+[r]   Module: 800200d2

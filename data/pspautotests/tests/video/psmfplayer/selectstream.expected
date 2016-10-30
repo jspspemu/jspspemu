@@ -1,0 +1,29 @@
+[x] Init
+
+[x] scePsmfPlayerSelectVideo:
+
+[x] Players:
+[r]   Initial: Failed: 80616001
+[r]   Standby: Failed: 80616001
+[r]   Deleted: Failed: 80616001
+[r]   Playing: Failed: 80616003
+[x]   Twice: Failed: 80616003
+[x]   Copy: Failed: 80616003
+[r]   Finished: Failed: 80616001
+
+[x] Single stream:
+[r]   Just video: Failed: 80616003
+
+[x] scePsmfPlayerSelectAudio:
+
+[x] Players:
+[r]   Initial: Failed: 80616001
+[r]   Standby: Failed: 80616001
+[r]   Deleted: Failed: 80616001
+[r]   Playing: Failed: 80616003
+[x]   Twice: Failed: 80616003
+[x]   Copy: Failed: 80616003
+[r]   Finished: Failed: 80616001
+
+[x] Single stream:
+[r]   Just video: Failed: 80616003

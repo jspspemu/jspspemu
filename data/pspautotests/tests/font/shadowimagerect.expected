@@ -1,0 +1,18 @@
+[x] Init
+
+[x] Fonts:
+[x]   Normal: OK (16, 16)
+[x]   NULL: Failed (80460003 -> -1, -1)
+[x]   Closed: OK (16, 16)
+
+[x] Characters:
+[x]   NUL: OK (0, 0)
+[x]   SOH: OK (0, 0)
+[x]   BEL: OK (0, 0)
+[x]   0xD7FF: OK (15, 9)
+[x]   0xFFFE: OK (15, 9)
+[x]   0xFFFF: OK (15, 9)
+
+[x] Rect:
+[x]   Missing: Failed (80460003 -> -1, -1)
+[x]   Data size: 00100010 dddddddd dddddddd dddddddd

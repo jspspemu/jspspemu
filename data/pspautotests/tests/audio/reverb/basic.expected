@@ -1,0 +1,106 @@
+[x] Initialization:
+[r]   Load avcodec: 00000000
+[r]   Load sascore: 00000000
+[x]   Init core: 00000000
+
+[x] Delay parameters:
+[x]   __sceSasRevParam delay=-2: 80420022
+[x]   __sceSasRevParam delay=-1: 80420022
+[x]   __sceSasRevParam delay=0: 00000000
+[x]   __sceSasRevParam delay=1: 00000000
+[x]   __sceSasRevParam delay=2: 00000000
+[x]   __sceSasRevParam delay=63: 00000000
+[x]   __sceSasRevParam delay=64: 00000000
+[x]   __sceSasRevParam delay=65: 00000000
+[x]   __sceSasRevParam delay=127: 00000000
+[x]   __sceSasRevParam delay=128: 80420022
+[x]   __sceSasRevParam delay=129: 80420022
+[x]   __sceSasRevParam delay=256: 80420022
+[x]   __sceSasRevParam delay=4096: 80420022
+[x]   __sceSasRevParam delay=-2147483646: 80420022
+
+[x] Feedback parameters:
+[x]   __sceSasRevParam feedback=-2: 80420021
+[x]   __sceSasRevParam feedback=-1: 80420021
+[x]   __sceSasRevParam feedback=0: 00000000
+[x]   __sceSasRevParam feedback=1: 00000000
+[x]   __sceSasRevParam feedback=2: 00000000
+[x]   __sceSasRevParam feedback=63: 00000000
+[x]   __sceSasRevParam feedback=64: 00000000
+[x]   __sceSasRevParam feedback=65: 00000000
+[x]   __sceSasRevParam feedback=127: 00000000
+[x]   __sceSasRevParam feedback=128: 80420021
+[x]   __sceSasRevParam feedback=129: 80420021
+[x]   __sceSasRevParam feedback=256: 80420021
+[x]   __sceSasRevParam feedback=4096: 80420021
+[x]   __sceSasRevParam feedback=-2147483646: 80420021
+
+[x] Reverb types:
+[x]   __sceSasRevType -3: 80420020
+[x]   __sceSasRevType -2: 80420020
+[x]   __sceSasRevType -1: 00000000
+[x]   __sceSasRevType 0: 00000000
+[x]   __sceSasRevType 1: 00000000
+[x]   __sceSasRevType 2: 00000000
+[x]   __sceSasRevType 3: 00000000
+[x]   __sceSasRevType 4: 00000000
+[x]   __sceSasRevType 5: 00000000
+[x]   __sceSasRevType 6: 00000000
+[x]   __sceSasRevType 7: 00000000
+[x]   __sceSasRevType 8: 00000000
+[x]   __sceSasRevType 9: 80420020
+[x]   __sceSasRevType 10: 80420020
+[x]   __sceSasRevType 11: 80420020
+[x]   __sceSasRevType 12: 80420020
+[x]   __sceSasRevType 64: 80420020
+[x]   __sceSasRevType 127: 80420020
+[x]   __sceSasRevType 128: 80420020
+[x]   __sceSasRevType 129: 80420020
+[x]   __sceSasRevType 4096: 80420020
+[x]   __sceSasRevType -2147483646: 80420020
+
+[x] Effect volumes:
+[x]   __sceSasRevEVOL -2 (left): 80420023
+[x]   __sceSasRevEVOL -2 (right): 80420023
+[x]   __sceSasRevEVOL -1 (left): 80420023
+[x]   __sceSasRevEVOL -1 (right): 80420023
+[x]   __sceSasRevEVOL 0 (left): 00000000
+[x]   __sceSasRevEVOL 0 (right): 00000000
+[x]   __sceSasRevEVOL 1 (left): 00000000
+[x]   __sceSasRevEVOL 1 (right): 00000000
+[x]   __sceSasRevEVOL 2 (left): 00000000
+[x]   __sceSasRevEVOL 2 (right): 00000000
+[x]   __sceSasRevEVOL 64 (left): 00000000
+[x]   __sceSasRevEVOL 64 (right): 00000000
+[x]   __sceSasRevEVOL 128 (left): 00000000
+[x]   __sceSasRevEVOL 128 (right): 00000000
+[x]   __sceSasRevEVOL 4096 (left): 00000000
+[x]   __sceSasRevEVOL 4096 (right): 00000000
+[x]   __sceSasRevEVOL 4097 (left): 80420023
+[x]   __sceSasRevEVOL 4097 (right): 80420023
+[x]   __sceSasRevEVOL -2147483646 (left): 80420023
+[x]   __sceSasRevEVOL -2147483646 (right): 80420023
+
+[x] Dry flags:
+[x]   __sceSasRevVON dry=-2: 00000000
+[x]   __sceSasRevVON dry=-1: 00000000
+[x]   __sceSasRevVON dry=0: 00000000
+[x]   __sceSasRevVON dry=1: 00000000
+[x]   __sceSasRevVON dry=2: 00000000
+[x]   __sceSasRevVON dry=64: 00000000
+[x]   __sceSasRevVON dry=128: 00000000
+[x]   __sceSasRevVON dry=4096: 00000000
+[x]   __sceSasRevVON dry=4097: 00000000
+[x]   __sceSasRevVON dry=-2147483646: 00000000
+
+[x] Wet flags:
+[x]   __sceSasRevVON wet=-2: 00000000
+[x]   __sceSasRevVON wet=-1: 00000000
+[x]   __sceSasRevVON wet=0: 00000000
+[x]   __sceSasRevVON wet=1: 00000000
+[x]   __sceSasRevVON wet=2: 00000000
+[x]   __sceSasRevVON wet=64: 00000000
+[x]   __sceSasRevVON wet=128: 00000000
+[x]   __sceSasRevVON wet=4096: 00000000
+[x]   __sceSasRevVON wet=4097: 00000000
+[x]   __sceSasRevVON wet=-2147483646: 00000000

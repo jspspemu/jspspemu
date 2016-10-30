@@ -1,0 +1,28 @@
+[x] Init
+
+[x] sceFontOpen libs:
+[r]   Normal: OK (allocated 145844)
+[x]   Invalid: Failed (00000000, 80460002)
+
+[x] sceFontOpen indexes:
+[x]   Index -1: Failed (00000000, 80460003)
+[r]   Index 0: OK (allocated 145844)
+[r]   Index 1: OK (allocated 16680)
+[x]   Index 50: Failed (00000000, 80460003)
+
+[x] sceFontOpen modes:
+[r]   Mode -1: OK (allocated 145844)
+[r]   Mode 0: OK (allocated 145844)
+[r]   Mode 1: OK (allocated 1581712)
+[r]   Mode 2: OK (allocated 145844)
+
+[x] sceFontOpen too many:
+[r]   5th font: 00000000, 80460009
+
+[x] sceFontOpen callbacks:
+[r]   With callbacks set: OK (allocated 145844)
+
+[x] sceFontOpen reference counting:
+[x] While open: OK (allocated 0)
+[r]   GetCharInfo on open: 00000000
+[x]   GetCharInfo on closed: 00000000

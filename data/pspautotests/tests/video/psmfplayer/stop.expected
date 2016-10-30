@@ -1,0 +1,10 @@
+[x] Init
+
+[x] Players:
+[r]   Initial: Failed: 80616001
+[r]   Standby: Failed: 80616001
+[r]   Deleted: Failed: 80616001
+[r]   Playing: OK (status=2)
+[x]   Twice: Failed: 80616001
+[r]   Copy: OK (status=2)
+[r]   Finished: OK (status=2)

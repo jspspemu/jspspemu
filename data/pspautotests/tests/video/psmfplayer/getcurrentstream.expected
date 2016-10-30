@@ -1,0 +1,55 @@
+[x] Init
+
+[x] scePsmfPlayerGetCurrentVideoStream:
+
+[x] Players:
+[r]   Initial: Failed: 80616001
+[r]   Standby: OK (status=2)  codec=-1, num=-1
+[x]   Twice: OK (status=2)  codec=-1, num=-1
+[x]   Copy: OK (status=2)  codec=-1, num=-1
+[r]   Deleted: Failed: 80616001
+[r]   Playing: OK (status=4)  codec=0, num=0
+[r]   Finished: OK (status=200)  codec=0, num=0
+
+[x] Multiple streams:
+[r]   Default streams: OK (status=4)  codec=0, num=0
+[r]   Stream 1: OK (status=4)  codec=0, num=1
+[r]   Video codec 00000000: OK (status=4)  codec=0, num=1
+[r]   Video codec 00000001: OK (status=2)  codec=-1, num=-1
+[r]   Video codec 0000000e: OK (status=4)  codec=0, num=1
+[r]   Video codec 0000000f: OK (status=2)  codec=-1, num=-1
+[r]   Video codec 0000001e: OK (status=2)  codec=-1, num=-1
+[r]   Video codec 8000000e: OK (status=2)  codec=-1, num=-1
+[r]   Audio codec 00000000: OK (status=2)  codec=-1, num=-1
+[r]   Audio codec 00000001: OK (status=4)  codec=0, num=1
+[r]   Audio codec 0000000e: OK (status=2)  codec=-1, num=-1
+[r]   Audio codec 0000000f: OK (status=4)  codec=0, num=1
+[r]   Audio codec 0000001f: OK (status=2)  codec=-1, num=-1
+[r]   Audio codec 8000000f: OK (status=2)  codec=-1, num=-1
+
+[x] scePsmfPlayerGetCurrentAudioStream:
+
+[x] Players:
+[r]   Initial: Failed: 80616001
+[r]   Standby: OK (status=2)  codec=-1, num=-1
+[x]   Twice: OK (status=2)  codec=-1, num=-1
+[x]   Copy: OK (status=2)  codec=-1, num=-1
+[r]   Deleted: Failed: 80616001
+[r]   Playing: OK (status=4)  codec=-1, num=-1
+[r]   Finished: OK (status=200)  codec=-1, num=-1
+
+[x] Multiple streams:
+[r]   Default streams: OK (status=4)  codec=1, num=0
+[r]   Stream 1: OK (status=4)  codec=1, num=1
+[r]   Video codec 00000000: OK (status=4)  codec=1, num=1
+[r]   Video codec 00000001: OK (status=2)  codec=-1, num=-1
+[r]   Video codec 0000000e: OK (status=4)  codec=1, num=1
+[r]   Video codec 0000000f: OK (status=2)  codec=-1, num=-1
+[r]   Video codec 0000001e: OK (status=2)  codec=-1, num=-1
+[r]   Video codec 8000000e: OK (status=2)  codec=-1, num=-1
+[r]   Audio codec 00000000: OK (status=2)  codec=-1, num=-1
+[r]   Audio codec 00000001: OK (status=4)  codec=1, num=1
+[r]   Audio codec 0000000e: OK (status=2)  codec=-1, num=-1
+[r]   Audio codec 0000000f: OK (status=4)  codec=1, num=1
+[r]   Audio codec 0000001f: OK (status=2)  codec=-1, num=-1
+[r]   Audio codec 8000000f: OK (status=2)  codec=-1, num=-1

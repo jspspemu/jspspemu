@@ -1,0 +1,123 @@
+[x] Init
+
+[x] Players (get):
+[r]   Initial: Failed: 80616001
+[r]   Standby: OK (status=4)
+[r]   Standby: mode=4, speed=0, audio=1/-1, video=-1/0, pts=0
+[r]   Playing: OK (status=4)
+[r]   Playing: mode=4, speed=0, audio=1/-1, video=-1/0, pts=0
+[r]   Twice: OK (status=4)
+[x]   Twice: mode=4, speed=0, audio=1/-1, video=-1/0, pts=0
+[r]   Copy: OK (status=4)
+[x]   Copy: mode=4, speed=0, audio=1/-1, video=-1/0, pts=0
+[r]   Finished: OK (status=4)
+[x]   Finished: mode=4, speed=0, audio=1/-1, video=-1/0, pts=0
+[x]   Zero: Failed: 80616001
+
+[x] Modes:
+[r]   Mode -2: Failed: 80616008
+[r]   Mode -1: Failed: 80616008
+[r]   Mode 0: OK (status=4)
+[r]   Mode 0: mode=4, speed=0, audio=1/-1, video=-1/0, pts=0
+[r]   Mode 1: OK (status=4)
+[r]   Mode 1: mode=4, speed=1, audio=1/-1, video=-1/0, pts=0
+[r]   Mode 2: OK (status=4)
+[r]   Mode 2: mode=4, speed=2, audio=1/-1, video=-1/0, pts=0
+[r]   Mode 3: OK (status=4)
+[r]   Mode 3: mode=4, speed=3, audio=1/-1, video=-1/0, pts=0
+[r]   Mode 4: Failed: 80616008
+[r]   Mode 5: Failed: 80616008
+[r]   Mode 6: Failed: 80616008
+[r]   Mode 7: Failed: 80616008
+[r]   Mode 8: Failed: 80616008
+[r]   Mode 10: Failed: 80616008
+[r]   Mode 16: Failed: 80616008
+[r]   Mode -2147483648: Failed: 80616008
+
+[x] Speeds:
+[r]   Speed -2: OK (status=4)
+[r]   Speed -2: mode=4, speed=0, audio=-2/-1, video=-1/0, pts=0
+[r]   Speed -1: OK (status=4)
+[r]   Speed -1: mode=4, speed=0, audio=-1/-1, video=-1/0, pts=0
+[r]   Speed 0: OK (status=4)
+[r]   Speed 0: mode=4, speed=0, audio=0/-1, video=-1/0, pts=0
+[r]   Speed 1: OK (status=4)
+[r]   Speed 1: mode=4, speed=0, audio=1/-1, video=-1/0, pts=0
+[r]   Speed 2: OK (status=4)
+[r]   Speed 2: mode=4, speed=0, audio=2/-1, video=-1/0, pts=0
+[r]   Speed 3: OK (status=4)
+[r]   Speed 3: mode=4, speed=0, audio=3/-1, video=-1/0, pts=0
+[r]   Speed 4: OK (status=4)
+[r]   Speed 4: mode=4, speed=0, audio=4/-1, video=-1/0, pts=0
+[r]   Speed 5: OK (status=4)
+[r]   Speed 5: mode=4, speed=0, audio=5/-1, video=-1/0, pts=0
+[r]   Speed 10: OK (status=4)
+[r]   Speed 10: mode=4, speed=0, audio=10/-1, video=-1/0, pts=0
+[r]   Speed 16: OK (status=4)
+[r]   Speed 16: mode=4, speed=0, audio=16/-1, video=-1/0, pts=0
+[r]   Speed -2147483648: OK (status=4)
+[r]   Speed -2147483648: mode=4, speed=0, audio=-2147483648/-1, video=-1/0, pts=0
+
+[x] Start pts:
+[r]   Pts -1000: Failed: 80616008
+[r]   Pts -1: Failed: 80616008
+[r]   Pts 0: OK (status=4)
+[r]   Pts 0: mode=4, speed=0, audio=1/-1, video=-1/0, pts=0
+[r]   Pts 1: Failed: 80616008
+[r]   Pts 1000: Failed: 80616008
+[r]   Pts 3003: Failed: 80616008
+[r]   Pts 6006: Failed: 80616008
+[r]   Pts 87087: Failed: 80616008
+[r]   Pts 276276: Failed: 80616008
+[r]   Pts 279278: Failed: 80616008
+[r]   Pts 279279: Failed: 80616008
+[r]   Pts 282282: Failed: 80616008
+[r]   Pts 2147483647: Failed: 80616008
+
+[x] Video codecs:
+[r]   Video codec 00000000: OK (status=4)
+[r]   Video codec 00000000: mode=4, speed=0, audio=1/-1, video=-1/0, pts=0
+[r]   Video codec 00000001: Failed: 80616003
+[r]   Video codec 0000000e: OK (status=4)
+[r]   Video codec 0000000e: mode=4, speed=0, audio=1/-1, video=-1/0, pts=0
+[r]   Video codec 0000000f: Failed: 80616003
+[r]   Video codec 0000001e: Failed: 80616003
+[r]   Video codec 8000000e: Failed: 80616003
+
+[x] Audio codecs (no audio):
+[r]   Audio codec 00000000: OK (status=4)
+[r]   Audio codec 00000000: mode=4, speed=0, audio=1/-1, video=-1/0, pts=0
+[r]   Audio codec 00000001: OK (status=4)
+[r]   Audio codec 00000001: mode=4, speed=0, audio=1/-1, video=-1/0, pts=0
+[r]   Audio codec 0000000e: OK (status=4)
+[r]   Audio codec 0000000e: mode=4, speed=0, audio=1/-1, video=-1/0, pts=0
+[r]   Audio codec 0000000f: OK (status=4)
+[r]   Audio codec 0000000f: mode=4, speed=0, audio=1/-1, video=-1/0, pts=0
+[r]   Audio codec 0000001e: OK (status=4)
+[r]   Audio codec 0000001e: mode=4, speed=0, audio=1/-1, video=-1/0, pts=0
+[r]   Audio codec 8000000f: OK (status=4)
+[r]   Audio codec 8000000f: mode=4, speed=0, audio=1/-1, video=-1/0, pts=0
+
+[x] Audio codecs (with audio):
+[r]   Audio codec 00000000: Failed: 80616003
+[r]   Audio codec 00000001: OK (status=4)
+[r]   Audio codec 00000001: mode=512, speed=0, audio=1/1, video=0/0, pts=0
+[r]   Audio codec 0000000e: Failed: 80616003
+[r]   Audio codec 0000000f: OK (status=4)
+[r]   Audio codec 0000000f: mode=512, speed=0, audio=1/1, video=0/0, pts=0
+[r]   Audio codec 0000001e: Failed: 80616003
+[r]   Audio codec 8000000f: Failed: 80616003
+
+[x] Streams:
+[r]   Video stream -1: Failed: 80616006
+[r]   Video stream 1: Failed: 80616006
+[r]   Video stream 1 (exists): OK (status=4)
+[r]   Video stream 1 (exists): mode=512, speed=0, audio=1/1, video=0/0, pts=1
+[r]   Video stream 2: Failed: 80616006
+[r]   Audio stream -1: OK (status=4)
+[r]   Audio stream -1: mode=4, speed=0, audio=1/-1, video=-1/0, pts=0
+[r]   Audio stream 1: OK (status=4)
+[r]   Audio stream 1: mode=4, speed=0, audio=1/-1, video=-1/0, pts=0
+[r]   Audio stream 1 (exists): OK (status=4)
+[r]   Audio stream 1 (exists): mode=512, speed=0, audio=1/1, video=1/0, pts=0
+[r]   Audio stream 2: Failed: 80616006

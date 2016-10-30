@@ -1,0 +1,7 @@
+[x] Normal: OK
+[x] NULL: Failed (800201be)
+[x] Invalid: Failed (800201be)
+[x] Deleted: Failed (800201be)
+[x] Started: OK
+[r] Delete within handler: 80020064
+[x] Delete after handler: 00000000

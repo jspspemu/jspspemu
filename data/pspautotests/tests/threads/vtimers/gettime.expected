@@ -1,0 +1,19 @@
+[x] Objects
+[x]   Normal: OK
+[x]   NULL: Failed (800201be) 0000000000001337
+[x]   Invalid: Failed (800201be) 0000000000001337
+[x]   Deleted: Failed (800201be) 0000000000001337
+
+[x] Running
+[r]   After start: OK
+[x]   After stop: OK
+
+[x] Objects (wide)
+[x]   Normal: OK
+[x]   NULL: Wrong value - ffffffffffffffff
+[x]   Invalid: Wrong value - ffffffffffffffff
+[x]   Deleted: Wrong value - ffffffffffffffff
+
+[x] Running (wide)
+[r]   After start: OK
+[x]   After stop: OK
