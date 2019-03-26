@@ -7,7 +7,7 @@
 		"start": "node --harmony static_server.js"
 	},
 	"dependencies": {
-		"mime": "1.2.x",
+		"mime": "1.4.1",
 		"node-watch": "0.3.x",
 		"node-dir": "0.1.x",
 		"underscore": "1.6.x",
