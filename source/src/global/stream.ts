@@ -124,7 +124,7 @@ class FileAsyncStream implements AsyncStream {
 	date: Date;
 
 	constructor(private file: File) {
-		this.date = file.lastModifiedDate;
+		this.date = (file as any).lastModifiedDate;
 	}
 
 	get name() { return this.file.name; }
@@ -133,7 +133,7 @@ class FileAsyncStream implements AsyncStream {
 	readChunkAsync(offset: number, count: number) {
 		return new Promise2<ArrayBuffer>((resolve, reject) => {
 			var fileReader = new FileReader();
-			fileReader.onload = (e) => { resolve(fileReader.result); };
+			fileReader.onload = (e) => { resolve((fileReader as any).result); };
 			fileReader.onerror = (e:any) => { reject(e['error']); };
 			fileReader.readAsArrayBuffer(this.file.slice(offset, offset + count));
 		});

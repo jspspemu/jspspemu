@@ -599,11 +599,6 @@ class MathFloat {
 	}
 }
 
-(<any>window).BitUtils = BitUtils;
-(<any>window).MathUtils = MathUtils;
-(<any>window).MathFloat = MathFloat;
-(<any>window).MathVfpu = MathVfpu;
-
 function handleCastInfinite(value: number) {
 	return (value < 0) ? -2147483648 : 2147483647;
 }
@@ -718,3 +713,8 @@ class ArrayUtils {
 function xrange(start: number, end: number) {
 	return ArrayUtils.range(start, end);
 }
+
+(<any>window).BitUtils = BitUtils;
+(<any>window).MathUtils = MathUtils;
+(<any>window).MathFloat = MathFloat;
+(<any>window).MathVfpu = MathVfpu;
