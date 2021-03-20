@@ -1,6 +1,9 @@
 const path = require('path');
 const CopyPlugin = require("copy-webpack-plugin");
 const HtmlWebpackPlugin = require('html-webpack-plugin');
+//const isProduction = process.env.NODE_ENV === 'production'
+//console.warn(process.env)
+//console.warn("isProduction", isProduction, process.env.NODE_ENV)
 
 module.exports = {
     entry: './source/src/app.ts',
@@ -42,11 +45,10 @@ module.exports = {
         new HtmlWebpackPlugin({
             title: 'jspspemu',
         }),
-        //new CopyPlugin({
-        //    patterns: [
-        //        //{ from: "index.html", to: "dist" },
-        //        //{ from: "other", to: "public" },
-        //    ],
-        //}),
+        new CopyPlugin({
+            patterns: [
+                { from: "test.html", to: "." },
+            ],
+        }),
     ],
 };

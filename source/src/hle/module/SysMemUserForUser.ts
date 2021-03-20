@@ -1,8 +1,8 @@
-﻿import _utils = require('../utils');
-import _manager = require('../manager');
-import _context = require('../../context');
+﻿import * as _utils from '../utils';
+import * as _manager from '../manager';
+import * as _context from '../../context';
 import nativeFunction = _utils.nativeFunction;
-import SceKernelErrors = require('../SceKernelErrors');
+import { SceKernelErrors } from '../SceKernelErrors';
 import MemoryAnchor = _manager.MemoryAnchor;
 import Thread = _manager.Thread;
 import MemoryPartition = _manager.MemoryPartition;

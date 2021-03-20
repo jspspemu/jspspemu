@@ -1,5 +1,6 @@
-//import advancedrelooper = require('./advancedrelooper');
-import simplerelooper = require('./simplerelooper');
+//import * as advancedrelooper from './advancedrelooper';
+
+import {SimpleRelooper} from "./simplerelooper";
 
 interface IBlock {
 }
@@ -15,7 +16,7 @@ export function processAdvance(callback: (r:IRelooper) => void):string {
 }
 
 export function processSimple(callback: (r:IRelooper) => void):string {
-	var sr = new simplerelooper.SimpleRelooper();
+	var sr = new SimpleRelooper();
 	sr.init();
 	try {
 		callback(sr);

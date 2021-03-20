@@ -1,7 +1,7 @@
 ﻿import "../../global"
 
-import _state = require('./gpu_state');
-import _vertex = require('./gpu_vertex');
+import * as _state from './gpu_state';
+import * as _vertex from './gpu_vertex';
 import {Promise2} from "../../global/utils";
 
 class Signal<T> {

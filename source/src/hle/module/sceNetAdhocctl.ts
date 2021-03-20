@@ -1,8 +1,8 @@
-﻿import _sceNetAdhocMatching = require('./sceNetAdhocMatching');
-import _utils = require('../utils');
-import _context = require('../../context');
-import _manager = require('../manager');
-import SceKernelErrors = require('../SceKernelErrors');
+﻿import * as _sceNetAdhocMatching from './sceNetAdhocMatching';
+import * as _utils from '../utils';
+import * as _context from '../../context';
+import * as _manager from '../manager';
+import { SceKernelErrors } from '../SceKernelErrors';
 import nativeFunction = _utils.nativeFunction;
 import EmulatorContext = _context.EmulatorContext;
 import MemoryPartition = _manager.MemoryPartition;

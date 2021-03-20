@@ -1,5 +1,5 @@
-﻿import _vfs = require('./vfs');
-import format_zip = require('../../format/zip');
+﻿import * as _vfs from './vfs';
+import * as format_zip from '../../format/zip';
 
 import Vfs = _vfs.Vfs;
 import VfsEntry = _vfs.VfsEntry;

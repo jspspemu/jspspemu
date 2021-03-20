@@ -1,11 +1,10 @@
 ﻿import "./global"
 import "./emulator_worker"
-
-import _controller = require('./core/controller');
 import { EmulatorController } from './emulator_controller';
-
-import PspCtrlButtons = _controller.PspCtrlButtons;
 import {DomHelp, isTouchDevice} from "./global/utils";
+import {globalReferenced} from "./global";
+
+globalReferenced()
 
 interface Touch {
 	identifier: number;

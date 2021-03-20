@@ -1,4 +1,4 @@
-﻿import _cpu = require('../../core/cpu'); _cpu.CpuState;
+﻿import * as _cpu from '../../core/cpu'; _cpu.CpuState;
 import CpuState = _cpu.CpuState;
 
 //export class Interop implements _cpu.ICpuExecutable {

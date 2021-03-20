@@ -1,11 +1,11 @@
-﻿import _utils = require('../utils');
-import _manager = require('../manager');
-import _vfs = require('../vfs');
-import _structs = require('../structs');
-import _context = require('../../context');
-import _emulator_ui = require('../../ui/emulator_ui');
+﻿import * as _utils from '../utils';
+import * as _manager from '../manager';
+import * as _vfs from '../vfs';
+import * as _structs from '../structs';
+import * as _context from '../../context';
+import * as _emulator_ui from '../../ui/emulator_ui';
 import nativeFunction = _utils.nativeFunction;
-import SceKernelErrors = require('../SceKernelErrors');
+import { SceKernelErrors } from '../SceKernelErrors';
 
 import PspLanguages = _structs.PspLanguages;
 

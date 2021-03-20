@@ -2,7 +2,7 @@
 import { EmulatorContext } from '../../context';
 import { Memory } from '../../core/memory';
 import { PixelFormat } from '../../core/pixelformat';
-import SceKernelErrors = require('../SceKernelErrors');
+import { SceKernelErrors } from '../SceKernelErrors';
 import {Stream} from "../../global/stream";
 import {addressToHex} from "../../global/utils";
 import {Int32, Int32_l, Int64, Stringn, StructClass, UInt32, UInt32_l} from "../../global/struct";

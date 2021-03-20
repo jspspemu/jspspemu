@@ -1,8 +1,8 @@
 ﻿import { nativeFunction } from '../utils';
-import _context = require('../../context');
-import _audio = require('../../core/audio');
-import _vag = require('../../format/vag');
-import SceKernelErrors = require('../SceKernelErrors');
+import * as _context from '../../context';
+import * as _audio from '../../core/audio';
+import * as _vag from '../../format/vag';
+import { SceKernelErrors } from '../SceKernelErrors';
 import Sample = _audio.Sample;
 import VagSoundSource = _vag.VagSoundSource;
 import {Stream} from "../../global/stream";

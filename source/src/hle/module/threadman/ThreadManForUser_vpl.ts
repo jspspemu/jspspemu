@@ -1,11 +1,11 @@
-﻿import _utils = require('../../utils');
-import _context = require('../../../context');
+﻿import * as _utils from '../../utils';
+import * as _context from '../../../context';
 import nativeFunction = _utils.nativeFunction;
-import SceKernelErrors = require('../../SceKernelErrors');
-import _manager = require('../../manager');
+import * as _manager from '../../manager';
 import MemoryAnchor = _manager.MemoryAnchor;
 import {UidCollection} from "../../../global/utils";
 import {Stream} from "../../../global/stream";
+import {SceKernelErrors} from "../../SceKernelErrors";
 
 export class ThreadManForUser {
 	constructor(private context: _context.EmulatorContext) { }

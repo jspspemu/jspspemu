@@ -1,10 +1,10 @@
-﻿import _file = require('./manager/file'); _file.Device;
-import _memory = require('./manager/memory'); _memory.MemoryManager;
-import _module = require('./manager/module'); _module.ModuleManager;
-import _thread = require('./manager/thread'); _thread.Thread;
-import _callback = require('./manager/callback'); _callback.Callback;
-import _interop = require('./manager/interop'); _interop.Interop;
-import _net = require('./manager/net'); _net.NetManager;
+﻿import * as _file from './manager/file'; _file.Device;
+import * as _memory from './manager/memory'; _memory.MemoryManager;
+import * as _module from './manager/module'; _module.ModuleManager;
+import * as _thread from './manager/thread'; _thread.Thread;
+import * as _callback from './manager/callback'; _callback.Callback;
+import * as _interop from './manager/interop'; _interop.Interop;
+import * as _net from './manager/net'; _net.NetManager;
 
 export import Device = _file.Device;
 export import FileManager = _file.FileManager;

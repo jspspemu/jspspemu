@@ -1,6 +1,6 @@
 ﻿import "../../global"
 
-import crypto = require('./crypto');
+import * as crypto from './crypto';
 import {Int32, StructArray, StructClass, StructEntry, UInt32, UInt8} from "../../global/struct";
 import {Stream} from "../../global/stream";
 

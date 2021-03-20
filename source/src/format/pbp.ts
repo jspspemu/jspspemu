@@ -29,6 +29,8 @@ export class Names {
 	static PsarData = "psar.data";
 }
 
+export const PbpNames = Names
+
 export class Pbp {
 	private header: PbpHeader;
 	private stream: Stream;

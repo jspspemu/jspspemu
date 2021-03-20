@@ -1,9 +1,8 @@
-﻿import _utils = require('../../utils');
-import _context = require('../../../context');
-import _cpu = require('../../../core/cpu');
+﻿import * as _utils from '../../utils';
+import * as _context from '../../../context';
+import * as _cpu from '../../../core/cpu';
 import nativeFunction = _utils.nativeFunction;
-import SceKernelErrors = require('../../SceKernelErrors');
-import _manager = require('../../manager'); _manager.Thread;
+import * as _manager from '../../manager'; _manager.Thread;
 
 import CpuSpecialAddresses = _cpu.CpuSpecialAddresses;
 import Thread = _manager.Thread;
@@ -23,6 +22,7 @@ import {Stream} from "../../../global/stream";
 import {Int32, Stringz, StructClass, UInt32} from "../../../global/struct";
 import {MathUtils} from "../../../global/math";
 import {Integer64} from "../../../global/int64";
+import {SceKernelErrors} from "../../SceKernelErrors";
 
 var console = logger.named('module.ThreadManForUser');
 

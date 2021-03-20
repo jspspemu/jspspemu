@@ -1,12 +1,12 @@
-﻿import _utils = require('../utils');
-import _context = require('../../context');
+﻿import * as _utils from '../utils';
+import * as _context from '../../context';
 import nativeFunction = _utils.nativeFunction;
-import SceKernelErrors = require('../SceKernelErrors');
-import _manager = require('../manager');
+import { SceKernelErrors } from '../SceKernelErrors';
+import * as _manager from '../manager';
 
 import Callback = _manager.Callback;
 import Thread = _manager.Thread;
-import _gpu = require('../../core/gpu'); _gpu.PspGpuCallback;
+import * as _gpu from '../../core/gpu'; _gpu.PspGpuCallback;
 
 import PspGpuCallback = _gpu.PspGpuCallback;
 import {Stream} from "../../global/stream";

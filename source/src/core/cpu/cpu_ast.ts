@@ -1,6 +1,6 @@
 ﻿import "../../global"
 
-import relooper = require('../../codegen/relooper');
+import * as relooper from '../../codegen/relooper';
 import { CpuState } from './cpu_core';
 import {addressToHex, NumberDictionary} from "../../global/utils";
 import {MathFloat} from "../../global/math";

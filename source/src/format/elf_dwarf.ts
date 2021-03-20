@@ -1,6 +1,6 @@
 ﻿import "../global"
 
-import _format_elf = require('./elf');
+import * as _format_elf from './elf';
 import {addressToHex, logger} from "../global/utils";
 import {Int8, IType, StringzVariable, StructArray, StructClass, UInt16, UInt32, UInt8} from "../global/struct";
 import {Stream} from "../global/stream";

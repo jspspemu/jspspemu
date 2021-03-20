@@ -1,4 +1,4 @@
-﻿import _vfs = require('./vfs');
+﻿import * as _vfs from './vfs';
 
 import Vfs = _vfs.Vfs;
 import VfsEntry = _vfs.VfsEntry;

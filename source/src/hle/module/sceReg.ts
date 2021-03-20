@@ -1,7 +1,6 @@
-﻿import _utils = require('../utils');
-import _context = require('../../context');
+﻿import * as _utils from '../utils';
+import * as _context from '../../context';
 import nativeFunction = _utils.nativeFunction;
-import SceKernelErrors = require('../SceKernelErrors');
 import {Stream} from "../../global/stream";
 import {Int32, Stringz, StructClass, UInt32} from "../../global/struct";
 

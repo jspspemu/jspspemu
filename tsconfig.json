@@ -2,8 +2,7 @@
   "compilerOptions": {
     "experimentalDecorators": true,
     "target": "es6",
-    "module": "umd",
-    "moduleResolution": "Node",
+    "module": "commonjs",
     "noImplicitAny": true,
     "removeComments": true,
     "preserveConstEnums": true,

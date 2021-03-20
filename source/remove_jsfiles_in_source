@@ -1,7 +1,0 @@
-find src -name "*.js" -type f -delete
-find test -name "*.js" -type f -delete
-find src -name "*.map" -type f -delete
-find test -name "*.map" -type f -delete
-rm bootstrap.js
-rm bootstrap.map
-rm jspspemu.js

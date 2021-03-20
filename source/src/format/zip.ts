@@ -1,6 +1,6 @@
 ﻿import "../global"
 
-import zlib = require('./zlib');
+import * as zlib from './zlib';
 import {AsyncStream, Stream} from "../global/stream";
 import {StringWithSize, StructArray, StructClass, UInt16, UInt32} from "../global/struct";
 import {ArrayBufferUtils, Promise2, StringDictionary} from "../global/utils";

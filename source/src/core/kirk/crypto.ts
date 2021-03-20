@@ -1,6 +1,6 @@
 ﻿import "../../global"
 
-import jsaes2 = require('./jsaes2');
+import * as jsaes2 from './jsaes2';
 
 function cryptoToArray(info: { words:Uint32Array }) {
 	var words = info.words;

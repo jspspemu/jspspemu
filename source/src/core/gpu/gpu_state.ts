@@ -1,8 +1,8 @@
 ﻿import "../../global"
 
-import _memory = require('../memory');
-import _pixelformat = require('../pixelformat');
-import _opcodes = require('./gpu_opcodes');
+import * as _memory from '../memory';
+import * as _pixelformat from '../pixelformat';
+import * as _opcodes from './gpu_opcodes';
 
 import Op = _opcodes.GpuOpCodes;
 

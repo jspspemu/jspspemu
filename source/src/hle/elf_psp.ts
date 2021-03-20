@@ -1,8 +1,8 @@
-﻿import _memory = require('../core/memory');
-import _cpu = require('../core/cpu');
-import _format_elf = require('../format/elf');
-import _format_elf_dwarf = require('../format/elf_dwarf');
-import _manager = require('./manager');
+﻿import * as _memory from '../core/memory';
+import * as _cpu from '../core/cpu';
+import * as _format_elf from '../format/elf';
+import * as _format_elf_dwarf from '../format/elf_dwarf';
+import * as _manager from './manager';
 
 import CpuState = _cpu.CpuState;
 import NativeFunction = _cpu.NativeFunction;

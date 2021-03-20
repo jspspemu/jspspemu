@@ -1,8 +1,8 @@
-﻿import _utils = require('../utils');
-import _context = require('../../context');
+﻿import * as _utils from '../utils';
+import * as _context from '../../context';
 import nativeFunction = _utils.nativeFunction;
-import SceKernelErrors = require('../SceKernelErrors');
-import _structs = require('../structs');
+import { SceKernelErrors } from '../SceKernelErrors';
+import * as _structs from '../structs';
 
 import ScePspDateTime = _structs.ScePspDateTime;
 import {Stream} from "../../global/stream";

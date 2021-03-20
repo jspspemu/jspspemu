@@ -1,13 +1,21 @@
-﻿import _manager = require('./hle/manager');
-import _display = require('./core/display');
-import _controller = require('./core/controller');
-import _gpu = require('./core/gpu');
-import _rtc = require('./core/rtc');
-import _audio = require('./core/audio');
-import _memory = require('./core/memory');
-import _interrupt = require('./core/interrupt');
-import _config = require('./hle/config');
-import { Battery } from './core/battery';
+﻿import {IPspDisplay} from "./core/display";
+import {Config} from "./hle/config";
+import {IPspController} from "./core/controller";
+import {Battery} from "./core/battery";
+import {PspRtc} from "./core/rtc";
+import {PspGpu} from "./core/gpu";
+import {
+    CallbackManager,
+    FileManager,
+    Interop,
+    MemoryManager,
+    ModuleManager,
+    NetManager,
+    ThreadManager
+} from "./hle/manager";
+import {PspAudio} from "./core/audio";
+import {Memory} from "./core/memory";
+import {InterruptManager} from "./core/interrupt";
 import {Signal1} from "./global/utils";
 
 export interface ISymbol {
@@ -21,22 +29,22 @@ export interface ISymbolLookup {
 }
 
 export class EmulatorContext {
-	display: _display.IPspDisplay;
-	config: _config.Config;
-	controller: _controller.IPspController;
-	rtc: _rtc.PspRtc;
-	gpu: _gpu.PspGpu;
-	netManager: _manager.NetManager;
-	memoryManager: _manager.MemoryManager;
-	threadManager: _manager.ThreadManager;
-	callbackManager: _manager.CallbackManager;
-	moduleManager: _manager.ModuleManager;
-	audio: _audio.PspAudio;
-	memory: _memory.Memory;
-	fileManager: _manager.FileManager;
-	interruptManager: _interrupt.InterruptManager;
+	display: IPspDisplay;
+	config: Config;
+	controller: IPspController;
+	rtc: PspRtc;
+	gpu: PspGpu;
+	netManager: NetManager;
+	memoryManager: MemoryManager;
+	threadManager: ThreadManager;
+	callbackManager: CallbackManager;
+	moduleManager: ModuleManager;
+	audio: PspAudio;
+	memory: Memory;
+	fileManager: FileManager;
+	interruptManager: InterruptManager;
 	symbolLookup: ISymbolLookup;
-	interop: _manager.Interop;
+	interop: Interop;
 	battery: Battery;
 	onStdout = new Signal1<string>();
 	onStderr = new Signal1<string>();
@@ -52,7 +60,7 @@ export class EmulatorContext {
 	get currentState() { return this.currentThread.state; }
 	get currentInstructionCache() { return this.currentState.icache; }
 
-	init(interruptManager: _interrupt.InterruptManager, display: _display.IPspDisplay, controller: _controller.IPspController, gpu: _gpu.PspGpu, memoryManager: _manager.MemoryManager, threadManager: _manager.ThreadManager, audio: _audio.PspAudio, memory: _memory.Memory, fileManager: _manager.FileManager, rtc: _rtc.PspRtc, callbackManager: _manager.CallbackManager, moduleManager: _manager.ModuleManager, config: _config.Config, interop: _manager.Interop, netManager: _manager.NetManager, battery: Battery) {
+	init(interruptManager: InterruptManager, display: IPspDisplay, controller: IPspController, gpu: PspGpu, memoryManager: MemoryManager, threadManager: ThreadManager, audio: PspAudio, memory: Memory, fileManager: FileManager, rtc: PspRtc, callbackManager: CallbackManager, moduleManager: ModuleManager, config: Config, interop: Interop, netManager: NetManager, battery: Battery) {
 		this.interruptManager = interruptManager;
 		this.display = display;
 		this.controller = controller;

@@ -1,5 +1,5 @@
 ﻿import "../../global/utils"
-import _vfs = require('../vfs/vfs');
+import * as _vfs from '../vfs/vfs';
 import {Stream} from "../../global/stream";
 import {Promise2, sprintf, StringDictionary} from "../../global/utils";
 import {Integer64} from "../../global/int64";

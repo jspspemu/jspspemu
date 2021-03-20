@@ -1,8 +1,8 @@
 ﻿import "../global"
 
-import memory = require('./memory');
-import pixelformat = require('./pixelformat');
-import _interrupt = require('./interrupt');
+import * as memory from './memory';
+import * as pixelformat from './pixelformat';
+import * as _interrupt from './interrupt';
 
 import InterruptManager = _interrupt.InterruptManager;
 import PspInterrupts = _interrupt.PspInterrupts;

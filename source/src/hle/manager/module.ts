@@ -1,4 +1,4 @@
-﻿import _cpu = require('../../core/cpu');
+﻿import * as _cpu from '../../core/cpu';
 
 import NativeFunction = _cpu.NativeFunction;
 import SyscallManager = _cpu.SyscallManager;

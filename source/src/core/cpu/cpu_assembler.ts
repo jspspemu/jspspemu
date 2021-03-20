@@ -1,7 +1,7 @@
 import "../../global"
 
-import memory = require('../memory');
-import instructions = require('./cpu_instructions');
+import * as memory from '../memory';
+import * as instructions from './cpu_instructions';
 
 import Memory = memory.Memory;
 import Instructions = instructions.Instructions;

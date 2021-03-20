@@ -1,4 +1,4 @@
-﻿import zlib = require('./zlib');
+﻿import * as zlib from './zlib';
 import {Integer64_l, Stringz, StructClass, UInt16, UInt32, UInt8} from "../global/struct";
 import {ArrayBufferUtils, Promise2} from "../global/utils";
 import {AsyncStream, Stream} from "../global/stream";

@@ -1,62 +1,48 @@
 ﻿import "./global"
 
 import { GpuStats } from './core/gpu/gpu_stats';
-
-import _context = require('./context');
-import _cpu = require('./core/cpu');
-import _gpu = require('./core/gpu');
-import _rtc = require('./core/rtc');
-import { Battery } from './core/battery';
-import _controller = require('./core/controller');
-import { PspDisplay } from './core/display';
-import { PspAudio } from './core/audio';
-import _interrupt = require('./core/interrupt');
-import _memory = require('./core/memory');
-import _format = require('./format/format');
-import _format_cso = require('./format/cso');
-import _format_iso = require('./format/iso');
-import _format_zip = require('./format/zip');
-import _pbp = require('./format/pbp');
-import _psf = require('./format/psf');
-import _vfs = require('./hle/vfs');
-import _config = require('./hle/config');
-import _elf_psp = require('./hle/elf_psp');
-import _elf_crypted_prx = require('./hle/elf_crypted_prx');
-import _manager = require('./hle/manager');
-import _pspmodules = require('./hle/pspmodules');
-import PspRtc = _rtc.PspRtc;
-import FileOpenFlags = _vfs.FileOpenFlags;
-import MountableVfs = _vfs.MountableVfs;
-import UriVfs = _vfs.UriVfs;
-import IsoVfs = _vfs.IsoVfs;
-import ZipVfs = _vfs.ZipVfs;
-import StorageVfs = _vfs.StorageVfs;
-import MemoryStickVfs = _vfs.MemoryStickVfs;
-import EmulatorVfs = _vfs.EmulatorVfs; _vfs.EmulatorVfs;
-import MemoryVfs = _vfs.MemoryVfs;
-//import DropboxVfs = _vfs.DropboxVfs;
-import ProxyVfs = _vfs.ProxyVfs;
-
-import Config = _config.Config;
-
-import PspElfLoader = _elf_psp.PspElfLoader;
-
-import Memory = _memory.Memory;
-import EmulatorContext = _context.EmulatorContext;
-import InterruptManager = _interrupt.InterruptManager;
-import PspGpu = _gpu.PspGpu;
-import PspController = _controller.PspController;
-import SyscallManager = _cpu.SyscallManager;
-
-import ThreadManager = _manager.ThreadManager;
-import ModuleManager = _manager.ModuleManager;
-import MemoryManager = _manager.MemoryManager;
-import NetManager = _manager.NetManager;
-import FileManager = _manager.FileManager;
-import CallbackManager = _manager.CallbackManager;
-import Interop = _manager.Interop;
 import {DomHelp, logger, loggerPolicies, Microtask, Promise2, Signal1, Signal2} from "./global/utils";
+import {EmulatorContext} from "./context";
+import {getMemoryInstance, Memory} from "./core/memory";
+import {
+    CallbackManager,
+    FileManager,
+    Interop,
+    MemoryManager,
+    ModuleManager,
+    NetManager,
+    ThreadManager, Uri
+} from "./hle/manager";
+import {PspRtc} from "./core/rtc";
+import {InterruptManager} from "./core/interrupt";
+import {PspAudio} from "./core/audio";
+import {PspDisplay} from "./core/display";
+import {PspGpu} from "./core/gpu";
+import {Battery} from "./core/battery";
+import {PspController} from "./core/controller";
+import {SyscallManager} from "./core/cpu";
+import {
+    EmulatorVfs,
+    FileOpenFlags, IsoVfs,
+    MemoryStickVfs,
+    MemoryVfs,
+    MountableVfs, ProxyVfs,
+    StorageVfs,
+    UriVfs,
+    ZipVfs
+} from "./hle/vfs";
+import {Config} from "./hle/config";
+import {registerModulesAndSyscalls} from "./hle/pspmodules";
+import {Psf} from "./format/psf";
 import {AsyncStream, FileAsyncStream, MemoryAsyncStream, Stream, UrlAsyncStream} from "./global/stream";
+import {detectFormatAsync} from "./format/format";
+import {Cso} from "./format/cso";
+import {Pbp, PbpNames} from "./format/pbp";
+import {decrypt} from "./hle/elf_crypted_prx";
+import {Zip} from "./format/zip";
+import {Iso} from "./format/iso";
+import {PspElfLoader} from "./hle/elf_psp";
+import {OptimizedBatch, OptimizedDrawBuffer} from "./core/gpu/gpu_vertex";
 
 var console = logger.named('emulator');
 
@@ -84,12 +70,12 @@ export class Emulator {
 	private interop: Interop;
 	private storageVfs: StorageVfs;
 	//private dropboxVfs: DropboxVfs;
-	public config: Config = new _config.Config();
+	public config: Config = new Config();
 	//private usingDropbox: boolean = false;
 	emulatorVfs: EmulatorVfs;
 
 	constructor(memory?: Memory) {
-		if (!memory) memory = _memory.getInstance();
+		if (!memory) memory = getMemoryInstance();
 		this.memory = memory;
 	}
 
@@ -147,7 +133,7 @@ export class Emulator {
 
 			this.ms0Vfs.mountVfs('/', new MemoryVfs());
 
-			_pspmodules.registerModulesAndSyscalls(this.syscallManager, this.moduleManager);
+			registerModulesAndSyscalls(this.syscallManager, this.moduleManager);
 
 			this.context.init(this.interruptManager, this.display, this.controller, this.gpu, this.memoryManager, this.threadManager, this.audio, this.memory, this.fileManager, this.rtc, this.callbackManager, this.moduleManager, this.config, this.interop, this.netManager, this.battery);
 			
@@ -163,7 +149,7 @@ export class Emulator {
 
 	private gameTitle: string = '';
 
-	private processParamsPsf(psf: _psf.Psf) {
+	private processParamsPsf(psf: Psf) {
 		this.gameTitle = psf.entriesByName['TITLE'];
 		console.log(psf.entriesByName);
 	}
@@ -180,27 +166,27 @@ export class Emulator {
 	}
 
 	private _loadAndExecuteAsync(asyncStream: AsyncStream, pathToFile: string):Promise2<any> {
-		return _format.detectFormatAsync(asyncStream).then((fileFormat):any => {
+		return detectFormatAsync(asyncStream).then((fileFormat):any => {
 			console.info(`File:: size: ${asyncStream.size}, format: "${fileFormat}", name: "${asyncStream.name}"`);
 			switch (fileFormat) {
 				case 'ciso':
-					return _format_cso.Cso.fromStreamAsync(asyncStream).then(asyncStream2 => this._loadAndExecuteAsync(asyncStream2, pathToFile));
+					return Cso.fromStreamAsync(asyncStream).then(asyncStream2 => this._loadAndExecuteAsync(asyncStream2, pathToFile));
 				case 'pbp':
 					return asyncStream.readChunkAsync(0, asyncStream.size).then(executableArrayBuffer => {
-						var pbp = _pbp.Pbp.fromStream(Stream.fromArrayBuffer(executableArrayBuffer));
-						var psf = _psf.Psf.fromStream(pbp.get(_pbp.Names.ParamSfo));
+						var pbp = Pbp.fromStream(Stream.fromArrayBuffer(executableArrayBuffer));
+						var psf = Psf.fromStream(pbp.get(PbpNames.ParamSfo));
 						this.processParamsPsf(psf);
-						this.loadIcon0(pbp.get(_pbp.Names.Icon0Png));
-						this.loadPic1(pbp.get(_pbp.Names.Pic1Png));
+						this.loadIcon0(pbp.get(PbpNames.Icon0Png));
+						this.loadPic1(pbp.get(PbpNames.Pic1Png));
 
-						return this._loadAndExecuteAsync(new MemoryAsyncStream(pbp.get(_pbp.Names.PspData).toArrayBuffer()), pathToFile);
+						return this._loadAndExecuteAsync(new MemoryAsyncStream(pbp.get(PbpNames.PspData).toArrayBuffer()), pathToFile);
 					});
 				case 'psp':
 					return asyncStream.readChunkAsync(0, asyncStream.size).then(executableArrayBuffer => {
-						return this._loadAndExecuteAsync(new MemoryAsyncStream(_elf_crypted_prx.decrypt(Stream.fromArrayBuffer(executableArrayBuffer)).slice().readAllBytes().buffer, pathToFile + ".CryptedPSP"), pathToFile);
+						return this._loadAndExecuteAsync(new MemoryAsyncStream(decrypt(Stream.fromArrayBuffer(executableArrayBuffer)).slice().readAllBytes().buffer, pathToFile + ".CryptedPSP"), pathToFile);
 					});
 				case 'zip':
-					return _format_zip.Zip.fromStreamAsync(asyncStream).then(zip => {
+					return Zip.fromStreamAsync(asyncStream).then(zip => {
 						var zipFs = new ZipVfs(zip, this.storageVfs);
 						var mountableVfs = this.ms0Vfs;
 						mountableVfs.mountVfs('/PSP/GAME/virtual', zipFs);
@@ -216,7 +202,7 @@ export class Emulator {
 						});
 					});
 				case 'iso':
-					return _format_iso.Iso.fromStreamAsync(asyncStream).then(iso => {
+					return Iso.fromStreamAsync(asyncStream).then(iso => {
 						var isoFs = new IsoVfs(iso);
 						this.fileManager.mount('umd0', isoFs);
 						this.fileManager.mount('umd1', isoFs);
@@ -233,7 +219,7 @@ export class Emulator {
 								});
 							} else {
 								return isoFs.readAllAsync('PSP_GAME/PARAM.SFO').then(paramSfoData => {
-									var psf = _psf.Psf.fromStream(Stream.fromArrayBuffer(paramSfoData));
+									var psf = Psf.fromStream(Stream.fromArrayBuffer(paramSfoData));
 									this.processParamsPsf(psf);
 
 									var icon0Promise = isoFs.readAllAsync('PSP_GAME/ICON0.PNG').then(data => { this.loadIcon0(Stream.fromArrayBuffer(data)); }).catch(() => { });
@@ -264,7 +250,7 @@ export class Emulator {
 
 						var elfStream = Stream.fromArrayBuffer(executableArrayBuffer);
 
-						this.fileManager.cwd = new _manager.Uri('ms0:/PSP/GAME/virtual');
+						this.fileManager.cwd = new Uri('ms0:/PSP/GAME/virtual');
 						console.info('pathToFile:', pathToFile);
 						var args = [pathToFile];
 						var argumentsPartition = this.memoryManager.userPartition.allocateLow(0x4000);
@@ -355,7 +341,7 @@ export class Emulator {
 		loggerPolicies.disableAll = true;
 	}
 	
-	onDrawBatches = new Signal2<_gpu._gpu_vertex.OptimizedDrawBuffer, _gpu._gpu_vertex.OptimizedBatch[]>();
+	onDrawBatches = new Signal2<OptimizedDrawBuffer, OptimizedBatch[]>();
 
 	loadAndExecuteAsync(asyncStream: AsyncStream, url: string) {
 		if (typeof document != 'undefined') DomHelp.fromId('game_menu').hide();

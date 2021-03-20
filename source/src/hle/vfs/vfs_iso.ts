@@ -1,6 +1,6 @@
-﻿import _vfs = require('./vfs');
+﻿import * as _vfs from './vfs';
 
-import format_iso = require('../../format/iso');
+import * as format_iso from '../../format/iso';
 
 import Vfs = _vfs.Vfs;
 import VfsEntry = _vfs.VfsEntry;

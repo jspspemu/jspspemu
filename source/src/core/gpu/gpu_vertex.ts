@@ -1,12 +1,12 @@
 ﻿import "../../global"
-import _state = require('./gpu_state');
-import _memory = require('../memory');
-import _IndentStringGenerator = require('../../util/IndentStringGenerator');
+import * as _state from './gpu_state';
+import * as _memory from '../memory';
+import * as _IndentStringGenerator from '../../util/IndentStringGenerator';
 import ColorEnum = _state.ColorEnum;
 import {ArrayBufferUtils} from "../../global/utils";
 import {MathUtils} from "../../global/math";
 
-var memory = _memory.getInstance();
+var memory = _memory.getMemoryInstance();
 
 const enum SpriteVID {
 	TL = 0,

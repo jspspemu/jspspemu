@@ -1,7 +1,7 @@
-﻿import _utils = require('../utils');
-import _context = require('../../context');
+﻿import * as _utils from '../utils';
+import * as _context from '../../context';
 import nativeFunction = _utils.nativeFunction;
-import SceKernelErrors = require('../SceKernelErrors');
+import { SceKernelErrors } from '../SceKernelErrors';
 
 export class sceOpenPSID {
 	constructor(private context: _context.EmulatorContext) { }

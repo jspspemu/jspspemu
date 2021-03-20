@@ -1,11 +1,10 @@
-﻿import _utils = require('../../utils');
-import _context = require('../../../context');
+﻿import * as _utils from '../../utils';
+import * as _context from '../../../context';
 import nativeFunction = _utils.nativeFunction;
-import _vfs = require('../../vfs');
-import _structs = require('../../structs');
-import SceKernelErrors = require('../../SceKernelErrors');
+import * as _vfs from '../../vfs';
+import * as _structs from '../../structs';
 
-import _manager = require('../../manager'); _manager.Thread;
+import * as _manager from '../../manager'; _manager.Thread;
 import Thread = _manager.Thread;
 import FileMode = _vfs.FileMode;
 import FileOpenFlags = _vfs.FileOpenFlags;
@@ -13,6 +12,7 @@ import VfsStat = _vfs.VfsStat;
 import {DebugOnce, logger, Promise2, setToString, sprintf, UidCollection} from "../../../global/utils";
 import {Stream} from "../../../global/stream";
 import {Integer64} from "../../../global/int64";
+import {SceKernelErrors} from "../../SceKernelErrors";
 
 //var console = logger.named('module.IoFileMgrForUser');
 var log = logger.named('module.IoFileMgrForUser');

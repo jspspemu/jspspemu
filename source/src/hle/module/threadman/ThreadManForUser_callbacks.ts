@@ -1,7 +1,7 @@
-﻿import _utils = require('../../utils');
-import _context = require('../../../context');
+﻿import * as _utils from '../../utils';
+import * as _context from '../../../context';
 import nativeFunction = _utils.nativeFunction;
-import _manager = require('../../manager'); _manager.Thread;
+import * as _manager from '../../manager'; _manager.Thread;
 import Callback = _manager.Callback;
 import Thread = _manager.Thread;
 

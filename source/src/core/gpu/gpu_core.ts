@@ -8,12 +8,12 @@ import { GpuOpCodes as Op } from './gpu_opcodes';
 import { GpuState, VertexInfo, ColorEnum, PrimitiveType, IndexEnum, DisplayListStatus, SyncType } from './gpu_state';
 import { OptimizedDrawBuffer, OptimizedBatch } from './gpu_vertex';
 import { CpuState } from '../cpu';
-import _IndentStringGenerator = require('../../util/IndentStringGenerator');
+import * as _IndentStringGenerator from '../../util/IndentStringGenerator';
 import {Stream} from "../../global/stream";
 import {addressToHex, Microtask, Promise2, Signal2, UidCollection, WatchValue} from "../../global/utils";
 import {MathFloat, MathUtils} from "../../global/math";
 
-//import WebGlPspDrawDriver = require('./webgl/webgl_driver');
+//import * as WebGlPspDrawDriver from './webgl/webgl_driver';
 
 export interface CpuExecutor {
 	execute(state: CpuState, address: number, gprArray: number[]): void;

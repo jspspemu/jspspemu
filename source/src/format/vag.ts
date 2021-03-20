@@ -1,5 +1,5 @@
 ﻿import "../global"
-import _audio = require('../core/audio');
+import * as _audio from '../core/audio';
 import Sample = _audio.Sample;
 import {Stream} from "../global/stream";
 import {StructClass, UInt32, UInt32_b} from "../global/struct";

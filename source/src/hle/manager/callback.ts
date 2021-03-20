@@ -1,8 +1,8 @@
 ﻿import "../../global"
 
-import _thread = require('./thread');
-import _interop = require('./interop');
-import _cpu = require('../../core/cpu');
+import * as _thread from './thread';
+import * as _interop from './interop';
+import * as _cpu from '../../core/cpu';
 
 import CpuState = _cpu.CpuState;
 import Thread = _thread.Thread;

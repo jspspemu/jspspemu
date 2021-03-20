@@ -1,4 +1,4 @@
-﻿class IndentStringGenerator {
+﻿export class IndentStringGenerator {
 	indentation: number = 0;
 	output: string = '';
 	newLine: boolean = true;
@@ -35,5 +35,3 @@
 		this.newLine = true;
 	}
 }
-
-export = IndentStringGenerator;

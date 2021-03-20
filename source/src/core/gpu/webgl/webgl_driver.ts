@@ -6,8 +6,8 @@ CullingDirection, GuBlendingEquation, TextureMapMode,
 GuBlendingFactor
 } from '../gpu_state';
 import { GpuStats } from '../gpu_stats'
-import _vertex = require('../gpu_vertex');
-import _pixelformat = require('../../pixelformat');
+import * as _vertex from '../gpu_vertex';
+import * as _pixelformat from '../../pixelformat';
 import { ShaderCache } from './webgl_shader';
 import { Texture, TextureHandler } from './webgl_texture';
 import { FastFloat32Buffer, WrappedWebGLProgram, WrappedWebGLAttrib } from './webgl_utils';

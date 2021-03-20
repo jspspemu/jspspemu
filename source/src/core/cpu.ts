@@ -1,9 +1,9 @@
 ﻿import "../global"
 
-import _assembler = require('./cpu/cpu_assembler');
-import _ast = require('./cpu/cpu_ast');
-import _core = require('./cpu/cpu_core');
-import _instructions = require('./cpu/cpu_instructions');
+import * as _assembler from './cpu/cpu_assembler';
+import * as _ast from './cpu/cpu_ast';
+import * as _core from './cpu/cpu_core';
+import * as _instructions from './cpu/cpu_instructions';
 
 export import MipsAssembler = _assembler.MipsAssembler;
 export import MipsDisassembler = _assembler.MipsDisassembler;

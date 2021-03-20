@@ -1,7 +1,7 @@
-﻿import _utils = require('../utils');
-import SceKernelErrors = require('../SceKernelErrors');
-import _context = require('../../context');
-import _audio = require('../../core/audio');
+﻿import * as _utils from '../utils';
+import { SceKernelErrors } from '../SceKernelErrors';
+import * as _context from '../../context';
+import * as _audio from '../../core/audio';
 import nativeFunction = _utils.nativeFunction;
 import {Stream} from "../../global/stream";
 import {waitAsync} from "../../global/async";

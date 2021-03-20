@@ -7,10 +7,10 @@ import { PspCtrlButtons, IPspControllerSet } from './core/controller';
 import { Html5Audio2 } from './html5/Html5Audio';
 import { Html5Battery } from './html5/Html5Battery';
 import { Html5Icons } from './html5/Html5Icons';
-import _vertex = require('./core/gpu/gpu_vertex');
-import _config = require('./hle/config');
-import Html5Gamepad = require('./html5/Html5Gamepad');
 import {Microtask} from "./global/utils";
+import {BatchesTransfer} from "./core/gpu/gpu_vertex";
+import {Config} from "./hle/config";
+import Html5Gamepad = require("./html5/Html5Gamepad");
 
 declare var self: any;
 
@@ -61,7 +61,7 @@ export class EmulatorControllerWorker {
 				case 'gpu.draw':
 					webglDriver.invalidatedMemoryAll();
 					debugOverlay.overlay.updateAndReset();
-					webglDriver.drawBatchesTransfer(<_vertex.BatchesTransfer>payload);
+					webglDriver.drawBatchesTransfer(<BatchesTransfer>payload);
 					debugOverlay.freezing.waitUntilValueAsync(false).then(() => {
 						this.postAction('gpu.sync', {});
 					});
@@ -92,7 +92,7 @@ export class EmulatorControllerWorker {
 			this.postAction('keyUp', e.keyCode);
 		});
 
-		this.postAction('config.language', _config.Config.detectLanguage());
+		this.postAction('config.language', Config.detectLanguage());
 
 		var canDOMCreateElements = (typeof document != 'undefined');
 

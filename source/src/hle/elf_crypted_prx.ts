@@ -1,6 +1,6 @@
-﻿import kirk = require('../core/kirk');
-import keys144 = require('./elf_crypted_prx_keys_144');
-import keys16 = require('./elf_crypted_prx_keys_16');
+﻿import * as kirk from '../core/kirk';
+import * as keys144 from './elf_crypted_prx_keys_144';
+import * as keys16 from './elf_crypted_prx_keys_16';
 import {Stringz, StructArray, StructClass, UInt16, UInt32, UInt8} from "../global/struct";
 import {Stream} from "../global/stream";
 

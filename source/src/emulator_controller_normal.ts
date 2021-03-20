@@ -6,10 +6,10 @@ import { PspCtrlButtons, IPspControllerSet } from './core/controller';
 import { Html5Audio2 } from './html5/Html5Audio';
 import { Html5Battery } from './html5/Html5Battery';
 import { Html5Icons } from './html5/Html5Icons';
-import _vertex = require('./core/gpu/gpu_vertex');
-import _config = require('./hle/config');
-import Html5Gamepad = require('./html5/Html5Gamepad');
 import {ArrayBufferUtils, Microtask} from "./global/utils";
+import {OptimizedDrawBufferTransfer} from "./core/gpu/gpu_vertex";
+import {Config} from "./hle/config";
+import Html5Gamepad = require("./html5/Html5Gamepad");
 
 declare var self: any;
 
@@ -90,7 +90,7 @@ export class EmulatorControllerNormal {
 			emulator.onDrawBatches.add((drawBufferData, batches) => {
 				//console.log('emulator.onDrawBatches');
 				emulator.display.setEnabledDisplay(false);
-				var transferData = _vertex.OptimizedDrawBufferTransfer.build(drawBufferData, batches);
+				var transferData = OptimizedDrawBufferTransfer.build(drawBufferData, batches);
 				webglDriver.invalidatedMemoryAll();
 				debugOverlay.overlay.updateAndReset();
 				webglDriver.drawBatchesTransfer(transferData);
@@ -133,7 +133,7 @@ export class EmulatorControllerNormal {
 			emulator.controller.setKeyUp(e.keyCode);
 		});
 
-		emulator.config.language = _config.Config.detectLanguage();
+		emulator.config.language = Config.detectLanguage();
 
 		var canDOMCreateElements = (typeof document != 'undefined');
 

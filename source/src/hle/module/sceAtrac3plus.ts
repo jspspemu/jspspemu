@@ -1,7 +1,7 @@
-﻿import _utils = require('../utils');
-import SceKernelErrors = require('../SceKernelErrors');
-import _context = require('../../context');
-import _riff = require('../../format/riff'); _riff.Riff;
+﻿import * as _utils from '../utils';
+import { SceKernelErrors } from '../SceKernelErrors';
+import * as _context from '../../context';
+import * as _riff from '../../format/riff'; _riff.Riff;
 import Riff = _riff.Riff;
 import nativeFunction = _utils.nativeFunction;
 import {Stream} from "../../global/stream";

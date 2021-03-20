@@ -522,7 +522,7 @@ export function create(): Memory {
 }
 
 var _instance: Memory = null;
-export function getInstance() {
+export function getMemoryInstance() {
 	if (_instance == null) _instance = create();
 	return _instance;
 }

@@ -1,6 +1,6 @@
 ﻿import "../global"
 
-import _cpu = require('./cpu');
+import * as _cpu from './cpu';
 import {NumberDictionary, Signal0} from "../global/utils";
 
 type CpuState = _cpu.CpuState;

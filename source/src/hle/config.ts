@@ -1,4 +1,4 @@
-﻿import _structs = require('./structs');
+﻿import * as _structs from './structs';
 
 import PspLanguages = _structs.PspLanguages;
 import ButtonPreference = _structs.ButtonPreference;

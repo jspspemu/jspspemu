@@ -1,9 +1,9 @@
 ﻿import "../../../global"
 import "./webgl_enums"
 
-import _state = require('../gpu_state');
-import _utils = require('./webgl_utils');
-import _pixelformat = require('../../pixelformat');
+import * as _state from '../gpu_state';
+import * as _utils from './webgl_utils';
+import * as _pixelformat from '../../pixelformat';
 import PixelFormatUtils = _pixelformat.PixelFormatUtils;
 
 import WrappedWebGLProgram = _utils.WrappedWebGLProgram;

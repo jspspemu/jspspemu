@@ -1,7 +1,7 @@
-﻿import _utils = require('../utils');
-import _context = require('../../context');
+﻿import * as _utils from '../utils';
+import * as _context from '../../context';
 import nativeFunction = _utils.nativeFunction;
-import SceKernelErrors = require('../SceKernelErrors');
+import { SceKernelErrors } from '../SceKernelErrors';
 import {mac2string, string2mac} from "../../global/utils";
 import {Stream} from "../../global/stream";
 import {xrange} from "../../global/math";

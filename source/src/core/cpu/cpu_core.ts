@@ -1,10 +1,14 @@
 ﻿import "../../global"
 
-import _memory = require('../memory');
-import _ast = require('./cpu_ast');
-import _instructions = require('./cpu_instructions');
-import _codegen = require('./cpu_codegen');
-
+import * as _memory from '../memory';
+import * as _ast from './cpu_ast';
+import * as _instructions from './cpu_instructions';
+import * as _codegen from './cpu_codegen';
+import * as IndentStringGenerator from '../../util/IndentStringGenerator';
+import {addressToHex, logger, NumberDictionary, sprintf, StringDictionary, throwEndCycles} from "../../global/utils";
+import {BitUtils, MathFloat, MathUtils} from "../../global/math";
+import {compareNumbers} from "../../global/array";
+import {Integer64} from "../../global/int64";
 import Memory = _memory.Memory;
 
 //const DEBUG_FUNCGEN = true;
@@ -1327,12 +1331,6 @@ export class FunctionGenerator {
 		return new FunctionCode(code, args);
 	}
 }
-
-import IndentStringGenerator = require('../../util/IndentStringGenerator');
-import {addressToHex, logger, NumberDictionary, sprintf, StringDictionary, throwEndCycles} from "../../global/utils";
-import {BitUtils, MathFloat, MathUtils} from "../../global/math";
-import {compareNumbers} from "../../global/array";
-import {Integer64} from "../../global/int64";
 
 export interface CreateOptions {
 	disableInsideInterrupt?: boolean;

@@ -1,4 +1,4 @@
-﻿enum SceKernelErrors {
+﻿export enum SceKernelErrors {
 	/*
 	 * PSP Errors:
 	 * Represented by a 32-bit value with the following scheme:
@@ -492,5 +492,3 @@
 	PSP_POWER_ERROR_INVALID_CB = 0x80000100,
 	PSP_POWER_ERROR_INVALID_SLOT = 0x80000102,
 }
-
-export = SceKernelErrors;

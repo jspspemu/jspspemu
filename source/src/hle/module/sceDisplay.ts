@@ -1,8 +1,8 @@
-﻿import _utils = require('../utils');
-import _manager = require('../manager'); _manager.Thread;
-import _context = require('../../context');
-import _display = require('../../core/display');
-import _pixelformat = require('../../core/pixelformat');
+﻿import * as _utils from '../utils';
+import * as _manager from '../manager'; _manager.Thread;
+import * as _context from '../../context';
+import * as _display from '../../core/display';
+import * as _pixelformat from '../../core/pixelformat';
 import nativeFunction = _utils.nativeFunction;
 
 import PixelFormat = _pixelformat.PixelFormat;

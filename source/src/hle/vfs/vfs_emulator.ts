@@ -1,6 +1,6 @@
-﻿import _vfs = require('./vfs'); _vfs.Vfs;
+﻿import * as _vfs from './vfs'; _vfs.Vfs;
 
-import _context = require('../../context');
+import * as _context from '../../context';
 import {Stream} from "../../global/stream";
 import {Promise2} from "../../global/utils";
 import {immediateAsync} from "../../global/async";

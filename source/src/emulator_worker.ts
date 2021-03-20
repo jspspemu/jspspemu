@@ -1,7 +1,7 @@
 import { Emulator } from './emulator';
 import { BatteryInfo } from './core/battery';
-import _vertex = require('./core/gpu/gpu_vertex');
 import {ArrayBufferUtils, Microtask, Promise2} from "./global/utils";
+import {OptimizedDrawBufferTransfer} from "./core/gpu/gpu_vertex";
 
 declare var self: any;
 declare var documentLocation: any;
@@ -41,7 +41,7 @@ emulator.startAsync().then(() => {
 });
 
 emulator.onDrawBatches.add((drawBufferData, batches) => {
-	var transferData = _vertex.OptimizedDrawBufferTransfer.build(drawBufferData, batches);
+	var transferData = OptimizedDrawBufferTransfer.build(drawBufferData, batches);
 	postAction('gpu.draw', transferData, [transferData.buffer]);
 });
 

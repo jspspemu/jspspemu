@@ -1,6 +1,6 @@
-﻿import _utils = require('../utils');
-import _context = require('../../context');
-import _manager = require('../manager'); _manager.Thread;
+﻿import * as _utils from '../utils';
+import * as _context from '../../context';
+import * as _manager from '../manager'; _manager.Thread;
 import nativeFunction = _utils.nativeFunction;
 import EmulatorContext = _context.EmulatorContext;
 import Thread = _manager.Thread;

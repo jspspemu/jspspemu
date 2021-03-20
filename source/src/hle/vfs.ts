@@ -1,13 +1,13 @@
-﻿import _vfs = require('./vfs/vfs'); _vfs.Vfs;
-import _zip = require('./vfs/vfs_zip'); _zip.ZipVfs;
-import _iso = require('./vfs/vfs_iso'); _iso.IsoVfs;
-import _uri = require('./vfs/vfs_uri'); _uri.UriVfs;
-import _ms = require('./vfs/vfs_ms'); _ms.MemoryStickVfs;
-import _memory = require('./vfs/vfs_memory'); _memory.MemoryVfs;
-import _mountable = require('./vfs/vfs_mountable'); _mountable.MountableVfs;
-import _storage = require('./vfs/vfs_storage'); _storage.StorageVfs;
-import _emulator = require('./vfs/vfs_emulator'); _emulator.EmulatorVfs;
-import _dropbox = require('./vfs/vfs_dropbox'); _dropbox.DropboxVfs;
+﻿import * as _vfs from './vfs/vfs'; _vfs.Vfs;
+import * as _zip from './vfs/vfs_zip'; _zip.ZipVfs;
+import * as _iso from './vfs/vfs_iso'; _iso.IsoVfs;
+import * as _uri from './vfs/vfs_uri'; _uri.UriVfs;
+import * as _ms from './vfs/vfs_ms'; _ms.MemoryStickVfs;
+import * as _memory from './vfs/vfs_memory'; _memory.MemoryVfs;
+import * as _mountable from './vfs/vfs_mountable'; _mountable.MountableVfs;
+import * as _storage from './vfs/vfs_storage'; _storage.StorageVfs;
+import * as _emulator from './vfs/vfs_emulator'; _emulator.EmulatorVfs;
+import * as _dropbox from './vfs/vfs_dropbox'; _dropbox.DropboxVfs;
 
 export import FileMode = _vfs.FileMode;
 export import FileOpenFlags = _vfs.FileOpenFlags;

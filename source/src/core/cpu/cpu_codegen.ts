@@ -1,6 +1,6 @@
-﻿import instructions = require('./cpu_instructions');
-import _ast = require('./cpu_ast');
-import _cpu = require('./cpu_core');
+﻿import * as instructions from './cpu_instructions';
+import * as _ast from './cpu_ast';
+import * as _cpu from './cpu_core';
 import Instruction = instructions.Instruction;
 import {ArrayUtils, BitUtils, xrange} from "../../global/math";
 

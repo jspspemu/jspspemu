@@ -1,6 +1,6 @@
-﻿import _vfs = require('./vfs');
+﻿import * as _vfs from './vfs';
 
-import _vfs_memory = require('./vfs_memory');
+import * as _vfs_memory from './vfs_memory';
 import MemoryVfsEntry = _vfs_memory.MemoryVfsEntry;
 
 import Vfs = _vfs.Vfs;
@@ -9,7 +9,7 @@ import VfsStat = _vfs.VfsStat;
 import FileMode = _vfs.FileMode;
 import FileOpenFlags = _vfs.FileOpenFlags;
 
-import storage = require('./indexeddb');
+import * as storage from './indexeddb';
 import {logger, Promise2} from "../../global/utils";
 
 var console = logger.named('vfs.storage');

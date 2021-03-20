@@ -1,6 +1,6 @@
-﻿import _vfs = require('./vfs');
+﻿import * as _vfs from './vfs';
 
-import _vfs_memory = require('./vfs_memory');
+import * as _vfs_memory from './vfs_memory';
 import MemoryVfsEntry = _vfs_memory.MemoryVfsEntry;
 
 import Vfs = _vfs.Vfs;

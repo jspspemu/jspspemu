@@ -7,6 +7,6 @@ import "./global/me"
 import "./global/stream"
 import "./global/struct"
 
-function globalReferenced() {
+export function globalReferenced() {
     return true;
 }

@@ -1,10 +1,10 @@
-﻿import _cpu = require('../../core/cpu');
-import _memory = require('../../core/memory');
-import _display = require('../../core/display');
-import _interrupt = require('../../core/interrupt');
-import _manager_memory = require('./memory');
-import _callback = require('./callback');
-import SceKernelErrors = require('../SceKernelErrors');
+﻿import * as _cpu from '../../core/cpu';
+import * as _memory from '../../core/memory';
+import * as _display from '../../core/display';
+import * as _interrupt from '../../core/interrupt';
+import * as _manager_memory from './memory';
+import * as _callback from './callback';
+import { SceKernelErrors } from '../SceKernelErrors';
 
 import CallbackManager = _callback.CallbackManager;
 import MemoryManager = _manager_memory.MemoryManager;

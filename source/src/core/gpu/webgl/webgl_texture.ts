@@ -1,11 +1,12 @@
 ﻿import "../../../global"
 import "./webgl_enums"
 
-import _state = require('../gpu_state');
 import { GpuStats } from '../gpu_stats';
-import _vertex = require('../gpu_vertex');
-import _utils = require('./webgl_utils');
-import _pixelformat = require('../../pixelformat');
+
+import * as _state from '../gpu_state';
+import * as _vertex from '../gpu_vertex';
+import * as _utils from './webgl_utils';
+import * as _pixelformat from '../../pixelformat';
 
 import PixelFormat = _pixelformat.PixelFormat;
 import PixelFormatUtils = _pixelformat.PixelFormatUtils;

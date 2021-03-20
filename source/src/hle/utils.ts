@@ -1,4 +1,4 @@
-﻿import _cpu = require('../core/cpu');
+﻿import * as _cpu from '../core/cpu';
 
 export import NativeFunction = _cpu.NativeFunction;
 import createNativeFunction = _cpu.createNativeFunction;

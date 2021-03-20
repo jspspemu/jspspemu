@@ -1,7 +1,7 @@
 ﻿import { nativeFunction } from '../utils';
-import _context = require('../../context');
-import _structs = require('../structs');
-import SceKernelErrors = require('../SceKernelErrors');
+import * as _context from '../../context';
+import * as _structs from '../structs';
+import { SceKernelErrors } from '../SceKernelErrors';
 import { Battery } from '../../core/battery';
 import {Stream} from "../../global/stream";
 
