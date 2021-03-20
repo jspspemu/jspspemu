@@ -4,7 +4,17 @@ import {IType, Pointer} from "../global/struct";
 import {Stream} from "../global/stream";
 import {MathUtils} from "../global/math";
 
-declare function saveAs(data: Blob, name: string): void;
+function saveAs(data: Blob, fileName: string): void {
+    const a = document.createElement("a");
+    document.body.appendChild(a)
+    a.style.display = 'none'
+    const url = URL.createObjectURL(data)
+    a.href = url
+    a.download = fileName
+    a.click()
+    URL.revokeObjectURL(url)
+    document.body.removeChild(a)
+}
 
 const MASK = 0x0FFFFFFF;
 
