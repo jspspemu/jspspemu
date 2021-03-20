@@ -45,10 +45,10 @@ module.exports = {
         new HtmlWebpackPlugin({
             title: 'jspspemu',
         }),
-        new CopyPlugin({
-            patterns: [
-                { from: "test.html", to: "." },
-            ],
-        }),
+        //new CopyPlugin({
+        //    patterns: [
+        //        { from: "test.html", to: "." },
+        //    ],
+        //}),
     ],
 };
