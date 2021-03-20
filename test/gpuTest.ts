@@ -1,4 +1,7 @@
 ﻿///<reference path="./global.d.ts" />
+
+import {assert} from "chai"
+
 export function ref() { } // Workaround to allow typescript to include this module
 
 describe('gpu', () => {

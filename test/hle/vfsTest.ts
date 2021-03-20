@@ -1,4 +1,5 @@
 ﻿///<reference path="../global.d.ts" />
+import {assert} from "chai"
 import {downloadFileAsync} from "../../src/global/async";
 import {MemoryAsyncStream,Stream} from "../../src/global/stream";
 import {ArrayBufferUtils, PromiseFast} from "../../src/global/utils";

@@ -1,7 +1,8 @@
 {
   "scripts": {
     "build": "npx webpack --mode production --config=webpack.prod.js",
-    "serve": "npx webpack serve"
+    "serve": "npx webpack serve",
+    "test": "npx tsc && npx mocha output/test/_tests.js"
   },
   "name": "jspspemu",
   "description": "javascript psp emulator http://jspspemu.soywiz.com/",

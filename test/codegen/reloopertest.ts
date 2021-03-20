@@ -1,4 +1,5 @@
 ///<reference path="../global.d.ts" />
+import {assert} from "chai"
 
 describe('codegen', () => {
 	describe('relooper', () => {

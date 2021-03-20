@@ -41,8 +41,6 @@ export function _downloadFileAsync(method: string, url: string, headers?: any) {
 	});
 }
 
-declare var fs:any;
-
 export function toArrayBuffer(buffer:any) {
     var ab = new ArrayBuffer(buffer.length);
     var view = new Uint8Array(ab);
@@ -52,9 +50,14 @@ export function toArrayBuffer(buffer:any) {
     return ab;
 }
 
+var fs: any = null
+
 export function downloadFileAsync(url: string, headers?: any):PromiseFast<ArrayBuffer> {
 	if (typeof XMLHttpRequest == 'undefined') {
 		return new PromiseFast<ArrayBuffer>((resolve, reject) => {
+		    if (fs === null) {
+		        fs = eval('require')('fs')
+            }
 			fs.readFile(url, (err:any, data:any) => {
 			  if (err) {
 				  reject(err);

@@ -1,4 +1,5 @@
 ﻿///<reference path="./global.d.ts" />
+import {assert} from "chai"
 import {addressToHex, addressToHex2} from "../src/global/utils";
 import {MipsAssembler, MipsDisassembler} from "../src/core/cpu/cpu_assembler";
 import {getMemoryInstance} from "../src/core/memory";

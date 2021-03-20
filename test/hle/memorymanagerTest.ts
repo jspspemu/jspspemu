@@ -1,5 +1,6 @@
 ﻿///<reference path="../global.d.ts" />
 
+import {assert} from "chai"
 import {MemoryAnchor, MemoryPartition} from "../../src/hle/manager/memory";
 
 export function ref() { } // Workaround to allow typescript to include this module

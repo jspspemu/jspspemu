@@ -169,11 +169,7 @@ export class mat4 {
 //declare var global:any;
 //if (typeof self == 'undefined') window = self = global;
 
-declare var global:any;
-if (typeof self == 'undefined') window = self = global;
-if (typeof navigator == 'undefined') navigator = <any>{};
-
-var _self:any = self;
+const _self = window as any
 
 _self['polyfills'] = _self['polyfills'] || {};
 

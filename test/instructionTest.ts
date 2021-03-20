@@ -1,4 +1,5 @@
 ﻿///<reference path="./global.d.ts" />
+import {assert} from "chai"
 import {CpuInstructions} from "../src/core/cpu/cpu_instructions";
 
 export function ref() { } // Workaround to allow typescript to include this module

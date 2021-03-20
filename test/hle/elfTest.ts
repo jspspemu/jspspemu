@@ -1,4 +1,5 @@
 ﻿///<reference path="../global.d.ts" />
+import {assert} from "chai"
 import {downloadFileAsync} from "../../src/global/async";
 import { DummyPspDisplay } from '../../src/core/display';
 import { PspElfLoader } from '../../src/hle/elf_psp';

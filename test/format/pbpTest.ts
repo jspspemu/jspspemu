@@ -2,6 +2,7 @@
 import {downloadFileAsync} from "../../src/global/async";
 import {Stream} from "../../src/global/stream";
 import {Pbp} from "../../src/format/pbp";
+import {assert} from "chai"
 
 export function ref() { } // Workaround to allow typescript to include this module
 

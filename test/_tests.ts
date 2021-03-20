@@ -1,8 +1,12 @@
 ﻿///<reference path="./global.d.ts" />
 
 //declare function require(name: string): any;
+import '../src/global';
 
-import './global'
+import {loggerPolicies} from "../src/global/utils";
+
+loggerPolicies.disableAll = true
+
 import './format/pspTest';
 import './format/csoTest';
 import './format/isoTest';
@@ -17,5 +21,5 @@ import './testasm';
 import './gpuTest';
 import './instructionTest';
 import './hle/elfTest';
-import './pspautotests';
 import './promisetest';
+//import './pspautotests';

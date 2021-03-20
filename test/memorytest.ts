@@ -1,5 +1,6 @@
 ///<reference path="./global.d.ts" />
 import {getMemoryInstance} from "../src/core/memory";
+import {assert} from "chai"
 
 export function ext() { }
 

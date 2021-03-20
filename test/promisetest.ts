@@ -1,5 +1,7 @@
 ///<reference path="./global.d.ts" />
 
+import {assert} from "chai"
+
 import {PromiseFast} from "../src/global/utils";
 import {waitAsync} from "../src/global/async";
 
