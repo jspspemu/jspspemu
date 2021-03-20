@@ -1,7 +1,7 @@
 {
   "scripts": {
-    "build": "yarn webpack --mode production --config=webpack.prod.js",
-    "serve": "yarn webpack serve"
+    "build": "npx webpack --mode production --config=webpack.prod.js",
+    "serve": "npx webpack serve"
   },
   "name": "jspspemu",
   "description": "javascript psp emulator http://jspspemu.soywiz.com/",
