@@ -251,11 +251,11 @@ export class AsyncCache<T> {
 		}
 	}
 
-	getOrGenerateAsync(id: string, generator: () => Promise2<T>): Promise2<T> {
+	getOrGenerateAsync(id: string, generator: () => PromiseFast<T>): PromiseFast<T> {
 		var item = this.itemsMap[id];
 		if (item) {
 			item.lastUsedTime = Date.now();
-			return Promise2.resolve(item.value);
+			return PromiseFast.resolve(item.value);
 		} else {
 			return generator().then(value => {
 				var size = this.measure(value);
@@ -581,12 +581,12 @@ export class ArrayBufferUtils {
 }
 
 export interface PromiseGenerator<T> {
-	(): Promise2<T>;
+	(): PromiseFast<T>;
 }
 
 export class PromiseUtils {
 	static sequence<T>(generators: PromiseGenerator<T>[]) {
-		return new Promise2((resolve, reject) => {
+		return new PromiseFast((resolve, reject) => {
 			generators = generators.slice(0);
 			function step() {
 				if (generators.length > 0) {
@@ -602,8 +602,8 @@ export class PromiseUtils {
 	}
 
 	static delayAsync(ms: number) {
-		if (ms <= 0) return Promise2.resolve<any>(null);
-		return new Promise2<any>((resolve, reject) => setTimeout(resolve, ms));
+		if (ms <= 0) return PromiseFast.resolve<any>(null);
+		return new PromiseFast<any>((resolve, reject) => setTimeout(resolve, ms));
 	}
 
 	static delaySecondsAsync(seconds: number) {
@@ -627,7 +627,7 @@ export enum AcceptCallbacks { NO = 0, YES = 1 }
 export enum Compensate { NO = 0, YES = 1 }
 
 export class WaitingThreadInfo<T> {
-	public constructor(public name: string, public object: any, public promise: Promise2<T>, public callbacks: AcceptCallbacks, public compensate: Compensate = Compensate.YES) {
+	public constructor(public name: string, public object: any, public promise: PromiseFast<T>, public callbacks: AcceptCallbacks, public compensate: Compensate = Compensate.YES) {
 	}
 }
 
@@ -777,8 +777,8 @@ export class WatchValue<T> {
 	onChanged:Signal1<T> = new Signal1<T>();
 	constructor(value?:T) { this._value = value; }
 	waitUntilValueAsync(expectedValue:T) {
-		if (this.value == expectedValue) return Promise2.resolve();
-		return new Promise2((resolve, reject) => {
+		if (this.value == expectedValue) return PromiseFast.resolve();
+		return new PromiseFast((resolve, reject) => {
 			let cancelable = this.onChanged.add(changed => {
 				if (changed == expectedValue) {
 					cancelable.cancel();
@@ -912,22 +912,22 @@ export class Signal2<T1, T2> {
 }
 
 export class SignalPromise<T1, T2, T3, T4, T5> {
-	callbacks: ((v1?: T1, v2?: T2, v3?: T3, v4?: T4, v5?: T5) => Promise2<any>)[] = [];
+	callbacks: ((v1?: T1, v2?: T2, v3?: T3, v4?: T4, v5?: T5) => PromiseFast<any>)[] = [];
 
 	get length() { return this.callbacks.length; }
 	clear() { this.callbacks = []; }
 
-	add(callback: (v1?: T1, v2?: T2, v3?: T3, v4?: T4, v5?: T5) => Promise2<any>) {
+	add(callback: (v1?: T1, v2?: T2, v3?: T3, v4?: T4, v5?: T5) => PromiseFast<any>) {
 		this.callbacks.push(callback);
 		return this;
 	}
 
 	dispatchAsync(v1?: T1, v2?: T2, v3?: T3, v4?: T4, v5?: T5) {
-		var promises:Promise2<any>[] = [];
+		var promises:PromiseFast<any>[] = [];
 		this.callbacks.forEach((callback) => {
 			promises.push(callback(v1, v2, v3, v4, v5));
 		});
-		return Promise2.all(promises)
+		return PromiseFast.all(promises)
 	}
 }
 
@@ -973,7 +973,7 @@ export var logger = new Logger(loggerPolicies, console, '');
 (window as any).logger = logger;
 
 /*
-declare var executeCommandAsync: (code: string, args: ArrayBuffer[]) => Promise2<ArrayBuffer[]>;
+declare var executeCommandAsync: (code: string, args: ArrayBuffer[]) => PromiseFast<ArrayBuffer[]>;
 
 if (typeof window.document != 'undefined') {
 	var workers: Worker[] = [];
@@ -993,7 +993,7 @@ if (typeof window.document != 'undefined') {
 	});
 
 	executeCommandAsync = (code: string, args: ArrayBuffer[]) => {
-		return new Promise2<ArrayBuffer[]>((resolve, reject) => {
+		return new PromiseFast<ArrayBuffer[]>((resolve, reject) => {
 			var requestId = lastRequestId++;
 			resolvers[requestId] = resolve;
 			if (workersJobs[0] <= workersJobs[1]) {
@@ -1022,7 +1022,7 @@ if (typeof window.document != 'undefined') {
 	}
 
 	executeCommandAsync = (code: string, args: ArrayBuffer[]) => {
-		return new Promise2<ArrayBuffer[]>((resolve, reject) => {
+		return new PromiseFast<ArrayBuffer[]>((resolve, reject) => {
 			try {
 				eval(code);
 			} catch (e) {
@@ -1034,11 +1034,11 @@ if (typeof window.document != 'undefined') {
 	};
 }
 
-function inflateRawArrayBufferAsync(data: ArrayBuffer): Promise2<ArrayBuffer> {
+function inflateRawArrayBufferAsync(data: ArrayBuffer): PromiseFast<ArrayBuffer> {
 	return inflateRawAsync(new Uint8Array(data)).then(data => data.buffer);
 }
 
-function inflateRawAsync(data: Uint8Array): Promise2<Uint8Array> {
+function inflateRawAsync(data: Uint8Array): PromiseFast<Uint8Array> {
 	return executeCommandAsync(`
 		var zlib = require("src/format/zlib");
 		args[0] = ArrayBufferUtils.fromUInt8Array(zlib.inflate_raw(new Uint8Array(args[0])));
@@ -1076,18 +1076,18 @@ export interface Thenable<T> {
 	then<Q>(resolved: (value: T) => Q, rejected: (error: Error) => void): Thenable<Q>;
 }
 
-export class Promise2<T> implements Thenable<T> {
-	static resolve<T>(value: Promise2<T>): Promise2<T>;
-	static resolve<T>(value: T): Promise2<T>;
-	static resolve(): Promise2<any>;
-	static resolve<T>(value?: any): Promise2<T> {
-		if (value instanceof Promise2) return value;
-		return new Promise2<T>((resolve, reject) => resolve(value));
+export class PromiseFast<T> implements Thenable<T> {
+	static resolve<T>(value: PromiseFast<T>): PromiseFast<T>;
+	static resolve<T>(value: T): PromiseFast<T>;
+	static resolve(): PromiseFast<any>;
+	static resolve<T>(value?: any): PromiseFast<T> {
+		if (value instanceof PromiseFast) return value;
+		return new PromiseFast<T>((resolve, reject) => resolve(value));
 	}
-	static reject(error: Error): Promise2<any> { return new Promise2((resolve, reject) => reject(error)); }
+	static reject(error: Error): PromiseFast<any> { return new PromiseFast((resolve, reject) => reject(error)); }
 
-	static all(promises: Promise2<any>[]): Promise2<any> {
-		return new Promise2((resolve, reject) => {
+	static all(promises: PromiseFast<any>[]): PromiseFast<any> {
+		return new PromiseFast((resolve, reject) => {
 			if (promises.length == 0) return resolve();
 			var total = promises.length;
 			var one = () => {
@@ -1098,7 +1098,7 @@ export class Promise2<T> implements Thenable<T> {
 				reject(e);
 			};
 			for (let p of promises) {
-				if (p instanceof Promise2) {
+				if (p instanceof PromiseFast) {
 					p.then(one, oneError);
 				} else {
 					one();
@@ -1107,11 +1107,11 @@ export class Promise2<T> implements Thenable<T> {
 		});
 	}
 
-	static race(promises: Promise2<any>[]): Promise2<any> {
-		return new Promise2((resolve, reject) => {
+	static race(promises: PromiseFast<any>[]): PromiseFast<any> {
+		return new PromiseFast((resolve, reject) => {
 			if (promises.length == 0) return resolve();
 			for (let p of promises) {
-				if (p instanceof Promise2) {
+				if (p instanceof PromiseFast) {
 					p.then(resolve, reject);
 				} else {
 					resolve();
@@ -1121,8 +1121,8 @@ export class Promise2<T> implements Thenable<T> {
 		});
 	}
 	
-	static fromThenable<T>(thenable:Thenable<T>):Promise2<T> {
-		return new Promise2<T>((resolve, reject) => {
+	static fromThenable<T>(thenable:Thenable<T>):PromiseFast<T> {
+		return new PromiseFast<T>((resolve, reject) => {
 			thenable.then(v => resolve(v), error => reject(error));
 		});
 	}
@@ -1152,15 +1152,15 @@ export class Promise2<T> implements Thenable<T> {
 		this._queueCheck();
 	}
 
-	then<Q>(resolved: (value: T) => Promise2<Q>, rejected?: (error: Error) => void): Promise2<Q>;
-	then<Q>(resolved: (value: T) => Q, rejected?: (error: Error) => void): Promise2<Q>;
-	then<Q>(resolved: (value: T) => Promise2<Q>, rejected?: (value: Error) => any): Promise2<Q> {
-		var promise = new Promise2<any>((resolve, reject) => {
+	then<Q>(resolved: (value: T) => PromiseFast<Q>, rejected?: (error: Error) => void): PromiseFast<Q>;
+	then<Q>(resolved: (value: T) => Q, rejected?: (error: Error) => void): PromiseFast<Q>;
+	then<Q>(resolved: (value: T) => PromiseFast<Q>, rejected?: (value: Error) => any): PromiseFast<Q> {
+		var promise = new PromiseFast<any>((resolve, reject) => {
 			if (resolved) {
 				this._resolvedCallbacks.push((a: any) => {
 					try {
 						var result = resolved(a);
-						if (result instanceof Promise2) {
+						if (result instanceof PromiseFast) {
 							result.then(resolve, reject);
 						} else {
 							resolve(result);
@@ -1177,7 +1177,7 @@ export class Promise2<T> implements Thenable<T> {
 				this._rejectedCallbacks.push((a: any) => {
 					try {
 						var result = rejected(a);
-						if (result instanceof Promise2) {
+						if (result instanceof PromiseFast) {
 							result.then(resolve, reject);
 						} else {
 							resolve(result);
@@ -1194,10 +1194,10 @@ export class Promise2<T> implements Thenable<T> {
 		return promise;
 	}
 
-	catch(rejected: (error: Error) => void): Promise2<any>;
-	catch<Q>(rejected: (error: Error) => Q): Promise2<Q>;
-	catch<Q>(rejected: (error: Error) => Promise2<Q>): Promise2<Q>;
-	catch(rejected: (error: Error) => any): Promise2<any> {
+	catch(rejected: (error: Error) => void): PromiseFast<any>;
+	catch<Q>(rejected: (error: Error) => Q): PromiseFast<Q>;
+	catch<Q>(rejected: (error: Error) => PromiseFast<Q>): PromiseFast<Q>;
+	catch(rejected: (error: Error) => any): PromiseFast<any> {
 		return this.then(null, rejected);
 	}
 
@@ -1289,7 +1289,7 @@ export function throwEndCycles() {
 	throw new Error("CpuBreakException");
 }
 
-export function throwWaitPromise<T>(promise:Promise2<T>) {
+export function throwWaitPromise<T>(promise:PromiseFast<T>) {
 	var error:any = new Error('WaitPromise');
 	//var error:any = new Error('WaitPromise');
 	error.promise = promise;
@@ -1302,7 +1302,7 @@ export function isInsideWorker() {
 
 (<any>window).throwEndCycles = throwEndCycles;
 (<any>window).throwWaitPromise = throwWaitPromise;
-(<any>window).Promise2 = Promise2;
+(<any>window).PromiseFast = PromiseFast;
 (<any>window).DomHelp = DomHelp;
 
 declare class Map<K, V> {

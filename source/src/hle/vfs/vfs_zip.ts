@@ -6,18 +6,18 @@ import VfsEntry = _vfs.VfsEntry;
 import VfsStat = _vfs.VfsStat;
 import FileMode = _vfs.FileMode;
 import FileOpenFlags = _vfs.FileOpenFlags;
-import {Promise2} from "../../global/utils";
+import {PromiseFast} from "../../global/utils";
 
 export class ZipVfs extends Vfs {
 	constructor(private zip: format_zip.Zip, private writeVfs?: Vfs) {
 		super();
 	}
 
-	openAsync(path: string, flags: FileOpenFlags, mode: FileMode): Promise2<VfsEntry> {
+	openAsync(path: string, flags: FileOpenFlags, mode: FileMode): PromiseFast<VfsEntry> {
 		try {
-			return Promise2.resolve(new ZipVfsFile(this.zip.get(path)));
+			return PromiseFast.resolve(new ZipVfsFile(this.zip.get(path)));
 		} catch (e) {
-			return Promise2.reject(e);
+			return PromiseFast.reject(e);
 		}
 	}
 }
@@ -29,7 +29,7 @@ class ZipVfsFile extends VfsEntry {
 
 	get isDirectory() { return this.node.isDirectory; }
 	get size() { return this.node.size; }
-	readChunkAsync(offset: number, length: number): Promise2<ArrayBuffer> { return this.node.readChunkAsync(offset, length); }
+	readChunkAsync(offset: number, length: number): PromiseFast<ArrayBuffer> { return this.node.readChunkAsync(offset, length); }
 	close() { }
 
 	private static statNode(node: format_zip.ZipEntry): VfsStat {
@@ -48,6 +48,6 @@ class ZipVfsFile extends VfsEntry {
 	}
 
 	enumerateAsync() {
-		return Promise2.resolve(this.node.getChildList().map(node => ZipVfsFile.statNode(node)));
+		return PromiseFast.resolve(this.node.getChildList().map(node => ZipVfsFile.statNode(node)));
 	}
 }

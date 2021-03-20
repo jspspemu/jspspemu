@@ -9,10 +9,10 @@ import PspInterrupts = _interrupt.PspInterrupts;
 import Memory = memory.Memory;
 import PixelFormat = pixelformat.PixelFormat;
 import PixelConverter = pixelformat.PixelConverter;
-import {ArrayBufferUtils, Promise2, Signal1} from "../global/utils";
+import {ArrayBufferUtils, PromiseFast, Signal1} from "../global/utils";
 
 export interface ThreadWaiter {
-	delayMicrosecondsAsync(delayMicroseconds: number, allowcompensating:boolean): Promise2<number>;
+	delayMicrosecondsAsync(delayMicroseconds: number, allowcompensating:boolean): PromiseFast<number>;
 }
 
 export interface IPspDisplay {
@@ -20,10 +20,10 @@ export interface IPspDisplay {
 	bufferWidth: number;
 	pixelFormat: PixelFormat;
 	sync: number;
-	startAsync(): Promise2<void>;
-	stopAsync(): Promise2<void>;
-	waitVblankAsync(waiter: ThreadWaiter): Promise2<number>;
-	waitVblankStartAsync(waiter: ThreadWaiter): Promise2<number>;
+	startAsync(): PromiseFast<void>;
+	stopAsync(): PromiseFast<void>;
+	waitVblankAsync(waiter: ThreadWaiter): PromiseFast<number>;
+	waitVblankStartAsync(waiter: ThreadWaiter): PromiseFast<number>;
 	setEnabledDisplay(enable: boolean): void;
 	updateTime(): void;
 	vblankCount: number;
@@ -65,12 +65,12 @@ export class DummyPspDisplay extends BasePspDisplay implements IPspDisplay {
 	setEnabledDisplay(enable: boolean) {
 	}
 
-	startAsync():Promise2<any> {
-		return Promise2.resolve();
+	startAsync():PromiseFast<any> {
+		return PromiseFast.resolve();
 	}
 
-	stopAsync():Promise2<any> {
-		return Promise2.resolve();
+	stopAsync():PromiseFast<any> {
+		return PromiseFast.resolve();
 	}
 }
 
@@ -185,13 +185,13 @@ export class PspDisplay extends BasePspDisplay implements IPspDisplay {
 			this.vblank.dispatch(this.vblankCount);
 			this.interruptManager.interrupt(PspInterrupts.PSP_VBLANK_INT);
 		}, 1000 / PspDisplay.VERTICAL_SYNC_HZ) as any;
-		return Promise2.resolve();
+		return PromiseFast.resolve();
 	}
 
 	stopAsync() {
 		clearInterval(this.interval);
 		this.interval = -1;
-		return Promise2.resolve();
+		return PromiseFast.resolve();
 	}
 
 	mustWaitVBlank = true;
@@ -207,17 +207,17 @@ export class PspDisplay extends BasePspDisplay implements IPspDisplay {
 		return false;
 	}
 
-	waitVblankAsync(waiter: ThreadWaiter):Promise2<number> {
+	waitVblankAsync(waiter: ThreadWaiter):PromiseFast<number> {
 		this.updateTime();
-		if (!this.mustWaitVBlank) return Promise2.resolve(0);
-		if (this.checkVblankThrottle()) return Promise2.resolve(0);
+		if (!this.mustWaitVBlank) return PromiseFast.resolve(0);
+		if (this.checkVblankThrottle()) return PromiseFast.resolve(0);
 		return waiter.delayMicrosecondsAsync(this.secondsLeftForVblank * 1000000, true);
 	}
 
-	waitVblankStartAsync(waiter: ThreadWaiter):Promise2<number> {
+	waitVblankStartAsync(waiter: ThreadWaiter):PromiseFast<number> {
 		this.updateTime();
-		if (!this.mustWaitVBlank) return Promise2.resolve(0);
-		if (this.checkVblankThrottle()) return Promise2.resolve(0);
+		if (!this.mustWaitVBlank) return PromiseFast.resolve(0);
+		if (this.checkVblankThrottle()) return PromiseFast.resolve(0);
 		return waiter.delayMicrosecondsAsync(this.secondsLeftForVblankStart * 1000000, true);
 	}
 }

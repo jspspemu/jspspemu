@@ -1421,13 +1421,13 @@ export function createNativeFunction(exportId: number, firmwareVersion: number, 
 		code += "var info = 'calling:' + state.thread.name + ':RA=' + state.RA.toString(16) + ':' + nativeFunction.name;\n";
 		code += "if (DebugOnce(info, 10)) {\n";
 		code += "logger.warn('#######', info, 'args=', args, 'result=', " + ((retval == 'uint') ? "sprintf('0x%08X', result) " : "result") + ");\n";
-		code += "if (result instanceof Promise2) { result.then(function(value) { logger.warn('------> PROMISE: ',info,'args=', args, 'result-->', " + ((retval == 'uint') ? "sprintf('0x%08X', value) " : "value") + "); }); }\n";
+		code += "if (result instanceof PromiseFast) { result.then(function(value) { logger.warn('------> PROMISE: ',info,'args=', args, 'result-->', " + ((retval == 'uint') ? "sprintf('0x%08X', value) " : "value") + "); }); }\n";
 		code += "}\n";
 	}
 	*/
 
 	code += `
-		if (result instanceof Promise2) {
+		if (result instanceof PromiseFast) {
 			${DEBUG_NATIVEFUNC ? 'console.log("returned promise!");' : ''}
 			state.thread.suspendUntilPromiseDone(result, nativeFunction);
 			throwEndCycles();
@@ -1437,7 +1437,7 @@ export function createNativeFunction(exportId: number, firmwareVersion: number, 
 	code += `
 		if (result instanceof WaitingThreadInfo) {
 			${DEBUG_NATIVEFUNC ? 'console.log("returned WaitingThreadInfo!");' : ''}
-			if (result.promise instanceof Promise2) {
+			if (result.promise instanceof PromiseFast) {
 				state.thread.suspendUntilDone(result);
 				throwEndCycles();
 			} else {

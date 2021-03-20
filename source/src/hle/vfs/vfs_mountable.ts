@@ -8,7 +8,7 @@ import VfsEntry = _vfs.VfsEntry;
 import VfsStat = _vfs.VfsStat;
 import FileMode = _vfs.FileMode;
 import FileOpenFlags = _vfs.FileOpenFlags;
-import {Promise2} from "../../global/utils";
+import {PromiseFast} from "../../global/utils";
 
 export class MountableVfs extends Vfs {
 	private mounts: MountableEntry[] = [];
@@ -40,11 +40,11 @@ export class MountableVfs extends Vfs {
 		throw (new Error("MountableVfs: Can't find file '" + path + "'"));
 	}
 
-	openAsync(path: string, flags: FileOpenFlags, mode: FileMode): Promise2<VfsEntry> {
+	openAsync(path: string, flags: FileOpenFlags, mode: FileMode): PromiseFast<VfsEntry> {
 		var info = this.transformPath(path);
 
 		if (info.mount.file) {
-			return Promise2.resolve(info.mount.file);
+			return PromiseFast.resolve(info.mount.file);
 		} else {
 			return info.mount.vfs.openAsync(info.part, flags, mode);
 		}
@@ -54,23 +54,23 @@ export class MountableVfs extends Vfs {
 		var info = this.transformPath(path);
 
 		if (info.mount.file) {
-			return Promise2.resolve(info.mount.file);
+			return PromiseFast.resolve(info.mount.file);
 		} else {
 			return info.mount.vfs.openDirectoryAsync(info.part);
 		}
 	}
 
-	getStatAsync(path: string): Promise2<VfsStat> {
+	getStatAsync(path: string): PromiseFast<VfsStat> {
 		var info = this.transformPath(path);
 
 		if (info.mount.file) {
-			return Promise2.resolve(info.mount.file.stat());
+			return PromiseFast.resolve(info.mount.file.stat());
 		} else {
 			return info.mount.vfs.getStatAsync(info.part);
 		}
 	}
 	
-	deleteAsync(path: string): Promise2<void> {
+	deleteAsync(path: string): PromiseFast<void> {
 		var info = this.transformPath(path);
 		return info.mount.vfs.deleteAsync(info.part);
 	}

@@ -9,7 +9,7 @@ import VfsEntryStream = _vfs.VfsEntryStream;
 import VfsStat = _vfs.VfsStat;
 import FileMode = _vfs.FileMode;
 import FileOpenFlags = _vfs.FileOpenFlags;
-import {Promise2} from "../../global/utils";
+import {PromiseFast} from "../../global/utils";
 import {UrlAsyncStream} from "../../global/stream";
 import {statFileAsync, StatInfo} from "../../global/async";
 
@@ -22,9 +22,9 @@ export class UriVfs extends Vfs {
 		return this.baseUri + '/' + path;
 	}
 
-	openAsync(path: string, flags: FileOpenFlags, mode: FileMode): Promise2<VfsEntry> {
+	openAsync(path: string, flags: FileOpenFlags, mode: FileMode): PromiseFast<VfsEntry> {
 		if (flags & FileOpenFlags.Write) {
-			return Promise2.resolve(new MemoryVfsEntry(path, new ArrayBuffer(0)));
+			return PromiseFast.resolve(new MemoryVfsEntry(path, new ArrayBuffer(0)));
 		}
 
 		var url = this.getAbsoluteUrl(path);
@@ -33,10 +33,10 @@ export class UriVfs extends Vfs {
 	}
 
 	openDirectoryAsync(path: string) {
-		return Promise2.resolve(new MemoryVfsEntry(path, new ArrayBuffer(0)));
+		return PromiseFast.resolve(new MemoryVfsEntry(path, new ArrayBuffer(0)));
 	}
 
-	getStatAsync(path: string): Promise2<VfsStat> {
+	getStatAsync(path: string): PromiseFast<VfsStat> {
 		var url = this.getAbsoluteUrl(path);
 		return statUrlAsync(url);
 	}

@@ -1,5 +1,5 @@
 import "../global"
-import {Promise2, Signal1, SignalPromise, SortedSet} from "../global/utils";
+import {PromiseFast, Signal1, SignalPromise, SortedSet} from "../global/utils";
 
 export class Sample {
 	constructor(public left: number, public right: number) {
@@ -37,7 +37,7 @@ export class PspAudioChannel {
 		this.audio.onStop.dispatch(this.id);
 	}
 
-	playAsync(channels: number, data: Int16Array, leftVolume: number, rightVolume: number): Promise2<any> {
+	playAsync(channels: number, data: Int16Array, leftVolume: number, rightVolume: number): PromiseFast<any> {
 		return this.audio.onPlayDataAsync.dispatchAsync(this.id, channels, data, leftVolume, rightVolume);
 	}
 }
@@ -77,7 +77,7 @@ export class PspAudio {
 	
 	startAsync() {
 		this.lastId = 0;
-		return Promise2.resolve();
+		return PromiseFast.resolve();
 	}
 
 	stopAsync() {
@@ -85,6 +85,6 @@ export class PspAudio {
 			channel.stop();
 		});
 		this.lastId = 0;
-		return Promise2.resolve();
+		return PromiseFast.resolve();
 	}
 }

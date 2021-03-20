@@ -1,7 +1,7 @@
 ﻿import "../../global/utils"
 import * as _vfs from '../vfs/vfs';
 import {Stream} from "../../global/stream";
-import {Promise2, sprintf, StringDictionary} from "../../global/utils";
+import {PromiseFast, sprintf, StringDictionary} from "../../global/utils";
 import {Integer64} from "../../global/int64";
 
 export class Device {
@@ -31,7 +31,7 @@ export class HleFile {
 	cursor = 0;
 
 	private _asyncResult: Integer64 = null;
-	private _asyncPromise: Promise2<Integer64> = null;
+	private _asyncPromise: PromiseFast<Integer64> = null;
 
 	constructor(public entry: _vfs.VfsEntry) {
 	}
@@ -46,7 +46,7 @@ export class HleFile {
 		this._asyncResult = null;
 	}
 
-	setAsyncOperation(operation: Promise2<Integer64>) {
+	setAsyncOperation(operation: PromiseFast<Integer64>) {
 		this._asyncResult = null;
 		this._asyncPromise = operation.then((value) => {
 			this._asyncResult = value;
@@ -56,7 +56,7 @@ export class HleFile {
 
 	setAsyncOperationNow(value: Integer64) {
 		this._asyncResult = value;
-		this._asyncPromise = Promise2.resolve(value);
+		this._asyncPromise = PromiseFast.resolve(value);
 	}
 
 	close() {

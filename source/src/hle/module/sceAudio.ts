@@ -5,7 +5,7 @@ import * as _audio from '../../core/audio';
 import nativeFunction = _utils.nativeFunction;
 import {Stream} from "../../global/stream";
 import {waitAsync} from "../../global/async";
-import {AcceptCallbacks, Promise2, WaitingThreadInfo} from "../../global/utils";
+import {AcceptCallbacks, PromiseFast, WaitingThreadInfo} from "../../global/utils";
 import {MathUtils} from "../../global/math";
 
 export class sceAudio {
@@ -99,7 +99,7 @@ export class sceAudio {
 	@nativeFunction(0x13F592BC, 150, 'uint', 'int/int/int/void*')
 	sceAudioOutputPannedBlocking(channelId: number, leftVolume: number, rightVolume: number, buffer: Stream): any {
 		var result = this._sceAudioOutput(channelId, leftVolume, rightVolume, buffer);
-		if (!(result instanceof Promise2)) return result;
+		if (!(result instanceof PromiseFast)) return result;
 		return new WaitingThreadInfo('sceAudioOutputPannedBlocking', channelId, result, AcceptCallbacks.NO);
 	}
 

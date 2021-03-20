@@ -5,7 +5,7 @@ import VfsEntry = _vfs.VfsEntry;
 import VfsStat = _vfs.VfsStat;
 import FileMode = _vfs.FileMode;
 import FileOpenFlags = _vfs.FileOpenFlags;
-import {Promise2, StringDictionary} from "../../global/utils";
+import {PromiseFast, StringDictionary} from "../../global/utils";
 
 export class MemoryVfs extends Vfs {
 	private files: StringDictionary<MemoryVfsEntry> = {};
@@ -14,7 +14,7 @@ export class MemoryVfs extends Vfs {
 		this.files[name] = new MemoryVfsEntry(name, data);
 	}
 
-	openAsync(path: string, flags: FileOpenFlags, mode: FileMode): Promise2<VfsEntry> {
+	openAsync(path: string, flags: FileOpenFlags, mode: FileMode): PromiseFast<VfsEntry> {
 		if (flags & FileOpenFlags.Write) {
 			if (!this.files[path]) {
 				this.addFile(path, new ArrayBuffer(0));
@@ -28,9 +28,9 @@ export class MemoryVfs extends Vfs {
 			var error:any = new Error(`MemoryVfs: Can't find '${path}'`);
 			console.error(error);
 			console.error(error['stack']);
-			return Promise2.reject(error);
+			return PromiseFast.reject(error);
 		} else {
-			return Promise2.resolve(file);
+			return PromiseFast.resolve(file);
 		}
 	}
 }
@@ -42,17 +42,17 @@ export class MemoryVfsEntry extends VfsEntry {
 
 	get isDirectory() { return false; }
 
-	readChunkAsync(offset: number, length: number): Promise2<ArrayBuffer> {
-		return Promise2.resolve(this.data.slice(offset, offset + length));
+	readChunkAsync(offset: number, length: number): PromiseFast<ArrayBuffer> {
+		return PromiseFast.resolve(this.data.slice(offset, offset + length));
 	}
 
-	writeChunkAsync(offset: number, data: ArrayBuffer): Promise2<number> {
+	writeChunkAsync(offset: number, data: ArrayBuffer): PromiseFast<number> {
 		var newData = new ArrayBuffer(Math.max(this.data.byteLength, offset + data.byteLength));
 		var newDataArray = new Uint8Array(newData);
 		newDataArray.set(new Uint8Array(this.data), 0);
 		newDataArray.set(new Uint8Array(data), offset);
 		this.data = newData;
-		return Promise2.resolve(data.byteLength);
+		return PromiseFast.resolve(data.byteLength);
 	}
 
 	stat(): VfsStat {
@@ -68,6 +68,6 @@ export class MemoryVfsEntry extends VfsEntry {
 	close() { }
 
 	enumerateAsync() {
-		return Promise2.resolve([]);
+		return PromiseFast.resolve([]);
 	}
 }

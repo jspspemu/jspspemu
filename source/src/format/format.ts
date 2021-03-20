@@ -1,8 +1,8 @@
 ﻿import "../global"
 import {AsyncStream, Stream} from "../global/stream";
-import {Promise2} from "../global/utils";
+import {PromiseFast} from "../global/utils";
 
-export function detectFormatAsync(asyncStream: AsyncStream): Promise2<string> {
+export function detectFormatAsync(asyncStream: AsyncStream): PromiseFast<string> {
 	return asyncStream.readChunkAsync(0, 4).then((data):any => {
 		var stream = Stream.fromArrayBuffer(data);
 		if (stream.length < 4) {

@@ -1,4 +1,4 @@
-import {Promise2} from "../global/utils";
+import {PromiseFast} from "../global/utils";
 import {waitAsync} from "../global/async";
 
 export class PspAudioBuffer {
@@ -101,7 +101,7 @@ class Audio2Channel {
 		}
 	}
 
-	playAsync(data: Float32Array): Promise2<any> {
+	playAsync(data: Float32Array): PromiseFast<any> {
 		if (!this.node) return waitAsync(10).then(() => 0);
 
 		if (this.buffers.length < 8) {
@@ -109,16 +109,16 @@ class Audio2Channel {
 			//(data.length / 2)
 			this.buffers.push(new PspAudioBuffer(null, data));
 			//return 0;
-			return Promise2.resolve(0);
+			return PromiseFast.resolve(0);
 		} else {
-			return new Promise2<number>((resolved, rejected) => {
+			return new PromiseFast<number>((resolved, rejected) => {
 				this.buffers.push(new PspAudioBuffer(resolved, data));
 				return 0;
 			});
 		}
 	}
 
-	playDataAsync(channels: number, data: Int16Array, leftVolume: number, rightVolume: number): Promise2<any> {
+	playDataAsync(channels: number, data: Int16Array, leftVolume: number, rightVolume: number): PromiseFast<any> {
 		//console.log(channels, data);
 		return this.playAsync(Audio2Channel.convertS16ToF32(channels, data, leftVolume, rightVolume));
 	}

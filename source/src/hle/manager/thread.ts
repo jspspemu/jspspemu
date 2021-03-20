@@ -23,7 +23,7 @@ import {
 	DSet,
 	logger,
 	Microtask,
-	Promise2,
+	PromiseFast,
 	sprintf,
 	WaitingThreadInfo
 } from "../../global/utils";
@@ -79,8 +79,8 @@ export class Thread {
 	info: WaitingThreadInfo<any> = null;
 	waitingName: string = null;
 	waitingObject: any = null;
-	waitingPromise: Promise2<any> = null;
-	runningPromise: Promise2<number> = null;
+	waitingPromise: PromiseFast<any> = null;
+	runningPromise: PromiseFast<number> = null;
 	runningStop: () => void;
 	acceptingCallbacks = false;
 
@@ -90,7 +90,7 @@ export class Thread {
 
 	constructor(public name: string, public manager: ThreadManager, memoryManager: MemoryManager, public state: CpuState, stackSize: number) {
         this.state.thread = this;
-		this.runningPromise = new Promise2<any>((resolve, reject) => { this.runningStop = resolve; });
+		this.runningPromise = new PromiseFast<any>((resolve, reject) => { this.runningStop = resolve; });
 		this.stackPartition = memoryManager.stackPartition.allocateHigh(stackSize, name + '-stack', 0x100);
 	}
 
@@ -103,12 +103,12 @@ export class Thread {
 	}
 
 	private wakeupCount: number = 0;
-	private wakeupPromise: Promise2<number> = null;
+	private wakeupPromise: PromiseFast<number> = null;
 	private wakeupFunc: () => void = null;
 
 	private getWakeupPromise() {
 		if (!this.wakeupPromise) {
-			this.wakeupPromise = new Promise2<number>((resolve, reject) => {
+			this.wakeupPromise = new PromiseFast<number>((resolve, reject) => {
 				this.wakeupFunc = resolve;
 			});
 		}
@@ -118,7 +118,7 @@ export class Thread {
 	wakeupSleepAsync(callbacks: AcceptCallbacks) {
 		this.wakeupCount--;
 		this.suspend();
-		//return new Promise2((resolve, reject) => { });
+		//return new PromiseFast((resolve, reject) => { });
 		return this.getWakeupPromise();
 	}
 
@@ -129,7 +129,7 @@ export class Thread {
 			this.wakeupPromise = null;
 			this.wakeupFunc = null;
 		}
-		return Promise2.resolve(0);
+		return PromiseFast.resolve(0);
 	}
 
 	accumulatedMicroseconds = 0;
@@ -151,7 +151,7 @@ export class Thread {
 
 		if (delayMicroseconds <= 0.00001) {
 			//console.error('none!');
-			//return Promise2.resolve(0);
+			//return PromiseFast.resolve(0);
 		}
 
 		var start = performance.now();
@@ -179,14 +179,14 @@ export class Thread {
 		this._suspendUntilPromiseDone(info.promise, info.compensate);
 	}
 
-	suspendUntilPromiseDone(promise: Promise2<any>, info: NativeFunction) {
-		//this.waitingName = sprintf('%s:0x%08X (Promise2)', info.name, info.nid);
-		this.waitingName = info.name + ':0x' + info.nid.toString(16) + ' (Promise2)';
+	suspendUntilPromiseDone(promise: PromiseFast<any>, info: NativeFunction) {
+		//this.waitingName = sprintf('%s:0x%08X (PromiseFast)', info.name, info.nid);
+		this.waitingName = info.name + ':0x' + info.nid.toString(16) + ' (PromiseFast)';
 		this.waitingObject = info;
 		this._suspendUntilPromiseDone(promise, Compensate.NO);
 	}
 
-	_suspendUntilPromiseDone(promise: Promise2<any>, compensate: Compensate) {
+	_suspendUntilPromiseDone(promise: PromiseFast<any>, compensate: Compensate) {
 
 		if (compensate == Compensate.YES) {
 			var startTime = performance.now();
@@ -259,14 +259,14 @@ export class ThreadManager {
 	enqueued: boolean = false;
 	enqueuedTime = 0;
 	running: boolean = false;
-	exitPromise: Promise2<any>;
+	exitPromise: PromiseFast<any>;
 	exitResolve: () => void;
 	current: Thread;
 	private rootCpuState: CpuState;
 
 	constructor(private memory: Memory, private interruptManager: InterruptManager, private callbackManager: CallbackManager, private memoryManager: MemoryManager, private display: PspDisplay, private syscallManager: SyscallManager) {
 		this.rootCpuState = new CpuState(this.memory, this.syscallManager);
-		this.exitPromise = new Promise2((resolve, reject) => {
+		this.exitPromise = new PromiseFast((resolve, reject) => {
 			this.exitResolve = resolve;
 		});
 		this.interruptManager.event.add(this.eventOcurred);
@@ -410,7 +410,7 @@ export class ThreadManager {
 		this.callbackAdded = this.callbackManager.onAdded.add(() => {
 			this.eventOcurred();
 		});
-		return Promise2.resolve();
+		return PromiseFast.resolve();
     }
 
     stopAsync() {
@@ -418,14 +418,14 @@ export class ThreadManager {
 		this.callbackManager.onAdded.remove(this.callbackAdded);
 		clearInterval(this.interval);
 		this.interval = -1;
-		return Promise2.resolve();
+		return PromiseFast.resolve();
 	}
 
 	exitGame() {
 		this.exitResolve();
 	}
 
-	waitExitGameAsync(): Promise2<any> {
+	waitExitGameAsync(): PromiseFast<any> {
 		return this.exitPromise;
 	}
 }

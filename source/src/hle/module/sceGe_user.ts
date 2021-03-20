@@ -10,7 +10,7 @@ import * as _gpu from '../../core/gpu'; _gpu.PspGpuCallback;
 
 import PspGpuCallback = _gpu.PspGpuCallback;
 import {Stream} from "../../global/stream";
-import {AcceptCallbacks, Compensate, Promise2, WaitingThreadInfo} from "../../global/utils";
+import {AcceptCallbacks, Compensate, PromiseFast, WaitingThreadInfo} from "../../global/utils";
 import {StructClass, UInt32} from "../../global/struct";
 
 export class sceGe_user {
@@ -57,9 +57,9 @@ export class sceGe_user {
 	@nativeFunction(0xB287BD61, 150, 'uint', 'int')
 	sceGeDrawSync(syncType: _gpu.SyncType): any {
 		var result = this.context.gpu.drawSync(syncType);
-		if (result instanceof Promise2) {
-			//result = Promise2.all([result, waitAsync(10)]);
-			return new WaitingThreadInfo('sceGeDrawSync', this.context.gpu, <Promise2<any>>result.then(() => {
+		if (result instanceof PromiseFast) {
+			//result = PromiseFast.all([result, waitAsync(10)]);
+			return new WaitingThreadInfo('sceGeDrawSync', this.context.gpu, <PromiseFast<any>>result.then(() => {
 			}), AcceptCallbacks.NO, Compensate.YES);
 		} else {
 			return result;

@@ -11,7 +11,7 @@ import PspLanguages = _structs.PspLanguages;
 
 import FileOpenFlags = _vfs.FileOpenFlags;
 import FileMode = _vfs.FileMode;
-import {Promise2} from "../../global/utils";
+import {PromiseFast} from "../../global/utils";
 import {Stream} from "../../global/stream";
 import {Int32, Stringz, StructArray, StructClass, UInt32, UInt8, Utf8Stringz} from "../../global/struct";
 import {MathUtils, parseIntFormat} from "../../global/math";
@@ -24,23 +24,23 @@ export class sceUtility {
 	@nativeFunction(0x2A2B3DE0, 150, 'uint', 'int')
 	sceUtilityLoadModule(pspModule: PspModule) {
 		console.warn("Not implemented sceUtilityLoadModule '" + pspModule + "'");
-		return Promise2.resolve(0);
+		return PromiseFast.resolve(0);
 	}
 
 	@nativeFunction(0x50C4CD57, 150, 'uint', 'void*')
 	sceUtilitySavedataInitStart(paramsPtr: Stream) {
-		return Promise2.resolve(this._sceUtilitySavedataInitStart(paramsPtr.clone())).then(result => {
+		return PromiseFast.resolve(this._sceUtilitySavedataInitStart(paramsPtr.clone())).then(result => {
 			var params = SceUtilitySavedataParam.struct.read(paramsPtr.clone());
 			params.base.result = result;
 			return 0;
 		});
 	}
 
-	_sceUtilitySavedataInitStart(paramsPtr: Stream): Promise2<number> {
+	_sceUtilitySavedataInitStart(paramsPtr: Stream): PromiseFast<number> {
 		console.error('sceUtilitySavedataInitStart');
 		var params = SceUtilitySavedataParam.struct.createProxy(paramsPtr);
 
-		return Promise2.resolve(0).then(() => {
+		return PromiseFast.resolve(0).then(() => {
 			var fileManager = this.context.fileManager;
 			var savePathFolder = "ms0:/PSP/SAVEDATA/" + params.gameName + params.saveName;
 			var saveDataBin = savePathFolder + "/DATA.BIN";
@@ -80,8 +80,8 @@ export class sceUtility {
 				case PspUtilitySavedataMode.Read:
 				case PspUtilitySavedataMode.ReadSecure:
 					console.error("Not Implemented: sceUtilitySavedataInitStart.Read");
-					//return Promise2.resolve(-1);
-					return Promise2.resolve(0);
+					//return PromiseFast.resolve(-1);
+					return PromiseFast.resolve(0);
 				case PspUtilitySavedataMode.Sizes:
 					var SceKernelError = SceKernelErrors.ERROR_OK;
 
@@ -136,13 +136,13 @@ export class sceUtility {
 						}
 					}
 
-					if (SceKernelError != SceKernelErrors.ERROR_OK) return Promise2.resolve(SceKernelError);
+					if (SceKernelError != SceKernelErrors.ERROR_OK) return PromiseFast.resolve(SceKernelError);
 					break;
 				default:
 					console.error(`Not implemented ${params.mode}: ${PspUtilitySavedataMode[params.mode]}`);
 					break;
 			}
-			return Promise2.resolve(0);
+			return PromiseFast.resolve(0);
 		}).then(result => {
 			console.error('result: ', result);
 			params.base.result = result as number;

@@ -5,7 +5,7 @@ import * as _riff from '../../format/riff'; _riff.Riff;
 import Riff = _riff.Riff;
 import nativeFunction = _utils.nativeFunction;
 import {Stream} from "../../global/stream";
-import {Promise2, UidCollection} from "../../global/utils";
+import {PromiseFast, UidCollection} from "../../global/utils";
 import {
 	Int32,
 	StructArray,
@@ -63,7 +63,7 @@ export class sceAtrac3plus {
 
 	@nativeFunction(0x6A8C3CD5, 150, 'uint', 'int/void*/void*/void*/void*')
 	sceAtracDecodeData(id: number, samplesOutPtr: Stream, decodedSamplesCountPtr: Stream, reachedEndPtr: Stream, remainingFramesToDecodePtr: Stream) {
-		if (!this.hasById(id)) return Promise2.resolve(SceKernelErrors.ATRAC_ERROR_NO_ATRACID);
+		if (!this.hasById(id)) return PromiseFast.resolve(SceKernelErrors.ATRAC_ERROR_NO_ATRACID);
 		var atrac3 = this.getById(id);
 		
 		var reachedEnd = new UIntReference(reachedEndPtr);
@@ -371,16 +371,16 @@ class Atrac3 {
 	}
 
 	decodeAsync(samplesOutPtr: Stream) {
-		if (this.totalFrames <= 0) return Promise2.resolve(0);
+		if (this.totalFrames <= 0) return PromiseFast.resolve(0);
 		//var blockData = this.dataStream.readBytes(this.format.blockSize);
 		try {
 			
 			//console.log(data);
 			var data = this.decodeOne();
-			if (data == null) return Promise2.resolve(0);
+			if (data == null) return PromiseFast.resolve(0);
 
 			for (var n = 0; n < data.length; n++) samplesOutPtr.writeInt16(data[n]);
-			return Promise2.resolve(data.length);
+			return PromiseFast.resolve(data.length);
 		} catch (e) {
 			console.error(e.stack || e);
 			throw e;
@@ -388,8 +388,8 @@ class Atrac3 {
 	}
 
 	static lastId = 0;
-	static fromStreamAsync(data: Stream):Promise2<Atrac3> {
-		return Promise2.resolve(new Atrac3(Atrac3.lastId++).setDataStream(data));
+	static fromStreamAsync(data: Stream):PromiseFast<Atrac3> {
+		return PromiseFast.resolve(new Atrac3(Atrac3.lastId++).setDataStream(data));
 	}
 }
 

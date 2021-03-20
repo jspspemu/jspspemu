@@ -1,7 +1,7 @@
 ﻿import "./global"
 
 import { GpuStats } from './core/gpu/gpu_stats';
-import {DomHelp, logger, loggerPolicies, Microtask, Promise2, Signal1, Signal2} from "./global/utils";
+import {DomHelp, logger, loggerPolicies, Microtask, PromiseFast, Signal1, Signal2} from "./global/utils";
 import {EmulatorContext} from "./context";
 import {getMemoryInstance, Memory} from "./core/memory";
 import {
@@ -80,9 +80,9 @@ export class Emulator {
 	}
 
 	stopAsync() {
-		if (!this.display) return Promise2.resolve();
+		if (!this.display) return PromiseFast.resolve();
 
-		return Promise2.all([
+		return PromiseFast.all([
 			this.display.stopAsync(),
 			this.controller.stopAsync(),
 			this.gpu.stopAsync(),
@@ -137,7 +137,7 @@ export class Emulator {
 
 			this.context.init(this.interruptManager, this.display, this.controller, this.gpu, this.memoryManager, this.threadManager, this.audio, this.memory, this.fileManager, this.rtc, this.callbackManager, this.moduleManager, this.config, this.interop, this.netManager, this.battery);
 			
-			return Promise2.all([
+			return PromiseFast.all([
 				this.display.startAsync().then(() => { console.info('display initialized'); }),
 				this.controller.startAsync().then(() => { console.info('controller initialized'); }),
 				this.gpu.startAsync().then(() => { console.info('gpu initialized'); }),
@@ -165,7 +165,7 @@ export class Emulator {
 		this.onPic1.dispatch(data.toUInt8Array());
 	}
 
-	private _loadAndExecuteAsync(asyncStream: AsyncStream, pathToFile: string):Promise2<any> {
+	private _loadAndExecuteAsync(asyncStream: AsyncStream, pathToFile: string):PromiseFast<any> {
 		return detectFormatAsync(asyncStream).then((fileFormat):any => {
 			console.info(`File:: size: ${asyncStream.size}, format: "${fileFormat}", name: "${asyncStream.name}"`);
 			switch (fileFormat) {

@@ -25,7 +25,7 @@ export class sceCtrl {
 		//console.log('sceCtrlReadBufferPositive');
 
 		for (var n = 0; n < count; n++) _controller.SceCtrlData.struct.write(sceCtrlDataPtr, this.context.controller.data);
-		//return Promise2.resolve(0);
+		//return PromiseFast.resolve(0);
 		return new WaitingThreadInfo('sceCtrlReadBufferPositive', this.context.display, this.context.display.waitVblankStartAsync(thread).then(v => count), AcceptCallbacks.NO);
 		//return 0;
     }

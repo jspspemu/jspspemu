@@ -1,4 +1,4 @@
-﻿import {Microtask, Promise2} from "./utils";
+﻿import {Microtask, PromiseFast} from "./utils";
 
 export interface StatInfo {
 	size: number;
@@ -6,19 +6,19 @@ export interface StatInfo {
 }
 
 export function waitAsync(timems: number) {
-	return new Promise2((resolve, reject) => {
+	return new PromiseFast((resolve, reject) => {
 		setTimeout(resolve, timems);
 	});
 }
 
 export function immediateAsync() {
-	return new Promise2((resolve, reject) => {
+	return new PromiseFast((resolve, reject) => {
 		Microtask.queue(resolve);
 	});
 }
 
 export function _downloadFileAsync(method: string, url: string, headers?: any) {
-	return new Promise2<XMLHttpRequest>((resolve, reject) => {
+	return new PromiseFast<XMLHttpRequest>((resolve, reject) => {
 		var request = new XMLHttpRequest();
 
 		request.open(method, url, true);
@@ -52,9 +52,9 @@ export function toArrayBuffer(buffer:any) {
     return ab;
 }
 
-export function downloadFileAsync(url: string, headers?: any):Promise2<ArrayBuffer> {
+export function downloadFileAsync(url: string, headers?: any):PromiseFast<ArrayBuffer> {
 	if (typeof XMLHttpRequest == 'undefined') {
-		return new Promise2<ArrayBuffer>((resolve, reject) => {
+		return new PromiseFast<ArrayBuffer>((resolve, reject) => {
 			fs.readFile(url, (err:any, data:any) => {
 			  if (err) {
 				  reject(err);

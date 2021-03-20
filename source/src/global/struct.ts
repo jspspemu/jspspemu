@@ -1,6 +1,6 @@
 ﻿import "./utils"
 import "./stream"
-import {Endian, Promise2, Utf8} from "./utils";
+import {Endian, PromiseFast, Utf8} from "./utils";
 import {Stream} from "./stream";
 import {Integer64} from "./int64";
 
@@ -151,7 +151,7 @@ export class StructClass<T> implements IType<T> {
 	readWrite(stream: Stream, callback: (p: T) => any) {
 		var p = this.read(stream.clone());
 		var result = callback(p);
-		if (result instanceof Promise2) {
+		if (result instanceof PromiseFast) {
 			return result.then((result: any) => {
 				this.write(stream.clone(), p);
 				return result;
@@ -183,10 +183,10 @@ export class StructClass<T> implements IType<T> {
 		return <T>object;
 	}
 
-	readWriteAsync<T2>(stream: Stream, callback: (p: T) => Promise2<T2>, process?: (p: T, v: T2) => T2) {
+	readWriteAsync<T2>(stream: Stream, callback: (p: T) => PromiseFast<T2>, process?: (p: T, v: T2) => T2) {
 		var p = this.read(stream.clone());
 		var result = callback(p);
-		return Promise2.resolve(result).then(v => {
+		return PromiseFast.resolve(result).then(v => {
 			if (process != null) process(p, v);
 			this.write(stream.clone(), p);
 			return v;

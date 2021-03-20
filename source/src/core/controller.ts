@@ -1,11 +1,11 @@
 ﻿import "../global"
-import {Promise2} from "../global/utils";
+import {PromiseFast} from "../global/utils";
 import {Int8, StructArray, StructClass, UInt32} from "../global/struct";
 import {MathUtils} from "../global/math";
 
 export interface IPspController {
-	startAsync():Promise2<void>;
-	stopAsync():Promise2<void>;
+	startAsync():PromiseFast<void>;
+	stopAsync():PromiseFast<void>;
 	data: SceCtrlData;
 	latchSamplingCount: number;
 }
@@ -128,7 +128,7 @@ export class PspController implements IPspControllerSet {
 	_keyUp:any;
 	startAsync() {	
 		this.frame(0);
-		return Promise2.resolve();
+		return PromiseFast.resolve();
 	}
 
 	//private gamepadsButtons = [];
@@ -156,7 +156,7 @@ export class PspController implements IPspControllerSet {
 
 	stopAsync() {
 		cancelAnimationFrame(this.animationTimeId);
-		return Promise2.resolve();
+		return PromiseFast.resolve();
 	}
 }
 

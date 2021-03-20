@@ -8,7 +8,7 @@ import VfsEntry = _vfs.VfsEntry;
 import VfsStat = _vfs.VfsStat;
 import FileMode = _vfs.FileMode;
 import FileOpenFlags = _vfs.FileOpenFlags;
-import {Promise2, StringDictionary} from "../../global/utils";
+import {PromiseFast, StringDictionary} from "../../global/utils";
 
 declare var Dropbox: any;
 
@@ -36,7 +36,7 @@ export class AsyncClient {
 	constructor(private key:string) {
 	}
 
-	private initPromise: Promise2<any>;
+	private initPromise: PromiseFast<any>;
 
 	initOnceAsync() {
 		if (!this.initPromise) {
@@ -53,7 +53,7 @@ export class AsyncClient {
 				redirectUrl: (document.location.host == '127.0.0.1') ? 'http://127.0.0.1/oauth_receive.html' : "https://" + document.location.host + '/oauth_receive.html'
 			}));
 
-			this.initPromise = new Promise2((resolve, reject) => {
+			this.initPromise = new PromiseFast((resolve, reject) => {
 				this.client.authenticate({ interactive: true }, (e:Error) => {
 					if (e) {
 						this.initPromise = null;
@@ -81,7 +81,7 @@ export class AsyncClient {
 		}
 
 		return this.initOnceAsync().then(() => {
-			return new Promise2((resolve, reject) => {
+			return new PromiseFast((resolve, reject) => {
 				this.client.writeFile(fullpath, content, (e:Error, data:any) => {
 					if (e) {
 						reject(e);
@@ -95,7 +95,7 @@ export class AsyncClient {
 
 	mkdirAsync(path: string) {
 		return this.initOnceAsync().then(() => {
-			return new Promise2((resolve, reject) => {
+			return new PromiseFast((resolve, reject) => {
 				this.client.mkdir(path, (e:Error, data:any) => {
 					if (e) {
 						reject(e);
@@ -107,9 +107,9 @@ export class AsyncClient {
 		});
 	}
 
-	readFileAsync(name: string, offset: number = 0, length: number = undefined):Promise2<ArrayBuffer> {
+	readFileAsync(name: string, offset: number = 0, length: number = undefined):PromiseFast<ArrayBuffer> {
 		return this.initOnceAsync().then(() => {
-			return new Promise2<any>((resolve, reject) => {
+			return new PromiseFast<any>((resolve, reject) => {
 				this.client.readFile(name, { arrayBuffer: true, start: offset, length: length }, (e:Error, data:any) => {
 					if (e) {
 						reject(e);
@@ -122,14 +122,14 @@ export class AsyncClient {
 	}
 
 	statCacheValue: StringDictionary<Info> = {};
-	statCachePromise: StringDictionary<Promise2<Info>> = {};
-	statAsync(fullpath: string): Promise2<Info> {
+	statCachePromise: StringDictionary<PromiseFast<Info>> = {};
+	statAsync(fullpath: string): PromiseFast<Info> {
 		return this.initOnceAsync().then(() => {
 			if (!this.statCachePromise[fullpath]) {
 				this.statCachePromise[fullpath] = this.readdirAsync(getDirectoryPath(fullpath)).then((files) => {
 					var basename = getBaseName(fullpath);
 					if (!files.contains(basename)) throw(new Error("folder not contains file"));
-					return new Promise2<any>((resolve, reject) => {
+					return new PromiseFast<any>((resolve, reject) => {
 						this.client.stat(fullpath, {}, (e:Error, data:any) => {
 							if (e) {
 								reject(e);
@@ -146,11 +146,11 @@ export class AsyncClient {
 	}
 
 	readdirCacheValue: StringDictionary<string[]> = {};
-	readdirCachePromise: StringDictionary<Promise2<string[]>> = {};
-	readdirAsync(name: string): Promise2<string[]> {
+	readdirCachePromise: StringDictionary<PromiseFast<string[]>> = {};
+	readdirAsync(name: string): PromiseFast<string[]> {
 		return this.initOnceAsync().then(() => {
 			if (!this.readdirCachePromise[name]) {
-				this.readdirCachePromise[name] = new Promise2<any>((resolve, reject) => {
+				this.readdirCachePromise[name] = new PromiseFast<any>((resolve, reject) => {
 					this.client.readdir(name, {}, (e:Error, data:any) => {
 						if (e) {
 							reject(e);
@@ -218,9 +218,9 @@ export class DropboxVfs extends Vfs {
 		return client.initOnceAsync();
 	}
 
-	openAsync(path: string, flags: FileOpenFlags, mode: FileMode): Promise2<VfsEntry> {
+	openAsync(path: string, flags: FileOpenFlags, mode: FileMode): PromiseFast<VfsEntry> {
 		path = normalizePath(path);
-		if (!this.enabled) return Promise2.reject(new Error("Not using dropbox"));
+		if (!this.enabled) return PromiseFast.reject(new Error("Not using dropbox"));
 		return DropboxVfsEntry.fromPathAsync(path, flags, mode);
 	}
 }
@@ -230,7 +230,7 @@ export class DropboxVfsEntry extends VfsEntry {
 		super();
 	}
 
-	static fromPathAsync(path: string, flags: FileOpenFlags, mode: FileMode): Promise2<DropboxVfsEntry> {
+	static fromPathAsync(path: string, flags: FileOpenFlags, mode: FileMode): PromiseFast<DropboxVfsEntry> {
 		function readedErrorAsync(e: Error) {
 			if (flags & FileOpenFlags.Create) {
 				//console.log('creating file!');
@@ -262,18 +262,18 @@ export class DropboxVfsEntry extends VfsEntry {
 		;
 	}
 
-	enumerateAsync(): Promise2<VfsStat[]> {
+	enumerateAsync(): PromiseFast<VfsStat[]> {
 		throw (new Error("Must implement DropboxVfsEntry.enumerateAsync"));
 	}
 
 	private cachedContent: ArrayBuffer;
 	private writeTimer = -1;
 
-	readChunkAsync(offset: number, length: number): Promise2<ArrayBuffer> {
+	readChunkAsync(offset: number, length: number): PromiseFast<ArrayBuffer> {
 		//console.log('dropbox: read chunk!', this.path, offset, length);
 
 		if (this._size < 128 * 1024 * 1024) {
-			if (this.cachedContent) return Promise2.resolve(this.cachedContent.slice(offset, offset + length));
+			if (this.cachedContent) return PromiseFast.resolve(this.cachedContent.slice(offset, offset + length));
 			return client.readFileAsync(this.path).then(data => {
 				this.cachedContent = data;
 				return this.cachedContent.slice(offset, offset + length);
@@ -284,7 +284,7 @@ export class DropboxVfsEntry extends VfsEntry {
 		}
 	}
 
-	writeChunkAsync(offset: number, dataToWrite: ArrayBuffer): Promise2<number> {
+	writeChunkAsync(offset: number, dataToWrite: ArrayBuffer): PromiseFast<number> {
 		return this.readChunkAsync(0, this._size).then(base => {
 			//console.log('dropbox: write chunk!', this.path, offset, dataToWrite.byteLength);
 			var newContent = new ArrayBuffer(Math.max(base.byteLength, offset + dataToWrite.byteLength));

@@ -3,7 +3,7 @@
 import * as zlib from './zlib';
 import {AsyncStream, Stream} from "../global/stream";
 import {StringWithSize, StructArray, StructClass, UInt16, UInt32} from "../global/struct";
-import {ArrayBufferUtils, Promise2, StringDictionary} from "../global/utils";
+import {ArrayBufferUtils, PromiseFast, StringDictionary} from "../global/utils";
 import {BitUtils} from "../global/math";
 
 export class ZipEntry {
@@ -58,8 +58,8 @@ export class ZipEntry {
 		return string.toUpperCase();
 	}
 
-	readRawCompressedAsync():Promise2<Uint8Array> {
-		if (this.compressedData) return Promise2.resolve(this.compressedData);
+	readRawCompressedAsync():PromiseFast<Uint8Array> {
+		if (this.compressedData) return PromiseFast.resolve(this.compressedData);
 		return this.zip.zipStream.readChunkAsync(this.zipDirEntry.headerOffset, this.zipDirEntry.compressedSize + 1024).then((data) => {
 			var stream = Stream.fromArrayBuffer(data);
 			var zipFileRecord = ZipFileRecord.struct.read(stream);
@@ -74,7 +74,7 @@ export class ZipEntry {
 	}
 	
 	readAsync() {
-		if (this.uncompressedData) return Promise2.resolve(this.uncompressedData);
+		if (this.uncompressedData) return PromiseFast.resolve(this.uncompressedData);
 		return this.readRawCompressedAsync().then((data:Uint8Array) => {
 			switch (this.compressionType) {
 				case ZipCompressionType.DEFLATE:

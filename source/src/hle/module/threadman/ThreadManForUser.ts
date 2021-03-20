@@ -12,7 +12,7 @@ import OutOfMemoryError = _manager.OutOfMemoryError;
 import {
 	AcceptCallbacks,
 	logger,
-	Promise2,
+	PromiseFast,
 	sprintf,
 	throwEndCycles,
 	UidCollection,
@@ -61,7 +61,7 @@ export class ThreadManForUser {
 			console.info(sprintf('sceKernelCreateThread: %d:"%s":priority=%d, currentPriority=%d, entryPC=%08X', newThread.id, newThread.name, newThread.priority, currentThread.priority, entryPoint));
 
 			return newThread.id;
-			//return Promise2.resolve(newThread.id);
+			//return PromiseFast.resolve(newThread.id);
 		} catch (e) {
 			if (e instanceof OutOfMemoryError) return SceKernelErrors.ERROR_KERNEL_NO_MEMORY;
 			throw(e);
@@ -153,7 +153,7 @@ export class ThreadManForUser {
 		console.info(sprintf('sceKernelStartThread: %d:"%s":priority=%d, currentPriority=%d, SP=%08X, GP=%08X, FP=%08X', threadId, newThread.name, newThread.priority, currentThread.priority, newState.SP, newState.GP, newState.FP));
 
 		newThread.start();
-		return Promise2.resolve(0);
+		return PromiseFast.resolve(0);
 	}
 
 	@nativeFunction(0x71BC9871, 150, 'uint', 'Thread/int/int')
@@ -161,7 +161,7 @@ export class ThreadManForUser {
 		if (!this.hasThreadById(threadId)) return SceKernelErrors.ERROR_KERNEL_NOT_FOUND_THREAD;
 		var thread = this.getThreadById(threadId);
 		thread.priority = priority;
-		return Promise2.resolve(0);
+		return PromiseFast.resolve(0);
 	}
 
 	@nativeFunction(0xAA73C935, 150, 'int', 'Thread/int')
@@ -234,7 +234,7 @@ export class ThreadManForUser {
 
 	@nativeFunction(0xD59EAD2F, 150, 'uint', 'int')
 	sceKernelWakeupThread(threadId: number) {
-		if (!this.hasThreadById(threadId)) return Promise2.resolve(SceKernelErrors.ERROR_KERNEL_NOT_FOUND_THREAD);
+		if (!this.hasThreadById(threadId)) return PromiseFast.resolve(SceKernelErrors.ERROR_KERNEL_NOT_FOUND_THREAD);
 		var thread = this.getThreadById(threadId);
 		return thread.wakeupWakeupAsync();
 	}

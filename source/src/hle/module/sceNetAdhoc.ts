@@ -6,7 +6,7 @@ import nativeFunction = _utils.nativeFunction;
 import EmulatorContext = _context.EmulatorContext;
 import MemoryPartition = _manager.MemoryPartition;
 import Thread = _manager.Thread;
-import {Cancelable, Promise2, Signal0, UidCollection} from "../../global/utils";
+import {Cancelable, PromiseFast, Signal0, UidCollection} from "../../global/utils";
 import {Stream} from "../../global/stream";
 import {Int16, Int32, Int8, StructArray, StructClass, UInt32} from "../../global/struct";
 import {xrange} from "../../global/math";
@@ -231,7 +231,7 @@ export class Pdp {
 	}
 
 	recvOneAsync() {
-		return new Promise2<_manager.NetPacket>((resolve, reject) => {
+		return new PromiseFast<_manager.NetPacket>((resolve, reject) => {
 			this.onChunkRecv.once(() => {
 				resolve(this.chunks.shift());
 			});

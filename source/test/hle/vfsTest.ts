@@ -1,7 +1,7 @@
 ﻿///<reference path="../global.d.ts" />
 import {downloadFileAsync} from "../../src/global/async";
 import {MemoryAsyncStream,Stream} from "../../src/global/stream";
-import {ArrayBufferUtils, Promise2} from "../../src/global/utils";
+import {ArrayBufferUtils, PromiseFast} from "../../src/global/utils";
 import {parseIntFormat} from "../../src/global/math";
 import {Iso} from "../../src/format/iso";
 import {FileOpenFlags, IsoVfs, MemoryStickVfs, MemoryVfs, StorageVfs} from "../../src/hle/vfs";
@@ -35,7 +35,7 @@ describe('vfs', () => {
 	it('storage', () => {
 		var storageVfs = new StorageVfs('test');
 		
-		return Promise2.resolve(0)
+		return PromiseFast.resolve(0)
 			.then(() => {
 				return storageVfs.writeAllAsync('simple', new Uint8Array([1, 2, 3, 4, 5]).buffer);
 			})
@@ -59,7 +59,7 @@ describe('vfs', () => {
 			})
 			.then(() => {
 				return storageVfs.openAsync('simple2', FileOpenFlags.Create | FileOpenFlags.Write | FileOpenFlags.Truncate, parseIntFormat('0777')).then(file => {
-					return Promise2.resolve(0)
+					return PromiseFast.resolve(0)
 						.then(() => {
 							return file.writeChunkAsync(0, new Int8Array([1, 2, 3, 4, 5]).buffer);
 						})
@@ -89,7 +89,7 @@ describe('vfs', () => {
 		var storageVfs = new StorageVfs('test');
 		var msVfs = new MemoryStickVfs([storageVfs], null, null);
 
-		return Promise2.resolve(0)
+		return PromiseFast.resolve(0)
 			.then(() => {
 				return msVfs.writeAllAsync('simple', new Uint8Array([1, 2, 3, 4, 5]).buffer);
 			})
@@ -120,7 +120,7 @@ describe('vfs', () => {
 
 		var msVfs = new MemoryStickVfs([vfs1, vfs2], null, null);
 
-		return Promise2.resolve(0)
+		return PromiseFast.resolve(0)
 			.then(() => {
 				vfs1.writeAllAsync('simple1', new Uint8Array([1, 2, 3, 4, 5]).buffer);
 				vfs2.writeAllAsync('simple2', new Uint8Array([1, 2, 3, 4, 5]).buffer);

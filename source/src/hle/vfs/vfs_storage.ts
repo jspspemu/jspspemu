@@ -10,13 +10,13 @@ import FileMode = _vfs.FileMode;
 import FileOpenFlags = _vfs.FileOpenFlags;
 
 import * as storage from './indexeddb';
-import {logger, Promise2} from "../../global/utils";
+import {logger, PromiseFast} from "../../global/utils";
 
 var console = logger.named('vfs.storage');
 
 export class StorageVfs extends Vfs {
 	private db: storage.MyStorage;
-	private openDbPromise: Promise2<StorageVfs>;
+	private openDbPromise: PromiseFast<StorageVfs>;
 
 
 	constructor(private key: string) {
@@ -33,13 +33,13 @@ export class StorageVfs extends Vfs {
 		return this.openDbPromise;
 	}
 
-	openAsync(path: string, flags: FileOpenFlags, mode: FileMode): Promise2<VfsEntry> {
+	openAsync(path: string, flags: FileOpenFlags, mode: FileMode): PromiseFast<VfsEntry> {
 		return this.initializeOnceAsync().then(() => {
 			return StorageVfsEntry.fromNameAsync(this.db, path, flags, mode);
 		});
 	}
 	
-	deleteAsync(path:string):Promise2<void> {
+	deleteAsync(path:string):PromiseFast<void> {
 		return this.initializeOnceAsync().then(() => {
 			return this.db.deleteAsync(path);
 		});
@@ -80,7 +80,7 @@ class StorageVfsEntry extends VfsEntry {
 		return (new StorageVfsEntry(db, name)).initAsync(flags, mode);
 	}
 
-	private _getFileAsync(): Promise2<File> {
+	private _getFileAsync(): PromiseFast<File> {
 		return this.db.getAsync(this.name).then(file => {
 			if (!file) file = { name: this.name, content: new ArrayBuffer(0), date: new Date(), exists: false };
 			return file;
@@ -100,16 +100,16 @@ class StorageVfsEntry extends VfsEntry {
 		});
 	}
 
-	enumerateAsync(): Promise2<VfsStat[]> {
+	enumerateAsync(): PromiseFast<VfsStat[]> {
 		throw (new Error("Must override enumerateAsync : " + this));
 	}
 
-	readChunkAsync(offset: number, length: number): Promise2<ArrayBuffer> {
+	readChunkAsync(offset: number, length: number): PromiseFast<ArrayBuffer> {
 		//console.log(this.file);
-		return Promise2.resolve(this.file.content.buffer.slice(offset, offset + length));
+		return PromiseFast.resolve(this.file.content.buffer.slice(offset, offset + length));
 	}
 
-	writeChunkAsync(offset: number, data: ArrayBuffer): Promise2<number> {
+	writeChunkAsync(offset: number, data: ArrayBuffer): PromiseFast<number> {
 		var newContent = new ArrayBuffer(Math.max(this.file.content.byteLength, offset + data.byteLength));
 		var newContentArray = new Uint8Array(newContent);
 		newContentArray.set(new Uint8Array(this.file.content), 0);

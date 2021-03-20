@@ -1,6 +1,6 @@
 import { Emulator } from './emulator';
 import { BatteryInfo } from './core/battery';
-import {ArrayBufferUtils, Microtask, Promise2} from "./global/utils";
+import {ArrayBufferUtils, Microtask, PromiseFast} from "./global/utils";
 import {OptimizedDrawBufferTransfer} from "./core/gpu/gpu_vertex";
 
 declare var self: any;
@@ -17,7 +17,7 @@ var waiters = new Map<number, () => void>();
 function postActionWaitAsync(type: string, payload: any, transferables?: any[]) {
 	var packetId = lastPacketId++;
 	postMessage({ packetId: packetId, action: type, payload: payload }, transferables);
-	return new Promise2((resolve, reject) => {
+	return new PromiseFast((resolve, reject) => {
 		waiters.set(packetId, () => {
 			waiters.delete(packetId);
 			resolve();

@@ -7,18 +7,18 @@ import VfsEntry = _vfs.VfsEntry;
 import VfsStat = _vfs.VfsStat;
 import FileMode = _vfs.FileMode;
 import FileOpenFlags = _vfs.FileOpenFlags;
-import {Promise2} from "../../global/utils";
+import {PromiseFast} from "../../global/utils";
 
 export class IsoVfs extends Vfs {
 	constructor(private iso: format_iso.Iso) {
 		super();
 	}
 
-	openAsync(path: string, flags: FileOpenFlags, mode: FileMode): Promise2<VfsEntry> {
+	openAsync(path: string, flags: FileOpenFlags, mode: FileMode): PromiseFast<VfsEntry> {
 		try {
-			return Promise2.resolve(new IsoVfsFile(this.iso.get(path)));
+			return PromiseFast.resolve(new IsoVfsFile(this.iso.get(path)));
 		} catch (e) {
-			return Promise2.reject(e);
+			return PromiseFast.reject(e);
 		}
 	}
 }
@@ -30,7 +30,7 @@ class IsoVfsFile extends VfsEntry {
 
 	get isDirectory() { return this.node.isDirectory; }
 	get size() { return this.node.size; }
-	readChunkAsync(offset: number, length: number): Promise2<ArrayBuffer> { return this.node.readChunkAsync(offset, length); }
+	readChunkAsync(offset: number, length: number): PromiseFast<ArrayBuffer> { return this.node.readChunkAsync(offset, length); }
 	close() { }
 
 	private static statNode(node: format_iso.IIsoNode): VfsStat {
@@ -50,6 +50,6 @@ class IsoVfsFile extends VfsEntry {
 	}
 
 	enumerateAsync() {
-		return Promise2.resolve(this.node.childs.map(node => IsoVfsFile.statNode(node)));
+		return PromiseFast.resolve(this.node.childs.map(node => IsoVfsFile.statNode(node)));
 	}
 }

@@ -3,7 +3,7 @@ import * as _context from '../../../context';
 import nativeFunction = _utils.nativeFunction;
 import {
 	AcceptCallbacks,
-	Promise2,
+	PromiseFast,
 	SortedSet,
 	throwEndCycles,
 	UidCollection,
@@ -135,7 +135,7 @@ class EventFlag {
 	waitingThreads = new SortedSet<EventFlagWaitingThread>();
 
 	waitAsync(bits: number, waitType: EventFlagWaitTypeSet, outBits: Stream, timeout: Stream, callbacks: AcceptCallbacks) {
-		return new Promise2((resolve, reject) => {
+		return new PromiseFast((resolve, reject) => {
 			var waitingSemaphoreThread = new EventFlagWaitingThread(bits, waitType, outBits, this, () => {
 				this.waitingThreads.delete(waitingSemaphoreThread);
 				resolve();

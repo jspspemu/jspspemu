@@ -1,40 +1,40 @@
-import {Promise2} from "../src/global/utils";
+import {PromiseFast} from "../src/global/utils";
 import {waitAsync} from "../src/global/async";
 
 export function ref() { } // Workaround to allow typescript to include this module
 
 describe('promise', function () {
 	it('simple', () => {
-		return new Promise2<any>((resolve, reject) => {
+		return new PromiseFast<any>((resolve, reject) => {
 			setTimeout(() => {
 				resolve();
 			}, 10);
 		});
 	});
 	it('pass values', () => {
-		return Promise2.resolve(10).then(value => {
+		return PromiseFast.resolve(10).then(value => {
 			assert.equal(10, value);
 		});
 	});
 	it('pass values2', () => {
-		return Promise2.resolve(10).then(value => {
+		return PromiseFast.resolve(10).then(value => {
 			return 11;
 		}).then(value => {
 			assert.equal(11, value);
 		});
 	});
 	it('pipe', () => {
-		return Promise2.resolve(10).then(value => {
-			return Promise2.resolve(11);
+		return PromiseFast.resolve(10).then(value => {
+			return PromiseFast.resolve(11);
 		}).then(value => {
 			assert.equal(11, value);
 		});
 	});
 	it('pipe2', () => {
-		return Promise2.resolve(10).then(value => {
-			return Promise2.resolve(11).then(() => {
+		return PromiseFast.resolve(10).then(value => {
+			return PromiseFast.resolve(11).then(() => {
 				return 'test';
-				//return Promise2.resolve(12).then(() => {
+				//return PromiseFast.resolve(12).then(() => {
 				//	return waitAsync(10).then('test');
 				//});
 			});
@@ -43,18 +43,18 @@ describe('promise', function () {
 		});
 	});
 	it('pipe3', () => {
-		return Promise2.resolve(10).then(value => {
-			return Promise2.resolve(11).then(() => {
+		return PromiseFast.resolve(10).then(value => {
+			return PromiseFast.resolve(11).then(() => {
 				//return waitAsync(10).then(() => 'test');
-				return Promise2.resolve('test');
+				return PromiseFast.resolve('test');
 			});
 		}).then(value => {
 			assert.equal('test', value);
 		});
 	});
 	it('pipe4', () => {
-		return Promise2.resolve(10).then(value => {
-			return Promise2.resolve(11).then(() => {
+		return PromiseFast.resolve(10).then(value => {
+			return PromiseFast.resolve(11).then(() => {
 				return waitAsync(10).then(_ => 'test');
 			});
 		}).then(value => {
@@ -64,8 +64,8 @@ describe('promise', function () {
 		});
 	});
 	it('catch', () => {
-		return Promise2.resolve(10).then(value => {
-			return Promise2.resolve(10)
+		return PromiseFast.resolve(10).then(value => {
+			return PromiseFast.resolve(10)
 		}).catch(e => {
 			return 7;
 		}).then(v => {
@@ -73,8 +73,8 @@ describe('promise', function () {
 		});
 	});
 	it('catch2', () => {
-		return Promise2.resolve(10).then(value => {
-			return Promise2.reject(new Error());
+		return PromiseFast.resolve(10).then(value => {
+			return PromiseFast.reject(new Error());
 		}).catch(e => {
 			return 7;
 		}).then(v => {

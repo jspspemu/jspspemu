@@ -1,5 +1,5 @@
 import { BatteryInfo } from '../core/battery';
-import {Promise2} from "../global/utils";
+import {PromiseFast} from "../global/utils";
 
 export interface BatteryManager {
     charging: boolean;
@@ -14,7 +14,7 @@ export interface BatteryManager {
 
 export class Html5Battery {
     static instance: Html5Battery = null;
-    private static promise: Promise2<Html5Battery> = null;
+    private static promise: PromiseFast<Html5Battery> = null;
 
     constructor(private manager: BatteryManager) {
         Html5Battery.instance = this;
@@ -36,17 +36,17 @@ export class Html5Battery {
         return 1.0;
     }
 
-    static getAsync(): Promise2<Html5Battery> {
-        if (this.instance) return Promise2.resolve(this.instance);
+    static getAsync(): PromiseFast<Html5Battery> {
+        if (this.instance) return PromiseFast.resolve(this.instance);
         if (this.promise) return this.promise;
-        if ((<any>navigator).battery) return Promise2.resolve(new Html5Battery((<any>navigator).battery));
+        if ((<any>navigator).battery) return PromiseFast.resolve(new Html5Battery((<any>navigator).battery));
         if ((<any>navigator).getBattery) {
 
-            return this.promise = Promise2.fromThenable<BatteryManager>((<any>navigator).getBattery()).then(v => {
+            return this.promise = PromiseFast.fromThenable<BatteryManager>((<any>navigator).getBattery()).then(v => {
                 return new Html5Battery(v);
             });
         }
-        return Promise2.resolve(new Html5Battery(null));
+        return PromiseFast.resolve(new Html5Battery(null));
     }
 
     static registerAndSetCallback(callback: (bi: BatteryInfo) => void) {

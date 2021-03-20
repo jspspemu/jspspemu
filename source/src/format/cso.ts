@@ -1,6 +1,6 @@
 ﻿import * as zlib from './zlib';
 import {Integer64_l, Stringz, StructClass, UInt16, UInt32, UInt8} from "../global/struct";
-import {ArrayBufferUtils, Promise2} from "../global/utils";
+import {ArrayBufferUtils, PromiseFast} from "../global/utils";
 import {AsyncStream, Stream} from "../global/stream";
 import {Integer64} from "../global/int64";
 
@@ -81,7 +81,7 @@ export class Cso implements AsyncStream {
 	get name() { return this.stream.name; }
     get size() { return this.header.totalBytes.number; }
 	
-	private readUncachedBlocksAsync(index: number, count:number):Promise2<Block[]> {
+	private readUncachedBlocksAsync(index: number, count:number):PromiseFast<Block[]> {
 		var low = this.getBlockInfo(index).low;
 		var high = this.getBlockInfo(index + count - 1).high;
 		return this.stream.readChunkAsync(low, high - low).then((data) => {
@@ -95,7 +95,7 @@ export class Cso implements AsyncStream {
 		});		
 	}
 
-	readChunkAsync(offset: number, count: number): Promise2<ArrayBuffer> {
+	readChunkAsync(offset: number, count: number): PromiseFast<ArrayBuffer> {
 		var blockIndexLow = Math.floor(offset / this.header.blockSize);
 		var blockIndexHigh = Math.floor((offset + count - 1) / this.header.blockSize);
 		var blockCount = blockIndexHigh - blockIndexLow + 2;

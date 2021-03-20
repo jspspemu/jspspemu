@@ -10,7 +10,7 @@ import { OptimizedDrawBuffer, OptimizedBatch } from './gpu_vertex';
 import { CpuState } from '../cpu';
 import * as _IndentStringGenerator from '../../util/IndentStringGenerator';
 import {Stream} from "../../global/stream";
-import {addressToHex, Microtask, Promise2, Signal2, UidCollection, WatchValue} from "../../global/utils";
+import {addressToHex, Microtask, PromiseFast, Signal2, UidCollection, WatchValue} from "../../global/utils";
 import {MathFloat, MathUtils} from "../../global/math";
 
 //import * as WebGlPspDrawDriver from './webgl/webgl_driver';
@@ -60,7 +60,7 @@ class PspGpuList {
 	argsPtr: Stream;
     completed: boolean = false;
 	status = DisplayListStatus.Paused;
-	private promise: Promise2<any>;
+	private promise: PromiseFast<any>;
 	private promiseResolve: Function;
 	private promiseReject: Function;
 	errorCount: number = 0;
@@ -401,7 +401,7 @@ class PspGpuList {
 	start() {
 		this.status = DisplayListStatus.Queued;
 
-		this.promise = new Promise2((resolve, reject) => {
+		this.promise = new PromiseFast((resolve, reject) => {
 			this.promiseResolve = resolve;
 			this.promiseReject = reject;
 		});
@@ -460,7 +460,7 @@ class PspGpuListRunner {
 	}
 
 	waitAsync() {
-		return Promise2.all(this.runningLists.map(list => list.waitAsync())).then(() => DisplayListStatus.Completed);
+		return PromiseFast.all(this.runningLists.map(list => list.waitAsync())).then(() => DisplayListStatus.Completed);
     }
 }
 
@@ -494,12 +494,12 @@ export class PspGpu {
 
 	startAsync() {
 		//return this.driver.initAsync();
-		return Promise2.resolve();
+		return PromiseFast.resolve();
     }
 
 	stopAsync() {
 		this.onDrawBatches.clear();
-		return Promise2.resolve();
+		return PromiseFast.resolve();
     }
 
 	listEnqueue(start: number, stall: number, callbackId: number, argsPtr: Stream) {

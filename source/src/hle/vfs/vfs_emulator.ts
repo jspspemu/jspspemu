@@ -2,7 +2,7 @@
 
 import * as _context from '../../context';
 import {Stream} from "../../global/stream";
-import {Promise2} from "../../global/utils";
+import {PromiseFast} from "../../global/utils";
 import {immediateAsync} from "../../global/async";
 
 export class EmulatorVfs extends _vfs.Vfs {
@@ -13,7 +13,7 @@ export class EmulatorVfs extends _vfs.Vfs {
 		super();
 	}
 
-	devctlAsync(command: EmulatorDevclEnum, input: Stream, output: Stream):number | Promise2<number> {
+	devctlAsync(command: EmulatorDevclEnum, input: Stream, output: Stream):number | PromiseFast<number> {
 		switch (command) {
 			case EmulatorDevclEnum.GetHasDisplay:
 				if (output) output.writeInt32(0);

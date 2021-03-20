@@ -3,7 +3,7 @@ import * as _context from '../../../context';
 import nativeFunction = _utils.nativeFunction;
 import * as _manager from '../../manager';
 import Thread = _manager.Thread;
-import {AcceptCallbacks, Promise2, SortedSet, sprintf, UidCollection, WaitingThreadInfo} from "../../../global/utils";
+import {AcceptCallbacks, PromiseFast, SortedSet, sprintf, UidCollection, WaitingThreadInfo} from "../../../global/utils";
 import {Stream} from "../../../global/stream";
 import {Int32, Stringz, StructClass} from "../../../global/struct";
 import {SceKernelErrors} from "../../SceKernelErrors";
@@ -86,7 +86,7 @@ export class ThreadManForUser {
 		if (semaphore.currentCount + signal > semaphore.maximumCount) return SceKernelErrors.ERROR_KERNEL_SEMA_OVERFLOW;
 		var awakeCount = semaphore.incrementCount(signal);
 		if (awakeCount > 0) {
-			return Promise2.resolve(0);
+			return PromiseFast.resolve(0);
 		} else {
 			return 0;
 		}
@@ -166,7 +166,7 @@ class Semaphore {
 			this.currentCount -= expectedCount;
 			return null;
 		} else {
-			var promise = new Promise2((resolve, reject) => {
+			var promise = new PromiseFast((resolve, reject) => {
 				var waitingSemaphoreThread = new WaitingSemaphoreThread(expectedCount, () => {
 					this.waitingSemaphoreThreadList.delete(waitingSemaphoreThread);
 					resolve();

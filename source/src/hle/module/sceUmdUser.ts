@@ -2,7 +2,7 @@
 import * as _context from '../../context';
 import nativeFunction = _utils.nativeFunction;
 import { SceKernelErrors } from '../SceKernelErrors';
-import {AcceptCallbacks, Promise2, Signal1} from "../../global/utils";
+import {AcceptCallbacks, PromiseFast, Signal1} from "../../global/utils";
 
 export class sceUmdUser {
 	constructor(private context: _context.EmulatorContext) { }
@@ -32,7 +32,7 @@ export class sceUmdUser {
 		this.context.callbackManager.executePendingWithinThread(this.context.threadManager.current);
 		return 0;
 		/*
-		return new WaitingThreadInfo('sceUmdWaitDriveStatCB', this, new Promise2((resolve, reject) => {
+		return new WaitingThreadInfo('sceUmdWaitDriveStatCB', this, new PromiseFast((resolve, reject) => {
 			var signalCallback = this.signal.add((result) => {
 				this.signal.remove(signalCallback);
 				resolve();
@@ -79,13 +79,13 @@ export class sceUmdUser {
 
 	@nativeFunction(0x56202973, 150, 'uint', 'uint/uint')
 	sceUmdWaitDriveStatWithTimer(state: number, timeout: number) {
-		return Promise2.resolve(0);
+		return PromiseFast.resolve(0);
 	}
 
 	@nativeFunction(0x20628E6F, 150, 'uint', '')
 	sceUmdGetErrorStat() {
 		console.warn('called sceUmdGetErrorStat!');
-		return Promise2.resolve(0);
+		return PromiseFast.resolve(0);
 	}
 }
 

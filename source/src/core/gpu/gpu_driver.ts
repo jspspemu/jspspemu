@@ -2,7 +2,7 @@
 
 import * as _state from './gpu_state';
 import * as _vertex from './gpu_vertex';
-import {Promise2} from "../../global/utils";
+import {PromiseFast} from "../../global/utils";
 
 class Signal<T> {
 }
@@ -40,8 +40,8 @@ export class BaseDrawDriver {
 		
 	}
 
-	initAsync(): Promise2<any> {
-		return Promise2.resolve();
+	initAsync(): PromiseFast<any> {
+		return PromiseFast.resolve();
 	}
 
 	/**
