@@ -6,6 +6,7 @@ import VfsEntry = _vfs.VfsEntry;
 import VfsStat = _vfs.VfsStat;
 import FileMode = _vfs.FileMode;
 import FileOpenFlags = _vfs.FileOpenFlags;
+import {Promise2} from "../../global/utils";
 
 export class ZipVfs extends Vfs {
 	constructor(private zip: format_zip.Zip, private writeVfs?: Vfs) {

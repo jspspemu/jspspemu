@@ -1,14 +1,17 @@
 ﻿///<reference path="../global.d.ts" />
-export function ref() { } // Workaround to allow typescript to include this module
-
+import {downloadFileAsync} from "../../src/global/async";
 import _iso = require('../../src/format/iso');
 import _psf = require('../../src/format/psf');
 import _vfs = require('../../src/hle/vfs'); _vfs.StorageVfs;
-
 import StorageVfs = _vfs.StorageVfs;
 import MemoryVfs = _vfs.MemoryVfs;
 import MemoryStickVfs = _vfs.MemoryStickVfs;
 import FileOpenFlags = _vfs.FileOpenFlags;
+import {MemoryAsyncStream,Stream} from "../../src/global/stream";
+import {ArrayBufferUtils, Promise2} from "../../src/global/utils";
+import {parseIntFormat} from "../../src/global/math";
+
+export function ref() { } // Workaround to allow typescript to include this module
 
 describe('vfs', () => {
 	var isoData: Uint8Array;

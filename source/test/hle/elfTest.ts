@@ -1,6 +1,4 @@
-﻿///<reference path="../global.d.ts" />
-export function ref() { } // Workaround to allow typescript to include this module
-
+﻿import {downloadFileAsync} from "../../src/global/async";
 import { SyscallManager } from '../../src/core/cpu';
 import { DummyPspDisplay } from '../../src/core/display';
 import { MemoryManager, ModuleManager } from '../../src/hle/manager';
@@ -10,13 +8,16 @@ import { EmulatorContext } from '../../src/context';
 import _elf = require('../../src/format/elf');
 import _memory = require('../../src/core/memory');
 import pspmodules = require('../../src/hle/pspmodules');
+import {MemoryAsyncStream, Stream} from "../../src/global/stream";
+
+export function ref() { } // Workaround to allow typescript to include this module
 
 describe('elf', () => {
 	var stream:Stream;
 
 	before(() => {
 		return downloadFileAsync('data/samples/counter.elf').then((data) => {
-			stream = Stream.fromArrayBuffer(data);
+			stream = Stream.fromArrayBuffer(data)
 		});
 	});
 

@@ -1,4 +1,6 @@
-﻿var console = logger.named('indexeddb');
+﻿import {logger, Promise2, StringDictionary} from "../../global/utils";
+
+var console = logger.named('indexeddb');
 
 //declare var indexedDB: any;
 declare var IDBKeyRange: IDBKeyRange;

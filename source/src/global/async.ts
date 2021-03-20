@@ -1,24 +1,23 @@
-﻿if (typeof global != 'undefined') window = global;
-if (typeof self != 'undefined') window = self;
+﻿import {Microtask, Promise2} from "./utils";
 
-interface StatInfo {
+export interface StatInfo {
 	size: number;
 	date: Date;
 }
 
-function waitAsync(timems: number) {
+export function waitAsync(timems: number) {
 	return new Promise2((resolve, reject) => {
 		setTimeout(resolve, timems);
 	});
 }
 
-function immediateAsync() {
+export function immediateAsync() {
 	return new Promise2((resolve, reject) => {
 		Microtask.queue(resolve);
 	});
 }
 
-function _downloadFileAsync(method: string, url: string, headers?: any) {
+export function _downloadFileAsync(method: string, url: string, headers?: any) {
 	return new Promise2<XMLHttpRequest>((resolve, reject) => {
 		var request = new XMLHttpRequest();
 
@@ -44,7 +43,7 @@ function _downloadFileAsync(method: string, url: string, headers?: any) {
 
 declare var fs:any;
 
-function toArrayBuffer(buffer:any) {
+export function toArrayBuffer(buffer:any) {
     var ab = new ArrayBuffer(buffer.length);
     var view = new Uint8Array(ab);
     for (var i = 0; i < buffer.length; ++i) {
@@ -53,7 +52,7 @@ function toArrayBuffer(buffer:any) {
     return ab;
 }
 
-function downloadFileAsync(url: string, headers?: any):Promise2<ArrayBuffer> {
+export function downloadFileAsync(url: string, headers?: any):Promise2<ArrayBuffer> {
 	if (typeof XMLHttpRequest == 'undefined') {
 		return new Promise2<ArrayBuffer>((resolve, reject) => {
 			fs.readFile(url, (err:any, data:any) => {
@@ -72,14 +71,14 @@ function downloadFileAsync(url: string, headers?: any):Promise2<ArrayBuffer> {
 	}
 }
 
-function downloadFileChunkAsync(url: string, from: number, count: number) {
+export function downloadFileChunkAsync(url: string, from: number, count: number) {
 	var to = (from + count) - 1;
 	return downloadFileAsync(url, {
 		'Range': 'bytes=' + from + '-' + to
 	});
 }
 
-function statFileAsync(url: string) {
+export function statFileAsync(url: string) {
 	return _downloadFileAsync('HEAD', url).then(request => {
 		//console.error('content-type', request.getResponseHeader('content-type'));
 		//console.log(request.getAllResponseHeaders());
@@ -92,6 +91,6 @@ function statFileAsync(url: string) {
 }
 
 /*
-function storePersistentKeyAsync(name:string, value:any) {
+export function storePersistentKeyAsync(name:string, value:any) {
 }
 */

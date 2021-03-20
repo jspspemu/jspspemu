@@ -1,14 +1,8 @@
-///<reference path="./array.ts" />
-///<reference path="./math.ts" />
+import "./array"
+import "./math"
+import {MathFloat, MathUtils} from "./math";
 
-if (typeof global != 'undefined') window = global;
-if (typeof self != 'undefined') window = self;
-
-declare var global: any;
-if (typeof self == 'undefined') window = self = global;
-if (typeof navigator == 'undefined') navigator = <any>{};
-
-function sprintf(...args: any[]): string {
+export function sprintf(...args: any[]): string {
 	//  discuss at: http://phpjs.org/functions/sprintf/
 	// original by: Ash Searle (http://hexmen.com/blog/)
 	// improved by: Michael White (http://getsprink.com)
@@ -197,33 +191,33 @@ function sprintf(...args: any[]): string {
 	return format.replace(regex, doFormat);
 }
 
-function printf(...args: any[]) {
+export function printf(...args: any[]) {
 	console.log(sprintf.apply(sprintf, arguments));
 }
 
-interface NumberDictionary<V> {
+export interface NumberDictionary<V> {
     [key: number]: V;
 }
 
-interface StringDictionary<V> {
+export interface StringDictionary<V> {
     [key: string]: V;
 }
 
-function String_repeat(str: string, num: number) {
+export function String_repeat(str: string, num: number) {
     return new Array(num + 1).join(str);
 }
 
-enum Endian {
+export enum Endian {
     LITTLE = 0,
     BIG = 1,
 }
 
-class AsyncEntry<T> {
+export class AsyncEntry<T> {
 	constructor(public id: string, public size: number, public usageCount: number, public value: T, public lastUsedTime: number) {
 	}
 }
 
-class AsyncCache<T> {
+export class AsyncCache<T> {
 	itemsMap: StringDictionary<AsyncEntry<T>> = {};
 
 	constructor(private maxSize: number = 16, private measure?: (value: T) => number) {
@@ -273,7 +267,7 @@ class AsyncCache<T> {
 	}
 }
 
-class SortedSet<T> {
+export class SortedSet<T> {
     public elements: T[] = [];
 
     has(element: T) {
@@ -300,14 +294,14 @@ class SortedSet<T> {
     }
 }
 
-class DSet<T> extends SortedSet<T> {
+export class DSet<T> extends SortedSet<T> {
 }
 
-class Pool<T> {
+export class Pool<T> {
 
 }
 
-class UidCollection<T>
+export class UidCollection<T>
 {
     private items: NumberDictionary<T> = {};
 
@@ -339,17 +333,18 @@ class UidCollection<T>
     }
 }
 
-interface NumericRange {
+export interface NumericRange {
 	start: number;
 	end: number;
 }
-
-interface String {
-	(value: any): string;
-	rstrip(): string;
-	contains(value: string): boolean;
-	startsWith(value: string): boolean;
-	endsWith(value: string): boolean;
+declare global {
+    interface String {
+        (value: any): string;
+        rstrip(): string;
+        contains(value: string): boolean;
+        startsWith(value: string): boolean;
+        endsWith(value: string): boolean;
+    }
 }
 
 String.prototype.startsWith = function(value: string) {
@@ -376,7 +371,7 @@ interface MicrotaskCallback {
 	(): void;
 }
 
-class Microtask {
+export class Microtask {
 	private static queued: boolean = false;
 	private static callbacks: MicrotaskCallback[] = [];
 
@@ -418,7 +413,7 @@ if (!_self['performance']) {
 declare function escape(input: string): string;
 declare function unescape(input: string): string;
 
-class Utf8 {
+export class Utf8 {
 	static decode(input: string): string {
 		try {
 			return decodeURIComponent(escape(input));
@@ -433,9 +428,12 @@ class Utf8 {
 	}
 }
 
-interface ArrayBuffer {
-    slice(begin: number, end?: number): ArrayBuffer;
-	//new(count:number):ArrayBuffer;
+declare global {
+    interface ArrayBuffer {
+        slice(begin: number, end?: number): ArrayBuffer;
+
+        //new(count:number):ArrayBuffer;
+    }
 }
 
 if (!ArrayBuffer.prototype.slice) {
@@ -473,7 +471,7 @@ if (!_self.requestAnimationFrame) {
 	};
 }
 
-class ArrayBufferUtils {
+export class ArrayBufferUtils {
 	static copyUint8ToArrayBuffer(input:Uint8Array):ArrayBuffer {
 		var out = new ArrayBuffer(input.length);
 		new Uint8Array(out).set(input);
@@ -527,7 +525,7 @@ class ArrayBufferUtils {
 		return new Uint32Array(input.buffer, input.byteOffset + offset, length);
 	}
 
-	static uint8ToUint16(input: Uint8Array, offset: number = 0, length?: number) {
+	static uint8ToUint16(input: Uint8Array, offset: number = 0, length?: number): Uint16Array {
 		if (length === undefined) length = (input.length - offset) >>> 1;
 		return new Uint16Array(input.buffer, input.byteOffset + offset, length);
 	}
@@ -559,7 +557,7 @@ class ArrayBufferUtils {
 	static cloneUint8Array(input: Uint8Array) { var out = new Uint8Array(input.length); out.set(input); return out; }
 	static cloneUint16Array(input: Uint16Array) { var out = new Uint16Array(input.length); out.set(input); return out; }
 	static cloneInt16Array(input: Int16Array) { var out = new Int16Array(input.length); out.set(input); return out; }
-	static cloneUint32Array(input: Uint16Array) { var out = new Uint32Array(input.length); out.set(input); return out; }
+	static cloneUint32Array(input: Uint32Array) { var out = new Uint32Array(input.length); out.set(input); return out; }
 	
 	static concatU8(chunks: Uint8Array[]):Uint8Array {
 		var out = new Uint8Array(chunks.sum(chunk => chunk.length));
@@ -582,11 +580,11 @@ class ArrayBufferUtils {
 	}
 }
 
-interface PromiseGenerator<T> {
+export interface PromiseGenerator<T> {
 	(): Promise2<T>;
 }
 
-class PromiseUtils {
+export class PromiseUtils {
 	static sequence<T>(generators: PromiseGenerator<T>[]) {
 		return new Promise2((resolve, reject) => {
 			generators = generators.slice(0);
@@ -615,7 +613,7 @@ class PromiseUtils {
 
 _self['requestFileSystem'] = _self['requestFileSystem'] || _self['webkitRequestFileSystem'];
 
-function setToString(Enum: any, value: number) {
+export function setToString(Enum: any, value: number) {
 	var items: string[] = [];
 	for (var key in Enum) {
 		if (Enum[key] & value && (Enum[key] & value) == Enum[key]) {
@@ -625,18 +623,18 @@ function setToString(Enum: any, value: number) {
 	return items.join(' | ');
 }
 
-enum AcceptCallbacks { NO = 0, YES = 1 }
-enum Compensate { NO = 0, YES = 1 }
+export enum AcceptCallbacks { NO = 0, YES = 1 }
+export enum Compensate { NO = 0, YES = 1 }
 
-class WaitingThreadInfo<T> {
+export class WaitingThreadInfo<T> {
 	public constructor(public name: string, public object: any, public promise: Promise2<T>, public callbacks: AcceptCallbacks, public compensate: Compensate = Compensate.YES) {
 	}
 }
 
 (<any>window).WaitingThreadInfo = WaitingThreadInfo;
 
-var DebugOnceArray: { [key: string]: number; } = {};
-function DebugOnce(name: string, times: number = 1) {
+export var DebugOnceArray: { [key: string]: number; } = {};
+export function DebugOnce(name: string, times: number = 1) {
 	if (DebugOnceArray[name] >= times) return false;
 	if (DebugOnceArray[name]) {
 		DebugOnceArray[name]++;
@@ -646,11 +644,11 @@ function DebugOnce(name: string, times: number = 1) {
 	return true;
 }
 
-function isTouchDevice() {
+export function isTouchDevice() {
 	return 'ontouchstart' in window;
 }
 
-class HalfFloat {
+export class HalfFloat {
 	static fromFloat(Float: number) {
 		var i = MathFloat.reinterpretFloatAsInt(Float);
 		var s = ((i >> 16) & 0x00008000);              // sign
@@ -722,7 +720,7 @@ class HalfFloat {
 }
 
 
-function htmlspecialchars(str: string) {
+export function htmlspecialchars(str: string) {
 	return str.replace(/[&<>]/g, (tag: string) => {
 		switch (tag) {
 			case '&': return '&amp;';
@@ -733,21 +731,21 @@ function htmlspecialchars(str: string) {
 	});
 }
 
-function mac2string(mac: Uint8Array) {
+export function mac2string(mac: Uint8Array) {
 	return sprintf("%02x:%02x:%02x:%02x:%02x:%02x", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
 }
 
-function string2mac(string: string) {
+export function string2mac(string: string) {
 	var array = String(string).split(':').map(item => parseInt(item, 16));
 	while (array.length < 6) array.push(0);
 	return new Uint8Array(array);
 }
 
-interface Cancelable {
+export interface Cancelable {
 	cancel(): void;
 }
 
-class Signal0Cancelable implements Cancelable {
+export class Signal0Cancelable implements Cancelable {
 	constructor(private signal: Signal0, private callback: () => void) {
 	}
 
@@ -756,7 +754,7 @@ class Signal0Cancelable implements Cancelable {
 	}
 }
 
-class Signal1Cancelable<T> implements Cancelable {
+export class Signal1Cancelable<T> implements Cancelable {
 	constructor(private signal: Signal1<T>, private callback: (value?: T) => void) {
 	}
 
@@ -765,7 +763,7 @@ class Signal1Cancelable<T> implements Cancelable {
 	}
 }
 
-class Signal2Cancelable<T1, T2> implements Cancelable {
+export class Signal2Cancelable<T1, T2> implements Cancelable {
 	constructor(private signal: Signal2<T1, T2>, private callback: (v1: T1, v2: T2) => void) {
 	}
 
@@ -774,7 +772,7 @@ class Signal2Cancelable<T1, T2> implements Cancelable {
 	}
 }
 
-class WatchValue<T> {
+export class WatchValue<T> {
 	private _value:T;
 	onChanged:Signal1<T> = new Signal1<T>();
 	constructor(value?:T) { this._value = value; }
@@ -799,7 +797,7 @@ class WatchValue<T> {
 	}
 }
 
-class Signal0 {
+export class Signal0 {
 	callbacks: (() => void)[] = [];
 
 	get length() { return this.callbacks.length; }
@@ -837,7 +835,7 @@ class Signal0 {
 	}
 }
 
-class Signal1<T1> {
+export class Signal1<T1> {
 	callbacks: ((value: T1) => void)[] = [];
 
 	get length() { return this.callbacks.length; }
@@ -875,7 +873,7 @@ class Signal1<T1> {
 	}
 }
 
-class Signal2<T1, T2> {
+export class Signal2<T1, T2> {
 	callbacks: ((v1: T1, v2: T2) => void)[] = [];
 
 	get length() { return this.callbacks.length; }
@@ -913,7 +911,7 @@ class Signal2<T1, T2> {
 	}
 }
 
-class SignalPromise<T1, T2, T3, T4, T5> {
+export class SignalPromise<T1, T2, T3, T4, T5> {
 	callbacks: ((v1?: T1, v2?: T2, v3?: T3, v4?: T4, v5?: T5) => Promise2<any>)[] = [];
 
 	get length() { return this.callbacks.length; }
@@ -933,7 +931,7 @@ class SignalPromise<T1, T2, T3, T4, T5> {
 	}
 }
 
-class Logger {
+export class Logger {
 	constructor(private policy: LoggerPolicies, private console: any, private name: string) {
 	}
 
@@ -958,7 +956,7 @@ class Logger {
 	groupEnd(...args: any[]) { this._log('groupEnd', 5, args); }
 }
 
-class LoggerPolicies {
+export class LoggerPolicies {
 	public disableAll = false;
 	public minLogLevel = 1;
 
@@ -969,11 +967,10 @@ class LoggerPolicies {
 	}
 }
 
-if (typeof global == 'undefined') global = window;
-var loggerPolicies = new LoggerPolicies();
-var logger = new Logger(loggerPolicies, console, '');
-global.loggerPolicies = loggerPolicies;
-global.logger = logger;
+export var loggerPolicies = new LoggerPolicies();
+export var logger = new Logger(loggerPolicies, console, '');
+(window as any).loggerPolicies = loggerPolicies;
+(window as any).logger = logger;
 
 /*
 declare var executeCommandAsync: (code: string, args: ArrayBuffer[]) => Promise2<ArrayBuffer[]>;
@@ -1052,11 +1049,11 @@ function inflateRawAsync(data: Uint8Array): Promise2<Uint8Array> {
 }
 */
 
-function numberToSeparator(value: number) {
+export function numberToSeparator(value: number) {
 	return (+value).toLocaleString();
 }
 
-function numberToFileSize(value: number) {
+export function numberToFileSize(value: number) {
 	const KB = 1024;
 	const MB = 1024 * KB;
 	const GB = 1024 * MB;
@@ -1067,19 +1064,19 @@ function numberToFileSize(value: number) {
 	return `${value} B`;
 }
 
-function addressToHex(address: number) {
+export function addressToHex(address: number) {
 	return '0x' + addressToHex2(address);
 }
 
-function addressToHex2(address: number) {
+export function addressToHex2(address: number) {
 	return ('00000000' + (address >>> 0).toString(16)).substr(-8);
 }
 
-interface Thenable<T> {
+export interface Thenable<T> {
 	then<Q>(resolved: (value: T) => Q, rejected: (error: Error) => void): Thenable<Q>;
 }
 
-class Promise2<T> implements Thenable<T> {
+export class Promise2<T> implements Thenable<T> {
 	static resolve<T>(value: Promise2<T>): Promise2<T>;
 	static resolve<T>(value: T): Promise2<T>;
 	static resolve(): Promise2<any>;
@@ -1224,7 +1221,7 @@ class Promise2<T> implements Thenable<T> {
 	}
 }
 
-class DomHelp {
+export class DomHelp {
 	constructor(e:HTMLElement);
 	constructor(e:any);
 	constructor(public e:HTMLElement) {
@@ -1288,18 +1285,18 @@ class DomHelp {
 	toggleClass(clazz:string, value:boolean) { if (value) this.addClass(clazz); else this.removeClass(clazz); }
 }
 
-function throwEndCycles() {
+export function throwEndCycles() {
 	throw new Error("CpuBreakException");
 }
 
-function throwWaitPromise<T>(promise:Promise2<T>) {
+export function throwWaitPromise<T>(promise:Promise2<T>) {
 	var error:any = new Error('WaitPromise');
 	//var error:any = new Error('WaitPromise');
 	error.promise = promise;
 	return error;
 }
 
-function isInsideWorker() {
+export function isInsideWorker() {
 	return typeof (<any>window).document == 'undefined';
 }
 

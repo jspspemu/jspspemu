@@ -1,9 +1,10 @@
-﻿///<reference path="../../global.d.ts" />
-
+﻿import "../../global"
 import _state = require('./gpu_state');
 import _memory = require('../memory');
 import _IndentStringGenerator = require('../../util/IndentStringGenerator');
 import ColorEnum = _state.ColorEnum;
+import {ArrayBufferUtils} from "../../global/utils";
+import {MathUtils} from "../../global/math";
 
 var memory = _memory.getInstance();
 

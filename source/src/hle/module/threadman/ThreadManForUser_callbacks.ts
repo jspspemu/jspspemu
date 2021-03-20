@@ -1,17 +1,8 @@
-﻿///<reference path="../../../global.d.ts" />
-
-import _utils = require('../../utils');
+﻿import _utils = require('../../utils');
 import _context = require('../../../context');
-import _cpu = require('../../../core/cpu');
 import nativeFunction = _utils.nativeFunction;
-import SceKernelErrors = require('../../SceKernelErrors');
 import _manager = require('../../manager'); _manager.Thread;
-
-import CallbackManager = _manager.CallbackManager;
 import Callback = _manager.Callback;
-import CpuSpecialAddresses = _cpu.CpuSpecialAddresses;
-import CpuState = _cpu.CpuState;
-
 import Thread = _manager.Thread;
 
 export class ThreadManForUser {

@@ -1,4 +1,6 @@
 ﻿///<reference path="./global.d.ts" />
+import {addressToHex, addressToHex2} from "../src/global/utils";
+
 export function ref() { } // Workaround to allow typescript to include this module
 
 import _cpu = require('../src/core/cpu');

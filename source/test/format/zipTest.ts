@@ -1,8 +1,9 @@
-﻿///<reference path="../global.d.ts" />
-export function ref() { } // Workaround to allow typescript to include this module
-
+﻿import {downloadFileAsync} from "../../src/global/async";
+import {MemoryAsyncStream, Stream} from "../../src/global/stream";
 import _zip = require('../../src/format/zip');
 import _vfs = require('../../src/hle/vfs');
+
+export function ref() { } // Workaround to allow typescript to include this module
 
 describe('zip', () => {
 	var arrayBuffer: ArrayBuffer;

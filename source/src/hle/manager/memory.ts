@@ -1,4 +1,4 @@
-﻿///<reference path="../../global.d.ts" />
+﻿import {NumberDictionary, sprintf} from "../../global/utils";
 
 enum MemoryPartitions {
     Kernel0 = 0,

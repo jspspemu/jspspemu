@@ -1,5 +1,5 @@
-﻿///<reference path="../../../global.d.ts" />
-///<reference path="./webgl_enums.d.ts" />
+﻿import "../../../global"
+import "./webgl_enums"
 
 import _state = require('../gpu_state');
 import _utils = require('./webgl_utils');
@@ -7,6 +7,7 @@ import _pixelformat = require('../../pixelformat');
 import PixelFormatUtils = _pixelformat.PixelFormatUtils;
 
 import WrappedWebGLProgram = _utils.WrappedWebGLProgram;
+import {NumberDictionary} from "../../../global/utils";
 
 export class ShaderCache {
 	private programs: NumberDictionary<WrappedWebGLProgram> = {};

@@ -1,9 +1,10 @@
 ﻿///<reference path="../global.d.ts" />
-export function ref() { } // Workaround to allow typescript to include this module
-
+import {downloadFileAsync} from "../../src/global/async";
 import _pbp = require('../../src/format/pbp');
-
 import Pbp = _pbp.Pbp;
+import {Stream} from "../../src/global/stream";
+
+export function ref() { } // Workaround to allow typescript to include this module
 
 describe('pbp', () => {
 	var rtctestPbpArrayBuffer: ArrayBuffer;

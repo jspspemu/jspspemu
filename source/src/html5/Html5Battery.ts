@@ -1,4 +1,5 @@
 import { BatteryInfo } from '../core/battery';
+import {Promise2} from "../global/utils";
 
 export interface BatteryManager {
     charging: boolean;

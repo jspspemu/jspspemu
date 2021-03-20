@@ -1,6 +1,4 @@
-﻿///<reference path="../../global.d.ts" />
-
-import _utils = require('../utils');
+﻿import _utils = require('../utils');
 import _context = require('../../context');
 import nativeFunction = _utils.nativeFunction;
 import SceKernelErrors = require('../SceKernelErrors');
@@ -11,6 +9,9 @@ import Thread = _manager.Thread;
 import _gpu = require('../../core/gpu'); _gpu.PspGpuCallback;
 
 import PspGpuCallback = _gpu.PspGpuCallback;
+import {Stream} from "../../global/stream";
+import {AcceptCallbacks, Compensate, Promise2, WaitingThreadInfo} from "../../global/utils";
+import {StructClass, UInt32} from "../../global/struct";
 
 export class sceGe_user {
     constructor(private context: _context.EmulatorContext) {

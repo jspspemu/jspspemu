@@ -1,6 +1,4 @@
-﻿///<reference path="../../../global.d.ts" />
-
-import _utils = require('../../utils');
+﻿import _utils = require('../../utils');
 import _context = require('../../../context');
 import _cpu = require('../../../core/cpu');
 import nativeFunction = _utils.nativeFunction;
@@ -8,12 +6,23 @@ import SceKernelErrors = require('../../SceKernelErrors');
 import _manager = require('../../manager'); _manager.Thread;
 
 import CpuSpecialAddresses = _cpu.CpuSpecialAddresses;
-import CpuState = _cpu.CpuState;
-
 import Thread = _manager.Thread;
 import ThreadStatus = _manager.ThreadStatus;
 import PspThreadAttributes = _manager.PspThreadAttributes;
 import OutOfMemoryError = _manager.OutOfMemoryError;
+import {
+	AcceptCallbacks,
+	logger,
+	Promise2,
+	sprintf,
+	throwEndCycles,
+	UidCollection,
+	WaitingThreadInfo
+} from "../../../global/utils";
+import {Stream} from "../../../global/stream";
+import {Int32, Stringz, StructClass, UInt32} from "../../../global/struct";
+import {MathUtils} from "../../../global/math";
+import {Integer64} from "../../../global/int64";
 
 var console = logger.named('module.ThreadManForUser');
 

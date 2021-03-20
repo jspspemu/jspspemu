@@ -1,3 +1,5 @@
+import {Stream} from "../global/stream";
+
 export function changeFavicon(src: string) {
     if (typeof document == 'undefined') return;
     var link = document.createElement('link'),

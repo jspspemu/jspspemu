@@ -1,4 +1,5 @@
-﻿///<reference path="./global.d.ts" />
+﻿import {MemoryAsyncStream, Stream} from "../src/global/stream";
+
 export function ref() { } // Workaround to allow typescript to include this module
 
 import _emulator = require('../src/emulator');
@@ -6,6 +7,9 @@ import _vfs = require('../src/hle/vfs');
 import difflib = require('../src/util/difflib');
 
 import Emulator = _emulator.Emulator;
+import {downloadFileAsync} from "../src/global/async";
+import {logger, sprintf} from "../src/global/utils";
+import {ArrayUtils} from "../src/global/math";
 
 var _console = global.console;
 var console = logger.named('');
@@ -234,6 +238,7 @@ describe('pspautotests', function () {
 
 						return downloadFileAsync(file_prx).then((data_prx) => {
 							return downloadFileAsync(file_expected).then((data_expected) => {
+
 
 								var string_expected = Stream.fromArrayBuffer(data_expected).readString(data_expected.byteLength);
 

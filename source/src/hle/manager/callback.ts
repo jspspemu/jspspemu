@@ -1,4 +1,4 @@
-﻿///<reference path="../../global.d.ts" />
+﻿import "../../global"
 
 import _thread = require('./thread');
 import _interop = require('./interop');
@@ -7,6 +7,7 @@ import _cpu = require('../../core/cpu');
 import CpuState = _cpu.CpuState;
 import Thread = _thread.Thread;
 import Interop = _interop.Interop;
+import {Signal1, UidCollection} from "../../global/utils";
 
 export class CallbackManager {
 	private uids = new UidCollection<Callback>(1);

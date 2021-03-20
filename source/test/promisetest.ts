@@ -1,7 +1,7 @@
-///<reference path="./global.d.ts" />
-export function ref() { } // Workaround to allow typescript to include this module
+import {Promise2} from "../src/global/utils";
+import {waitAsync} from "../src/global/async";
 
-import _emulator = require('../src/emulator');
+export function ref() { } // Workaround to allow typescript to include this module
 
 describe('promise', function () {
 	it('simple', () => {

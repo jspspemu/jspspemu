@@ -1,9 +1,8 @@
-﻿///<reference path="../../global.d.ts" />
-
-import _cpu = require('../../core/cpu');
+﻿import _cpu = require('../../core/cpu');
 
 import NativeFunction = _cpu.NativeFunction;
 import SyscallManager = _cpu.SyscallManager;
+import {NumberDictionary, StringDictionary} from "../../global/utils";
 
 export class ModuleWrapper {
     private names: StringDictionary<NativeFunction> = {};

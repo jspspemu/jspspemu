@@ -1,4 +1,5 @@
-///<reference path="../global.d.ts" />
+import {Promise2} from "../global/utils";
+import {waitAsync} from "../global/async";
 
 export class PspAudioBuffer {
 	offset: number = 0;

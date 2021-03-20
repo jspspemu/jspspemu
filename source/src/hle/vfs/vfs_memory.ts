@@ -5,6 +5,7 @@ import VfsEntry = _vfs.VfsEntry;
 import VfsStat = _vfs.VfsStat;
 import FileMode = _vfs.FileMode;
 import FileOpenFlags = _vfs.FileOpenFlags;
+import {Promise2, StringDictionary} from "../../global/utils";
 
 export class MemoryVfs extends Vfs {
 	private files: StringDictionary<MemoryVfsEntry> = {};

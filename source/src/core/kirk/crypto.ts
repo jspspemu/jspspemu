@@ -1,4 +1,4 @@
-﻿///<reference path="../../global.d.ts" />
+﻿import "../../global"
 
 import jsaes2 = require('./jsaes2');
 

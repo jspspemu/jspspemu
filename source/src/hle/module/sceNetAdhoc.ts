@@ -1,6 +1,4 @@
-﻿///<reference path="../../global.d.ts" />
-
-import _utils = require('../utils');
+﻿import _utils = require('../utils');
 import _context = require('../../context');
 import _manager = require('../manager');
 import SceKernelErrors = require('../SceKernelErrors');
@@ -8,6 +6,10 @@ import nativeFunction = _utils.nativeFunction;
 import EmulatorContext = _context.EmulatorContext;
 import MemoryPartition = _manager.MemoryPartition;
 import Thread = _manager.Thread;
+import {Cancelable, Promise2, Signal0, UidCollection} from "../../global/utils";
+import {Stream} from "../../global/stream";
+import {Int16, Int32, Int8, StructArray, StructClass, UInt32} from "../../global/struct";
+import {xrange} from "../../global/math";
 
 export class sceNetAdhoc {
 	constructor(private context: _context.EmulatorContext) {

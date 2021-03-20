@@ -1,4 +1,4 @@
-///<reference path="../../global.d.ts" />
+import "../../global"
 
 import memory = require('../memory');
 import instructions = require('./cpu_instructions');
@@ -6,6 +6,7 @@ import instructions = require('./cpu_instructions');
 import Memory = memory.Memory;
 import Instructions = instructions.Instructions;
 import Instruction = instructions.Instruction;
+import {StringDictionary} from "../../global/utils";
 
 class Labels {
 	public labels: StringDictionary<number> = {};

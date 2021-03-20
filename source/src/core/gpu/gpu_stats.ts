@@ -1,3 +1,5 @@
+import {Signal1} from "../../global/utils";
+
 export class GpuStats {
     onStats = new Signal1<GpuStats>();
     totalStalls = 0;

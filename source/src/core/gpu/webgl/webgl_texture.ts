@@ -1,5 +1,5 @@
-﻿///<reference path="../../../global.d.ts" />
-///<reference path="./webgl_enums.d.ts" />
+﻿import "../../../global"
+import "./webgl_enums"
 
 import _state = require('../gpu_state');
 import { GpuStats } from '../gpu_stats';
@@ -11,6 +11,10 @@ import PixelFormat = _pixelformat.PixelFormat;
 import PixelFormatUtils = _pixelformat.PixelFormatUtils;
 import PixelConverter = _pixelformat.PixelConverter;
 import WrappedWebGLProgram = _utils.WrappedWebGLProgram;
+import {ArrayBufferUtils, Signal1} from "../../../global/utils";
+import "./webgl_enums";
+import {MathUtils} from "../../../global/math";
+import {GL} from "./webgl_enums";
 
 export class Texture {
 	private texture: WebGLTexture;

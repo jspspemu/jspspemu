@@ -1,4 +1,7 @@
-﻿export const enum SeekAnchor {
+﻿import {Int16, Int32, Int64, Stringz, StructArray, StructClass, StructEntry} from "../global/struct";
+import {Integer64} from "../global/int64";
+
+export const enum SeekAnchor {
 	Set = 0,
 	Cursor = 1,
 	End = 2,

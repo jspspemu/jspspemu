@@ -1,10 +1,13 @@
-﻿///<reference path="../../global.d.ts" />
-
-import { nativeFunction } from '../utils';
+﻿import { nativeFunction } from '../utils';
 import { EmulatorContext } from '../../context';
 import { Memory } from '../../core/memory';
 import { PixelFormat } from '../../core/pixelformat';
 import SceKernelErrors = require('../SceKernelErrors');
+import {Stream} from "../../global/stream";
+import {addressToHex} from "../../global/utils";
+import {Int32, Int32_l, Int64, Stringn, StructClass, UInt32, UInt32_l} from "../../global/struct";
+import {MeStream} from "../../global/me";
+import {Integer64} from "../../global/int64";
 
 var ENABLE = false;
 //var ENABLE = true;
@@ -50,7 +53,7 @@ export class sceMpeg {
 	
 	
 	private mode: number;
-	private pixelformat: PixelFormat = PixelFormat.RGBA_8888;;
+	private pixelformat: PixelFormat = PixelFormat.RGBA_8888;
 	
 	@nativeFunction(0xA11C7026, 150, 'uint', 'uint/void*')
 	sceMpegAvcDecodeMode(mpegAddr: number, modeAddr: Stream) {
@@ -239,12 +242,12 @@ enum StreamType {
 }
 
 class Mpeg {
-	private stream: MediaEngine.MeStream;
+	private stream: MeStream;
 	private streamIdGen: number = 1;
 	private avcEsBuf: number = 1;
 	
 	constructor() {
-		MediaEngine.MeStream.openData(new Uint8Array(1024));
+		MeStream.openData(new Uint8Array(1024));
 	}
 	
 	addData(data:Uint8Array) {

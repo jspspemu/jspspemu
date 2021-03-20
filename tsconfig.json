@@ -1,0 +1,20 @@
+{
+  "compilerOptions": {
+    "experimentalDecorators": true,
+    "target": "es6",
+    "module": "umd",
+    "moduleResolution": "Node",
+    "noImplicitAny": true,
+    "removeComments": true,
+    "preserveConstEnums": true,
+    "sourceMap": true,
+    "typeRoots": [
+      "source/src/declarations.d.ts"
+    ],
+    "outDir": "output"
+  },
+  "files": [
+    "source/src/global.ts",
+    "source/src/app.ts",
+ ]
+}

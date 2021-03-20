@@ -1,4 +1,4 @@
-﻿///<reference path="../global.d.ts" />
+﻿import "../global"
 
 import _gpu = require('./gpu/gpu_core'); _gpu.PspGpu;
 export import _gpu_vertex = require('./gpu/gpu_vertex');

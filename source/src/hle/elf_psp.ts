@@ -19,6 +19,10 @@ import ElfReloc = _format_elf.ElfReloc;
 import ElfRelocType = _format_elf.ElfRelocType;
 import ElfProgramHeaderType = _format_elf.ElfProgramHeaderType;
 import ElfDwarfLoader = _format_elf_dwarf.ElfDwarfLoader;
+import {logger, sprintf} from "../global/utils";
+import {Stringz, StructArray, StructClass, UInt16, UInt32, UInt8} from "../global/struct";
+import {Stream} from "../global/stream";
+import {MathUtils} from "../global/math";
 
 var console = logger.named('elf.psp');
 

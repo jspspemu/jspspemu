@@ -1,12 +1,12 @@
-﻿///<reference path="../../global.d.ts" />
-
-import { nativeFunction } from '../utils';
+﻿import { nativeFunction } from '../utils';
 import _context = require('../../context');
 import _audio = require('../../core/audio');
 import _vag = require('../../format/vag');
 import SceKernelErrors = require('../SceKernelErrors');
 import Sample = _audio.Sample;
 import VagSoundSource = _vag.VagSoundSource;
+import {Stream} from "../../global/stream";
+import {MathUtils} from "../../global/math";
 
 var PSP_SAS_VOL_MAX = 0x1000;
 var PSP_SAS_PITCH_MIN = 0x1;

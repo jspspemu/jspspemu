@@ -1,6 +1,4 @@
-﻿///<reference path="../../global.d.ts" />
-
-import _utils = require('../utils');
+﻿import _utils = require('../utils');
 import _manager = require('../manager');
 import _context = require('../../context');
 import _interrupt = require('../../core/interrupt');
@@ -10,6 +8,7 @@ import Thread = _manager.Thread;
 import InterruptHandler = _interrupt.InterruptHandler;
 import PspInterrupts = _interrupt.PspInterrupts;
 import nativeFunction = _utils.nativeFunction;
+import {addressToHex} from "../../global/utils";
 
 export class InterruptManager {
 	constructor(private context: _context.EmulatorContext) {

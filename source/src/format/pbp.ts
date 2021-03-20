@@ -1,4 +1,6 @@
-﻿///<reference path="../global.d.ts" />
+﻿import "../global"
+import {Int32, StructArray, StructClass} from "../global/struct";
+import {Stream} from "../global/stream";
 
 enum PbpMagic {
 	expected = 0x50425000,

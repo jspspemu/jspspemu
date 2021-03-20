@@ -1,9 +1,9 @@
-﻿///<reference path="../../global.d.ts" />
-
-import _utils = require('../utils');
+﻿import _utils = require('../utils');
 import _context = require('../../context');
 import nativeFunction = _utils.nativeFunction;
 import SceKernelErrors = require('../SceKernelErrors');
+import {UidCollection} from "../../global/utils";
+import {Stream} from "../../global/stream";
 
 export class sceLibFont {
 	constructor(private context: _context.EmulatorContext) { }

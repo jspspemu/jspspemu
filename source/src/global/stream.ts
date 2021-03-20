@@ -1,16 +1,20 @@
-﻿///<reference path="./utils.ts" />
+﻿import "./utils"
+import {Endian, Promise2, Utf8} from "./utils";
+import {IType} from "./struct";
+import {downloadFileAsync, downloadFileChunkAsync, statFileAsync, StatInfo} from "./async";
+import {Integer64} from "./int64";
 ///<reference path="./int64.ts" />
 ///<reference path="./async.ts" />
 ///<reference path="./struct.ts" />
 
-interface AsyncStream {
+export interface AsyncStream {
 	name: string;
 	date: Date;
 	size: number;
 	readChunkAsync(offset: number, count: number): Promise2<ArrayBuffer>;
 }
 
-class ProxyAsyncStream {
+export class ProxyAsyncStream {
 	constructor(public stream: AsyncStream) {
 	}
 
@@ -20,7 +24,7 @@ class ProxyAsyncStream {
 	readChunkAsync(offset: number, count: number) { return this.stream.readChunkAsync(offset, count); }
 }
 
-class BufferedAsyncStream extends ProxyAsyncStream {
+export class BufferedAsyncStream extends ProxyAsyncStream {
 	constructor(stream: AsyncStream, public bufferSize = 131072) {
 		super(stream);
 	}
@@ -68,11 +72,11 @@ class BufferedAsyncStream extends ProxyAsyncStream {
     }
 }
 
-class MemoryAsyncStream implements AsyncStream {
+export class MemoryAsyncStream implements AsyncStream {
 	constructor(private data: ArrayBuffer, public name = 'memory', public date = new Date()) {
 	}
 
-	static fromArrayBuffer(data: ArrayBuffer) {
+	static fromArrayBuffer(data: ArrayBuffer): MemoryAsyncStream {
 		return new MemoryAsyncStream(data);
 	}
 
@@ -83,7 +87,7 @@ class MemoryAsyncStream implements AsyncStream {
     }
 }
 
-class UrlAsyncStream implements AsyncStream {
+export class UrlAsyncStream implements AsyncStream {
 	name: string;
 	date: Date;
 
@@ -120,7 +124,7 @@ class UrlAsyncStream implements AsyncStream {
     }
 }
 
-class FileAsyncStream implements AsyncStream {
+export class FileAsyncStream implements AsyncStream {
 	date: Date;
 
 	constructor(private file: File) {
@@ -140,7 +144,7 @@ class FileAsyncStream implements AsyncStream {
 	}
 }
 
-class Stream {
+export class Stream {
 	static INVALID = Stream.fromArray([]);
 
 	constructor(private data: DataView, private offset: number = 0) {

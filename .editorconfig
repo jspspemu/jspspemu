@@ -1,0 +1,3 @@
+[*.ts]
+end_of_line = lf
+tab_width = 4

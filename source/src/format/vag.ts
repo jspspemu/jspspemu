@@ -1,7 +1,9 @@
-﻿///<reference path="../global.d.ts" />
-
+﻿import "../global"
 import _audio = require('../core/audio');
 import Sample = _audio.Sample;
+import {Stream} from "../global/stream";
+import {StructClass, UInt32, UInt32_b} from "../global/struct";
+import {BitUtils, MathUtils} from "../global/math";
 
 var VAG_f = [0, 0, 60, 0, 115, -52, 98, -55, 122, -60];
 

@@ -1,4 +1,5 @@
-///<reference path="../global.d.ts" />
+import "../global"
+import {Promise2, Signal1, SignalPromise, SortedSet} from "../global/utils";
 
 export class Sample {
 	constructor(public left: number, public right: number) {

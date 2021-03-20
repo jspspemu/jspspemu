@@ -1,4 +1,4 @@
-﻿///<reference path="../../global.d.ts" />
+﻿import "../../global"
 
 import _memory = require('../memory');
 import _pixelformat = require('../pixelformat');
@@ -8,6 +8,8 @@ import Op = _opcodes.GpuOpCodes;
 
 import Memory = _memory.Memory;
 import PixelFormat = _pixelformat.PixelFormat;
+import {ArrayBufferUtils} from "../../global/utils";
+import {BitUtils, MathFloat, MathUtils} from "../../global/math";
 
 function bool1(p: number) { return p != 0; }
 function parambool(p: number, offset: number) { return ((p >> offset) & 0x1) != 0; }
@@ -666,14 +668,14 @@ export class SkinningState {
 	dataf = new Float32Array(this.data.buffer);
 
 	boneMatrices = [
-		createMatrix4x3(this.dataf, Op.MAT_BONES + 12 * 0),
-		createMatrix4x3(this.dataf, Op.MAT_BONES + 12 * 1),
-		createMatrix4x3(this.dataf, Op.MAT_BONES + 12 * 2),
-		createMatrix4x3(this.dataf, Op.MAT_BONES + 12 * 3),
-		createMatrix4x3(this.dataf, Op.MAT_BONES + 12 * 4),
-		createMatrix4x3(this.dataf, Op.MAT_BONES + 12 * 5),
-		createMatrix4x3(this.dataf, Op.MAT_BONES + 12 * 6),
-		createMatrix4x3(this.dataf, Op.MAT_BONES + 12 * 7)
+		createMatrix4x3(this.data, Op.MAT_BONES + 12 * 0),
+		createMatrix4x3(this.data, Op.MAT_BONES + 12 * 1),
+		createMatrix4x3(this.data, Op.MAT_BONES + 12 * 2),
+		createMatrix4x3(this.data, Op.MAT_BONES + 12 * 3),
+		createMatrix4x3(this.data, Op.MAT_BONES + 12 * 4),
+		createMatrix4x3(this.data, Op.MAT_BONES + 12 * 5),
+		createMatrix4x3(this.data, Op.MAT_BONES + 12 * 6),
+		createMatrix4x3(this.data, Op.MAT_BONES + 12 * 7)
 	];
 }
 
@@ -750,9 +752,9 @@ export class GpuState {
 	stencil = new StencilState(this.data);
 	skinning = new SkinningState(this.data);
 	
-	projectionMatrix = createMatrix4x4(this.dataf, Op.MAT_PROJ);
-	viewMatrix = createMatrix4x3(this.dataf, Op.MAT_VIEW);
-	worldMatrix = createMatrix4x3(this.dataf, Op.MAT_WORLD);
+	projectionMatrix = createMatrix4x4(this.data, Op.MAT_PROJ);
+	viewMatrix = createMatrix4x3(this.data, Op.MAT_VIEW);
+	worldMatrix = createMatrix4x3(this.data, Op.MAT_WORLD);
 	
 	viewport = new ViewPort(this.data);
 	region = new Region(this.data);

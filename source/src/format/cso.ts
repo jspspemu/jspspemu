@@ -1,6 +1,8 @@
-﻿///<reference path="../global.d.ts" />
-
-import zlib = require('./zlib');
+﻿import zlib = require('./zlib');
+import {Integer64_l, Stringz, StructClass, UInt16, UInt32, UInt8} from "../global/struct";
+import {ArrayBufferUtils, Promise2} from "../global/utils";
+import {AsyncStream, Stream} from "../global/stream";
+import {Integer64} from "../global/int64";
 
 var CSO_MAGIC = 'CISO';
 

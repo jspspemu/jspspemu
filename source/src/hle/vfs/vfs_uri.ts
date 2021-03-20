@@ -9,6 +9,9 @@ import VfsEntryStream = _vfs.VfsEntryStream;
 import VfsStat = _vfs.VfsStat;
 import FileMode = _vfs.FileMode;
 import FileOpenFlags = _vfs.FileOpenFlags;
+import {Promise2} from "../../global/utils";
+import {UrlAsyncStream} from "../../global/stream";
+import {statFileAsync, StatInfo} from "../../global/async";
 
 export class UriVfs extends Vfs {
 	constructor(public baseUri: string) {

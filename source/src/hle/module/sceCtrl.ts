@@ -1,6 +1,4 @@
-﻿///<reference path="../../global.d.ts" />
-
-import _utils = require('../utils');
+﻿import _utils = require('../utils');
 import _manager = require('../manager'); _manager.Thread;
 import _context = require('../../context');
 import _controller = require('../../core/controller');
@@ -8,6 +6,8 @@ import _cpu = require('../../core/cpu');
 import nativeFunction = _utils.nativeFunction;
 import Thread = _manager.Thread;
 import SceCtrlData = _controller.SceCtrlData;
+import {Stream} from "../../global/stream";
+import {AcceptCallbacks, WaitingThreadInfo} from "../../global/utils";
 
 export class sceCtrl {
 	constructor(private context: _context.EmulatorContext) { }

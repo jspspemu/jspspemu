@@ -1,4 +1,6 @@
-﻿///<reference path="../global.d.ts" />
+﻿import "../global"
+import {AsyncStream, Stream} from "../global/stream";
+import {Promise2} from "../global/utils";
 
 export function detectFormatAsync(asyncStream: AsyncStream): Promise2<string> {
 	return asyncStream.readChunkAsync(0, 4).then((data):any => {

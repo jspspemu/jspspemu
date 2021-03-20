@@ -1,14 +1,12 @@
-﻿///<reference path="../../../global.d.ts" />
-
-import _utils = require('../../utils');
+﻿import _utils = require('../../utils');
 import _context = require('../../../context');
-import _cpu = require('../../../core/cpu');
 import nativeFunction = _utils.nativeFunction;
 import SceKernelErrors = require('../../SceKernelErrors');
 import _manager = require('../../manager');
-import CpuSpecialAddresses = _cpu.CpuSpecialAddresses;
-import CpuState = _cpu.CpuState;
 import Thread = _manager.Thread;
+import {AcceptCallbacks, Promise2, SortedSet, sprintf, UidCollection, WaitingThreadInfo} from "../../../global/utils";
+import {Stream} from "../../../global/stream";
+import {Int32, Stringz, StructClass} from "../../../global/struct";
 
 export class ThreadManForUser {
 	constructor(private context: _context.EmulatorContext) { }

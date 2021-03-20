@@ -1,4 +1,7 @@
-﻿///<reference path="../global.d.ts" />
+﻿import "../global"
+import {Promise2} from "../global/utils";
+import {Int8, StructArray, StructClass, UInt32} from "../global/struct";
+import {MathUtils} from "../global/math";
 
 export interface IPspController {
 	startAsync():Promise2<void>;

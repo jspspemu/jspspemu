@@ -1,8 +1,12 @@
 ﻿///<reference path="../global.d.ts" />
+import {downloadFileAsync} from "../../src/global/async";
+
 export function ref() { } // Workaround to allow typescript to include this module
 
 import _iso = require('../../src/format/iso');
 import _vfs = require('../../src/hle/vfs');
+import {MemoryAsyncStream} from "../../src/global/stream";
+import {ArrayBufferUtils} from "../../src/global/utils";
 
 describe('iso', () => {
 	var isoData: Uint8Array;

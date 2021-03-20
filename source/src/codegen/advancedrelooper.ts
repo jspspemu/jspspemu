@@ -19,7 +19,7 @@ class SimpleBlock {
 		return this.unconditionalReferences[0].block == block;
 	}
 	
-	constructor(public code:string) {
+	constructor(public code:string, public index: number = -1) {
 		this.selfref = new SimpleBlockReference(this);
 		this.selfrefs.push(this.selfref);
 	}
@@ -89,6 +89,7 @@ class IndentWriter {
 export class SimpleRelooper {
 	private lastId:number = 0;
 	private first:SimpleBlock = null;
+	private blocks:any[]
 	
 	static process(callback: (sr:SimpleRelooper) => void):string {
 		var sr = new SimpleRelooper();
@@ -109,7 +110,7 @@ export class SimpleRelooper {
 	}
 	
 	addBlock(code:string):SimpleBlock {
-		var block = new SimpleBlock(this.lastId++, code);
+		var block = new SimpleBlock(code, this.lastId++);
 		if (this.first == null) this.first = block;
 		return block;
 	}

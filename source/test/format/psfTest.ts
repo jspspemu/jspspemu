@@ -1,9 +1,10 @@
 ﻿///<reference path="../global.d.ts" />
-export function ref() { } // Workaround to allow typescript to include this module
-
+import {downloadFileAsync} from "../../src/global/async";
 import _psf = require('../../src/format/psf');
-
 import Psf = _psf.Psf;
+import {Stream} from "../../src/global/stream";
+
+export function ref() { } // Workaround to allow typescript to include this module
 
 describe('psf', () => {
 	var rtctestPsfArrayBuffer: ArrayBuffer;

@@ -1,7 +1,11 @@
-﻿///<reference path="../../global.d.ts" />
+﻿import "../../global"
 
 import _state = require('./gpu_state');
 import _vertex = require('./gpu_vertex');
+import {Promise2} from "../../global/utils";
+
+class Signal<T> {
+}
 
 export class BaseDrawDriver {
 	rehashSignal = new Signal<number>();

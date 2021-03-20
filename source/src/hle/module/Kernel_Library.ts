@@ -1,12 +1,11 @@
-﻿///<reference path="../../global.d.ts" />
-
-import _utils = require('../utils');
+﻿import _utils = require('../utils');
 import _manager = require('../manager'); _manager.Thread;
-import SceKernelErrors = require('../SceKernelErrors');
+
 import _context = require('../../context');
 import nativeFunction = _utils.nativeFunction;
 
 import Thread = _manager.Thread;
+import {Promise2} from "../../global/utils";
 
 export class Kernel_Library {
 	constructor(private context: _context.EmulatorContext) { }

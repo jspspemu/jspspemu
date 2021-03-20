@@ -1,6 +1,4 @@
-﻿///<reference path="../global.d.ts" />
-
-class StringUtils {
+﻿class StringUtils {
 }
 
 export = StringUtils;

@@ -1,11 +1,22 @@
-﻿///<reference path="../../global.d.ts" />
-
-import _utils = require('../utils');
+﻿import _utils = require('../utils');
 import SceKernelErrors = require('../SceKernelErrors');
 import _context = require('../../context');
 import _riff = require('../../format/riff'); _riff.Riff;
 import Riff = _riff.Riff;
 import nativeFunction = _utils.nativeFunction;
+import {Stream} from "../../global/stream";
+import {Promise2, UidCollection} from "../../global/utils";
+import {
+	Int32,
+	StructArray,
+	StructClass,
+	StructEntry,
+	UInt16,
+	UInt16_b,
+	UInt32,
+	UIntReference
+} from "../../global/struct";
+import {MemoryCustomStream, MePacket, MeStream} from "../../global/me";
 
 export class sceAtrac3plus {
 	constructor(private context: _context.EmulatorContext) { }
@@ -239,7 +250,7 @@ class Atrac3 {
 	numberOfLoops = 0;
 	currentFrame = 0;
 	codecType = CodecType.PSP_MODE_AT_3_PLUS;
-	public stream: MediaEngine.MeStream;
+	public stream: MeStream;
 
 	constructor(private id:number) {
 	}
@@ -265,7 +276,7 @@ class Atrac3 {
 			'data': (stream: Stream) => { this.dataStream = stream; },
 		});
 
-		this.stream = MediaEngine.MeStream.open(new MediaEngine.MemoryCustomStream(dataBytes));
+		this.stream = MeStream.open(new MemoryCustomStream(dataBytes));
 		
 		//console.log(this.fmt);
 		//console.log(this.fact);
@@ -313,7 +324,7 @@ class Atrac3 {
 
 	//private static useWorker = false;
 	private static useWorker = true;
-	public packet: MediaEngine.MePacket = null;
+	public packet: MePacket = null;
 	
 	seekToSample(sample: number): void {
 		this.seekToFrame(Math.floor(sample / this.maximumSamples));
@@ -378,12 +389,6 @@ class Atrac3 {
 
 	static lastId = 0;
 	static fromStreamAsync(data: Stream):Promise2<Atrac3> {
-		if (typeof MediaEngine == 'undefined') {
-			return waitAsync(300).then(() => {
-				console.warn('MediaEngine not ready yet! Waiting 300ms to retry!');
-				return this.fromStreamAsync(data);
-			});
-		}
 		return Promise2.resolve(new Atrac3(Atrac3.lastId++).setDataStream(data));
 	}
 }

@@ -1,6 +1,8 @@
-﻿///<reference path="../../global.d.ts" />
-
+﻿import "../../global/utils"
 import _vfs = require('../vfs/vfs');
+import {Stream} from "../../global/stream";
+import {Promise2, sprintf, StringDictionary} from "../../global/utils";
+import {Integer64} from "../../global/int64";
 
 export class Device {
 	cwd: string = '';
@@ -93,7 +95,7 @@ export class Uri {
 	}
 
 	get isAbsolute() {
-		return this.path.contains(':');
+		return this.path.indexOf(':') >= 0;
 	}
 
 	append(that: Uri) {

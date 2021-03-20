@@ -1,4 +1,4 @@
-﻿///<reference path="global.d.ts" />
+﻿import "./global"
 
 import { GpuStats } from './core/gpu/gpu_stats';
 
@@ -8,8 +8,6 @@ import _gpu = require('./core/gpu');
 import _rtc = require('./core/rtc');
 import { Battery } from './core/battery';
 import _controller = require('./core/controller');
-import _stream = require('./core/stream'); _stream;
-//import _display = require('./core/display');
 import { PspDisplay } from './core/display';
 import { PspAudio } from './core/audio';
 import _interrupt = require('./core/interrupt');
@@ -24,17 +22,10 @@ import _vfs = require('./hle/vfs');
 import _config = require('./hle/config');
 import _elf_psp = require('./hle/elf_psp');
 import _elf_crypted_prx = require('./hle/elf_crypted_prx');
-import _emulator_ui = require('./ui/emulator_ui');
-
 import _manager = require('./hle/manager');
 import _pspmodules = require('./hle/pspmodules');
-
 import PspRtc = _rtc.PspRtc;
-import FileMode = _vfs.FileMode;
 import FileOpenFlags = _vfs.FileOpenFlags;
-import Vfs = _vfs.Vfs;
-import VfsEntry = _vfs.VfsEntry;
-import VfsStat = _vfs.VfsStat;
 import MountableVfs = _vfs.MountableVfs;
 import UriVfs = _vfs.UriVfs;
 import IsoVfs = _vfs.IsoVfs;
@@ -64,6 +55,8 @@ import NetManager = _manager.NetManager;
 import FileManager = _manager.FileManager;
 import CallbackManager = _manager.CallbackManager;
 import Interop = _manager.Interop;
+import {DomHelp, logger, loggerPolicies, Microtask, Promise2, Signal1, Signal2} from "./global/utils";
+import {AsyncStream, FileAsyncStream, MemoryAsyncStream, Stream, UrlAsyncStream} from "./global/stream";
 
 var console = logger.named('emulator');
 
@@ -359,7 +352,7 @@ export class Emulator {
 	}
 
 	static disableLog() {
-		global.loggerPolicies.disableAll = true;
+		loggerPolicies.disableAll = true;
 	}
 	
 	onDrawBatches = new Signal2<_gpu._gpu_vertex.OptimizedDrawBuffer, _gpu._gpu_vertex.OptimizedBatch[]>();

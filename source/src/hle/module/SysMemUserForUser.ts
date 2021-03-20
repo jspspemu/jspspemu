@@ -1,6 +1,4 @@
-﻿///<reference path="../../global.d.ts" />
-
-import _utils = require('../utils');
+﻿import _utils = require('../utils');
 import _manager = require('../manager');
 import _context = require('../../context');
 import nativeFunction = _utils.nativeFunction;
@@ -8,6 +6,8 @@ import SceKernelErrors = require('../SceKernelErrors');
 import MemoryAnchor = _manager.MemoryAnchor;
 import Thread = _manager.Thread;
 import MemoryPartition = _manager.MemoryPartition;
+import {logger, sprintf, UidCollection} from "../../global/utils";
+import {Stream} from "../../global/stream";
 
 var console = logger.named('module.SysMemUserForUser');
 

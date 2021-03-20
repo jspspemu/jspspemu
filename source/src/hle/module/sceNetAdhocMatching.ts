@@ -1,15 +1,12 @@
-﻿///<reference path="../../global.d.ts" />
-
-import _sceNetAdhoc = require('./sceNetAdhoc');
-import _utils = require('../utils');
+﻿import _utils = require('../utils');
 import _context = require('../../context');
 import _manager = require('../manager'); _manager.Thread;
-import SceKernelErrors = require('../SceKernelErrors');
 import nativeFunction = _utils.nativeFunction;
 import EmulatorContext = _context.EmulatorContext;
-import MemoryPartition = _manager.MemoryPartition;
-import Interop = _manager.Interop;
 import Thread = _manager.Thread;
+import {Cancelable, mac2string, UidCollection} from "../../global/utils";
+import {Stream} from "../../global/stream";
+import {MathUtils} from "../../global/math";
 
 export class sceNetAdhocMatching {
 	constructor(private context: _context.EmulatorContext) {
@@ -119,11 +116,11 @@ export class Matching {
 			this.notify((<any>Event)[packet.type], packet.mac, packet.payload);
 		})
 
-		this.helloTimer = setInterval(() => { this.sendHello(); }, this.helloDelay / 1000);
+		this.helloTimer = setInterval(() => { this.sendHello(); }, this.helloDelay / 1000) as any;
 		this.sendHello();
 
 		this.dataTimer = setInterval(() => {
-		}, this.msgDelay / 1000);
+		}, this.msgDelay / 1000) as any;
 	}
 
 	stop() {

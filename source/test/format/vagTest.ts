@@ -1,7 +1,8 @@
-﻿///<reference path="../global.d.ts" />
-export function ref() { } // Workaround to allow typescript to include this module
-
+﻿import {downloadFileAsync} from "../../src/global/async";
 import _vag = require('../../src/format/vag');
+import {Stream} from "../../src/global/stream";
+
+export function ref() { } // Workaround to allow typescript to include this module
 
 describe('vag', () => {
 	var vagData: Uint8Array;

@@ -1,6 +1,7 @@
 import { Emulator } from './emulator';
 import { BatteryInfo } from './core/battery';
 import _vertex = require('./core/gpu/gpu_vertex');
+import {ArrayBufferUtils, Microtask, Promise2} from "./global/utils";
 
 declare var self: any;
 declare var documentLocation: any;

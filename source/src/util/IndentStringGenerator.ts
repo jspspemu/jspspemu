@@ -1,6 +1,4 @@
-﻿///<reference path="../global.d.ts" />
-
-class IndentStringGenerator {
+﻿class IndentStringGenerator {
 	indentation: number = 0;
 	output: string = '';
 	newLine: boolean = true;

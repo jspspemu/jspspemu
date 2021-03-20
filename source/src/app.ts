@@ -1,10 +1,11 @@
-﻿///<reference path="global.d.ts" />
-///<reference path="emulator_worker.ts" />
+﻿import "./global"
+import "./emulator_worker"
 
 import _controller = require('./core/controller');
 import { EmulatorController } from './emulator_controller';
 
 import PspCtrlButtons = _controller.PspCtrlButtons;
+import {DomHelp, isTouchDevice} from "./global/utils";
 
 interface Touch {
 	identifier: number;
@@ -372,8 +373,19 @@ window.addEventListener('load', () => {
 		document.location.hash = file;
 		document.location.reload();
 	}
-	
-	DomHelp.fromId('files').on('change', () => {
+
+    if (!document.getElementById('load_file')) {
+        const input = document.createElement('input')
+        input.type = 'file'
+        input.id = "load_file"
+        input.style.position = 'absolute'
+        input.style.top = '0'
+        input.style.left = '0'
+        console.info('Created load_file input')
+        document.body.appendChild(input)
+    }
+
+    DomHelp.fromId('files').on('change', () => {
 		selectFile(DomHelp.fromId('files').val());
 	});
 	
@@ -385,7 +397,7 @@ window.addEventListener('load', () => {
 	
 	//ControllerPlugin.use();
 	FillScreenPlugin.use();
-	
+
 	DomHelp.fromId('load_file').on('change', (e) => {
 		var target: any = e.target;
 		if (target.files && target.files.length > 0) {

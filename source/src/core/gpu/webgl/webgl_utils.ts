@@ -1,4 +1,6 @@
-﻿///<reference path="../../../global.d.ts" />
+﻿import "../../../global"
+import {StringDictionary} from "../../../global/utils";
+import {mat4} from "../../../global/math";
 
 var mat4x3 = mat4.create();
 

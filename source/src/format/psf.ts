@@ -1,4 +1,7 @@
-﻿///<reference path="../global.d.ts" />
+﻿import "../global"
+import {StructArray, StructClass, UInt16, UInt32, UInt8} from "../global/struct";
+import {StringDictionary} from "../global/utils";
+import {Stream} from "../global/stream";
 
 enum DataType {
 	Binary = 0,

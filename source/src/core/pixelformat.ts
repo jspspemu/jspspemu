@@ -1,7 +1,8 @@
-﻿///<reference path="../global.d.ts" />
-
+﻿import "../global"
 import _memory = require('./memory');
 import Memory = _memory.Memory;
+import {ArrayBufferUtils} from "../global/utils";
+import {BitUtils, ToInt32} from "../global/math";
 
 export class PixelFormatUtils {
 	static hasClut(pixelFormat: PixelFormat) {
@@ -174,7 +175,7 @@ export class PixelConverter {
 		return to;
 	}
 
-	private static update4444(from: Uint16Array, to: Uint8Array, useAlpha: boolean = true) {
+	private static update4444(from: Uint16Array, to: Uint32Array, useAlpha: boolean = true): Uint32Array {
 		for (let n = 0; n < to.length; n++) {
 			const it = from[n];
 			let value = 0;

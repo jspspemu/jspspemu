@@ -1,14 +1,23 @@
 {
   "name": "jspspemu",
-  "description": "javascript psp emulator http://jspspemu.com/",
+  "description": "javascript psp emulator http://jspspemu.soywiz.com/",
   "version": "0.0.1",
-  "author": "Carlos Ballesteros <cballesterosvelasco@gmail.com> (http://cballesterosvelasco.es/)",
+  "author": "Carlos Ballesteros <soywiz@gmail.com> (http://soywiz.com/)",
   "contributors": [],
+  "private": true,
   "dependencies": {
+    "typescript": "4.2.3",
     "mocha": "2.2.4",
     "chai": "2.3.0"
   },
-  "devDependencies": {},
+  "devDependencies": {
+    "copy-webpack-plugin": "^8.0.0",
+    "html-webpack-plugin": "^5.3.1",
+    "ts-loader": "8.0.18",
+    "webpack": "5.27.0",
+    "webpack-cli": "4.5.0",
+    "webpack-dev-server": "3.11.2"
+  },
   "homepage": "https://github.com/jspspemu/jspspemu",
   "keywords": [],
   "repository": {

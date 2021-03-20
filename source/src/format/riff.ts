@@ -1,4 +1,6 @@
-﻿///<reference path="../global.d.ts" />
+﻿import "../global"
+import {Stream} from "../global/stream";
+import {StringDictionary} from "../global/utils";
 
 export interface RiffSubchunkHandler {
 	(stream:Stream): void;

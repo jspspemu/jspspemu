@@ -1,4 +1,4 @@
-/** @license zlib.js 2012 - imaya [ https://github.com/imaya/zlib.js ] The MIT License */
+/** license zlib.js 2012 - imaya [ https://github.com/imaya/zlib.js ] The MIT License */
 'use strict';
 
 var exported: any = {};
@@ -11,7 +11,7 @@ function p(b: string, e: any) {
     for (var d: string; a.length && (d = a.shift());) !a.length && void 0 !== e ? c[d] = e : c = c[d] ? c[d] : c[d] = {}
 }
 
-function t(b: Uint32Array) {
+function t(b: Uint32Array | Uint8Array) {
     var e = b.length,
         a = 0,
         c = Number.POSITIVE_INFINITY,
@@ -36,6 +36,14 @@ function t(b: Uint32Array) {
     }
     return [f, a, c]
 };
+
+interface u {
+    h: number;
+    k: number;
+    g: any[]
+    l: number;
+    q: boolean;
+}
 
 function u(b: number, e: { index?: number, bufferSize?: number, bufferType?: number, resize?: number }) {
     this.g = [];

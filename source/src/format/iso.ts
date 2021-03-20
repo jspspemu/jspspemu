@@ -1,4 +1,18 @@
-///<reference path="../global.d.ts" />
+import "../global"
+import {AsyncStream, Stream} from "../global/stream";
+import {Promise2, PromiseGenerator, PromiseUtils, StringDictionary} from "../global/utils";
+import {
+	Int64,
+	Stringz,
+	StructArray,
+	StructClass,
+	StructEntry,
+	UInt16_2lb,
+	UInt32,
+	UInt32_2lb,
+	UInt8
+} from "../global/struct";
+import {MathUtils, parseIntFormat} from "../global/math";
 
 var SECTOR_SIZE = 0x800;
 

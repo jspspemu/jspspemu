@@ -1,7 +1,9 @@
-﻿///<reference path="../global.d.ts" />
-
+﻿import "../global"
 import _memory = require('../core/memory');
 import Memory = _memory.Memory;
+import {logger, StringDictionary} from "../global/utils";
+import {Int16, Int32, Int8, Stringn, StructArray, StructClass, UInt16, UInt32} from "../global/struct";
+import {Stream} from "../global/stream";
 
 var console = logger.named('elf');
 

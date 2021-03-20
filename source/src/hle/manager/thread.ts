@@ -1,6 +1,4 @@
-﻿///<reference path="../../global.d.ts" />
-
-import _cpu = require('../../core/cpu');
+﻿import _cpu = require('../../core/cpu');
 import _memory = require('../../core/memory');
 import _display = require('../../core/display');
 import _interrupt = require('../../core/interrupt');
@@ -19,6 +17,18 @@ import Memory = _memory.Memory;
 import CpuState = _cpu.CpuState;
 import NativeFunction = _cpu.NativeFunction;
 import CpuSpecialAddresses = _cpu.CpuSpecialAddresses;
+import {
+	AcceptCallbacks,
+	Compensate,
+	DSet,
+	logger,
+	Microtask,
+	Promise2,
+	sprintf,
+	WaitingThreadInfo
+} from "../../global/utils";
+import {waitAsync} from "../../global/async";
+import {Integer64} from "../../global/int64";
 
 var console = logger.named('hle.thread');
 

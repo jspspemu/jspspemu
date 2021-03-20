@@ -1,9 +1,10 @@
-﻿///<reference path="../../global.d.ts" />
-
-import _utils = require('../utils');
+﻿import _utils = require('../utils');
 import _context = require('../../context');
 import nativeFunction = _utils.nativeFunction;
 import SceKernelErrors = require('../SceKernelErrors');
+import {mac2string, string2mac} from "../../global/utils";
+import {Stream} from "../../global/stream";
+import {xrange} from "../../global/math";
 
 export class sceNet {
 	constructor(private context: _context.EmulatorContext) { }

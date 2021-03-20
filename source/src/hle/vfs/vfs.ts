@@ -1,4 +1,7 @@
-﻿export class Vfs {
+﻿import {Promise2} from "../../global/utils";
+import {AsyncStream, Stream} from "../../global/stream";
+
+export class Vfs {
 	devctlAsync(command: number, input: Stream, output: Stream): any {
 		console.error('VfsMustOverride devctlAsync', this);
 		throw new Error("Must override devctlAsync : " + this);

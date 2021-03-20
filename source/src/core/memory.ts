@@ -1,4 +1,8 @@
-﻿///<reference path="../global.d.ts" />
+﻿import "../global"
+import {printf, Signal0, Signal2, sprintf} from "../global/utils";
+import {IType, Pointer} from "../global/struct";
+import {Stream} from "../global/stream";
+import {MathUtils} from "../global/math";
 
 declare function saveAs(data: Blob, name: string): void;
 
@@ -346,11 +350,11 @@ export class Memory {
 
 class FastMemory extends Memory {
 	private buffer: ArrayBuffer;
-	private s8: Uint8Array;
+	private s8: Int8Array;
 	private u8: Uint8Array;
 	private s16: Int16Array;
 	private u16: Uint16Array;
-	private s32: Uint32Array;
+	private s32: Int32Array;
 	private u32: Uint32Array;
 	private f32: Float32Array;
 
@@ -391,11 +395,11 @@ class LowMemorySegment {
 	size: number;
 	low: number;
 	high: number;
-	s8: Uint8Array;
+	s8: Int8Array;
 	u8: Uint8Array;
 	s16: Int16Array;
 	u16: Uint16Array;
-	s32: Uint32Array;
+	s32: Int32Array;
 	u32: Uint32Array;
 	f32: Float32Array;
 

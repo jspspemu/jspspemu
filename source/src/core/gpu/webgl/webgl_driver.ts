@@ -1,6 +1,5 @@
-﻿///<reference path="../../../global.d.ts" />
-///<reference path="./webgl_enums.d.ts" />
-
+﻿import "../../../global"
+import "./webgl_enums"
 import {
 GpuState, Color, ColorEnum, VertexInfo, PrimitiveType,
 CullingDirection, GuBlendingEquation, TextureMapMode,
@@ -12,6 +11,12 @@ import _pixelformat = require('../../pixelformat');
 import { ShaderCache } from './webgl_shader';
 import { Texture, TextureHandler } from './webgl_texture';
 import { FastFloat32Buffer, WrappedWebGLProgram, WrappedWebGLAttrib } from './webgl_utils';
+import {downloadFileAsync} from "../../../global/async";
+import {Stream} from "../../../global/stream";
+import {Signal1} from "../../../global/utils";
+import {ClearBufferSet, GL} from "./webgl_enums";
+import {mat4} from "../../../global/math";
+import {shader_frag} from "./webgl_shaders";
 
 var globalDriver: WebGlPspDrawDriver = null;
 export class WebGlPspDrawDriver {
@@ -64,9 +69,6 @@ export class WebGlPspDrawDriver {
 		this.gl.clear(this.gl.COLOR_BUFFER_BIT);
 	}
 
-	private baseShaderFragString = '';
-	private baseShaderVertString = '';
-
 	invalidatedMemoryAll() {
 		this.textureHandler.invalidatedMemoryAll();
 	}
@@ -76,16 +78,12 @@ export class WebGlPspDrawDriver {
 	}
 	
 	initAsync() {
-		return downloadFileAsync('data/shader.vert').then((shaderVert) => {
-			return downloadFileAsync('data/shader.frag').then((shaderFrag) => {
-				var shaderVertString = Stream.fromArrayBuffer(shaderVert).readUtf8String(shaderVert.byteLength);
-				var shaderFragString = Stream.fromArrayBuffer(shaderFrag).readUtf8String(shaderFrag.byteLength);
+	    const shaderVertString = shader_frag
+        const shaderFragString = shader_frag
 
-				this.cache = new ShaderCache(this.gl, shaderVertString, shaderFragString);
-				this.textureHandler = new TextureHandler(this.gl, this.stats);
-				this.textureHandler.rehashSignal.pipeTo(this.rehashSignal);
-			});
-		});
+        this.cache = new ShaderCache(this.gl, shaderVertString, shaderFragString);
+        this.textureHandler = new TextureHandler(this.gl, this.stats);
+        this.textureHandler.rehashSignal.pipeTo(this.rehashSignal);
 	}
 
 	private clearing: boolean;

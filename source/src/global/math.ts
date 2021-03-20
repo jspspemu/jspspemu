@@ -1,26 +1,25 @@
-﻿if (typeof global != 'undefined') window = global;
-if (typeof self != 'undefined') window = self;
-
-interface Math {
-	clz32(value: number): number;
-	trunc(value: number): number;
-	imul(a: number, b: number): number;
-	imul32_64(a: number, b: number, result?: number[]): number[];
-	umul32_64(a: number, b: number, result?: number[]): number[];
-	fround(x: number): number;
-	sign(x: number): number;
-	rint(x: number): number;
-	log2(x: number): number;
-	log10(x: number): number;
+﻿declare global {
+    interface Math {
+        clz32(value: number): number;
+        trunc(value: number): number;
+        imul(a: number, b: number): number;
+        imul32_64(a: number, b: number, result?: number[]): number[];
+        umul32_64(a: number, b: number, result?: number[]): number[];
+        fround(x: number): number;
+        sign(x: number): number;
+        rint(x: number): number;
+        log2(x: number): number;
+        log10(x: number): number;
+    }
 }
 
-var MAT4_3_IDX = new Uint32Array([
+export var MAT4_3_IDX = new Uint32Array([
 	0, 1, 2,
 	4, 5, 6,
 	8, 9, 10,
 	12, 13, 14
 ]);
-class mat4x3 {
+export class mat4x3 {
 	static create() {
 		return new Float32Array([
 			1,0,0,
@@ -36,7 +35,7 @@ class mat4x3 {
 		data[9] = 0; data[10] = 0; data[11] = 0;
 	}
 }
-class mat4 {
+export class mat4 {
 	static create() {
 		return new Float32Array([
 			1,0,0,0,
@@ -361,7 +360,7 @@ if (!Math['fround']) {
 	}
 }
 
-class BitUtils {
+export class BitUtils {
 	static mask(value: number) {
 		return (1 << value) - 1;
 	}
@@ -454,7 +453,7 @@ class BitUtils {
 	}
 }
 
-class MathVfpu {
+export class MathVfpu {
 	static vqmul0(s0:number, s1:number, s2:number, s3:number, t0:number, t1:number, t2:number, t3:number) { return +(s0 * t3) + (s1 * t2) - (s2 * t1) + (s3 * t0); }
 	static vqmul1(s0:number, s1:number, s2:number, s3:number, t0:number, t1:number, t2:number, t3:number) { return -(s0 * t2) + (s1 * t3) + (s2 * t0) + (s3 * t1); }
 	static vqmul2(s0:number, s1:number, s2:number, s3:number, t0:number, t1:number, t2:number, t3:number) { return +(s0 * t1) - (s1 * t0) + (s2 * t3) + (s3 * t2); }
@@ -508,7 +507,7 @@ class MathVfpu {
 	}
 }
 
-class MathFloat {
+export class MathFloat {
 	private static reinterpretBuffer = new ArrayBuffer(4);
 	private static floatArray = new Float32Array(MathFloat.reinterpretBuffer);
 	private static intArray = new Int32Array(MathFloat.reinterpretBuffer);
@@ -599,24 +598,24 @@ class MathFloat {
 	}
 }
 
-function handleCastInfinite(value: number) {
+export function handleCastInfinite(value: number) {
 	return (value < 0) ? -2147483648 : 2147483647;
 }
 
-function compare<T>(a: T, b: T): number {
+export function compare<T>(a: T, b: T): number {
 	if (a < b) return -1;
 	if (a > b) return +1;
 	return 0;
 }
 
-function parseIntFormat(str: string) {
+export function parseIntFormat(str: string) {
 	str = str.replace(/_/g, '');
 	if (str.substr(0, 2) == '0b') return parseInt(str.substr(2), 2);
 	if (str.substr(0, 2) == '0x') return parseInt(str.substr(2), 16);
 	return parseInt(str, 10);
 }
 
-class MathUtils {
+export class MathUtils {
 	static sextend16(value: number) {
 		return (((value & 0xFFFF) << 16) >> 16);
 		//value >>= 0; if (value & 0x8000) return value | 0xFFFF0000; else return value;
@@ -665,7 +664,7 @@ class MathUtils {
 	}
 }
 
-class IntUtils {
+export class IntUtils {
 	static toHexString(value: number, padCount: number) {
 		var str = (value >>> 0).toString(16);
 		while (str.length < padCount) str = '0' + str;
@@ -673,17 +672,17 @@ class IntUtils {
 	}
 }
 
-class StringUtils {
+export class StringUtils {
 	static padLeft(text: string, padchar: string, length: number) {
 		while (text.length < length) text = padchar + text;
 		return text;
 	}
 }
 
-function ToUint32(x:number) { return x >>> 0; }
-function ToInt32(x:number) { return x | 0; }
+export function ToUint32(x:number) { return x >>> 0; }
+export function ToInt32(x:number) { return x | 0; }
 
-class ArrayUtils {
+export class ArrayUtils {
 	static create2D<T>(w: number, h: number, generator?: (x:number, y:number) => T) {
 		if (!generator) generator = (x, y) => null;
 		var matrix = <T[][]>[];
@@ -710,11 +709,6 @@ class ArrayUtils {
 	}
 }
 
-function xrange(start: number, end: number) {
+export function xrange(start: number, end: number) {
 	return ArrayUtils.range(start, end);
 }
-
-(<any>window).BitUtils = BitUtils;
-(<any>window).MathUtils = MathUtils;
-(<any>window).MathFloat = MathFloat;
-(<any>window).MathVfpu = MathVfpu;

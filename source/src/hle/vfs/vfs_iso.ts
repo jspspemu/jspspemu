@@ -7,6 +7,7 @@ import VfsEntry = _vfs.VfsEntry;
 import VfsStat = _vfs.VfsStat;
 import FileMode = _vfs.FileMode;
 import FileOpenFlags = _vfs.FileOpenFlags;
+import {Promise2} from "../../global/utils";
 
 export class IsoVfs extends Vfs {
 	constructor(private iso: format_iso.Iso) {

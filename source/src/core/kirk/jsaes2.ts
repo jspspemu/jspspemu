@@ -1,4 +1,4 @@
-﻿///<reference path="../../global.d.ts" />
+﻿import "../../global"
 
 /*
 CryptoJS v3.1.2
@@ -151,7 +151,7 @@ export class AES {
 		M[offset + 3] = t;
 	}
 
-	private _doCryptBlock(M:Uint32Array, offset:number, keySchedule:number[], SUB_MIX_0:Uint32Array, SUB_MIX_1:Uint32Array, SUB_MIX_2:Uint32Array, SUB_MIX_3:Uint32Array, SBOX:Uint32Array) {
+	private _doCryptBlock(M:Uint32Array|Uint8Array, offset:number, keySchedule:number[], SUB_MIX_0:Uint32Array, SUB_MIX_1:Uint32Array, SUB_MIX_2:Uint32Array, SUB_MIX_3:Uint32Array, SBOX:Uint32Array|Uint8Array) {
 		var nRounds = this._nRounds;
 
 		var s0 = M[offset + 0] ^ keySchedule[0];

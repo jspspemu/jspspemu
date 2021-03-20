@@ -1,4 +1,5 @@
-﻿///<reference path="../../global.d.ts" />
+﻿import {mac2string, NumberDictionary, Signal0, Signal1, string2mac} from "../../global/utils";
+import {Stream} from "../../global/stream";
 
 export interface NetPacket {
 	port: number;

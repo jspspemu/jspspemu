@@ -1,11 +1,11 @@
-﻿///<reference path="../../global.d.ts" />
-
-import _utils = require('../utils');
+﻿import _utils = require('../utils');
 import _context = require('../../context');
 import _memory = require('../../core/memory');
 import Memory = _memory.Memory;
 import nativeFunction = _utils.nativeFunction;
 import SceKernelErrors = require('../SceKernelErrors');
+import {Stream} from "../../global/stream";
+import {MathUtils} from "../../global/math";
 
 export class UtilsForUser {
 	constructor(private context: _context.EmulatorContext) { }

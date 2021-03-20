@@ -1,8 +1,11 @@
 ﻿///<reference path="../global.d.ts" />
+import {downloadFileAsync} from "../../src/global/async";
+
 export function ref() { } // Workaround to allow typescript to include this module
 
 import _cso = require('../../src/format/cso');
 import _iso = require('../../src/format/iso');
+import {MemoryAsyncStream, Stream} from "../../src/global/stream";
 
 describe('cso', () => {
 	var testCsoArrayBuffer: ArrayBuffer;

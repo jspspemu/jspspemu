@@ -1,6 +1,4 @@
-﻿///<reference path="../../global.d.ts" />
-
-import _utils = require('../utils');
+﻿import _utils = require('../utils');
 import _manager = require('../manager');
 import _vfs = require('../vfs');
 import _structs = require('../structs');
@@ -13,6 +11,10 @@ import PspLanguages = _structs.PspLanguages;
 
 import FileOpenFlags = _vfs.FileOpenFlags;
 import FileMode = _vfs.FileMode;
+import {Promise2} from "../../global/utils";
+import {Stream} from "../../global/stream";
+import {Int32, Stringz, StructArray, StructClass, UInt32, UInt8, Utf8Stringz} from "../../global/struct";
+import {MathUtils, parseIntFormat} from "../../global/math";
 
 export class sceUtility {
 	constructor(private context: _context.EmulatorContext) { }
@@ -143,7 +145,7 @@ export class sceUtility {
 			return Promise2.resolve(0);
 		}).then(result => {
 			console.error('result: ', result);
-			params.base.result = result;
+			params.base.result = result as number;
 			return 0;
 		}).catch(e => {
 			console.error(e);

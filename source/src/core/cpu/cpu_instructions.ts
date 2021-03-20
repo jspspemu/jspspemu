@@ -1,9 +1,10 @@
-﻿///<reference path="../../global.d.ts" />
-
+﻿import "../../global"
 import memory = require('../memory');
 import IndentStringGenerator = require('../../util/IndentStringGenerator');
 
 import Memory = memory.Memory;
+import {addressToHex, HalfFloat, NumberDictionary, sprintf, StringDictionary} from "../../global/utils";
+import {BitUtils} from "../../global/math";
 
 export interface ValueMask {
 	value: number;

@@ -1,4 +1,4 @@
-﻿///<reference path="../../global.d.ts" />
+﻿import "../../global"
 
 import _memory = require('../memory');
 import _ast = require('./cpu_ast');
@@ -218,7 +218,7 @@ export class CpuState {
 
 	vfpr_Buffer = new ArrayBuffer(128 * 4);
 	vfpr: Float32Array = new Float32Array(this.vfpr_Buffer);
-	vfpr_i: Float32Array = new Int32Array(this.vfpr_Buffer);
+	vfpr_i: Int32Array = new Int32Array(this.vfpr_Buffer);
 	vfprc = [0, 0, 0, 0xFF, 0, 0, 0, 0, 0x3F800000, 0x3F800000, 0x3F800000, 0x3F800000, 0x3F800000, 0x3F800000, 0x3F800000, 0x3F800000];
 	setVfrCc(index: number, value: boolean) {
 		if (value) {
@@ -1329,6 +1329,10 @@ export class FunctionGenerator {
 }
 
 import IndentStringGenerator = require('../../util/IndentStringGenerator');
+import {addressToHex, logger, NumberDictionary, sprintf, StringDictionary, throwEndCycles} from "../../global/utils";
+import {BitUtils, MathFloat, MathUtils} from "../../global/math";
+import {compareNumbers} from "../../global/array";
+import {Integer64} from "../../global/int64";
 
 export interface CreateOptions {
 	disableInsideInterrupt?: boolean;

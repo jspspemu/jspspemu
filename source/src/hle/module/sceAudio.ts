@@ -1,10 +1,12 @@
-﻿///<reference path="../../global.d.ts" />
-
-import _utils = require('../utils');
+﻿import _utils = require('../utils');
 import SceKernelErrors = require('../SceKernelErrors');
 import _context = require('../../context');
 import _audio = require('../../core/audio');
 import nativeFunction = _utils.nativeFunction;
+import {Stream} from "../../global/stream";
+import {waitAsync} from "../../global/async";
+import {AcceptCallbacks, Promise2, WaitingThreadInfo} from "../../global/utils";
+import {MathUtils} from "../../global/math";
 
 export class sceAudio {
 	private channels: Channel[] = [];

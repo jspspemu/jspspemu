@@ -1,8 +1,4 @@
-﻿///<reference path="../../global.d.ts" />
-
-import _thread = require('./thread');
-import _cpu = require('../../core/cpu'); _cpu.CpuState;
-
+﻿import _cpu = require('../../core/cpu'); _cpu.CpuState;
 import CpuState = _cpu.CpuState;
 
 //export class Interop implements _cpu.ICpuExecutable {

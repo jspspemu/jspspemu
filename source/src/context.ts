@@ -1,17 +1,14 @@
-﻿///<reference path="global.ts" />
-///<reference path="global.d.ts" />
-
-import _manager = require('./hle/manager');
+﻿import _manager = require('./hle/manager');
 import _display = require('./core/display');
 import _controller = require('./core/controller');
 import _gpu = require('./core/gpu');
 import _rtc = require('./core/rtc');
-import _cpu = require('./core/cpu');
 import _audio = require('./core/audio');
 import _memory = require('./core/memory');
 import _interrupt = require('./core/interrupt');
 import _config = require('./hle/config');
 import { Battery } from './core/battery';
+import {Signal1} from "./global/utils";
 
 export interface ISymbol {
 	address: number;

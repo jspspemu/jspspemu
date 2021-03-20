@@ -1,11 +1,9 @@
-﻿///<reference path="../../global.d.ts" />
-
-import { nativeFunction } from '../utils';
+﻿import { nativeFunction } from '../utils';
 import _context = require('../../context');
 import _structs = require('../structs');
 import SceKernelErrors = require('../SceKernelErrors');
 import { Battery } from '../../core/battery';
-
+import {Stream} from "../../global/stream";
 
 export class sceImpose {
 	constructor(private context: _context.EmulatorContext) { }

@@ -1,17 +1,20 @@
-﻿///<reference path="./utils.ts" />
-///<reference path="./stream.ts" />
+﻿import "./utils"
+import "./stream"
+import {Endian, Promise2, Utf8} from "./utils";
+import {Stream} from "./stream";
+import {Integer64} from "./int64";
 
-interface IType<T> {
+export interface IType<T> {
 	read(stream: Stream, context?: any): T;
 	write(stream: Stream, value: T, context?: any): void;
 	length: number;
 }
 
-interface StructEntry {
+export interface StructEntry {
 	[name: string]: IType<any>;
 }
 
-class Int64Type implements IType<number> {
+export class Int64Type implements IType<number> {
 	constructor(public endian: Endian) { }
 
 	read(stream: Stream): number {
@@ -38,7 +41,7 @@ class Int64Type implements IType<number> {
 	get length() { return 8; }
 }
 
-class Integer64Type implements IType<Integer64> {
+export class Integer64Type implements IType<Integer64> {
 	constructor(public endian: Endian) { }
 
 	read(stream: Stream): Integer64 {
@@ -65,14 +68,14 @@ class Integer64Type implements IType<Integer64> {
 	get length() { return 8; }
 }
 
-class Int32Type implements IType<number> {
+export class Int32Type implements IType<number> {
 	constructor(public endian: Endian) { }
 	read(stream: Stream): number { return stream.readInt32(this.endian); }
 	write(stream: Stream, value: number): void { stream.writeInt32(value, this.endian); }
 	get length() { return 4; }
 }
 
-class Int16Type implements IType<number> {
+export class Int16Type implements IType<number> {
 	constructor(public endian: Endian) { }
 
 	read(stream: Stream): any { return stream.readInt16(this.endian); }
@@ -80,7 +83,7 @@ class Int16Type implements IType<number> {
 	get length() { return 2; }
 }
 
-class Int8Type implements IType<number> {
+export class Int8Type implements IType<number> {
 	constructor(public endian: Endian) { }
 
 	read(stream: Stream): any { return stream.readInt8(this.endian); }
@@ -88,7 +91,7 @@ class Int8Type implements IType<number> {
 	get length() { return 1; }
 }
 
-class UInt32Type implements IType<number> {
+export class UInt32Type implements IType<number> {
 	constructor(public endian: Endian) { }
 
 	read(stream: Stream): any { return stream.readUInt32(this.endian); }
@@ -96,7 +99,7 @@ class UInt32Type implements IType<number> {
 	get length() { return 4; }
 }
 
-class UInt16Type implements IType<number> {
+export class UInt16Type implements IType<number> {
 	constructor(public endian: Endian) { }
 
 	read(stream: Stream): any { return stream.readUInt16(this.endian); }
@@ -104,7 +107,7 @@ class UInt16Type implements IType<number> {
 	get length() { return 2; }
 }
 
-class UInt8Type implements IType<number> {
+export class UInt8Type implements IType<number> {
 	constructor(public endian: Endian) { }
 
 	read(stream: Stream): any { return stream.readUInt8(this.endian); }
@@ -112,14 +115,14 @@ class UInt8Type implements IType<number> {
 	get length() { return 1; }
 }
 
-interface StructEntryProcessed<T> {
+export interface StructEntryProcessed<T> {
 	name: string;
 	type: IType<T>;
 }
 
-interface Class<T> { new (...args: any[]): T; }
+export interface Class<T> { new (...args: any[]): T; }
 
-class UIntReference {
+export class UIntReference {
 	constructor(private stream: Stream) {
 	}
 	
@@ -131,7 +134,7 @@ class UIntReference {
 	}
 }
 
-class StructClass<T> implements IType<T> {
+export class StructClass<T> implements IType<T> {
 	processedItems: StructEntryProcessed<T>[] = [];
 
 	constructor(private _class: any, private items: StructEntry[]) {
@@ -229,7 +232,7 @@ class StructClass<T> implements IType<T> {
 	}
 }
 
-class StructArrayClass<T> implements IType<T[]> {
+export class StructArrayClass<T> implements IType<T[]> {
 	constructor(private elementType: IType<T>, private count: number) {
 	}
 
@@ -248,11 +251,11 @@ class StructArrayClass<T> implements IType<T[]> {
 	}
 }
 
-function StructArray<T>(elementType: IType<T>, count: number) {
+export function StructArray<T>(elementType: IType<T>, count: number) {
 	return new StructArrayClass<T>(elementType, count);
 }
 
-class StructStringn {
+export class StructStringn {
 	constructor(private count: number) {
 	}
 
@@ -271,7 +274,7 @@ class StructStringn {
 	}
 }
 
-class StructStringz {
+export class StructStringz {
 	stringn: StructStringn;
 
 	constructor(private count: number, private readTransformer?: (s:string) => string, private writeTransformer?: (s:string) => string) {
@@ -295,7 +298,7 @@ class StructStringz {
 	}
 }
 
-class StructStringzVariable {
+export class StructStringzVariable {
 	constructor() {
 	}
 
@@ -311,7 +314,7 @@ class StructStringzVariable {
 	}
 }
 
-class UInt32_2lbStruct implements IType<number> {
+export class UInt32_2lbStruct implements IType<number> {
 	read(stream: Stream): number {
 		var l = stream.readUInt32(Endian.LITTLE);
 		var b = stream.readUInt32(Endian.BIG);
@@ -324,7 +327,7 @@ class UInt32_2lbStruct implements IType<number> {
 	get length() { return 8; }
 }
 
-class UInt16_2lbStruct implements IType<number> {
+export class UInt16_2lbStruct implements IType<number> {
 	read(stream: Stream): number {
 		var l = stream.readUInt16(Endian.LITTLE);
 		var b = stream.readUInt16(Endian.BIG);
@@ -337,7 +340,7 @@ class UInt16_2lbStruct implements IType<number> {
 	get length() { return 4; }
 }
 
-class StructStringWithSize {
+export class StructStringWithSize {
 	constructor(private getStringSize: (context: any) => number) {
 	}
 
@@ -352,49 +355,49 @@ class StructStringWithSize {
 	}
 }
 
-var Int16 = new Int16Type(Endian.LITTLE);
-var Int32 = new Int32Type(Endian.LITTLE);
-var Int64 = new Int64Type(Endian.LITTLE);
-var Int8 = new Int8Type(Endian.LITTLE);
+export var Int16 = new Int16Type(Endian.LITTLE);
+export var Int32 = new Int32Type(Endian.LITTLE);
+export var Int64 = new Int64Type(Endian.LITTLE);
+export var Int8 = new Int8Type(Endian.LITTLE);
 
-var Int16_l = new Int16Type(Endian.LITTLE);
-var Int32_l = new Int32Type(Endian.LITTLE);
-var Int64_l = new Int64Type(Endian.LITTLE);
-var Int8_l = new Int8Type(Endian.LITTLE);
+export var Int16_l = new Int16Type(Endian.LITTLE);
+export var Int32_l = new Int32Type(Endian.LITTLE);
+export var Int64_l = new Int64Type(Endian.LITTLE);
+export var Int8_l = new Int8Type(Endian.LITTLE);
 
-var Int16_b = new Int16Type(Endian.BIG);
-var Int32_b = new Int32Type(Endian.BIG);
-var Int64_b = new Int64Type(Endian.BIG);
-var Int8_b = new Int8Type(Endian.BIG);
+export var Int16_b = new Int16Type(Endian.BIG);
+export var Int32_b = new Int32Type(Endian.BIG);
+export var Int64_b = new Int64Type(Endian.BIG);
+export var Int8_b = new Int8Type(Endian.BIG);
 
-var UInt8 = new UInt8Type(Endian.LITTLE);
-var UInt16 = new UInt16Type(Endian.LITTLE);
-var UInt32 = new UInt32Type(Endian.LITTLE);
-//var UInt64 = new UInt64Type(Endian.LITTLE);
+export var UInt8 = new UInt8Type(Endian.LITTLE);
+export var UInt16 = new UInt16Type(Endian.LITTLE);
+export var UInt32 = new UInt32Type(Endian.LITTLE);
+//export var UInt64 = new UInt64Type(Endian.LITTLE);
 
-var UInt16_l = new UInt16Type(Endian.LITTLE);
-var UInt32_l = new UInt32Type(Endian.LITTLE);
+export var UInt16_l = new UInt16Type(Endian.LITTLE);
+export var UInt32_l = new UInt32Type(Endian.LITTLE);
 
-var UInt16_b = new UInt16Type(Endian.BIG);
-var UInt32_b = new UInt32Type(Endian.BIG);
-//var UInt64_b = new UInt64Type(Endian.BIG);
+export var UInt16_b = new UInt16Type(Endian.BIG);
+export var UInt32_b = new UInt32Type(Endian.BIG);
+//export var UInt64_b = new UInt64Type(Endian.BIG);
 
-var UInt32_2lb = new UInt32_2lbStruct();
-var UInt16_2lb = new UInt16_2lbStruct();
+export var UInt32_2lb = new UInt32_2lbStruct();
+export var UInt16_2lb = new UInt16_2lbStruct();
 
-var Integer64_l = new Integer64Type(Endian.LITTLE);
-var Integer64_b = new Integer64Type(Endian.BIG);
+export var Integer64_l = new Integer64Type(Endian.LITTLE);
+export var Integer64_b = new Integer64Type(Endian.BIG);
 
-var StringzVariable = new StructStringzVariable();
+export var StringzVariable = new StructStringzVariable();
 
-function Stringn(count: number) { return new StructStringn(count); }
-function Stringz(count: number) { return new StructStringz(count); }
-function Utf8Stringz(count: number) { return new StructStringz(count, s => Utf8.decode(s), s => Utf8.encode(s)); }
-function StringWithSize(callback: (context: any) => number) {
+export function Stringn(count: number) { return new StructStringn(count); }
+export function Stringz(count: number) { return new StructStringz(count); }
+export function Utf8Stringz(count: number) { return new StructStringz(count, s => Utf8.decode(s), s => Utf8.encode(s)); }
+export function StringWithSize(callback: (context: any) => number) {
 	return new StructStringWithSize(callback);
 }
 
-class StructPointerStruct<T> implements IType<Pointer<T>> {
+export class StructPointerStruct<T> implements IType<Pointer<T>> {
 	constructor(private elementType: IType<T>) {
 	}
 	read(stream: Stream, context: any): Pointer<T> {
@@ -410,15 +413,15 @@ class StructPointerStruct<T> implements IType<Pointer<T>> {
 	}
 }
 
-function StructPointer<T>(type: IType<T>) {
+export function StructPointer<T>(type: IType<T>) {
 	return new StructPointerStruct<T>(type);
 }
 
-interface PointerMemory {
+export interface PointerMemory {
 	getPointerStream(address: number, size?: number): Stream;
 }
 
-class Pointer<T> {
+export class Pointer<T> {
 	private stream: Stream;
 
 	constructor(private type: IType<T>, public memory: PointerMemory, public address: number) {

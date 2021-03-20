@@ -1,6 +1,4 @@
-﻿///<reference path="../../../global.d.ts" />
-
-import _utils = require('../../utils');
+﻿import _utils = require('../../utils');
 import _context = require('../../../context');
 import nativeFunction = _utils.nativeFunction;
 import _vfs = require('../../vfs');
@@ -12,6 +10,9 @@ import Thread = _manager.Thread;
 import FileMode = _vfs.FileMode;
 import FileOpenFlags = _vfs.FileOpenFlags;
 import VfsStat = _vfs.VfsStat;
+import {DebugOnce, logger, Promise2, setToString, sprintf, UidCollection} from "../../../global/utils";
+import {Stream} from "../../../global/stream";
+import {Integer64} from "../../../global/int64";
 
 //var console = logger.named('module.IoFileMgrForUser');
 var log = logger.named('module.IoFileMgrForUser');

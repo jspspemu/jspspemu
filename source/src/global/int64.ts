@@ -1,5 +1,5 @@
 ﻿// Code from: http://docs.closure-library.googlecode.com/git/local_closure_goog_math_long.js.source.html
-class Integer64 {
+export class Integer64 {
 	private _low: number;
 	private _high: number;
 

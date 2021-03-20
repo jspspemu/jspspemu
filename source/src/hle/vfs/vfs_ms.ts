@@ -12,6 +12,8 @@ import FileMode = _vfs.FileMode;
 import FileOpenFlags = _vfs.FileOpenFlags;
 
 import CallbackManager = _manager.CallbackManager;
+import {Stream} from "../../global/stream";
+import {StructClass, UInt32} from "../../global/struct";
 
 export class MemoryStickVfs extends ProxyVfs {
 	constructor(parentVfsList: Vfs[], private callbackManager: CallbackManager, private memory: Memory) {

@@ -1,6 +1,4 @@
-﻿///<reference path="../global.d.ts" />
-
-import _cpu = require('../core/cpu');
+﻿import _cpu = require('../core/cpu');
 import _module = require('./manager/module');
 
 import ExceptionManagerForKernel = require('./module/ExceptionManagerForKernel')

@@ -1,6 +1,4 @@
-﻿///<reference path="../../global.d.ts" />
-
-import _sceNetAdhocMatching = require('./sceNetAdhocMatching');
+﻿import _sceNetAdhocMatching = require('./sceNetAdhocMatching');
 import _utils = require('../utils');
 import _context = require('../../context');
 import _manager = require('../manager');
@@ -9,6 +7,8 @@ import nativeFunction = _utils.nativeFunction;
 import EmulatorContext = _context.EmulatorContext;
 import MemoryPartition = _manager.MemoryPartition;
 import Thread = _manager.Thread;
+import {Stream} from "../../global/stream";
+import {Cancelable, UidCollection} from "../../global/utils";
 
 export class sceNetAdhocctl {
 	constructor(private context: _context.EmulatorContext) { }

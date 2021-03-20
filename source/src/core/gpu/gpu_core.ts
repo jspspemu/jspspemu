@@ -1,4 +1,4 @@
-﻿///<reference path="../../global.d.ts" />
+﻿import "../../global"
 
 import { GpuStats } from './gpu_stats';
 import { Memory } from '../memory';
@@ -9,6 +9,9 @@ import { GpuState, VertexInfo, ColorEnum, PrimitiveType, IndexEnum, DisplayListS
 import { OptimizedDrawBuffer, OptimizedBatch } from './gpu_vertex';
 import { CpuState } from '../cpu';
 import _IndentStringGenerator = require('../../util/IndentStringGenerator');
+import {Stream} from "../../global/stream";
+import {addressToHex, Microtask, Promise2, Signal2, UidCollection, WatchValue} from "../../global/utils";
+import {MathFloat, MathUtils} from "../../global/math";
 
 //import WebGlPspDrawDriver = require('./webgl/webgl_driver');
 

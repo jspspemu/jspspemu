@@ -1,5 +1,6 @@
-﻿///<reference path="../../global.d.ts" />
-// 0x08400000
+﻿// 0x08400000
+
+import {Stringz, StructArray, StructClass, UInt16, UInt32} from "../../global/struct";
 
 export class SceModule {
 	next: number;

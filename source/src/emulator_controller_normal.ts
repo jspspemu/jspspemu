@@ -9,6 +9,7 @@ import { Html5Icons } from './html5/Html5Icons';
 import _vertex = require('./core/gpu/gpu_vertex');
 import _config = require('./hle/config');
 import Html5Gamepad = require('./html5/Html5Gamepad');
+import {ArrayBufferUtils, Microtask} from "./global/utils";
 
 declare var self: any;
 
@@ -17,12 +18,57 @@ export class EmulatorControllerNormal {
 	emulator = new Emulator();
 	audio = new Html5Audio2();
 
+    private getOrCreateCanvas(): HTMLCanvasElement {
+        return <HTMLCanvasElement>(document.getElementById('canvas'))
+    }
+
+	private getOrCreateWebglCanvas(): HTMLCanvasElement {
+	    return <HTMLCanvasElement>(document.getElementById('webgl_canvas'))
+    }
+
 	init() {
+        if (!document.getElementById('canvas_container')) {
+            const canvas_container = document.createElement('div')
+            canvas_container.id = 'canvas_container'
+            canvas_container.innerHTML = `
+                <div id="touch_buttons">
+                  <span id="directional_pad">
+                    <span class="psp_button" id="button_left">2</span>
+                    <span class="psp_button" id="button_up">3</span>
+                    <span class="psp_button" id="button_right">1</span>
+                    <span class="psp_button" id="button_down">4</span>
+                  </span>
+            
+                  <span id="button_pad">
+                    <span class="psp_button" id="button_cross">X</span>
+                    <span class="psp_button" id="button_circle">C</span>
+                    <span class="psp_button" id="button_triangle">T</span>
+                    <span class="psp_button" id="button_square">S</span>
+                  </span>
+            
+                  <span id="lr_pad">
+                    <span class="psp_button" id="button_l">l</span>
+                    <span class="psp_button" id="button_r">r</span>
+                  </span>
+            
+                  <span id="select_start_pad">
+                    <span class="psp_button" id="button_menu">MENU</span>
+                    <span class="psp_button" id="button_start">A</span>
+                    <span class="psp_button" id="button_select">B</span>
+                  </span>
+                </div>
+            
+                <canvas id="canvas" width="480" height="272" style="background: black; width: 960px; height: 544px; border: 0; display: block;"></canvas>
+                <canvas id="webgl_canvas" width="960" height="544" style="background: black; width: 960px; height: 544px; border: 0; display: none; "></canvas>
+            `;
+            document.body.appendChild(canvas_container)
+        }
+        
 		let emulator = this.emulator;
 		let audio = this.audio;
 		self.emulator = emulator;
-		var canvas = <HTMLCanvasElement>(document.getElementById('canvas'));
-		var webgl_canvas = <HTMLCanvasElement>(document.getElementById('webgl_canvas'));
+		var canvas = this.getOrCreateCanvas();
+		var webgl_canvas = this.getOrCreateWebglCanvas();
 		var webglDriver = new WebGlPspDrawDriver(webgl_canvas, emulator.gpuStats);
 		webglDriver.initAsync();
 		let debugOverlay = new DebugOverlay(webglDriver);

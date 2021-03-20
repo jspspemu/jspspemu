@@ -1,6 +1,4 @@
-﻿///<reference path="../../global.d.ts" />
-
-import _utils = require('../utils');
+﻿import _utils = require('../utils');
 import _manager = require('../manager'); _manager.Thread;
 import _context = require('../../context');
 import _display = require('../../core/display');
@@ -11,6 +9,8 @@ import PixelFormat = _pixelformat.PixelFormat;
 import PspDisplay = _display.PspDisplay;
 
 import Thread = _manager.Thread;
+import {AcceptCallbacks, sprintf, WaitingThreadInfo} from "../../global/utils";
+import {Stream} from "../../global/stream";
 
 type uint = number;
 type int = number;

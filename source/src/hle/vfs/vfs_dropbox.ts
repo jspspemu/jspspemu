@@ -8,6 +8,7 @@ import VfsEntry = _vfs.VfsEntry;
 import VfsStat = _vfs.VfsStat;
 import FileMode = _vfs.FileMode;
 import FileOpenFlags = _vfs.FileOpenFlags;
+import {Promise2, StringDictionary} from "../../global/utils";
 
 declare var Dropbox: any;
 
@@ -297,7 +298,7 @@ export class DropboxVfsEntry extends VfsEntry {
 			clearTimeout(this.writeTimer);
 			this.writeTimer = setTimeout(() => {
 				client.writeFileAsync(this.path, newContent);
-			}, 500);
+			}, 500) as any;
 			return dataToWrite.byteLength;
 		})
 	}

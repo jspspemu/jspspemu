@@ -1,7 +1,11 @@
 ﻿///<reference path="../global.d.ts" />
-export function ref() { } // Workaround to allow typescript to include this module
-
+import {String_repeat} from "../../src/global/utils";
+import {Stream} from "../../src/global/stream";
 import _emulator = require('../../src/emulator');
+import {Int16, Int32} from "../../src/global/struct";
+import {compareNumbers} from "../../src/global/array";
+
+export function ref() { } // Workaround to allow typescript to include this module
 
 describe('utils', () => {
     

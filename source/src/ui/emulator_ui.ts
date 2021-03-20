@@ -1,4 +1,4 @@
-///<reference path="../global.d.ts" />
+import {Promise2} from "../global/utils";
 
 export class EmulatorUI {
 	static openMessageAsync(message: string) {

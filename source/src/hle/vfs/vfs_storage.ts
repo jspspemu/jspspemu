@@ -10,6 +10,7 @@ import FileMode = _vfs.FileMode;
 import FileOpenFlags = _vfs.FileOpenFlags;
 
 import storage = require('./indexeddb');
+import {logger, Promise2} from "../../global/utils";
 
 var console = logger.named('vfs.storage');
 

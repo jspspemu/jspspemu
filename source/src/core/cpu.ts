@@ -1,4 +1,4 @@
-﻿///<reference path="../global.d.ts" />
+﻿import "../global"
 
 import _assembler = require('./cpu/cpu_assembler');
 import _ast = require('./cpu/cpu_ast');

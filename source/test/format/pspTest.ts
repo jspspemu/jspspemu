@@ -1,7 +1,9 @@
-﻿///<reference path="../global.d.ts" />
+﻿import {Stream} from "../../src/global/stream";
+
 export function ref() { } // Workaround to allow typescript to include this module
 
 import elf_crypted_prx = require('../../src/hle/elf_crypted_prx');
+import {downloadFileAsync} from "../../src/global/async";
 
 describe('psp', () => {
 	var testInputStream: Stream;

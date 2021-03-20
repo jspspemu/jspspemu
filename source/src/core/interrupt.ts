@@ -1,6 +1,7 @@
-﻿///<reference path="../global.d.ts" />
+﻿import "../global"
 
 import _cpu = require('./cpu');
+import {NumberDictionary, Signal0} from "../global/utils";
 
 type CpuState = _cpu.CpuState;
 //import CpuState from './cpu';

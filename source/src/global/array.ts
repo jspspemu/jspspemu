@@ -1,28 +1,29 @@
 ﻿///<reference path="./math.ts" />
 
-if (typeof global != 'undefined') window = global;
-if (typeof self != 'undefined') window = self;
+import {compare} from "./math";
 
-function identity<T>(a: T) { return a; }
-function funcTrue<T>(a: T) { return true; }
+export function identity<T>(a: T) { return a; }
+export function funcTrue<T>(a: T) { return true; }
 
-interface Array<T> {
-	remove(item: T): void;
-	sortBy(item: (item: T) => any): T[];
-	any(filter?: (item: T) => boolean): T;
-	count(filter?: (item: T) => boolean): number;
-	cast<T2>(): T2[];
-	first(filter?: (item: T) => boolean): T;
-	sum<Q>(selector?: (item: T) => Q):number;
-	min<Q>(selector?: (item: T) => Q):T;
-	max<Q>(selector?: (item: T) => Q):T;
-	binarySearchIndex(selector: (item: T) => number): number;
-	binarySearchValue(selector: (item: T) => number): T;
-	contains(item: T): boolean;
-	toLookupMap(): {};
+declare global {
+    interface Array<T> {
+        remove(item: T): void;
+        sortBy(item: (item: T) => any): T[];
+        any(filter?: (item: T) => boolean): T;
+        count(filter?: (item: T) => boolean): number;
+        cast<T2>(): T2[];
+        first(filter?: (item: T) => boolean): T;
+        sum<Q>(selector?: (item: T) => Q):number;
+        min<Q>(selector?: (item: T) => Q):T;
+        max<Q>(selector?: (item: T) => Q):T;
+        binarySearchIndex(selector: (item: T) => number): number;
+        binarySearchValue(selector: (item: T) => number): T;
+        contains(item: T): boolean;
+        toLookupMap(): {};
+    }
 }
 
-function compareNumbers(a:number, b:number) {
+export function compareNumbers(a:number, b:number) {
 	if (a < b) return -1;
 	if (a > b) return +1;
 	return 0;

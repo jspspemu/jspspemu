@@ -1,4 +1,4 @@
-﻿///<reference path="../global.d.ts" />
+﻿import "../global"
 
 import memory = require('./memory');
 import pixelformat = require('./pixelformat');
@@ -9,6 +9,7 @@ import PspInterrupts = _interrupt.PspInterrupts;
 import Memory = memory.Memory;
 import PixelFormat = pixelformat.PixelFormat;
 import PixelConverter = pixelformat.PixelConverter;
+import {ArrayBufferUtils, Promise2, Signal1} from "../global/utils";
 
 export interface ThreadWaiter {
 	delayMicrosecondsAsync(delayMicroseconds: number, allowcompensating:boolean): Promise2<number>;
@@ -183,7 +184,7 @@ export class PspDisplay extends BasePspDisplay implements IPspDisplay {
 			this.update();
 			this.vblank.dispatch(this.vblankCount);
 			this.interruptManager.interrupt(PspInterrupts.PSP_VBLANK_INT);
-		}, 1000 / PspDisplay.VERTICAL_SYNC_HZ);
+		}, 1000 / PspDisplay.VERTICAL_SYNC_HZ) as any;
 		return Promise2.resolve();
 	}
 
