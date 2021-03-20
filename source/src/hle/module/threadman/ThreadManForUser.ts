@@ -321,7 +321,7 @@ export class ThreadManForUser {
 		return 0;
 	}
 
-	@nativeFunction(0xEA748E31, 150, 'int', 'uint/uint/uint')
+	@nativeFunction(0xEA748E31, 150, 'int', 'Thread/uint/uint')
 	sceKernelChangeCurrentThreadAttr(currentThread: Thread, removeAttributes: number, addAttributes: number) {
 		currentThread.attributes &= ~removeAttributes;
 		currentThread.attributes |= addAttributes;
