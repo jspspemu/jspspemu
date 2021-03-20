@@ -1,6 +1,6 @@
 ﻿import {downloadFileAsync} from "../../src/global/async";
-import _vag = require('../../src/format/vag');
 import {Stream} from "../../src/global/stream";
+import {VagSoundSource} from "../../src/format/vag";
 
 export function ref() { } // Workaround to allow typescript to include this module
 
@@ -18,7 +18,7 @@ describe('vag', () => {
 	});
 
 	it('should load fine', () => {
-		var vag = new _vag.VagSoundSource(Stream.fromUint8Array(vagData), 0);
+		var vag = new VagSoundSource(Stream.fromUint8Array(vagData), 0);
 		var expected = Stream.fromUint8Array(vagDataExpected)
 		vag.reset();
 		expected.position = 0;

@@ -1,8 +1,7 @@
 ﻿///<reference path="../global.d.ts" />
 import {downloadFileAsync} from "../../src/global/async";
-import _psf = require('../../src/format/psf');
-import Psf = _psf.Psf;
 import {Stream} from "../../src/global/stream";
+import {Psf} from "../../src/format/psf";
 
 export function ref() { } // Workaround to allow typescript to include this module
 

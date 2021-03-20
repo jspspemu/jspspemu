@@ -1,10 +1,6 @@
 ﻿///<reference path="./global.d.ts" />
 export function ref() { } // Workaround to allow typescript to include this module
 
-import _state = require('../src/core/gpu/gpu_state');
-import _gpu = require('../src/core/gpu');
-//import VertexReaderFactory = _gpu.VertexReaderFactory;
-
 describe('gpu', () => {
     describe('vertex reading', () => {
 		it('should work', () => {

@@ -1,12 +1,10 @@
 ﻿///<reference path="./global.d.ts" />
+import {CpuInstructions} from "../src/core/cpu/cpu_instructions";
+
 export function ref() { } // Workaround to allow typescript to include this module
 
-import _cpu = require('../src/core/cpu');
-
-import Instructions = _cpu.Instructions;
-
 describe('instruction lookup', () => {
-	var instructions = Instructions.instance;
+	var instructions = CpuInstructions.instance;
 
     it('should accept locate instruction by name', () => {
         assert.equal(instructions.findByName('addi').name, 'addi');

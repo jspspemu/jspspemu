@@ -1,8 +1,7 @@
 ﻿///<reference path="../global.d.ts" />
 import {downloadFileAsync} from "../../src/global/async";
-import _pbp = require('../../src/format/pbp');
-import Pbp = _pbp.Pbp;
 import {Stream} from "../../src/global/stream";
+import {Pbp} from "../../src/format/pbp";
 
 export function ref() { } // Workaround to allow typescript to include this module
 

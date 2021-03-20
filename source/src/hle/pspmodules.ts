@@ -1,7 +1,7 @@
 ﻿import * as _cpu from '../core/cpu';
 import * as _module from './manager/module';
 
-import ExceptionManagerForKernel = require('./module/ExceptionManagerForKernel')
+import * as ExceptionManagerForKernel from './module/ExceptionManagerForKernel'
 import * as InterruptManager from './module/InterruptManager';
 import * as KDebugForKernel from './module/KDebugForKernel';
 import * as Kernel_Library from './module/Kernel_Library';

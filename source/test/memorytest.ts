@@ -1,8 +1,8 @@
-import _memory = require('../src/core/memory');
+import {getMemoryInstance} from "../src/core/memory";
 
 export function ext() { }
 
-var memory = _memory.getInstance();
+var memory = getMemoryInstance()
 
 describe('memory', function () {
 	it('memory_hash', () => {

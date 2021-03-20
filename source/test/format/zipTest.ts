@@ -1,7 +1,6 @@
 ﻿import {downloadFileAsync} from "../../src/global/async";
 import {MemoryAsyncStream, Stream} from "../../src/global/stream";
-import _zip = require('../../src/format/zip');
-import _vfs = require('../../src/hle/vfs');
+import {Zip} from "../../src/format/zip";
 
 export function ref() { } // Workaround to allow typescript to include this module
 
@@ -16,7 +15,7 @@ describe('zip', () => {
 
 
 	it('should load fine', () => {
-		return _zip.Zip.fromStreamAsync(MemoryAsyncStream.fromArrayBuffer(arrayBuffer)).then((zip) => {
+		return Zip.fromStreamAsync(MemoryAsyncStream.fromArrayBuffer(arrayBuffer)).then((zip) => {
 			assert.equal(27233, zip.get('/EBOOT.PBP').uncompressedSize);
 			assert.equal(63548, zip.get('/Data/Sounds/bullet.wav').uncompressedSize);
 

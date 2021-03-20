@@ -4,16 +4,14 @@ import { DummyPspDisplay } from '../../src/core/display';
 import { MemoryManager, ModuleManager } from '../../src/hle/manager';
 import { PspElfLoader } from '../../src/hle/elf_psp';
 import { EmulatorContext } from '../../src/context';
-
-import _elf = require('../../src/format/elf');
-import _memory = require('../../src/core/memory');
-import pspmodules = require('../../src/hle/pspmodules');
-import {MemoryAsyncStream, Stream} from "../../src/global/stream";
+import {Stream} from "../../src/global/stream";
+import {getMemoryInstance} from "../../src/core/memory";
+import {registerModulesAndSyscalls} from "../../src/hle/pspmodules";
 
 export function ref() { } // Workaround to allow typescript to include this module
 
 describe('elf', () => {
-	var stream:Stream;
+	var stream: Stream;
 
 	before(() => {
 		return downloadFileAsync('data/samples/counter.elf').then((data) => {
@@ -23,13 +21,13 @@ describe('elf', () => {
 
     it('load', () => {
         //var stream = Stream.fromBase64(minifireElfBase64);
-		var memory = _memory.getInstance();
+		var memory = getMemoryInstance();
 		var memoryManager = new MemoryManager();
         var display = new DummyPspDisplay();
         var syscallManager = new SyscallManager(context);
         var context = new EmulatorContext();
 		var moduleManager = new ModuleManager(context);
-		pspmodules.registerModulesAndSyscalls(syscallManager, moduleManager);
+		registerModulesAndSyscalls(syscallManager, moduleManager);
 
 		context.init(null, display, null, null, memoryManager, null, null, memory, null, null, null, null, null, null, null, null);
 

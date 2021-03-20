@@ -1,15 +1,11 @@
 ﻿///<reference path="../global.d.ts" />
 import {downloadFileAsync} from "../../src/global/async";
-import _iso = require('../../src/format/iso');
-import _psf = require('../../src/format/psf');
-import _vfs = require('../../src/hle/vfs'); _vfs.StorageVfs;
-import StorageVfs = _vfs.StorageVfs;
-import MemoryVfs = _vfs.MemoryVfs;
-import MemoryStickVfs = _vfs.MemoryStickVfs;
-import FileOpenFlags = _vfs.FileOpenFlags;
 import {MemoryAsyncStream,Stream} from "../../src/global/stream";
 import {ArrayBufferUtils, Promise2} from "../../src/global/utils";
 import {parseIntFormat} from "../../src/global/math";
+import {Iso} from "../../src/format/iso";
+import {FileOpenFlags, IsoVfs, MemoryStickVfs, MemoryVfs, StorageVfs} from "../../src/hle/vfs";
+import {Psf} from "../../src/format/psf";
 
 export function ref() { } // Workaround to allow typescript to include this module
 
@@ -25,11 +21,11 @@ describe('vfs', () => {
 	it('iso', () => {
 		var asyncStream = new MemoryAsyncStream(ArrayBufferUtils.fromUInt8Array(isoData));
 
-		return _iso.Iso.fromStreamAsync(asyncStream).then(iso => {
-			var vfs = new _vfs.IsoVfs(iso);
-			return vfs.openAsync("PSP_GAME/PARAM.SFO", _vfs.FileOpenFlags.Read, parseInt('777', 8)).then(file => {
+		return Iso.fromStreamAsync(asyncStream).then(iso => {
+			var vfs = new IsoVfs(iso);
+			return vfs.openAsync("PSP_GAME/PARAM.SFO", FileOpenFlags.Read, parseInt('777', 8)).then(file => {
 				return file.readAllAsync().then(content => {
-					var psf = _psf.Psf.fromStream(Stream.fromArrayBuffer(content));
+					var psf = Psf.fromStream(Stream.fromArrayBuffer(content));
 					assert.equal(psf.entriesByName["DISC_ID"], "UCJS10041");
 				});
 			});

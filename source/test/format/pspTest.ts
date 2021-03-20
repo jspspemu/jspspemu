@@ -2,8 +2,8 @@
 
 export function ref() { } // Workaround to allow typescript to include this module
 
-import elf_crypted_prx = require('../../src/hle/elf_crypted_prx');
 import {downloadFileAsync} from "../../src/global/async";
+import {decrypt} from "../../src/hle/elf_crypted_prx";
 
 describe('psp', () => {
 	var testInputStream: Stream;
@@ -19,7 +19,7 @@ describe('psp', () => {
 	});
 
 	it('should load fine', () => {
-		var resultByteArray = elf_crypted_prx.decrypt(testInputStream).slice().readAllBytes();
+		var resultByteArray = decrypt(testInputStream).slice().readAllBytes();
 		var expectedByteArray = testExpectedStream.slice().readAllBytes();
 		assert.equal(resultByteArray.length, expectedByteArray.length);
 		for (var n = 0; n < resultByteArray.length; n++) {

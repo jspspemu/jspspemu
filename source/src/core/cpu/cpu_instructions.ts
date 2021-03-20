@@ -574,6 +574,8 @@ export class Instructions {
 	}
 }
 
+export const CpuInstructions = Instructions
+
 class DecodingTable {
 	private lastId = 0;
 

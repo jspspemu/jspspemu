@@ -1,5 +1,3 @@
-import _relooper = require('../../src/codegen/relooper');
-
 describe('codegen', () => {
 	describe('relooper', () => {
 		/*

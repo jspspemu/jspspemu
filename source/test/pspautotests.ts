@@ -2,14 +2,12 @@
 
 export function ref() { } // Workaround to allow typescript to include this module
 
-import _emulator = require('../src/emulator');
-import _vfs = require('../src/hle/vfs');
-import difflib = require('../src/util/difflib');
-
-import Emulator = _emulator.Emulator;
 import {downloadFileAsync} from "../src/global/async";
 import {logger, sprintf} from "../src/global/utils";
 import {ArrayUtils} from "../src/global/math";
+import {difflib} from "../src/util/difflib";
+import {Emulator} from "../src/emulator";
+import {MemoryVfs} from "../src/hle/vfs";
 
 var _console = global.console;
 var console = logger.named('');
@@ -243,7 +241,7 @@ describe('pspautotests', function () {
 								var string_expected = Stream.fromArrayBuffer(data_expected).readString(data_expected.byteLength);
 
 								return emulator.loadExecuteAndWaitAsync(MemoryAsyncStream.fromArrayBuffer(data_prx), file_prx, () => {
-									var mount = new _vfs.MemoryVfs();
+									var mount = new MemoryVfs();
 									emulator.fileManager.mount('disc0', mount);
 									emulator.fileManager.mount('umd0', mount);
 								}).then(() => {

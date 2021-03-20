@@ -9,7 +9,7 @@ import { Html5Icons } from './html5/Html5Icons';
 import {ArrayBufferUtils, Microtask} from "./global/utils";
 import {OptimizedDrawBufferTransfer} from "./core/gpu/gpu_vertex";
 import {Config} from "./hle/config";
-import Html5Gamepad = require("./html5/Html5Gamepad");
+import {Html5Gamepad} from "./html5/Html5Gamepad";
 
 declare var self: any;
 
@@ -62,6 +62,8 @@ export class EmulatorControllerNormal {
                 <canvas id="webgl_canvas" width="960" height="544" style="background: black; width: 960px; height: 544px; border: 0; display: none; "></canvas>
             `;
             document.body.appendChild(canvas_container)
+            document.body.style.padding = '0'
+            document.body.style.margin = '0'
         }
         
 		let emulator = this.emulator;

@@ -1,7 +1,7 @@
 //import { Emulator } from '../emulator';
 import { PspCtrlButtons, IPspControllerSet } from '../core/controller';
 
-class Html5Gamepad {
+export class Html5Gamepad {
     register(controller: IPspControllerSet) {
         var navigator = (typeof window != 'undefined') ? window.navigator : null;
         var getGamepads = (navigator && navigator.getGamepads) ? navigator.getGamepads.bind(navigator) : null;
@@ -55,5 +55,3 @@ class Html5Gamepad {
         gamepadsFrame();
     }
 }
-
-export = Html5Gamepad;

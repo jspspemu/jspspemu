@@ -10,7 +10,7 @@ import { Html5Icons } from './html5/Html5Icons';
 import {Microtask} from "./global/utils";
 import {BatchesTransfer} from "./core/gpu/gpu_vertex";
 import {Config} from "./hle/config";
-import Html5Gamepad = require("./html5/Html5Gamepad");
+import {Html5Gamepad} from "./html5/Html5Gamepad";
 
 declare var self: any;
 

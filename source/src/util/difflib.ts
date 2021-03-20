@@ -30,7 +30,7 @@
 /* Author: Chas Emerick <cemerick@snowtide.com> */
 var __whitespace = {" ":true, "\t":true, "\n":true, "\f":true, "\r":true};
 
-var difflib = {
+export var difflib = {
     defaultJunkFunction: function (c:string) {
         return __whitespace.hasOwnProperty(c);
     },
@@ -415,5 +415,3 @@ var difflib = {
         this.set_seqs(a, b);
     }
 };
-
-export = difflib;

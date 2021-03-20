@@ -1,22 +1,16 @@
 ﻿///<reference path="./global.d.ts" />
 import {addressToHex, addressToHex2} from "../src/global/utils";
+import {MipsAssembler, MipsDisassembler} from "../src/core/cpu/cpu_assembler";
+import {getMemoryInstance} from "../src/core/memory";
+import {CpuState, SyscallManager} from "../src/core/cpu";
 
 export function ref() { } // Workaround to allow typescript to include this module
 
-import _cpu = require('../src/core/cpu');
-import _memory = require('../src/core/memory');
+var assembler = new MipsAssembler();
+var disassembler = new MipsDisassembler();
+var memory = getMemoryInstance();
 
-import Memory = _memory.Memory;
-import MipsAssembler = _cpu.MipsAssembler;
-import MipsDisassembler = _cpu.MipsDisassembler;
-import CpuState = _cpu.CpuState;
-
-
-var assembler = new _cpu.MipsAssembler();
-var disassembler = new _cpu.MipsDisassembler();
-var memory = _memory.getInstance();
-
-class TestSyscallManager extends _cpu.SyscallManager {
+class TestSyscallManager extends SyscallManager {
     constructor() { super(null); }
     
 	call(state: CpuState, id: number) {
