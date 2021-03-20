@@ -10,16 +10,17 @@
   "contributors": [],
   "private": true,
   "dependencies": {
-    "typescript": "4.2.3",
+    "chai": "2.3.0",
     "mocha": "2.2.4",
-    "chai": "2.3.0"
-  },
-  "devDependencies": {
+    "typescript": "4.2.3",
+    "webpack-merge": "^5.7.3",
     "copy-webpack-plugin": "^8.0.0",
     "html-webpack-plugin": "^5.3.1",
     "ts-loader": "8.0.18",
     "webpack": "5.27.0",
     "webpack-cli": "4.5.0"
+  },
+  "devDependencies": {
   },
   "homepage": "https://github.com/jspspemu/jspspemu",
   "keywords": [],
