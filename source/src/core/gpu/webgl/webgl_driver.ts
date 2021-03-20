@@ -6,8 +6,6 @@ CullingDirection, GuBlendingEquation, TextureMapMode,
 GuBlendingFactor
 } from '../gpu_state';
 import { GpuStats } from '../gpu_stats'
-import * as _vertex from '../gpu_vertex';
-import * as _pixelformat from '../../pixelformat';
 import { ShaderCache } from './webgl_shader';
 import { Texture, TextureHandler } from './webgl_texture';
 import { FastFloat32Buffer, WrappedWebGLProgram, WrappedWebGLAttrib } from './webgl_utils';
@@ -17,6 +15,7 @@ import {Signal1} from "../../../global/utils";
 import {ClearBufferSet, GL} from "./webgl_enums";
 import {mat4} from "../../../global/math";
 import {shader_frag, shader_vert} from "./webgl_shaders";
+import {BatchesTransfer, OptimizedBatchTransfer} from "../gpu_vertex";
 
 var globalDriver: WebGlPspDrawDriver = null;
 export class WebGlPspDrawDriver {
@@ -313,13 +312,13 @@ export class WebGlPspDrawDriver {
 	}
 	
 	public drawRatio: number = 1.0;
-	private lastTransfer: _vertex.BatchesTransfer = null;
+	private lastTransfer: BatchesTransfer = null;
 	
 	redrawLastTransfer(): void {
 		if (this.lastTransfer != null) this.drawBatchesTransfer(this.lastTransfer);
 	}
 	
-	drawBatchesTransfer(transfer: _vertex.BatchesTransfer) {
+	drawBatchesTransfer(transfer: BatchesTransfer) {
 		this.lastTransfer = transfer;
 		var buffer = transfer.buffer;
 		var verticesData = new Uint8Array(buffer, transfer.data.data, transfer.data.datasize);
@@ -342,7 +341,7 @@ export class WebGlPspDrawDriver {
 	}
 
 	private vs = new VertexInfo();	
-	drawOptimized(data: ArrayBuffer, batch: _vertex.OptimizedBatchTransfer): void {
+	drawOptimized(data: ArrayBuffer, batch: OptimizedBatchTransfer): void {
 		this.state.writeData(new Uint32Array(data, batch.stateOffset, 512));
 		this.beforeDraw(this.state);
 		var state = this.state;
@@ -450,7 +449,7 @@ export class WebGlPspDrawDriver {
 	tempVec = new Float32Array([0, 0, 0])
 	texMat = mat4.create();
 
-	private prepareTexture(gl: WebGLRenderingContext, program: WrappedWebGLProgram, vertexInfo: VertexInfo, buffer:ArrayBuffer, batch: _vertex.OptimizedBatchTransfer) {
+	private prepareTexture(gl: WebGLRenderingContext, program: WrappedWebGLProgram, vertexInfo: VertexInfo, buffer:ArrayBuffer, batch: OptimizedBatchTransfer) {
 		if (vertexInfo.hasTexture && this.enableTextures) {
 			this.textureHandler.bindTexture(program, this.state, this.enableBilinear, buffer, batch);
 		} else {

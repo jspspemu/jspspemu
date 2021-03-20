@@ -1,15 +1,9 @@
-﻿import * as _vfs from './vfs';
-import * as format_zip from '../../format/zip';
-
-import Vfs = _vfs.Vfs;
-import VfsEntry = _vfs.VfsEntry;
-import VfsStat = _vfs.VfsStat;
-import FileMode = _vfs.FileMode;
-import FileOpenFlags = _vfs.FileOpenFlags;
-import {PromiseFast} from "../../global/utils";
+﻿import {PromiseFast} from "../../global/utils";
+import {FileMode, FileOpenFlags, Vfs, VfsEntry, VfsStat} from "./vfs";
+import {Zip, ZipEntry} from "../../format/zip";
 
 export class ZipVfs extends Vfs {
-	constructor(private zip: format_zip.Zip, private writeVfs?: Vfs) {
+	constructor(private zip: Zip, private writeVfs?: Vfs) {
 		super();
 	}
 
@@ -23,7 +17,7 @@ export class ZipVfs extends Vfs {
 }
 
 class ZipVfsFile extends VfsEntry {
-	constructor(private node: format_zip.ZipEntry) {
+	constructor(private node: ZipEntry) {
 		super();
 	}
 
@@ -32,7 +26,7 @@ class ZipVfsFile extends VfsEntry {
 	readChunkAsync(offset: number, length: number): PromiseFast<ArrayBuffer> { return this.node.readChunkAsync(offset, length); }
 	close() { }
 
-	private static statNode(node: format_zip.ZipEntry): VfsStat {
+	private static statNode(node: ZipEntry): VfsStat {
 		return {
 			name: node.name,
 			size: node.size,

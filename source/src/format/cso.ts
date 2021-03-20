@@ -1,8 +1,8 @@
-﻿import * as zlib from './zlib';
-import {Integer64_l, Stringz, StructClass, UInt16, UInt32, UInt8} from "../global/struct";
+﻿import {Integer64_l, Stringz, StructClass, UInt16, UInt32, UInt8} from "../global/struct";
 import {ArrayBufferUtils, PromiseFast} from "../global/utils";
 import {AsyncStream, Stream} from "../global/stream";
 import {Integer64} from "../global/int64";
+import {zlib_inflate_raw} from "./zlib";
 
 var CSO_MAGIC = 'CISO';
 
@@ -44,7 +44,7 @@ class Block {
 	get uncompresesdData():Uint8Array {
 		if (!this._uncompressedData) {
 			if (this.compressed) {
-				this._uncompressedData = zlib.inflate_raw(this.compressedData);  
+				this._uncompressedData = zlib_inflate_raw(this.compressedData);
 			} else {
 				this._uncompressedData = this.compressedData; 
 			}

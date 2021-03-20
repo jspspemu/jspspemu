@@ -1,14 +1,12 @@
-﻿import * as _utils from '../utils';
-import * as _context from '../../context';
-import * as _memory from '../../core/memory';
-import Memory = _memory.Memory;
-import nativeFunction = _utils.nativeFunction;
-import {Stream} from "../../global/stream";
+﻿import {Stream} from "../../global/stream";
 import {MathUtils} from "../../global/math";
 import {SceKernelErrors} from "../SceKernelErrors";
+import {EmulatorContext} from "../../context";
+import {nativeFunction} from "../utils";
+import {Memory} from "../../core/memory";
 
 export class UtilsForUser {
-	constructor(private context: _context.EmulatorContext) { }
+	constructor(private context: EmulatorContext) { }
 
 	@nativeFunction(0x91E4F6A7, 150, 'uint', '')
 	sceKernelLibcClock() {

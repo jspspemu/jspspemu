@@ -1,14 +1,6 @@
-﻿import * as _vfs from './vfs';
-
-import * as _vfs_memory from './vfs_memory';
-import MemoryVfsEntry = _vfs_memory.MemoryVfsEntry;
-
-import Vfs = _vfs.Vfs;
-import VfsEntry = _vfs.VfsEntry;
-import VfsStat = _vfs.VfsStat;
-import FileMode = _vfs.FileMode;
-import FileOpenFlags = _vfs.FileOpenFlags;
-import {PromiseFast} from "../../global/utils";
+﻿import {PromiseFast} from "../../global/utils";
+import {FileMode, FileOpenFlags, Vfs, VfsEntry, VfsStat} from "./vfs";
+import {MemoryVfsEntry} from "./vfs_memory";
 
 export class MountableVfs extends Vfs {
 	private mounts: MountableEntry[] = [];

@@ -1,7 +1,4 @@
-﻿import * as _structs from './structs';
-
-import PspLanguages = _structs.PspLanguages;
-import ButtonPreference = _structs.ButtonPreference;
+﻿import {ButtonPreference, PspLanguages} from "./structs";
 
 export class Config {
 	language = PspLanguages.ENGLISH;

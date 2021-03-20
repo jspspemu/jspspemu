@@ -1,15 +1,4 @@
-﻿import * as _utils from '../../utils';
-import * as _context from '../../../context';
-import * as _cpu from '../../../core/cpu';
-import nativeFunction = _utils.nativeFunction;
-import * as _manager from '../../manager'; _manager.Thread;
-
-import CpuSpecialAddresses = _cpu.CpuSpecialAddresses;
-import Thread = _manager.Thread;
-import ThreadStatus = _manager.ThreadStatus;
-import PspThreadAttributes = _manager.PspThreadAttributes;
-import OutOfMemoryError = _manager.OutOfMemoryError;
-import {
+﻿import {
 	AcceptCallbacks,
 	logger,
 	PromiseFast,
@@ -23,11 +12,16 @@ import {Int32, Stringz, StructClass, UInt32} from "../../../global/struct";
 import {MathUtils} from "../../../global/math";
 import {Integer64} from "../../../global/int64";
 import {SceKernelErrors} from "../../SceKernelErrors";
+import {EmulatorContext} from "../../../context";
+import {PspThreadAttributes, Thread, ThreadStatus} from "../../manager/thread";
+import {nativeFunction} from "../../utils";
+import {OutOfMemoryError} from "../../manager/memory";
+import {CpuSpecialAddresses} from "../../../core/cpu/cpu_core";
 
 var console = logger.named('module.ThreadManForUser');
 
 export class ThreadManForUser {
-	constructor(private context: _context.EmulatorContext) { }
+	constructor(private context: EmulatorContext) { }
 
 	private threadUids = new UidCollection<Thread>(1);
 

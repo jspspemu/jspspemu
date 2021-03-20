@@ -1,7 +1,5 @@
-﻿import * as _cpu from '../../core/cpu'; _cpu.CpuState;
-import CpuState = _cpu.CpuState;
+﻿import {CpuState} from "../../core/cpu/cpu_core";
 
-//export class Interop implements _cpu.ICpuExecutable {
 export class Interop {
 	execute(state: CpuState, address: number, gprArray: number[]) {
 		state.preserveRegisters(() => {

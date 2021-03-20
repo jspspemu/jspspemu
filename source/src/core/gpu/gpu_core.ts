@@ -3,17 +3,13 @@
 import { GpuStats } from './gpu_stats';
 import { Memory } from '../memory';
 import { IPspDisplay } from '../display';
-import { PixelFormat } from '../pixelformat';
 import { GpuOpCodes as Op } from './gpu_opcodes';
 import { GpuState, VertexInfo, ColorEnum, PrimitiveType, IndexEnum, DisplayListStatus, SyncType } from './gpu_state';
 import { OptimizedDrawBuffer, OptimizedBatch } from './gpu_vertex';
-import { CpuState } from '../cpu';
-import * as _IndentStringGenerator from '../../util/IndentStringGenerator';
 import {Stream} from "../../global/stream";
 import {addressToHex, Microtask, PromiseFast, Signal2, UidCollection, WatchValue} from "../../global/utils";
 import {MathFloat, MathUtils} from "../../global/math";
-
-//import * as WebGlPspDrawDriver from './webgl/webgl_driver';
+import {CpuState} from "../cpu/cpu_core";
 
 export interface CpuExecutor {
 	execute(state: CpuState, address: number, gprArray: number[]): void;

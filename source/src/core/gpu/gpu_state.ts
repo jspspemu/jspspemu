@@ -1,15 +1,12 @@
 ﻿import "../../global"
 
-import * as _memory from '../memory';
-import * as _pixelformat from '../pixelformat';
-import * as _opcodes from './gpu_opcodes';
+const Op = GpuOpCodes
 
-import Op = _opcodes.GpuOpCodes;
-
-import Memory = _memory.Memory;
-import PixelFormat = _pixelformat.PixelFormat;
 import {ArrayBufferUtils} from "../../global/utils";
 import {BitUtils, MathFloat, MathUtils} from "../../global/math";
+import {GpuOpCodes} from "./gpu_opcodes";
+import {Memory} from "../memory";
+import {PixelConverter, PixelFormat, PixelFormatUtils} from "../pixelformat";
 
 function bool1(p: number) { return p != 0; }
 function parambool(p: number, offset: number) { return ((p >> offset) & 0x1) != 0; }
@@ -45,9 +42,9 @@ export const enum DisplayListStatus {
 export class GpuFrameBufferState {
 	constructor(private data:Uint32Array) { }
 	
-	get width() { return param16(this.data[Op.FRAMEBUFWIDTH], 0); }
-	get highAddress() { return param8(this.data[Op.FRAMEBUFWIDTH], 16); } 
-	get lowAddress() { return param24(this.data[Op.FRAMEBUFPTR]); }
+	get width() { return param16(this.data[GpuOpCodes.FRAMEBUFWIDTH], 0); }
+	get highAddress() { return param8(this.data[GpuOpCodes.FRAMEBUFWIDTH], 16); }
+	get lowAddress() { return param24(this.data[GpuOpCodes.FRAMEBUFPTR]); }
 }
 
 export const enum IndexEnum {
@@ -381,7 +378,7 @@ export class MipmapState {
 	get textureWidth() { return 1 << param4(this.data[Op.TSIZE0 + this.index], 0); } 
 	get textureHeight() { return 1 << param4(this.data[Op.TSIZE0 + this.index], 8); }
 	get size() { return this.bufferWidth * this.textureHeight; }
-	get sizeInBytes() { return _pixelformat.PixelConverter.getSizeInBytes(this.texture.pixelFormat, this.size); }
+	get sizeInBytes() { return PixelConverter.getSizeInBytes(this.texture.pixelFormat, this.size); }
 }
 
 export class ClutState {
@@ -400,7 +397,7 @@ export class ClutState {
 	get shift() { return param5(this.data[Op.CMODE], 2); }
 	get mask() { return param8(this.data[Op.CMODE], 8); }
 	get start() { return param5(this.data[Op.CMODE], 16); }
-	get sizeInBytes() { return _pixelformat.PixelConverter.getSizeInBytes(this.pixelFormat, this.numberOfColors); }
+	get sizeInBytes() { return PixelConverter.getSizeInBytes(this.pixelFormat, this.numberOfColors); }
 }
 
 export const enum TextureProjectionMapMode {
@@ -428,7 +425,7 @@ export class TextureState {
 	clut = new ClutState(this.data);
 	
 	get hasClut() {
-		return _pixelformat.PixelFormatUtils.hasClut(this.pixelFormat);
+		return PixelFormatUtils.hasClut(this.pixelFormat);
 	}
 	
 	getHashSlow(textureData:Uint8Array, clutData:Uint8Array) {
@@ -500,7 +497,7 @@ export class TextureState {
 	get tmode() { return this.data[Op.TMODE]; }
 	
 	getPixelsSize(size:number) {
-		return _pixelformat.PixelConverter.getSizeInBytes(this.pixelFormat, size);
+		return PixelConverter.getSizeInBytes(this.pixelFormat, size);
 	}
 
 	get textureComponentsCount() {

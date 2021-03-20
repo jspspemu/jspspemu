@@ -1,6 +1,5 @@
 ﻿import "../../global"
-
-import * as jsaes2 from './jsaes2';
+import {decrypt_aes128_cbc} from "./jsaes2";
 
 function cryptoToArray(info: { words:Uint32Array }) {
 	var words = info.words;
@@ -113,5 +112,5 @@ export function aes_decrypt(data: Uint8Array, key: Uint8Array, iv?: Uint8Array) 
 	if (iv === undefined) iv = new Uint8Array(keyLength);
 
 	//return jsaes.Decrypt_Blocks_CBC(data, key, iv);
-	return jsaes2.decrypt_aes128_cbc(data, key);
+	return decrypt_aes128_cbc(data, key);
 }

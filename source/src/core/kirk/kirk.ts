@@ -1,8 +1,8 @@
 ﻿import "../../global"
 
-import * as crypto from './crypto';
 import {Int32, StructArray, StructClass, StructEntry, UInt32, UInt8} from "../../global/struct";
 import {Stream} from "../../global/stream";
+import {aes_decrypt} from "./crypto";
 
 var kirk1_key = new Uint8Array([0x98, 0xC9, 0x40, 0x97, 0x5C, 0x1D, 0x10, 0xE8, 0x7F, 0xE6, 0x0E, 0xA3, 0xFD, 0x03, 0xA8, 0xBA]);
 var kirk16_key = new Uint8Array([0x47, 0x5E, 0x09, 0xF4, 0xA2, 0x37, 0xDA, 0x9B, 0xEF, 0xFF, 0x3B, 0xC0, 0x77, 0x14, 0x3D, 0x8A]);
@@ -637,7 +637,7 @@ export function CMD7(input: Stream) {
 	if (header.mode != KirkMode.DecryptCbc) throw (new Error("Kirk Invalid mode '" + header.mode + "'"));
 	if (header.data_size == 0) throw (new Error("Kirk data size == 0"));
 
-	return crypto.aes_decrypt(input.sliceFrom(KIRK_AES128CBC_HEADER.struct.length).readAllBytes(), kirk_4_7_get_key(header.keyseed));
+	return aes_decrypt(input.sliceFrom(KIRK_AES128CBC_HEADER.struct.length).readAllBytes(), kirk_4_7_get_key(header.keyseed));
 }
 
 function kirk_CMD7(output: Stream, input: Stream) {
@@ -650,12 +650,12 @@ function kirk_CMD1(output: Stream, input: Stream) {
 	var header = input.slice().readStruct<AES128CMACHeader>(AES128CMACHeader.struct);
 	if (header.Mode != KirkMode.Cmd1) throw (new Error("Kirk mode != Cmd1"));
 
-	var Keys = crypto.aes_decrypt(input.sliceWithLength(0, 16 * 2).readAllBytes(), kirk1_key);
+	var Keys = aes_decrypt(input.sliceWithLength(0, 16 * 2).readAllBytes(), kirk1_key);
 	var KeyAes = Keys.subarray(0, 16);
 	var KeyCmac = Keys.subarray(16, 16);
 
 	var PaddedDataSize = (header.DataSize + 15) & -16;
-	var Output = crypto.aes_decrypt(input.sliceWithLength(header.DataOffset + AES128CMACHeader.struct.length, PaddedDataSize).readAllBytes(), KeyAes);
+	var Output = aes_decrypt(input.sliceWithLength(header.DataOffset + AES128CMACHeader.struct.length, PaddedDataSize).readAllBytes(), KeyAes);
 	output.slice().writeBytes(Output.subarray(0, header.DataSize));
 }
 

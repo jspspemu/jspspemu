@@ -1,21 +1,14 @@
 ﻿import "../../../global"
 import "./webgl_enums"
-
 import { GpuStats } from '../gpu_stats';
-
-import * as _state from '../gpu_state';
-import * as _vertex from '../gpu_vertex';
-import * as _utils from './webgl_utils';
-import * as _pixelformat from '../../pixelformat';
-
-import PixelFormat = _pixelformat.PixelFormat;
-import PixelFormatUtils = _pixelformat.PixelFormatUtils;
-import PixelConverter = _pixelformat.PixelConverter;
-import WrappedWebGLProgram = _utils.WrappedWebGLProgram;
 import {ArrayBufferUtils, Signal1} from "../../../global/utils";
 import "./webgl_enums";
 import {MathUtils} from "../../../global/math";
 import {GL} from "./webgl_enums";
+import {GpuState, TextureFilter} from "../gpu_state";
+import {PixelConverter, PixelFormatUtils} from "../../pixelformat";
+import {WrappedWebGLProgram} from "./webgl_utils";
+import {OptimizedBatchTransfer} from "../gpu_vertex";
 
 export class Texture {
 	private texture: WebGLTexture;
@@ -28,11 +21,11 @@ export class Texture {
 	_width?: number = null;
 	_height?: number = null;
 	
-	private state: _state.GpuState;
+	private state: GpuState;
 
 	constructor(private gl: WebGLRenderingContext) {
 		this.texture = gl.createTexture();
-		this.state = new _state.GpuState();
+		this.state = new GpuState();
 	}
 	
 	get textureState() { return this.state.texture; }
@@ -45,7 +38,7 @@ export class Texture {
 	get addressEnd() { return this.mipmap.addressEnd; }
 	get pixelFormat() { return this.textureState.pixelFormat; }
 
-	updateFromState(state: _state.GpuState, textureData:Uint8Array, clutData:Uint8Array) {
+	updateFromState(state: GpuState, textureData:Uint8Array, clutData:Uint8Array) {
 		this.state.copyFrom(state);
 		
 		//this.updatedTextures.add(texture);
@@ -190,7 +183,7 @@ export class TextureHandler {
 	endFrame() {
 	}
 
-	bindTexture(prog: WrappedWebGLProgram, state: _state.GpuState, enableBilinear:boolean, buffer:ArrayBuffer, batch: _vertex.OptimizedBatchTransfer) {
+	bindTexture(prog: WrappedWebGLProgram, state: GpuState, enableBilinear:boolean, buffer:ArrayBuffer, batch: OptimizedBatchTransfer) {
 		var gl = this.gl;
 		
 		var textureId = batch.textureLow + batch.clutLow * Math.pow(2, 24);
@@ -245,8 +238,8 @@ export class TextureHandler {
 
 		texture.bind(
 			0,
-			(enableBilinear && state.texture.filterMinification == _state.TextureFilter.Linear) ? gl.LINEAR : gl.NEAREST,
-			(enableBilinear && state.texture.filterMagnification == _state.TextureFilter.Linear) ? gl.LINEAR : gl.NEAREST,
+			(enableBilinear && state.texture.filterMinification == TextureFilter.Linear) ? gl.LINEAR : gl.NEAREST,
+			(enableBilinear && state.texture.filterMagnification == TextureFilter.Linear) ? gl.LINEAR : gl.NEAREST,
 			convertWrapMode[state.texture.wrapU],
 			convertWrapMode[state.texture.wrapV]
 		);
@@ -257,7 +250,7 @@ export class TextureHandler {
 		prog.getUniform('uSampler').set1i(0);
 	}
 	
-	unbindTexture(program: WrappedWebGLProgram, state: _state.GpuState) {
+	unbindTexture(program: WrappedWebGLProgram, state: GpuState) {
 		var gl = this.gl;
 		//gl.activeTexture(gl.TEXTURE1);
 		//gl.bindTexture(gl.TEXTURE_2D, null);

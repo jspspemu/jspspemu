@@ -1,6 +1,4 @@
 ﻿import "../global"
-import * as _memory from './memory';
-import Memory = _memory.Memory;
 import {ArrayBufferUtils} from "../global/utils";
 import {BitUtils, ToInt32} from "../global/math";
 

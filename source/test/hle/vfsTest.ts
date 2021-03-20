@@ -4,8 +4,12 @@ import {MemoryAsyncStream,Stream} from "../../src/global/stream";
 import {ArrayBufferUtils, PromiseFast} from "../../src/global/utils";
 import {parseIntFormat} from "../../src/global/math";
 import {Iso} from "../../src/format/iso";
-import {FileOpenFlags, IsoVfs, MemoryStickVfs, MemoryVfs, StorageVfs} from "../../src/hle/vfs";
 import {Psf} from "../../src/format/psf";
+import {IsoVfs} from "../../src/hle/vfs/vfs_iso";
+import {FileOpenFlags} from "../../src/hle/vfs/vfs";
+import {StorageVfs} from "../../src/hle/vfs/vfs_storage";
+import {MemoryStickVfs} from "../../src/hle/vfs/vfs_ms";
+import {MemoryVfs} from "../../src/hle/vfs/vfs_memory";
 
 export function ref() { } // Workaround to allow typescript to include this module
 

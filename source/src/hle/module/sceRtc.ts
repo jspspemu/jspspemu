@@ -1,18 +1,15 @@
-﻿import * as _utils from '../utils';
-import * as _context from '../../context';
-import nativeFunction = _utils.nativeFunction;
-import { SceKernelErrors } from '../SceKernelErrors';
-import * as _structs from '../structs';
-
-import ScePspDateTime = _structs.ScePspDateTime;
+﻿import { SceKernelErrors } from '../SceKernelErrors';
 import {Stream} from "../../global/stream";
+import {EmulatorContext} from "../../context";
+import {nativeFunction} from "../utils";
+import {ScePspDateTime} from "../structs";
 
 export class sceRtc {
-    constructor(private context: _context.EmulatorContext) { }
+    constructor(private context: EmulatorContext) { }
 
 	@nativeFunction(0x3F7AD767, 150, 'int', 'void*')
 	sceRtcGetCurrentTick(tickPtr: Stream) {
-		tickPtr.writeUInt64(_structs.ScePspDateTime.fromDate(new Date()).getTotalMicroseconds());
+		tickPtr.writeUInt64(ScePspDateTime.fromDate(new Date()).getTotalMicroseconds());
         return 0;
     }
 
@@ -34,14 +31,14 @@ export class sceRtc {
 	@nativeFunction(0x7ED29E40, 150, 'int', 'void*/void*')
 	sceRtcSetTick(datePtr: Stream, ticksPtr: Stream) {
 		var ticks = ticksPtr.readInt64();
-		datePtr.writeStruct(_structs.ScePspDateTime.struct, _structs.ScePspDateTime.fromTicks(ticks));
+		datePtr.writeStruct(ScePspDateTime.struct, ScePspDateTime.fromTicks(ticks));
 		return 0;
 	}
 
 	@nativeFunction(0x6FF40ACC, 150, 'int', 'void*/void*')
 	sceRtcGetTick(datePtr: Stream, ticksPtr: Stream) {
 		try {
-			var date = _structs.ScePspDateTime.struct.read(datePtr);
+			var date = ScePspDateTime.struct.read(datePtr);
 			ticksPtr.writeUInt64(date.getTotalMicroseconds());
 			return 0;
 		} catch (e) {

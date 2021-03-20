@@ -1,15 +1,12 @@
-﻿import * as _utils from '../utils';
-import * as _context from '../../context';
-import * as _cpu from '../../core/cpu';
-import nativeFunction = _utils.nativeFunction;
-import * as _manager from '../manager';
-import Thread = _manager.Thread;
-import {logger, throwEndCycles} from "../../global/utils";
+﻿import {logger, throwEndCycles} from "../../global/utils";
+import {EmulatorContext} from "../../context";
+import {nativeFunction} from "../utils";
+import {Thread} from "../manager/thread";
 
 var console = logger.named('module.LoadExecForUser');
 
 export class LoadExecForUser {
-    constructor(private context: _context.EmulatorContext) { }
+    constructor(private context: EmulatorContext) { }
 
     @nativeFunction(0xBD2F1094, 150, 'uint', 'Thread')
 	sceKernelExitGame(thread: Thread) {

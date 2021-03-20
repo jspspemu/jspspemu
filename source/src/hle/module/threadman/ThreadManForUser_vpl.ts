@@ -1,14 +1,12 @@
-﻿import * as _utils from '../../utils';
-import * as _context from '../../../context';
-import nativeFunction = _utils.nativeFunction;
-import * as _manager from '../../manager';
-import MemoryAnchor = _manager.MemoryAnchor;
-import {UidCollection} from "../../../global/utils";
+﻿import {UidCollection} from "../../../global/utils";
 import {Stream} from "../../../global/stream";
 import {SceKernelErrors} from "../../SceKernelErrors";
+import {EmulatorContext} from "../../../context";
+import {nativeFunction} from "../../utils";
+import {MemoryAnchor, MemoryPartition} from "../../manager/memory";
 
 export class ThreadManForUser {
-	constructor(private context: _context.EmulatorContext) { }
+	constructor(private context: EmulatorContext) { }
 
 	private vplUid = new UidCollection<Vpl>(1);
 
@@ -38,7 +36,7 @@ export class ThreadManForUser {
 }
 
 class Vpl {
-	constructor(public name: string, public partition: _manager.MemoryPartition) {
+	constructor(public name: string, public partition: MemoryPartition) {
 	}
 }
 

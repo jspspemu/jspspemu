@@ -1,24 +1,19 @@
-﻿import * as _utils from '../../utils';
-import * as _context from '../../../context';
-import nativeFunction = _utils.nativeFunction;
-import * as _vfs from '../../vfs';
-import * as _structs from '../../structs';
-
-import * as _manager from '../../manager'; _manager.Thread;
-import Thread = _manager.Thread;
-import FileMode = _vfs.FileMode;
-import FileOpenFlags = _vfs.FileOpenFlags;
-import VfsStat = _vfs.VfsStat;
-import {DebugOnce, logger, PromiseFast, setToString, sprintf, UidCollection} from "../../../global/utils";
+﻿import {DebugOnce, logger, PromiseFast, setToString, sprintf, UidCollection} from "../../../global/utils";
 import {Stream} from "../../../global/stream";
 import {Integer64} from "../../../global/int64";
 import {SceKernelErrors} from "../../SceKernelErrors";
+import {EmulatorContext} from "../../../context";
+import {nativeFunction} from "../../utils";
+import {HleDirectory, HleFile} from "../../manager/file";
+import {FileMode, FileOpenFlags, VfsStat} from "../../vfs/vfs";
+import {Thread} from "../../manager/thread";
+import {HleIoDirent, IOFileModes, SceIoStat, ScePspDateTime, SeekAnchor} from "../../structs";
 
 //var console = logger.named('module.IoFileMgrForUser');
 var log = logger.named('module.IoFileMgrForUser');
 
 export class IoFileMgrForUser {
-	constructor(private context: _context.EmulatorContext) { }
+	constructor(private context: EmulatorContext) { }
 
 	@nativeFunction(0x54F5FB11, 150, 'uint', 'string/uint/uint/int/uint/int')
 	sceIoDevctl(deviceName: string, command: number, inputPointer: number, inputLength: number, outputPointer: number, outputLength: number) {
@@ -29,11 +24,11 @@ export class IoFileMgrForUser {
 	}
 
 
-	fileUids = new UidCollection<_manager.HleFile>(3);
-	directoryUids = new UidCollection<_manager.HleDirectory>(1);
+	fileUids = new UidCollection<HleFile>(3);
+	directoryUids = new UidCollection<HleDirectory>(1);
 
 	hasFileById(id:number):boolean { return this.fileUids.has(id); }
-	getFileById(id:number):_manager.HleFile { return this.fileUids.get(id); }
+	getFileById(id:number):HleFile { return this.fileUids.get(id); }
 
 	@nativeFunction(0x109F50BC, 150, 'int', 'string/int/int')
 	sceIoOpen(filename: string, flags: FileOpenFlags, mode: FileMode) {
@@ -233,27 +228,27 @@ export class IoFileMgrForUser {
 	*/
 
 	_vfsStatToSceIoStat(stat: VfsStat) {
-		var stat2 = new _structs.SceIoStat();
+		var stat2 = new SceIoStat();
 		//stat2.mode = <_structs.SceMode>parseInt('777', 8)
 		stat2.mode = 0;
 		stat2.size = stat.size;
-		stat2.timeCreation = _structs.ScePspDateTime.fromDate(stat.timeCreation);
-		stat2.timeLastAccess = _structs.ScePspDateTime.fromDate(stat.timeLastAccess);
-		stat2.timeLastModification = _structs.ScePspDateTime.fromDate(stat.timeLastModification);
+		stat2.timeCreation = ScePspDateTime.fromDate(stat.timeCreation);
+		stat2.timeLastAccess = ScePspDateTime.fromDate(stat.timeLastAccess);
+		stat2.timeLastModification = ScePspDateTime.fromDate(stat.timeLastModification);
 		stat2.deviceDependentData[0] = stat.dependentData0 || 0;
 		stat2.deviceDependentData[1] = stat.dependentData1 || 0;
 
 		stat2.attributes = 0;
 		if (stat.isDirectory) {
 			stat2.mode = 0x1000; // Directory
-			stat2.attributes |= _structs.IOFileModes.Directory;
-			stat2.attributes |= _structs.IOFileModes.CanRead;
+			stat2.attributes |= IOFileModes.Directory;
+			stat2.attributes |= IOFileModes.CanRead;
 		} else {
 			stat2.mode = 0x2000; // File
-			stat2.attributes |= _structs.IOFileModes.File;
-			stat2.attributes |= _structs.IOFileModes.CanExecute;
-			stat2.attributes |= _structs.IOFileModes.CanRead;
-			stat2.attributes |= _structs.IOFileModes.CanWrite;
+			stat2.attributes |= IOFileModes.File;
+			stat2.attributes |= IOFileModes.CanExecute;
+			stat2.attributes |= IOFileModes.CanRead;
+			stat2.attributes |= IOFileModes.CanWrite;
 		}
 		return stat2;
 	}
@@ -262,7 +257,7 @@ export class IoFileMgrForUser {
 	sceIoGetstat(fileName: string, sceIoStatPointer: Stream): any {
 		if (sceIoStatPointer) {
 			sceIoStatPointer.position = 0;
-			_structs.SceIoStat.struct.write(sceIoStatPointer, new _structs.SceIoStat());
+			SceIoStat.struct.write(sceIoStatPointer, new SceIoStat());
 		}
 
 		try {
@@ -272,7 +267,7 @@ export class IoFileMgrForUser {
 					log.info(sprintf('IoFileMgrForUser.sceIoGetstat("%s")', fileName), stat2);
 					if (sceIoStatPointer) {
 						sceIoStatPointer.position = 0;
-						_structs.SceIoStat.struct.write(sceIoStatPointer, stat2);
+						SceIoStat.struct.write(sceIoStatPointer, stat2);
 					}
 					return 0;
 				})
@@ -363,11 +358,11 @@ export class IoFileMgrForUser {
 		var directory = this.directoryUids.get(fileId);
 		if (directory.left > 0) {
 			var stat = directory.read();
-			var hleIoDirent = new _structs.HleIoDirent();
+			var hleIoDirent = new HleIoDirent();
 			hleIoDirent.name = stat.name;
 			hleIoDirent.stat = this._vfsStatToSceIoStat(stat);
 			hleIoDirent.privateData = 0;
-			_structs.HleIoDirent.struct.write(hleIoDirentPtr, hleIoDirent);
+			HleIoDirent.struct.write(hleIoDirentPtr, hleIoDirent);
 		}
 		return directory.left;
 	}
@@ -381,13 +376,13 @@ export class IoFileMgrForUser {
 		if (!this.hasFileById(fileId)) return SceKernelErrors.ERROR_ERRNO_FILE_NOT_FOUND;
 		var file = this.getFileById(fileId);
 		switch (whence) {
-			case _structs.SeekAnchor.Set:
+			case SeekAnchor.Set:
 				file.cursor = 0 + offset;
 				break;
-			case _structs.SeekAnchor.Cursor:
+			case SeekAnchor.Cursor:
 				file.cursor = file.cursor + offset;
 				break;
-			case _structs.SeekAnchor.End:
+			case SeekAnchor.End:
 				file.cursor = file.entry.size + offset;
 				break;
 		}

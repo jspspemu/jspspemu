@@ -1,9 +1,9 @@
 ﻿import "../../global"
 
-import * as relooper from '../../codegen/relooper';
 import { CpuState } from './cpu_core';
 import {addressToHex, NumberDictionary} from "../../global/utils";
 import {MathFloat} from "../../global/math";
+import {relooperProcess} from "../../codegen/relooper";
 
 export class ANode {
 	index:number;
@@ -101,7 +101,7 @@ export class ANodeFunction extends ANodeStmList {
 		var text:string = null;
 
 		if (text === null) {
-			text = relooper.process(relooper => {
+			text = relooperProcess(relooper => {
 				//Relooper.setDebug(true);
 				for (let block of blocks) block.rblock = relooper.addBlock(block.code);
 				

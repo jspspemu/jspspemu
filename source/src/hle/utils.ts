@@ -1,8 +1,4 @@
-﻿import * as _cpu from '../core/cpu';
-
-export import NativeFunction = _cpu.NativeFunction;
-import createNativeFunction = _cpu.createNativeFunction;
-//export import CreateOptions = _cpu.CreateOptions;
+﻿import {createNativeFunction} from "../core/cpu/cpu_core";
 
 interface CreateOptions {
 	originalName?: string;

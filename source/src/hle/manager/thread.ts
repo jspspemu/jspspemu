@@ -1,22 +1,4 @@
-﻿import * as _cpu from '../../core/cpu';
-import * as _memory from '../../core/memory';
-import * as _display from '../../core/display';
-import * as _interrupt from '../../core/interrupt';
-import * as _manager_memory from './memory';
-import * as _callback from './callback';
-import { SceKernelErrors } from '../SceKernelErrors';
-
-import CallbackManager = _callback.CallbackManager;
-import MemoryManager = _manager_memory.MemoryManager;
-import InterruptManager = _interrupt.InterruptManager;
-
-import MemoryPartition = _manager_memory.MemoryPartition;
-import SyscallManager = _cpu.SyscallManager;
-import PspDisplay = _display.PspDisplay;
-import Memory = _memory.Memory;
-import CpuState = _cpu.CpuState;
-import NativeFunction = _cpu.NativeFunction;
-import CpuSpecialAddresses = _cpu.CpuSpecialAddresses;
+﻿import { SceKernelErrors } from '../SceKernelErrors';
 import {
 	AcceptCallbacks,
 	Compensate,
@@ -29,6 +11,12 @@ import {
 } from "../../global/utils";
 import {waitAsync} from "../../global/async";
 import {Integer64} from "../../global/int64";
+import {MemoryManager, MemoryPartition} from "./memory";
+import {CpuSpecialAddresses, CpuState, NativeFunction, SyscallManager} from "../../core/cpu/cpu_core";
+import {CallbackManager} from "./callback";
+import {Memory} from "../../core/memory";
+import {InterruptManager} from "../../core/interrupt";
+import {PspDisplay} from "../../core/display";
 
 var console = logger.named('hle.thread');
 

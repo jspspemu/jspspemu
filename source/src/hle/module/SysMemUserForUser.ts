@@ -1,18 +1,15 @@
-﻿import * as _utils from '../utils';
-import * as _manager from '../manager';
-import * as _context from '../../context';
-import nativeFunction = _utils.nativeFunction;
-import { SceKernelErrors } from '../SceKernelErrors';
-import MemoryAnchor = _manager.MemoryAnchor;
-import Thread = _manager.Thread;
-import MemoryPartition = _manager.MemoryPartition;
+﻿import { SceKernelErrors } from '../SceKernelErrors';
 import {logger, sprintf, UidCollection} from "../../global/utils";
 import {Stream} from "../../global/stream";
+import {EmulatorContext} from "../../context";
+import {MemoryAnchor, MemoryPartition} from "../manager/memory";
+import {nativeFunction} from "../utils";
+import {Thread} from "../manager/thread";
 
 var console = logger.named('module.SysMemUserForUser');
 
 export class SysMemUserForUser {
-	constructor(private context: _context.EmulatorContext) { }
+	constructor(private context: EmulatorContext) { }
 
 	private partitionUids = new UidCollection<MemoryPartition>(1);
 	private blockUids = new UidCollection<MemoryPartition>(1);

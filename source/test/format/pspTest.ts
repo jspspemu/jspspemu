@@ -1,4 +1,5 @@
-﻿import {Stream} from "../../src/global/stream";
+﻿///<reference path="../global.d.ts" />
+import {Stream} from "../../src/global/stream";
 
 export function ref() { } // Workaround to allow typescript to include this module
 

@@ -1,9 +1,8 @@
 ﻿import "../global"
-import * as _audio from '../core/audio';
-import Sample = _audio.Sample;
 import {Stream} from "../global/stream";
 import {StructClass, UInt32, UInt32_b} from "../global/struct";
 import {BitUtils, MathUtils} from "../global/math";
+import {Sample} from "../core/audio";
 
 var VAG_f = [0, 0, 60, 0, 115, -52, 98, -55, 122, -60];
 

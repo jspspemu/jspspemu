@@ -1,19 +1,9 @@
-﻿import * as _vfs from './vfs';
-import * as _manager from '../manager'; _manager.CallbackManager;
-import * as _memory from '../../core/memory';
-
-import Memory = _memory.Memory;
-import Vfs = _vfs.Vfs;
-import ProxyVfs = _vfs.ProxyVfs;
-import VfsEntry = _vfs.VfsEntry;
-import VfsStat = _vfs.VfsStat;
-import FileMode = _vfs.FileMode;
-import FileOpenFlags = _vfs.FileOpenFlags;
-
-import CallbackManager = _manager.CallbackManager;
-import {Stream} from "../../global/stream";
+﻿import {Stream} from "../../global/stream";
 import {StructClass, UInt32} from "../../global/struct";
 import {SceKernelErrors} from "../SceKernelErrors";
+import {ProxyVfs, Vfs} from "./vfs";
+import {CallbackManager} from "../manager/callback";
+import {Memory} from "../../core/memory";
 
 export class MemoryStickVfs extends ProxyVfs {
 	constructor(parentVfsList: Vfs[], private callbackManager: CallbackManager, private memory: Memory) {

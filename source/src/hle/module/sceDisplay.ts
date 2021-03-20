@@ -1,22 +1,16 @@
-﻿import * as _utils from '../utils';
-import * as _manager from '../manager'; _manager.Thread;
-import * as _context from '../../context';
-import * as _display from '../../core/display';
-import * as _pixelformat from '../../core/pixelformat';
-import nativeFunction = _utils.nativeFunction;
-
-import PixelFormat = _pixelformat.PixelFormat;
-import PspDisplay = _display.PspDisplay;
-
-import Thread = _manager.Thread;
-import {AcceptCallbacks, sprintf, WaitingThreadInfo} from "../../global/utils";
+﻿import {AcceptCallbacks, sprintf, WaitingThreadInfo} from "../../global/utils";
 import {Stream} from "../../global/stream";
+import {EmulatorContext} from "../../context";
+import {nativeFunction} from "../utils";
+import {Thread} from "../manager/thread";
+import {PspDisplay} from "../../core/display";
+import {PixelFormat} from "../../core/pixelformat";
 
 type uint = number;
 type int = number;
 
 export class sceDisplay {
-	constructor(private context: _context.EmulatorContext) { }
+	constructor(private context: EmulatorContext) { }
 
 	private mode = 0;
 	private width = 512;

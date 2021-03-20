@@ -1,21 +1,17 @@
-﻿import * as _utils from '../utils';
-import * as _manager from '../manager'; _manager.Thread;
-import * as _context from '../../context';
-import * as _controller from '../../core/controller';
-import * as _cpu from '../../core/cpu';
-import nativeFunction = _utils.nativeFunction;
-import Thread = _manager.Thread;
-import SceCtrlData = _controller.SceCtrlData;
-import {Stream} from "../../global/stream";
+﻿import {Stream} from "../../global/stream";
 import {AcceptCallbacks, WaitingThreadInfo} from "../../global/utils";
+import {EmulatorContext} from "../../context";
+import {nativeFunction} from "../utils";
+import {SceCtrlData} from "../../core/controller";
+import {Thread} from "../manager/thread";
 
 export class sceCtrl {
-	constructor(private context: _context.EmulatorContext) { }
+	constructor(private context: EmulatorContext) { }
 
 	@nativeFunction(0x3A622550, 150, 'uint', 'void*/int')
 	sceCtrlPeekBufferPositive(sceCtrlDataPtr: Stream, count: number) {
 		//console.log('sceCtrlPeekBufferPositive');
-		for (var n = 0; n < count; n++) _controller.SceCtrlData.struct.write(sceCtrlDataPtr, this.context.controller.data);
+		for (var n = 0; n < count; n++) SceCtrlData.struct.write(sceCtrlDataPtr, this.context.controller.data);
 		//return waitAsync(1).then(v => count);
         return count;
     }
@@ -24,7 +20,7 @@ export class sceCtrl {
 	sceCtrlReadBufferPositive(thread: Thread, sceCtrlDataPtr: Stream, count: number) {
 		//console.log('sceCtrlReadBufferPositive');
 
-		for (var n = 0; n < count; n++) _controller.SceCtrlData.struct.write(sceCtrlDataPtr, this.context.controller.data);
+		for (var n = 0; n < count; n++) SceCtrlData.struct.write(sceCtrlDataPtr, this.context.controller.data);
 		//return PromiseFast.resolve(0);
 		return new WaitingThreadInfo('sceCtrlReadBufferPositive', this.context.display, this.context.display.waitVblankStartAsync(thread).then(v => count), AcceptCallbacks.NO);
 		//return 0;

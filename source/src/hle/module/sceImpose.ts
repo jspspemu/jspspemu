@@ -1,12 +1,10 @@
 ﻿import { nativeFunction } from '../utils';
-import * as _context from '../../context';
-import * as _structs from '../structs';
-import { SceKernelErrors } from '../SceKernelErrors';
-import { Battery } from '../../core/battery';
 import {Stream} from "../../global/stream";
+import {EmulatorContext} from "../../context";
+import {ButtonPreference, PspLanguages} from "../structs";
 
 export class sceImpose {
-	constructor(private context: _context.EmulatorContext) { }
+	constructor(private context: EmulatorContext) { }
 
 	@nativeFunction(0x8C943191, 150, 'uint', 'void*/void*')
 	sceImposeGetBatteryIconStatus(isChargingPointer: Stream, iconStatusPointer: Stream) {
@@ -16,7 +14,7 @@ export class sceImpose {
 	}
 
 	@nativeFunction(0x36AA6E91, 150, 'uint', 'uint/uint')
-	sceImposeSetLanguageMode(language: _structs.PspLanguages, buttonPreference: _structs.ButtonPreference) {
+	sceImposeSetLanguageMode(language: PspLanguages, buttonPreference: ButtonPreference) {
 		this.context.config.language = language;
 		this.context.config.buttonPreference = buttonPreference;
 		return 0;

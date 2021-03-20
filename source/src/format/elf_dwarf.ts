@@ -1,10 +1,10 @@
 ﻿import "../global"
 
-import * as _format_elf from './elf';
 import {addressToHex, logger} from "../global/utils";
 import {Int8, IType, StringzVariable, StructArray, StructClass, UInt16, UInt32, UInt8} from "../global/struct";
 import {Stream} from "../global/stream";
 import {BitUtils} from "../global/math";
+import {ElfLoader} from "./elf";
 
 var console = logger.named('elf.dwarf');
 
@@ -187,12 +187,12 @@ export class ElfDwarfLoader {
 	constructor() {
 	}
 
-	parseElfLoader(elf: _format_elf.ElfLoader) {
+	parseElfLoader(elf: ElfLoader) {
 		//this.parseDebugLine(elf);
 		this.parseSymtab(elf);
 	}
 
-	private parseSymtab(elf: _format_elf.ElfLoader) {
+	private parseSymtab(elf: ElfLoader) {
 		console.log('ElfDwarfLoader.parseSymtab');
 		var symtabHeader = elf.sectionHeadersByName[".symtab"];
 		if (!symtabHeader) return;
@@ -234,7 +234,7 @@ export class ElfDwarfLoader {
 		return null;
 	}
 
-	private parseDebugLine(elf: _format_elf.ElfLoader) {
+	private parseDebugLine(elf: ElfLoader) {
 		console.log('ElfDwarfLoader.parseDebugLine');
 		console.log(sectionHeader);
 		var sectionHeader = elf.sectionHeadersByName[".debug_line"];

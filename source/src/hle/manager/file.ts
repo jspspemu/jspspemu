@@ -1,20 +1,20 @@
 ﻿import "../../global/utils"
-import * as _vfs from '../vfs/vfs';
 import {Stream} from "../../global/stream";
 import {PromiseFast, sprintf, StringDictionary} from "../../global/utils";
 import {Integer64} from "../../global/int64";
+import {FileMode, FileOpenFlags, Vfs, VfsEntry, VfsStat} from "../vfs/vfs";
 
 export class Device {
 	cwd: string = '';
 
-	constructor(public name: string, public vfs: _vfs.Vfs) {
+	constructor(public name: string, public vfs: Vfs) {
 	}
 
 	devctlAsync(command: number, input: Stream, output: Stream) {
 		return this.vfs.devctlAsync(command, input, output);
 	}
 
-	openAsync(uri: Uri, flags: _vfs.FileOpenFlags, mode: _vfs.FileMode) {
+	openAsync(uri: Uri, flags: FileOpenFlags, mode: FileMode) {
 		return this.vfs.openAsync(uri.pathWithoutDevice, flags, mode);
 	}
 
@@ -33,7 +33,7 @@ export class HleFile {
 	private _asyncResult: Integer64 = null;
 	private _asyncPromise: PromiseFast<Integer64> = null;
 
-	constructor(public entry: _vfs.VfsEntry) {
+	constructor(public entry: VfsEntry) {
 	}
 
 	get asyncResult() { return this._asyncResult; }
@@ -67,7 +67,7 @@ export class HleFile {
 export class HleDirectory {
 	cursor = 0;
 
-	constructor(public childs: _vfs.VfsStat[]) {
+	constructor(public childs: VfsStat[]) {
 	}
 
 	read() {
@@ -119,7 +119,7 @@ export class FileManager {
 		return device;
 	}
 
-	openAsync(name: string, flags: _vfs.FileOpenFlags, mode: _vfs.FileMode) {
+	openAsync(name: string, flags: FileOpenFlags, mode: FileMode) {
 		var uri = this.cwd.append(new Uri(name));
 		return this.getDevice(uri.device).openAsync(uri, flags, mode).then(entry => new HleFile(entry));
 	}
@@ -143,7 +143,7 @@ export class FileManager {
 		return this.getDevice(uri.device).getStatAsync(uri);
 	}
 
-	mount(device: string, vfs: _vfs.Vfs) {
+	mount(device: string, vfs: Vfs) {
 		this.devices[device] = new Device(device, vfs);
 	}
 }

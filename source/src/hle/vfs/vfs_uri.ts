@@ -1,17 +1,8 @@
-﻿import * as _vfs from './vfs';
-
-import * as _vfs_memory from './vfs_memory';
-import MemoryVfsEntry = _vfs_memory.MemoryVfsEntry;
-
-import Vfs = _vfs.Vfs;
-import VfsEntry = _vfs.VfsEntry;
-import VfsEntryStream = _vfs.VfsEntryStream;
-import VfsStat = _vfs.VfsStat;
-import FileMode = _vfs.FileMode;
-import FileOpenFlags = _vfs.FileOpenFlags;
-import {PromiseFast} from "../../global/utils";
+﻿import {PromiseFast} from "../../global/utils";
 import {UrlAsyncStream} from "../../global/stream";
 import {statFileAsync, StatInfo} from "../../global/async";
+import {MemoryVfsEntry} from "./vfs_memory";
+import {FileMode, FileOpenFlags, Vfs, VfsEntry, VfsEntryStream, VfsStat} from "./vfs";
 
 export class UriVfs extends Vfs {
 	constructor(public baseUri: string) {

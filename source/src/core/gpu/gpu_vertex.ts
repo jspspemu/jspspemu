@@ -1,12 +1,10 @@
 ﻿import "../../global"
-import * as _state from './gpu_state';
-import * as _memory from '../memory';
-import * as _IndentStringGenerator from '../../util/IndentStringGenerator';
-import ColorEnum = _state.ColorEnum;
 import {ArrayBufferUtils} from "../../global/utils";
 import {MathUtils} from "../../global/math";
+import {getMemoryInstance} from "../memory";
+import {GpuState, NumericEnum, PrimitiveType, VertexInfo} from "./gpu_state";
 
-var memory = _memory.getMemoryInstance();
+var memory = getMemoryInstance();
 
 const enum SpriteVID {
 	TL = 0,
@@ -24,7 +22,7 @@ type SpriteExpanderFunc = (input:Uint8Array, output:Uint8Array, count:number) =>
 class SpriteExpander {
 	static cache = new Map<number, SpriteExpanderFunc>();
 	
-	static forVertexInfo(vi:_state.VertexInfo):SpriteExpanderFunc {
+	static forVertexInfo(vi: VertexInfo):SpriteExpanderFunc {
 		var hash = vi.hash;
 		if (!this.cache.has(hash)) {
 			this.cache.set(hash, <SpriteExpanderFunc>new Function('input', 'output', 'count', this.readAllCode(vi)));
@@ -32,7 +30,7 @@ class SpriteExpander {
 		return this.cache.get(hash);
 	}
 	
-	static readAllCode(vi:_state.VertexInfo) {
+	static readAllCode(vi: VertexInfo) {
 		var code = `"use strict";`;
 
 		code += `var i8  = new Uint8Array(input.buffer, input.byteOffset);\n`;
@@ -52,7 +50,7 @@ class SpriteExpander {
 		return code;
 	}
 	
-	private static readOneCode(vi:_state.VertexInfo) {
+	private static readOneCode(vi: VertexInfo) {
 		var code = '';
 		var vsize = vi.size;
 		
@@ -62,7 +60,7 @@ class SpriteExpander {
 		var COLV = [null, null, null, null, 'o16', 'o16', 'o16', 'o32']; // ColorEnum
 		var COLS = [0, 0, 0, 0, 1, 1, 1, 2];
 		
-		function _get(vid:SpriteVID, type:_state.NumericEnum, offset:number, component:number) {
+		function _get(vid:SpriteVID, type: NumericEnum, offset:number, component:number) {
 			return `${CONVV[type]}[((o + ${offset + vsize * +vid}) >> ${CONVS[type]}) + ${component}]`;
 		}
 
@@ -131,7 +129,7 @@ export interface OptimizedDrawBufferDataTransfer {
 
 export interface OptimizedBatchTransfer {
 	stateOffset: number;
-	primType: _state.PrimitiveType;
+	primType: PrimitiveType;
 	dataLow: number, dataHigh: number,
 	indexLow: number, indexHigh: number,
 	indexCount: number,
@@ -233,7 +231,7 @@ export class OptimizedDrawBuffer {
 		return this.dataOffset > this.batchDataOffset;
 	}
 	
-	createBatch(state: _state.GpuState, primType:_state.PrimitiveType, vertexInfo:_state.VertexInfo) {
+	createBatch(state: GpuState, primType: PrimitiveType, vertexInfo: VertexInfo) {
 		var data = new OptimizedBatch(
 			state, this, primType, vertexInfo,
 			this.batchDataOffset, this.dataOffset,
@@ -271,7 +269,7 @@ export class OptimizedDrawBuffer {
 		}
 	}
 	
-	addVerticesDataSprite(vertices:Uint8Array, verticesSize:number, count:number, vi:_state.VertexInfo) {
+	addVerticesDataSprite(vertices:Uint8Array, verticesSize:number, count:number, vi: VertexInfo) {
 		SpriteExpander.forVertexInfo(vi)(vertices, this.data.subarray(this.dataOffset), count / 2);
 		this.dataOffset += verticesSize * 2;
 	}
@@ -303,9 +301,9 @@ export class OptimizedBatch {
 	public indexCount: number;
 	
 	constructor(
-		state: _state.GpuState,
+		state: GpuState,
 		public drawBuffer: OptimizedDrawBuffer,
-		public primType:_state.PrimitiveType, vertexInfo:_state.VertexInfo,
+		public primType: PrimitiveType, vertexInfo: VertexInfo,
 		public dataLow: number, public dataHigh: number,
 		public indexLow: number, public indexHigh: number
 	) {

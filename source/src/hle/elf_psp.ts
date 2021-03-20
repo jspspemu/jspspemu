@@ -1,28 +1,21 @@
-﻿import * as _memory from '../core/memory';
-import * as _cpu from '../core/cpu';
-import * as _format_elf from '../format/elf';
-import * as _format_elf_dwarf from '../format/elf_dwarf';
-import * as _manager from './manager';
-
-import CpuState = _cpu.CpuState;
-import NativeFunction = _cpu.NativeFunction;
-import Memory = _memory.Memory;
-import SyscallManager = _cpu.SyscallManager;
-import MipsAssembler = _cpu.MipsAssembler;
-import Instruction = _cpu.Instruction;
-
-import ElfLoader = _format_elf.ElfLoader;
-import ElfSectionHeader = _format_elf.ElfSectionHeader;
-import ElfSectionHeaderFlags = _format_elf.ElfSectionHeaderFlags;
-import ElfSectionHeaderType = _format_elf.ElfSectionHeaderType;
-import ElfReloc = _format_elf.ElfReloc;
-import ElfRelocType = _format_elf.ElfRelocType;
-import ElfProgramHeaderType = _format_elf.ElfProgramHeaderType;
-import ElfDwarfLoader = _format_elf_dwarf.ElfDwarfLoader;
-import {logger, sprintf} from "../global/utils";
+﻿import {logger, sprintf} from "../global/utils";
 import {Stringz, StructArray, StructClass, UInt16, UInt32, UInt8} from "../global/struct";
 import {Stream} from "../global/stream";
 import {MathUtils} from "../global/math";
+import {Memory} from "../core/memory";
+import {Instruction} from "../core/cpu/cpu_instructions";
+import {
+    ElfLoader,
+    ElfProgramHeaderType, ElfReloc, ElfRelocType,
+    ElfSectionHeader,
+    ElfSectionHeaderFlags,
+    ElfSectionHeaderType
+} from "../format/elf";
+import {MipsAssembler} from "../core/cpu/cpu_assembler";
+import {ElfDwarfLoader} from "../format/elf_dwarf";
+import {MemoryManager, MemoryPartition} from "./manager/memory";
+import {ModuleManager} from "./manager/module";
+import {NativeFunction, SyscallManager} from "../core/cpu/cpu_core";
 
 var console = logger.named('elf.psp');
 
@@ -118,10 +111,10 @@ export class PspElfLoader {
     moduleInfo: ElfPspModuleInfo;
 	assembler = new MipsAssembler();
 	baseAddress: number = 0;
-	partition: _manager.MemoryPartition;
+	partition: MemoryPartition;
 	elfDwarfLoader: ElfDwarfLoader;
 
-	constructor(private memory: Memory, private memoryManager: _manager.MemoryManager, private moduleManager: _manager.ModuleManager, private syscallManager: SyscallManager) {
+	constructor(private memory: Memory, private memoryManager: MemoryManager, private moduleManager: ModuleManager, private syscallManager: SyscallManager) {
     }
 
 	load(stream: Stream) {

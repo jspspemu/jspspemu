@@ -1,23 +1,17 @@
-﻿import * as _utils from '../utils';
-import * as _manager from '../manager';
-import * as _vfs from '../vfs';
-import * as _structs from '../structs';
-import * as _context from '../../context';
-import * as _emulator_ui from '../../ui/emulator_ui';
-import nativeFunction = _utils.nativeFunction;
-import { SceKernelErrors } from '../SceKernelErrors';
+﻿import { SceKernelErrors } from '../SceKernelErrors';
 
-import PspLanguages = _structs.PspLanguages;
-
-import FileOpenFlags = _vfs.FileOpenFlags;
-import FileMode = _vfs.FileMode;
 import {PromiseFast} from "../../global/utils";
 import {Stream} from "../../global/stream";
 import {Int32, Stringz, StructArray, StructClass, UInt32, UInt8, Utf8Stringz} from "../../global/struct";
 import {MathUtils, parseIntFormat} from "../../global/math";
+import {EmulatorContext} from "../../context";
+import {nativeFunction} from "../utils";
+import {FileOpenFlags} from "../vfs/vfs";
+import {EmulatorUI} from "../../ui/emulator_ui";
+import {PspLanguages} from "../structs";
 
 export class sceUtility {
-	constructor(private context: _context.EmulatorContext) { }
+	constructor(private context: EmulatorContext) { }
 
 	private currentStep: DialogStepEnum = DialogStepEnum.NONE;
 
@@ -178,7 +172,7 @@ export class sceUtility {
 		//_emulator_ui.EmulatorUI.openMessageAsync().then();
 		let params = PspUtilityMsgDialogParams.struct.createProxy(paramsPtr);
 		console.warn('sceUtilityMsgDialogInitStart:', params.message);
-		return _emulator_ui.EmulatorUI.openMessageAsync(params.message).then(() => {
+		return EmulatorUI.openMessageAsync(params.message).then(() => {
 			params.buttonPressed = PspUtilityMsgDialogPressed.PSP_UTILITY_MSGDIALOG_RESULT_YES;
 			this.currentStep = DialogStepEnum.SUCCESS;
 			return 0;

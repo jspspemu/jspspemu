@@ -1,5 +1,3 @@
-//import * as advancedrelooper from './advancedrelooper';
-
 import {SimpleRelooper} from "./simplerelooper";
 
 interface IBlock {
@@ -36,7 +34,7 @@ export function processType(type:string, callback: (r:IRelooper) => void):string
 	
 }
 
-export function process(callback: (r:IRelooper) => void):string {
+export function relooperProcess(callback: (r:IRelooper) => void):string {
 	//var sr = new simplerelooper.SimpleRelooper();
 	return processSimple(callback);
 }

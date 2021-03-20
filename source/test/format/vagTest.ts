@@ -1,4 +1,5 @@
-﻿import {downloadFileAsync} from "../../src/global/async";
+﻿///<reference path="../global.d.ts" />
+import {downloadFileAsync} from "../../src/global/async";
 import {Stream} from "../../src/global/stream";
 import {VagSoundSource} from "../../src/format/vag";
 

@@ -1,15 +1,13 @@
-﻿import * as _utils from '../../utils';
-import * as _context from '../../../context';
-import nativeFunction = _utils.nativeFunction;
-import * as _manager from '../../manager';
-import Thread = _manager.Thread;
-import {AcceptCallbacks, PromiseFast, SortedSet, sprintf, UidCollection, WaitingThreadInfo} from "../../../global/utils";
+﻿import {AcceptCallbacks, PromiseFast, SortedSet, sprintf, UidCollection, WaitingThreadInfo} from "../../../global/utils";
 import {Stream} from "../../../global/stream";
 import {Int32, Stringz, StructClass} from "../../../global/struct";
 import {SceKernelErrors} from "../../SceKernelErrors";
+import {EmulatorContext} from "../../../context";
+import {nativeFunction} from "../../utils";
+import {Thread} from "../../manager/thread";
 
 export class ThreadManForUser {
-	constructor(private context: _context.EmulatorContext) { }
+	constructor(private context: EmulatorContext) { }
 
 	private semaporesUid = new UidCollection<Semaphore>(1);
 

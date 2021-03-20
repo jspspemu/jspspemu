@@ -1,9 +1,4 @@
-﻿import * as _utils from '../utils';
-import { SceKernelErrors } from '../SceKernelErrors';
-import * as _context from '../../context';
-import * as _riff from '../../format/riff'; _riff.Riff;
-import Riff = _riff.Riff;
-import nativeFunction = _utils.nativeFunction;
+﻿import { SceKernelErrors } from '../SceKernelErrors';
 import {Stream} from "../../global/stream";
 import {PromiseFast, UidCollection} from "../../global/utils";
 import {
@@ -17,9 +12,12 @@ import {
 	UIntReference
 } from "../../global/struct";
 import {MemoryCustomStream, MePacket, MeStream} from "../../global/me";
+import {EmulatorContext} from "../../context";
+import {nativeFunction} from "../utils";
+import {Riff} from "../../format/riff";
 
 export class sceAtrac3plus {
-	constructor(private context: _context.EmulatorContext) { }
+	constructor(private context: EmulatorContext) { }
 
 	private _atrac3Ids = new UidCollection<Atrac3>();
 

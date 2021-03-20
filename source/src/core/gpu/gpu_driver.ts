@@ -1,8 +1,8 @@
 ﻿import "../../global"
 
-import * as _state from './gpu_state';
-import * as _vertex from './gpu_vertex';
 import {PromiseFast} from "../../global/utils";
+import {GpuState} from "./gpu_state";
+import {OptimizedBatch, OptimizedDrawBuffer} from "./gpu_vertex";
 
 class Signal<T> {
 }
@@ -17,7 +17,7 @@ export class BaseDrawDriver {
 	
 	private frameBufferWidth = 480;
 	private frameBufferHeight = 272;
-	protected state = new _state.GpuState();
+	protected state = new GpuState();
 	
 	setFramebufferSize(width:number, height:number) {
 		this.frameBufferWidth = width;
@@ -58,21 +58,21 @@ export class BaseDrawDriver {
 	 * 
 	 * This will stall the rendering pipeline until the current image upload initiated by sceGuCopyImage() has completed.
 	 */
-	textureSync(state: _state.GpuState):void {
+	textureSync(state: GpuState):void {
 		
 	}
-	drawOptimized(batch:_vertex.OptimizedBatch):void {
+	drawOptimized(batch: OptimizedBatch):void {
 	}
 	
-	protected setOptimizedDrawBuffer(optimizedDrawBuffer:_vertex.OptimizedDrawBuffer) {
+	protected setOptimizedDrawBuffer(optimizedDrawBuffer: OptimizedDrawBuffer) {
 	}
 	
-	private batches:_vertex.OptimizedBatch[] = [];
-	queueBatch(batch:_vertex.OptimizedBatch) {
+	private batches: OptimizedBatch[] = [];
+	queueBatch(batch: OptimizedBatch) {
 		this.batches.push(batch);
 	}
 	
-	drawAllQueuedBatches(optimizedDrawBuffer:_vertex.OptimizedDrawBuffer, drawRatio:number = 1.0) {
+	drawAllQueuedBatches(optimizedDrawBuffer: OptimizedDrawBuffer, drawRatio:number = 1.0) {
 		this.setOptimizedDrawBuffer(optimizedDrawBuffer);
 		for (let batch of this.batches.slice(0, this.batches.length * drawRatio)) this.drawOptimized(batch);
 		optimizedDrawBuffer.reset();

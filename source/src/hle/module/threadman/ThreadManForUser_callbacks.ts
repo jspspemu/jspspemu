@@ -1,12 +1,10 @@
-﻿import * as _utils from '../../utils';
-import * as _context from '../../../context';
-import nativeFunction = _utils.nativeFunction;
-import * as _manager from '../../manager'; _manager.Thread;
-import Callback = _manager.Callback;
-import Thread = _manager.Thread;
+﻿import {EmulatorContext} from "../../../context";
+import {nativeFunction} from "../../utils";
+import {Callback} from "../../manager/callback";
+import {Thread} from "../../manager/thread";
 
 export class ThreadManForUser {
-	constructor(private context: _context.EmulatorContext) { }
+	constructor(private context: EmulatorContext) { }
 
 	@nativeFunction(0xE81CAF8F, 150, 'uint', 'string/int/uint')
 	sceKernelCreateCallback(name: string, functionCallbackAddr: number, argument: number) {

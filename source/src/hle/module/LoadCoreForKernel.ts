@@ -1,9 +1,8 @@
-﻿import * as _utils from '../utils';
-import * as _context from '../../context';
-import nativeFunction = _utils.nativeFunction;
+﻿import {EmulatorContext} from "../../context";
+import {nativeFunction} from "../utils";
 
 export class LoadCoreForKernel {
-	constructor(private context: _context.EmulatorContext) { }
+	constructor(private context: EmulatorContext) { }
 
 	@nativeFunction(0xD8779AC6, 150, 'void', '')
 	sceKernelIcacheClearAll() {

@@ -1,12 +1,10 @@
 ﻿import { nativeFunction } from '../utils';
-import * as _context from '../../context';
-import * as _audio from '../../core/audio';
-import * as _vag from '../../format/vag';
 import { SceKernelErrors } from '../SceKernelErrors';
-import Sample = _audio.Sample;
-import VagSoundSource = _vag.VagSoundSource;
 import {Stream} from "../../global/stream";
 import {MathUtils} from "../../global/math";
+import {EmulatorContext} from "../../context";
+import {Sample} from "../../core/audio";
+import {VagSoundSource} from "../../format/vag";
 
 var PSP_SAS_VOL_MAX = 0x1000;
 var PSP_SAS_PITCH_MIN = 0x1;
@@ -28,7 +26,7 @@ export class sceSasCore {
 
 	private core = new SasCore();
 
-	constructor(private context: _context.EmulatorContext) {
+	constructor(private context: EmulatorContext) {
 	}
 
 	@nativeFunction(0x42778A9F, 150, 'uint', 'int/int/int/int/int', { originalName: "__sceSasInit" })

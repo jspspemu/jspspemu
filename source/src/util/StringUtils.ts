@@ -1,4 +1,0 @@
-﻿class StringUtils {
-}
-
-export = StringUtils;

@@ -1,7 +1,4 @@
-﻿import * as _cpu from '../core/cpu';
-import * as _module from './manager/module';
-
-import * as ExceptionManagerForKernel from './module/ExceptionManagerForKernel'
+﻿import * as ExceptionManagerForKernel from './module/ExceptionManagerForKernel'
 import * as InterruptManager from './module/InterruptManager';
 import * as KDebugForKernel from './module/KDebugForKernel';
 import * as Kernel_Library from './module/Kernel_Library';
@@ -56,15 +53,17 @@ import * as ThreadManForUser_sema from './module/threadman/ThreadManForUser_sema
 import * as ThreadManForUser_eventflag from './module/threadman/ThreadManForUser_eventflag';
 import * as ThreadManForUser_vpl from './module/threadman/ThreadManForUser_vpl';
 import * as ThreadManForUser_mutex from './module/threadman/ThreadManForUser_mutex';
+import {SyscallManager} from "../core/cpu/cpu_core";
+import {ModuleManager} from "./manager/module";
 
-function _registerModules(manager: _module.ModuleManager) {
+function _registerModules(manager: ModuleManager) {
 }
 
-function _registerSyscall(syscallManager: _cpu.SyscallManager, moduleManager: _module.ModuleManager, id: number, moduleName: string, functionName: string) {
+function _registerSyscall(syscallManager: SyscallManager, moduleManager: ModuleManager, id: number, moduleName: string, functionName: string) {
 	syscallManager.registerWithId(id, moduleManager.getByName(moduleName).getByName(functionName));
 }
 
-function registerModules(manager: _module.ModuleManager) {
+function registerModules(manager: ModuleManager) {
 	manager.registerModule(ExceptionManagerForKernel);
 	manager.registerModule(InterruptManager);
 	manager.registerModule(KDebugForKernel);
@@ -121,7 +120,7 @@ function registerModules(manager: _module.ModuleManager) {
 	manager.registerModule(ThreadManForUser_mutex);
 }
 
-function registerSyscalls(syscallManager: _cpu.SyscallManager, moduleManager: _module.ModuleManager) {
+function registerSyscalls(syscallManager: SyscallManager, moduleManager: ModuleManager) {
 	_registerSyscall(syscallManager, moduleManager, 0x206D, "ThreadManForUser", "sceKernelCreateThread");
 	_registerSyscall(syscallManager, moduleManager, 0x206F, "ThreadManForUser", "sceKernelStartThread");
 	_registerSyscall(syscallManager, moduleManager, 0x2071, "ThreadManForUser", "sceKernelExitDeleteThread");
@@ -138,7 +137,7 @@ function registerSyscalls(syscallManager: _cpu.SyscallManager, moduleManager: _m
 	_registerSyscall(syscallManager, moduleManager, 0x2150, "sceCtrl", "sceCtrlPeekBufferPositive");
 }
 
-export function registerModulesAndSyscalls(syscallManager: _cpu.SyscallManager, moduleManager: _module.ModuleManager) {
+export function registerModulesAndSyscalls(syscallManager: SyscallManager, moduleManager: ModuleManager) {
 	registerModules(moduleManager);
 	registerSyscalls(syscallManager, moduleManager);
 }

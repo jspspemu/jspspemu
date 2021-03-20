@@ -1,3 +1,4 @@
+///<reference path="./global.d.ts" />
 import {getMemoryInstance} from "../src/core/memory";
 
 export function ext() { }

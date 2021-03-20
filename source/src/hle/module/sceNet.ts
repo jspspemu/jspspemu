@@ -1,13 +1,11 @@
-﻿import * as _utils from '../utils';
-import * as _context from '../../context';
-import nativeFunction = _utils.nativeFunction;
-import { SceKernelErrors } from '../SceKernelErrors';
-import {mac2string, string2mac} from "../../global/utils";
+﻿import {mac2string, string2mac} from "../../global/utils";
 import {Stream} from "../../global/stream";
 import {xrange} from "../../global/math";
+import {EmulatorContext} from "../../context";
+import {nativeFunction} from "../utils";
 
 export class sceNet {
-	constructor(private context: _context.EmulatorContext) { }
+	constructor(private context: EmulatorContext) { }
 
 	@nativeFunction(0x39AF39A6, 150, 'int', 'int/int/int/int/int')
 	sceNetInit(memoryPoolSize: number, calloutprio: number, calloutstack: number, netintrprio: number, netintrstack: number) {

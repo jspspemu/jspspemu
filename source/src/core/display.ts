@@ -1,15 +1,9 @@
 ﻿import "../global"
 
-import * as memory from './memory';
-import * as pixelformat from './pixelformat';
-import * as _interrupt from './interrupt';
-
-import InterruptManager = _interrupt.InterruptManager;
-import PspInterrupts = _interrupt.PspInterrupts;
-import Memory = memory.Memory;
-import PixelFormat = pixelformat.PixelFormat;
-import PixelConverter = pixelformat.PixelConverter;
 import {ArrayBufferUtils, PromiseFast, Signal1} from "../global/utils";
+import {PixelConverter, PixelFormat} from "./pixelformat";
+import {Memory} from "./memory";
+import {InterruptManager, PspInterrupts} from "./interrupt";
 
 export interface ThreadWaiter {
 	delayMicrosecondsAsync(delayMicroseconds: number, allowcompensating:boolean): PromiseFast<number>;
@@ -34,10 +28,10 @@ export interface IPspDisplay {
 }
 
 export class BasePspDisplay {
-	address = Memory.DEFAULT_FRAME_ADDRESS;
-	bufferWidth = 512;
-	pixelFormat = PixelFormat.RGBA_8888;
-	sync = 1;
+	address = Memory.DEFAULT_FRAME_ADDRESS
+	bufferWidth = 512
+	pixelFormat = PixelFormat.RGBA_8888
+	sync = 1
 }
 
 export class DummyPspDisplay extends BasePspDisplay implements IPspDisplay {

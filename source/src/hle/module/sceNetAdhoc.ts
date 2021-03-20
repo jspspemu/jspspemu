@@ -1,18 +1,14 @@
-﻿import * as _utils from '../utils';
-import * as _context from '../../context';
-import * as _manager from '../manager';
-import { SceKernelErrors } from '../SceKernelErrors';
-import nativeFunction = _utils.nativeFunction;
-import EmulatorContext = _context.EmulatorContext;
-import MemoryPartition = _manager.MemoryPartition;
-import Thread = _manager.Thread;
-import {Cancelable, PromiseFast, Signal0, UidCollection} from "../../global/utils";
+﻿import {Cancelable, PromiseFast, Signal0, UidCollection} from "../../global/utils";
 import {Stream} from "../../global/stream";
 import {Int16, Int32, Int8, StructArray, StructClass, UInt32} from "../../global/struct";
 import {xrange} from "../../global/math";
+import {EmulatorContext} from "../../context";
+import {MemoryPartition} from "../manager/memory";
+import {nativeFunction} from "../utils";
+import {NetPacket} from "../manager/net";
 
 export class sceNetAdhoc {
-	constructor(private context: _context.EmulatorContext) {
+	constructor(private context: EmulatorContext) {
 	}
 
 	private partition: MemoryPartition;
@@ -76,7 +72,7 @@ export class sceNetAdhoc {
 
 		var pdp = this.pdps.get(pdpId);
 
-		var recvOne = (chunk: _manager.NetPacket) => {
+		var recvOne = (chunk: NetPacket) => {
 			srcMac.set(chunk.mac);
 			data.writeBytes(chunk.payload);
 			portPtr.writeInt16(pdp.port);
@@ -220,7 +216,7 @@ class PdpRecv {
 export class Pdp {
 	id: number;
 	onMessageCancel: Cancelable;
-	chunks = <_manager.NetPacket[]>[];
+	chunks = <NetPacket[]>[];
 	onChunkRecv = new Signal0();
 
 	constructor(private context: EmulatorContext, public mac: Uint8Array, public port: number, public bufsize: number) {
@@ -231,7 +227,7 @@ export class Pdp {
 	}
 
 	recvOneAsync() {
-		return new PromiseFast<_manager.NetPacket>((resolve, reject) => {
+		return new PromiseFast<NetPacket>((resolve, reject) => {
 			this.onChunkRecv.once(() => {
 				resolve(this.chunks.shift());
 			});

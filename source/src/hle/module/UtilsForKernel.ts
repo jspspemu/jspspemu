@@ -1,10 +1,8 @@
-﻿import * as _utils from '../utils';
-import * as _context from '../../context';
-import nativeFunction = _utils.nativeFunction;
-import { SceKernelErrors } from '../SceKernelErrors';
+﻿import {EmulatorContext} from "../../context";
+import {nativeFunction} from "../utils";
 
 export class UtilsForKernel {
-	constructor(private context: _context.EmulatorContext) { }
+	constructor(private context: EmulatorContext) { }
 
 	@nativeFunction(0xC2DF770E, 150, 'void', 'uint/uint')
 	sceKernelIcacheInvalidateRange(address: number, size: number) {

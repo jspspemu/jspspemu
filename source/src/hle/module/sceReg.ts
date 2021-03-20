@@ -1,11 +1,10 @@
-﻿import * as _utils from '../utils';
-import * as _context from '../../context';
-import nativeFunction = _utils.nativeFunction;
-import {Stream} from "../../global/stream";
+﻿import {Stream} from "../../global/stream";
 import {Int32, Stringz, StructClass, UInt32} from "../../global/struct";
+import {EmulatorContext} from "../../context";
+import {nativeFunction} from "../utils";
 
 export class sceReg {
-	constructor(private context: _context.EmulatorContext) { }
+	constructor(private context: EmulatorContext) { }
 
 	@nativeFunction(0x92E41280, 150, 'int', 'void*/int/void*')
 	sceRegOpenRegistry(regParamPtr: Stream, mode: number, regHandlePtr: Stream) {

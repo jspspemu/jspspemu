@@ -1,13 +1,9 @@
 ﻿import "../../../global"
 import "./webgl_enums"
-
-import * as _state from '../gpu_state';
-import * as _utils from './webgl_utils';
-import * as _pixelformat from '../../pixelformat';
-import PixelFormatUtils = _pixelformat.PixelFormatUtils;
-
-import WrappedWebGLProgram = _utils.WrappedWebGLProgram;
 import {NumberDictionary} from "../../../global/utils";
+import {WrappedWebGLProgram} from "./webgl_utils";
+import {GpuState, VertexInfo} from "../gpu_state";
+import {PixelFormatUtils} from "../../pixelformat";
 
 export class ShaderCache {
 	private programs: NumberDictionary<WrappedWebGLProgram> = {};
@@ -20,7 +16,7 @@ export class ShaderCache {
 		this.gl = gl;
 	}
 
-	getProgram(vertex: _state.VertexInfo, state: _state.GpuState, optimized:boolean) {
+	getProgram(vertex: VertexInfo, state: GpuState, optimized:boolean) {
 		var hash = vertex.hash;
 		hash += Math.pow(2, 32) * (state.alphaTest.enabled ? 1 : 0);
 		hash += Math.pow(2, 33) * (state.clearing ? 1 : 0);
@@ -29,7 +25,7 @@ export class ShaderCache {
 		return this.programs[hash] = this.createProgram(vertex, state, optimized);
 	}
 
-	createProgram(vertex: _state.VertexInfo, state: _state.GpuState, optimized:boolean) {
+	createProgram(vertex: VertexInfo, state: GpuState, optimized:boolean) {
 		var defines:string[] = [];
 		if (optimized) defines.push('OPTIMIZED 1');
 		if (vertex.transform2D) defines.push('TRANSFORM_2D 1');

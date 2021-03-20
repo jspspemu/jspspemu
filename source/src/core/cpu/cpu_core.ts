@@ -1,15 +1,13 @@
 ﻿import "../../global"
 
-import * as _memory from '../memory';
-import * as _ast from './cpu_ast';
-import * as _instructions from './cpu_instructions';
-import * as _codegen from './cpu_codegen';
-import * as IndentStringGenerator from '../../util/IndentStringGenerator';
 import {addressToHex, logger, NumberDictionary, sprintf, StringDictionary, throwEndCycles} from "../../global/utils";
 import {BitUtils, MathFloat, MathUtils} from "../../global/math";
 import {compareNumbers} from "../../global/array";
 import {Integer64} from "../../global/int64";
-import Memory = _memory.Memory;
+import {Memory} from "../memory";
+import {ANodeStm, ANodeStmLabel, MipsAstBuilder} from "./cpu_ast";
+import {DecodedInstruction, Instruction, Instructions} from "./cpu_instructions";
+import {BranchFlagStm, InstructionAst} from "./cpu_codegen";
 
 //const DEBUG_FUNCGEN = true;
 const DEBUG_FUNCGEN = false;
@@ -890,16 +888,16 @@ export class CpuState {
 	}
 }
 
-var ast = new _ast.MipsAstBuilder();
+var ast = new MipsAstBuilder();
 
 export interface InstructionUsage {
 	name: string;
 	count: number;
 }
 
-class PspInstructionStm extends _ast.ANodeStm {
+class PspInstructionStm extends ANodeStm {
 	public PC: number;
-	constructor(public di: _instructions.DecodedInstruction, public code: _ast.ANodeStm) {
+	constructor(public di: DecodedInstruction, public code: ANodeStm) {
 		super();
 		this.PC = di.PC;
 	}
@@ -1011,8 +1009,8 @@ class FunctionCode {
 }
 
 export class FunctionGenerator {
-	private instructions: _instructions.Instructions = _instructions.Instructions.instance;
-	private instructionAst = new _codegen.InstructionAst();
+	private instructions: Instructions = Instructions.instance;
+	private instructionAst = new InstructionAst();
 	//private instructionGenerartorsByName = <StringDictionary<Function>>{ };
 	private instructionUsageCount: StringDictionary<number> = {};
 
@@ -1035,20 +1033,20 @@ export class FunctionGenerator {
 	}
 
 	private decodeInstruction(address: number) {
-		var instruction = _instructions.Instruction.fromMemoryAndPC(this.memory, address);
+		var instruction = Instruction.fromMemoryAndPC(this.memory, address);
 		var instructionType = this.getInstructionType(instruction);
-		return new _instructions.DecodedInstruction(instruction, instructionType);
+		return new DecodedInstruction(instruction, instructionType);
 	}
 
-	private getInstructionType(i: _instructions.Instruction) {
+	private getInstructionType(i: Instruction) {
 		return this.instructions.findByData(i.data, i.PC);
 	}
 
-	private generatePspInstruction(di: _instructions.DecodedInstruction): PspInstructionStm {
+	private generatePspInstruction(di: DecodedInstruction): PspInstructionStm {
 		return new PspInstructionStm(di, this.generateInstructionAstNode(di));
 	}
 
-	private generateInstructionAstNode(di: _instructions.DecodedInstruction): _ast.ANodeStm {
+	private generateInstructionAstNode(di: DecodedInstruction): ANodeStm {
 		var instruction = di.instruction;
 		var instructionType = di.type;
 		var func: Function = (<any>this.instructionAst)[instructionType.name];
@@ -1155,7 +1153,7 @@ export class FunctionGenerator {
 			[]
 		);
 		
-		var labels: NumberDictionary<_ast.ANodeStmLabel> = {};
+		var labels: NumberDictionary<ANodeStmLabel> = {};
 		for (let labelPC in info.labels) labels[labelPC] = ast.label(<number><any>labelPC);
 
 		/*
@@ -1297,7 +1295,7 @@ export class FunctionGenerator {
 					}
 				} else { // branch
 					if (type.isFixedAddressJump && labels[targetAddress]) {
-						let bf:_codegen.BranchFlagStm = <any>((<PspInstructionStm>ins).code);
+						let bf:BranchFlagStm = <any>((<PspInstructionStm>ins).code);
 						//console.log(ins);
 						//console.log(bf.cond);
 						

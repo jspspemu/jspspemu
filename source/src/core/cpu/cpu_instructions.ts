@@ -1,10 +1,9 @@
 ﻿import "../../global"
-import * as memory from '../memory';
 
-import Memory = memory.Memory;
 import {addressToHex, HalfFloat, NumberDictionary, sprintf, StringDictionary} from "../../global/utils";
 import {BitUtils} from "../../global/math";
 import {IndentStringGenerator} from "../../util/IndentStringGenerator";
+import {Memory} from "../memory";
 
 export interface ValueMask {
 	value: number;

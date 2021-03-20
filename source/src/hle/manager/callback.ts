@@ -1,13 +1,8 @@
 ﻿import "../../global"
 
-import * as _thread from './thread';
-import * as _interop from './interop';
-import * as _cpu from '../../core/cpu';
-
-import CpuState = _cpu.CpuState;
-import Thread = _thread.Thread;
-import Interop = _interop.Interop;
 import {Signal1, UidCollection} from "../../global/utils";
+import {Interop} from "./interop";
+import {Thread} from "./thread";
 
 export class CallbackManager {
 	private uids = new UidCollection<Callback>(1);

@@ -1,4 +1,6 @@
-﻿import {MemoryAsyncStream, Stream} from "../src/global/stream";
+﻿///<reference path="./global.d.ts" />
+
+import {MemoryAsyncStream, Stream} from "../src/global/stream";
 
 export function ref() { } // Workaround to allow typescript to include this module
 
@@ -7,9 +9,9 @@ import {logger, sprintf} from "../src/global/utils";
 import {ArrayUtils} from "../src/global/math";
 import {difflib} from "../src/util/difflib";
 import {Emulator} from "../src/emulator";
-import {MemoryVfs} from "../src/hle/vfs";
+import {MemoryVfs} from "../src/hle/vfs/vfs_memory";
 
-var _console = global.console;
+var _console = console;
 var console = logger.named('');
 
 describe('pspautotests', function () {

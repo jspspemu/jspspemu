@@ -1,15 +1,12 @@
-﻿import * as _utils from '../utils';
-import * as _context from '../../context';
-import * as _manager from '../manager'; _manager.Thread;
-import nativeFunction = _utils.nativeFunction;
-import EmulatorContext = _context.EmulatorContext;
-import Thread = _manager.Thread;
-import {Cancelable, mac2string, UidCollection} from "../../global/utils";
+﻿import {Cancelable, mac2string, UidCollection} from "../../global/utils";
 import {Stream} from "../../global/stream";
 import {MathUtils} from "../../global/math";
+import {EmulatorContext} from "../../context";
+import {nativeFunction} from "../utils";
+import {Thread} from "../manager/thread";
 
 export class sceNetAdhocMatching {
-	constructor(private context: _context.EmulatorContext) {
+	constructor(private context: EmulatorContext) {
 	}
 
 	private poolStat = { size: 0, maxsize: 0, freesize: 0 };

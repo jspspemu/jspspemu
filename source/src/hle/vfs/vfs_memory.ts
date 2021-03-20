@@ -1,11 +1,5 @@
-﻿import * as _vfs from './vfs';
-
-import Vfs = _vfs.Vfs;
-import VfsEntry = _vfs.VfsEntry;
-import VfsStat = _vfs.VfsStat;
-import FileMode = _vfs.FileMode;
-import FileOpenFlags = _vfs.FileOpenFlags;
-import {PromiseFast, StringDictionary} from "../../global/utils";
+﻿import {PromiseFast, StringDictionary} from "../../global/utils";
+import {FileMode, FileOpenFlags, Vfs, VfsEntry, VfsStat} from "./vfs";
 
 export class MemoryVfs extends Vfs {
 	private files: StringDictionary<MemoryVfsEntry> = {};

@@ -1,9 +1,8 @@
 ﻿import "../global"
-import * as _memory from '../core/memory';
-import Memory = _memory.Memory;
 import {logger, StringDictionary} from "../global/utils";
 import {Int16, Int32, Int8, Stringn, StructArray, StructClass, UInt16, UInt32} from "../global/struct";
 import {Stream} from "../global/stream";
+import {Memory} from "../core/memory";
 
 var console = logger.named('elf');
 

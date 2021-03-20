@@ -1,12 +1,8 @@
 import "../../global"
 
-import * as memory from '../memory';
-import * as instructions from './cpu_instructions';
-
-import Memory = memory.Memory;
-import Instructions = instructions.Instructions;
-import Instruction = instructions.Instruction;
 import {StringDictionary} from "../../global/utils";
+import {Instruction, Instructions} from "./cpu_instructions";
+import {Memory} from "../memory";
 
 class Labels {
 	public labels: StringDictionary<number> = {};

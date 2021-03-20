@@ -308,12 +308,12 @@ else
 W = 0;
 for (X = U.length; W < X; ++W) V = U[W], p("Zlib.RawInflate.BufferType." + V, T[V]);
 
-export function inflate_raw(data: Uint8Array): Uint8Array {
+export function zlib_inflate_raw(data: Uint8Array): Uint8Array {
     var clazz = exported.Zlib.RawInflate;
     var inflate = new clazz(data);
     return inflate.decompress();
 }
 
-export function inflate_raw_arraybuffer(data: ArrayBuffer): ArrayBuffer {
-    return inflate_raw(new Uint8Array(data)).buffer;
+export function zlib_inflate_raw_arraybuffer(data: ArrayBuffer): ArrayBuffer {
+    return zlib_inflate_raw(new Uint8Array(data)).buffer;
 }

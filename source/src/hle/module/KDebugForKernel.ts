@@ -1,9 +1,8 @@
-﻿import * as _utils from '../utils';
-import * as _context from '../../context';
-import nativeFunction = _utils.nativeFunction;
+﻿import {nativeFunction} from "../utils";
+import {EmulatorContext} from "../../context";
 
 export class KDebugForKernel {
-	constructor(private context: _context.EmulatorContext) { }
+	constructor(private context: EmulatorContext) { }
 
 	@nativeFunction(0x84F370BC, 150, 'void', 'string')
 	Kprintf(format: string) {

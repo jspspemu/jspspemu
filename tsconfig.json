@@ -15,5 +15,6 @@
   "files": [
     "source/src/global.ts",
     "source/src/app.ts",
- ]
+    "source/test/_tests.ts"
+  ]
 }

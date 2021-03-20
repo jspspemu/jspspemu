@@ -1,17 +1,16 @@
-﻿import * as _utils from '../utils';
-import { SceKernelErrors } from '../SceKernelErrors';
-import * as _context from '../../context';
-import * as _audio from '../../core/audio';
-import nativeFunction = _utils.nativeFunction;
+﻿import { SceKernelErrors } from '../SceKernelErrors';
 import {Stream} from "../../global/stream";
 import {waitAsync} from "../../global/async";
 import {AcceptCallbacks, PromiseFast, WaitingThreadInfo} from "../../global/utils";
 import {MathUtils} from "../../global/math";
+import {EmulatorContext} from "../../context";
+import {nativeFunction} from "../utils";
+import {PspAudioChannel} from "../../core/audio";
 
 export class sceAudio {
 	private channels: Channel[] = [];
 
-	constructor(private context: _context.EmulatorContext) {
+	constructor(private context: EmulatorContext) {
 		for (var n = 0; n < 8; n++) this.channels.push(new Channel(n));
 	}
 
@@ -145,7 +144,7 @@ class Channel {
 	allocated: boolean = false;
 	sampleCount: number = 44100;
 	format: AudioFormat = AudioFormat.Stereo;
-	channel: _audio.PspAudioChannel;
+	channel: PspAudioChannel;
 
 	get totalSampleCount() {
 		return this.sampleCount * this.numberOfChannels;

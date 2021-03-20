@@ -4,33 +4,12 @@ import { GpuStats } from './core/gpu/gpu_stats';
 import {DomHelp, logger, loggerPolicies, Microtask, PromiseFast, Signal1, Signal2} from "./global/utils";
 import {EmulatorContext} from "./context";
 import {getMemoryInstance, Memory} from "./core/memory";
-import {
-    CallbackManager,
-    FileManager,
-    Interop,
-    MemoryManager,
-    ModuleManager,
-    NetManager,
-    ThreadManager, Uri
-} from "./hle/manager";
 import {PspRtc} from "./core/rtc";
 import {InterruptManager} from "./core/interrupt";
 import {PspAudio} from "./core/audio";
 import {PspDisplay} from "./core/display";
-import {PspGpu} from "./core/gpu";
 import {Battery} from "./core/battery";
 import {PspController} from "./core/controller";
-import {SyscallManager} from "./core/cpu";
-import {
-    EmulatorVfs,
-    FileOpenFlags, IsoVfs,
-    MemoryStickVfs,
-    MemoryVfs,
-    MountableVfs, ProxyVfs,
-    StorageVfs,
-    UriVfs,
-    ZipVfs
-} from "./hle/vfs";
 import {Config} from "./hle/config";
 import {registerModulesAndSyscalls} from "./hle/pspmodules";
 import {Psf} from "./format/psf";
@@ -43,6 +22,24 @@ import {Zip} from "./format/zip";
 import {Iso} from "./format/iso";
 import {PspElfLoader} from "./hle/elf_psp";
 import {OptimizedBatch, OptimizedDrawBuffer} from "./core/gpu/gpu_vertex";
+import {MemoryManager} from "./hle/manager/memory";
+import {FileManager, Uri} from "./hle/manager/file";
+import {PspGpu} from "./core/gpu/gpu_core";
+import {SyscallManager} from "./core/cpu/cpu_core";
+import {ThreadManager} from "./hle/manager/thread";
+import {NetManager} from "./hle/manager/net";
+import {ModuleManager} from "./hle/manager/module";
+import {MountableVfs} from "./hle/vfs/vfs_mountable";
+import {CallbackManager} from "./hle/manager/callback";
+import {Interop} from "./hle/manager/interop";
+import {StorageVfs} from "./hle/vfs/vfs_storage";
+import {EmulatorVfs} from "./hle/vfs/vfs_emulator";
+import {MemoryStickVfs} from "./hle/vfs/vfs_ms";
+import {MemoryVfs} from "./hle/vfs/vfs_memory";
+import {UriVfs} from "./hle/vfs/vfs_uri";
+import {ZipVfs} from "./hle/vfs/vfs_zip";
+import {FileOpenFlags, ProxyVfs} from "./hle/vfs/vfs";
+import {IsoVfs} from "./hle/vfs/vfs_iso";
 
 var console = logger.named('emulator');
 
@@ -209,7 +206,7 @@ export class Emulator {
 						this.fileManager.mount('disc0', isoFs);
 						this.fileManager.mount('disc1', isoFs);
 
-						return isoFs.existsAsync('PSP_GAME/PARAM.SFO').then((exists) => {
+						return isoFs.existsAsync('PSP_GAME/PARAM.SFO').then((exists: boolean) => {
 							if (!exists) {
 								var mountableVfs = this.ms0Vfs;
 								mountableVfs.mountVfs('/PSP/GAME/virtual', new ProxyVfs([isoFs, this.storageVfs]));

@@ -1,17 +1,11 @@
-﻿import * as _sceNetAdhocMatching from './sceNetAdhocMatching';
-import * as _utils from '../utils';
-import * as _context from '../../context';
-import * as _manager from '../manager';
-import { SceKernelErrors } from '../SceKernelErrors';
-import nativeFunction = _utils.nativeFunction;
-import EmulatorContext = _context.EmulatorContext;
-import MemoryPartition = _manager.MemoryPartition;
-import Thread = _manager.Thread;
+﻿import { SceKernelErrors } from '../SceKernelErrors';
 import {Stream} from "../../global/stream";
 import {Cancelable, UidCollection} from "../../global/utils";
+import {EmulatorContext} from "../../context";
+import {nativeFunction} from "../utils";
 
 export class sceNetAdhocctl {
-	constructor(private context: _context.EmulatorContext) { }
+	constructor(private context: EmulatorContext) { }
 
 	private currentState = State.Disconnected;
 	private currentName = "noname";

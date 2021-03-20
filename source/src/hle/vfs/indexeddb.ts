@@ -138,7 +138,7 @@ class MyStorageFake implements MyStorage {
 	}
 }
 
-export function openAsync(name: string, version: number, stores: string[]): PromiseFast<MyStorage> {
+export function indexedDbOpenAsync(name: string, version: number, stores: string[]): PromiseFast<MyStorage> {
 	if (typeof indexedDB == "undefined") {
 		return PromiseFast.resolve(new MyStorageFake(name));
 	} else {

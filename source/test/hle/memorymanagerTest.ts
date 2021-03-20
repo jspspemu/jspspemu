@@ -1,5 +1,6 @@
 ﻿///<reference path="../global.d.ts" />
-import {MemoryAnchor, MemoryPartition} from "../../src/hle/manager";
+
+import {MemoryAnchor, MemoryPartition} from "../../src/hle/manager/memory";
 
 export function ref() { } // Workaround to allow typescript to include this module
 

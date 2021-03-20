@@ -1,16 +1,9 @@
-﻿import * as _vfs from './vfs';
-
-import * as format_iso from '../../format/iso';
-
-import Vfs = _vfs.Vfs;
-import VfsEntry = _vfs.VfsEntry;
-import VfsStat = _vfs.VfsStat;
-import FileMode = _vfs.FileMode;
-import FileOpenFlags = _vfs.FileOpenFlags;
-import {PromiseFast} from "../../global/utils";
+﻿import {PromiseFast} from "../../global/utils";
+import {FileMode, FileOpenFlags, Vfs, VfsEntry, VfsStat} from "./vfs";
+import {IIsoNode, Iso} from "../../format/iso";
 
 export class IsoVfs extends Vfs {
-	constructor(private iso: format_iso.Iso) {
+	constructor(private iso: Iso) {
 		super();
 	}
 
@@ -24,7 +17,7 @@ export class IsoVfs extends Vfs {
 }
 
 class IsoVfsFile extends VfsEntry {
-	constructor(private node: format_iso.IIsoNode) {
+	constructor(private node: IIsoNode) {
 		super();
 	}
 
@@ -33,7 +26,7 @@ class IsoVfsFile extends VfsEntry {
 	readChunkAsync(offset: number, length: number): PromiseFast<ArrayBuffer> { return this.node.readChunkAsync(offset, length); }
 	close() { }
 
-	private static statNode(node: format_iso.IIsoNode): VfsStat {
+	private static statNode(node: IIsoNode): VfsStat {
 		return {
 			name: node.name,
 			size: node.size,

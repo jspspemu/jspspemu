@@ -3,20 +3,18 @@ import {Config} from "./hle/config";
 import {IPspController} from "./core/controller";
 import {Battery} from "./core/battery";
 import {PspRtc} from "./core/rtc";
-import {PspGpu} from "./core/gpu";
-import {
-    CallbackManager,
-    FileManager,
-    Interop,
-    MemoryManager,
-    ModuleManager,
-    NetManager,
-    ThreadManager
-} from "./hle/manager";
 import {PspAudio} from "./core/audio";
 import {Memory} from "./core/memory";
 import {InterruptManager} from "./core/interrupt";
 import {Signal1} from "./global/utils";
+import {PspGpu} from "./core/gpu/gpu_core";
+import {NetManager} from "./hle/manager/net";
+import {MemoryManager} from "./hle/manager/memory";
+import {ThreadManager} from "./hle/manager/thread";
+import {CallbackManager} from "./hle/manager/callback";
+import {ModuleManager} from "./hle/manager/module";
+import {FileManager} from "./hle/manager/file";
+import {Interop} from "./hle/manager/interop";
 
 export interface ISymbol {
 	address: number;

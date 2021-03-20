@@ -1,13 +1,11 @@
-﻿import * as _utils from '../utils';
-import * as _manager from '../manager';
-import * as _context from '../../context';
-import nativeFunction = _utils.nativeFunction;
-import Thread = _manager.Thread;
-import {sprintf} from "../../global/utils";
+﻿import {sprintf} from "../../global/utils";
 import {Stream} from "../../global/stream";
+import {EmulatorContext} from "../../context";
+import {nativeFunction} from "../utils";
+import {Thread} from "../manager/thread";
 
 export class ModuleMgrForUser {
-	constructor(private context: _context.EmulatorContext) { }
+	constructor(private context: EmulatorContext) { }
 
 	@nativeFunction(0xD1FF982A, 150, 'uint', '')
 	sceKernelStopModule() {

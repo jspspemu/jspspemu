@@ -1,6 +1,8 @@
-﻿import {downloadFileAsync} from "../../src/global/async";
+﻿///<reference path="../global.d.ts" />
+import {downloadFileAsync} from "../../src/global/async";
 import {MemoryAsyncStream, Stream} from "../../src/global/stream";
 import {Zip} from "../../src/format/zip";
+import {ZipVfs} from "../../src/hle/vfs/vfs_zip";
 
 export function ref() { } // Workaround to allow typescript to include this module
 
@@ -29,8 +31,8 @@ describe('zip', () => {
 	});
 
 	it('zip vfs should work', () => {
-		return _zip.Zip.fromStreamAsync(MemoryAsyncStream.fromArrayBuffer(arrayBuffer)).then((zip) => {
-			var vfs = new _vfs.ZipVfs(zip);
+		return Zip.fromStreamAsync(MemoryAsyncStream.fromArrayBuffer(arrayBuffer)).then((zip) => {
+			var vfs = new ZipVfs(zip);
 			return vfs.getStatAsync('/Data/Sounds/bullet.wav').then((info) => {
 				assert.equal(false, info.isDirectory);
 				assert.equal(63548, info.size);

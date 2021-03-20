@@ -1,16 +1,13 @@
 ﻿import "../global"
 
-import * as _cpu from './cpu';
 import {NumberDictionary, Signal0} from "../global/utils";
-
-type CpuState = _cpu.CpuState;
-//import CpuState from './cpu';
+import {CpuState} from "./cpu/cpu_core";
 
 export class InterruptHandler {
 	enabled = false;
 	address = 0;
 	argument = 0;
-	cpuState:CpuState = null;
+	cpuState: CpuState = null;
 
 	constructor(public no:number) {
 	}

@@ -1,12 +1,14 @@
-﻿import {downloadFileAsync} from "../../src/global/async";
-import { SyscallManager } from '../../src/core/cpu';
+﻿///<reference path="../global.d.ts" />
+import {downloadFileAsync} from "../../src/global/async";
 import { DummyPspDisplay } from '../../src/core/display';
-import { MemoryManager, ModuleManager } from '../../src/hle/manager';
 import { PspElfLoader } from '../../src/hle/elf_psp';
 import { EmulatorContext } from '../../src/context';
 import {Stream} from "../../src/global/stream";
 import {getMemoryInstance} from "../../src/core/memory";
 import {registerModulesAndSyscalls} from "../../src/hle/pspmodules";
+import {MemoryManager} from "../../src/hle/manager/memory";
+import {SyscallManager} from "../../src/core/cpu/cpu_core";
+import {ModuleManager} from "../../src/hle/manager/module";
 
 export function ref() { } // Workaround to allow typescript to include this module
 

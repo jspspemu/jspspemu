@@ -1,8 +1,8 @@
-﻿import * as kirk from '../core/kirk';
-import * as keys144 from './elf_crypted_prx_keys_144';
-import * as keys16 from './elf_crypted_prx_keys_16';
-import {Stringz, StructArray, StructClass, UInt16, UInt32, UInt8} from "../global/struct";
+﻿import {Stringz, StructArray, StructClass, UInt16, UInt32, UInt8} from "../global/struct";
 import {Stream} from "../global/stream";
+import {CommandEnum, hleUtilsBufferCopyWithRange, KIRK_AES128CBC_HEADER, KirkMode} from "../core/kirk/kirk";
+import {g_tagInfo} from "./elf_crypted_prx_keys_144";
+import {g_tagInfo2} from "./elf_crypted_prx_keys_16";
 
 class Header {
 	magic: number;
@@ -77,11 +77,11 @@ class Header {
 }
 
 function getTagInfo(checkTag: number) {
-	return keys144.g_tagInfo.first((item) => item.tag == checkTag);
+	return g_tagInfo.first((item) => item.tag == checkTag);
 }
 
 function getTagInfo2(checkTag: number) {
-	return keys16.g_tagInfo2.first((item) => item.tag == checkTag);
+	return g_tagInfo2.first((item) => item.tag == checkTag);
 }
 
 function copyFromTo(from: Uint8Array, fromOffset: number, to: Uint8Array, toOffset: number, count: number) {
@@ -111,14 +111,14 @@ function decrypt1(pbIn: Stream) {
 
 	// step3 demangle in place
 	//kirk.KIRK_AES128CBC_HEADER.struct.write();
-	var h7_header = new (kirk.KIRK_AES128CBC_HEADER)();
-	h7_header.mode = kirk.KirkMode.DecryptCbc;
+	var h7_header = new (KIRK_AES128CBC_HEADER)();
+	h7_header.mode = KirkMode.DecryptCbc;
 	h7_header.unk_4 = 0;
 	h7_header.unk_8 = 0;
 	h7_header.keyseed = pti.code; // initial seed for PRX
 	h7_header.data_size = 0x70; // size
 
-	kirk.KIRK_AES128CBC_HEADER.struct.write(pbOut.sliceFrom(0x2C), h7_header);
+	KIRK_AES128CBC_HEADER.struct.write(pbOut.sliceFrom(0x2C), h7_header);
 
 	// redo part of the SIG check (step2)
 	var buffer1 = Stream.fromSize(0x150);
@@ -142,11 +142,11 @@ function decrypt1(pbIn: Stream) {
 			.writeStream(buffer1.sliceWithLength(0x10, 0xA0))
 		;
 
-		kirk.hleUtilsBufferCopyWithRange(
+		hleUtilsBufferCopyWithRange(
 			buffer2.sliceWithLength(0, 20 + 0xA0),
 			buffer2.sliceWithLength(0, 20 + 0xA0),
-			kirk.CommandEnum.DECRYPT_IV_0
-			);
+			CommandEnum.DECRYPT_IV_0
+        );
 
 		// copy result back
 		buffer1.slice().writeStream(buffer2.sliceWithLength(0, 0xA0));
@@ -156,11 +156,11 @@ function decrypt1(pbIn: Stream) {
 
 	for (var iXOR = 0; iXOR < 0x70; iXOR++) pbOut.set(0x40 + iXOR, ((pbOut.get(0x40 + iXOR) ^ pti.key[0x14 + iXOR]) & 0xFF));
 
-	kirk.hleUtilsBufferCopyWithRange(
+	hleUtilsBufferCopyWithRange(
 		pbOut.sliceWithLength(0x2C, 20 + 0x70),
 		pbOut.sliceWithLength(0x2C, 20 + 0x70),
-		kirk.CommandEnum.DECRYPT_IV_0
-		);
+		CommandEnum.DECRYPT_IV_0
+    );
 
 	for (var iXOR = 0x6F; iXOR >= 0; iXOR--) pbOut.set(0x40 + iXOR, ((pbOut.get(0x2C + iXOR) ^ pti.key[0x20 + iXOR]) & 0xFF));
 
@@ -173,10 +173,10 @@ function decrypt1(pbIn: Stream) {
 
 	// step4: do the actual decryption of code block
 	//  point 0x40 bytes into the buffer to key info
-	kirk.hleUtilsBufferCopyWithRange(
+	hleUtilsBufferCopyWithRange(
 		pbOut.sliceWithLength(0x00, cbTotal),
 		pbOut.sliceWithLength(0x40, cbTotal - 0x40),
-		kirk.CommandEnum.DECRYPT_PRIVATE
+		CommandEnum.DECRYPT_PRIVATE
 	);
 
 	//File.WriteAllBytes("../../../TestInput/temp.bin", _pbOut);

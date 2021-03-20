@@ -1,5 +1,5 @@
-﻿import * as _context from '../../context';
+﻿import {EmulatorContext} from "../../context";
 
 export class sceHttp {
-	constructor(private context: _context.EmulatorContext) { }
+	constructor(private context: EmulatorContext) { }
 }

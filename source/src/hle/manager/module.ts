@@ -1,8 +1,5 @@
-﻿import * as _cpu from '../../core/cpu';
-
-import NativeFunction = _cpu.NativeFunction;
-import SyscallManager = _cpu.SyscallManager;
-import {NumberDictionary, StringDictionary} from "../../global/utils";
+﻿import {NumberDictionary, StringDictionary} from "../../global/utils";
+import {NativeFunction} from "../../core/cpu/cpu_core";
 
 export class ModuleWrapper {
     private names: StringDictionary<NativeFunction> = {};
@@ -52,6 +49,9 @@ export class ModuleManager {
 	constructor(public context:any) {
 	}
 
+	registerClass(clazz: any) {
+        this.add(clazz.name, clazz);
+    }
 	
 	registerModule(_module: any) {
 		for (var key in _module) {

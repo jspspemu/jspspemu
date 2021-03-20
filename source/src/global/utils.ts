@@ -1076,6 +1076,7 @@ export interface Thenable<T> {
 	then<Q>(resolved: (value: T) => Q, rejected: (error: Error) => void): Thenable<Q>;
 }
 
+// Note that this class is used since Promise.then is not executed immediately and that could lead to performance issues on critical paths
 export class PromiseFast<T> implements Thenable<T> {
 	static resolve<T>(value: PromiseFast<T>): PromiseFast<T>;
 	static resolve<T>(value: T): PromiseFast<T>;

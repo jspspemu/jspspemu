@@ -1,21 +1,11 @@
-﻿import * as _vfs from './vfs';
-
-import * as _vfs_memory from './vfs_memory';
-import MemoryVfsEntry = _vfs_memory.MemoryVfsEntry;
-
-import Vfs = _vfs.Vfs;
-import VfsEntry = _vfs.VfsEntry;
-import VfsStat = _vfs.VfsStat;
-import FileMode = _vfs.FileMode;
-import FileOpenFlags = _vfs.FileOpenFlags;
-
-import * as storage from './indexeddb';
-import {logger, PromiseFast} from "../../global/utils";
+﻿import {logger, PromiseFast} from "../../global/utils";
+import {FileMode, FileOpenFlags, Vfs, VfsEntry, VfsStat} from "./vfs";
+import {MyStorage, indexedDbOpenAsync} from "./indexeddb";
 
 var console = logger.named('vfs.storage');
 
 export class StorageVfs extends Vfs {
-	private db: storage.MyStorage;
+	private db: MyStorage;
 	private openDbPromise: PromiseFast<StorageVfs>;
 
 
@@ -25,7 +15,7 @@ export class StorageVfs extends Vfs {
 
 	initializeOnceAsync() {
 		if (!this.openDbPromise) {
-			this.openDbPromise = storage.openAsync(this.key, 3, ['files']).then(db => {
+			this.openDbPromise = indexedDbOpenAsync(this.key, 3, ['files']).then(db => {
 				this.db = db;
 				return this;
 			});
@@ -56,7 +46,7 @@ interface File {
 class StorageVfsEntry extends VfsEntry {
 	private file: File;
 
-	constructor(private db: storage.MyStorage, private name: string) {
+	constructor(private db: MyStorage, private name: string) {
 		super();
 	}
 
@@ -76,7 +66,7 @@ class StorageVfsEntry extends VfsEntry {
 		});
 	}
 
-	static fromNameAsync(db: storage.MyStorage, name: string, flags: FileOpenFlags, mode: FileMode) {
+	static fromNameAsync(db: MyStorage, name: string, flags: FileOpenFlags, mode: FileMode) {
 		return (new StorageVfsEntry(db, name)).initAsync(flags, mode);
 	}
 

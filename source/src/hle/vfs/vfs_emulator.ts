@@ -1,15 +1,14 @@
-﻿import * as _vfs from './vfs'; _vfs.Vfs;
-
-import * as _context from '../../context';
-import {Stream} from "../../global/stream";
+﻿import {Stream} from "../../global/stream";
 import {PromiseFast} from "../../global/utils";
 import {immediateAsync} from "../../global/async";
+import {Vfs} from "./vfs";
+import {EmulatorContext} from "../../context";
 
-export class EmulatorVfs extends _vfs.Vfs {
+export class EmulatorVfs extends Vfs {
 	output = '';
 	screenshot:Uint8Array = null;
 
-	constructor(public context:_context.EmulatorContext) {
+	constructor(public context:EmulatorContext) {
 		super();
 	}
 

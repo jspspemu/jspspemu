@@ -1,10 +1,10 @@
 ﻿import "../global"
 
-import * as zlib from './zlib';
 import {AsyncStream, Stream} from "../global/stream";
 import {StringWithSize, StructArray, StructClass, UInt16, UInt32} from "../global/struct";
 import {ArrayBufferUtils, PromiseFast, StringDictionary} from "../global/utils";
 import {BitUtils} from "../global/math";
+import {zlib_inflate_raw} from "./zlib";
 
 export class ZipEntry {
 	private children: StringDictionary<ZipEntry> = {};
@@ -78,7 +78,7 @@ export class ZipEntry {
 		return this.readRawCompressedAsync().then((data:Uint8Array) => {
 			switch (this.compressionType) {
 				case ZipCompressionType.DEFLATE:
-					return zlib.inflate_raw(data);
+					return zlib_inflate_raw(data);
 				case ZipCompressionType.STORED:
 					return data;
 				default:

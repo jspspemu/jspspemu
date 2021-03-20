@@ -1,14 +1,10 @@
-﻿import * as _utils from '../utils';
-import * as _manager from '../manager'; _manager.Thread;
-
-import * as _context from '../../context';
-import nativeFunction = _utils.nativeFunction;
-
-import Thread = _manager.Thread;
-import {PromiseFast} from "../../global/utils";
+﻿import {PromiseFast} from "../../global/utils";
+import {EmulatorContext} from "../../context";
+import {nativeFunction} from "../utils";
+import {Thread} from "../manager/thread";
 
 export class Kernel_Library {
-	constructor(private context: _context.EmulatorContext) { }
+	constructor(private context: EmulatorContext) { }
 
 	@nativeFunction(0x092968F4, 150, 'uint', '')
 	sceKernelCpuSuspendIntr() {

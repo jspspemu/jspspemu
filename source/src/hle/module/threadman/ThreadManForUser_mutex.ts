@@ -1,10 +1,9 @@
-﻿import * as _utils from '../../utils';
-import * as _context from '../../../context';
-import nativeFunction = _utils.nativeFunction;
-import {Stream} from "../../../global/stream";
+﻿import {Stream} from "../../../global/stream";
+import {EmulatorContext} from "../../../context";
+import {nativeFunction} from "../../utils";
 
 export class ThreadManForUser {
-	constructor(private context: _context.EmulatorContext) { }
+	constructor(private context: EmulatorContext) { }
 
 	@nativeFunction(0xB7D098C6, 150, 'int', 'string/int/int')
 	sceKernelCreateMutex(name: string, attribute: number, options: number) {

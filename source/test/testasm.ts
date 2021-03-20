@@ -2,7 +2,7 @@
 import {addressToHex, addressToHex2} from "../src/global/utils";
 import {MipsAssembler, MipsDisassembler} from "../src/core/cpu/cpu_assembler";
 import {getMemoryInstance} from "../src/core/memory";
-import {CpuState, SyscallManager} from "../src/core/cpu";
+import {CpuState, SyscallManager} from "../src/core/cpu/cpu_core";
 
 export function ref() { } // Workaround to allow typescript to include this module
 

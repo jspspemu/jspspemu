@@ -1,20 +1,14 @@
-﻿import * as _utils from '../utils';
-import * as _context from '../../context';
-import nativeFunction = _utils.nativeFunction;
-import { SceKernelErrors } from '../SceKernelErrors';
-import * as _manager from '../manager';
-
-import Callback = _manager.Callback;
-import Thread = _manager.Thread;
-import * as _gpu from '../../core/gpu'; _gpu.PspGpuCallback;
-
-import PspGpuCallback = _gpu.PspGpuCallback;
-import {Stream} from "../../global/stream";
+﻿import {Stream} from "../../global/stream";
 import {AcceptCallbacks, Compensate, PromiseFast, WaitingThreadInfo} from "../../global/utils";
 import {StructClass, UInt32} from "../../global/struct";
+import {EmulatorContext} from "../../context";
+import {nativeFunction} from "../utils";
+import {Thread} from "../manager/thread";
+import {PspGpuCallback} from "../../core/gpu/gpu_core";
+import {SyncType} from "../../core/gpu/gpu_state";
 
 export class sceGe_user {
-    constructor(private context: _context.EmulatorContext) {
+    constructor(private context: EmulatorContext) {
 	}
 
 	private eDRAMMemoryWidth = 0;
@@ -43,7 +37,7 @@ export class sceGe_user {
     }
 
 	@nativeFunction(0x03444EB4, 150, 'uint', 'int/int')
-	sceGeListSync(displayListId: number, syncType: _gpu.SyncType) {
+	sceGeListSync(displayListId: number, syncType: SyncType) {
         //console.warn('Not implemented sceGe_user.sceGeListSync');
         return this.context.gpu.listSync(displayListId, syncType);
     }
@@ -55,7 +49,7 @@ export class sceGe_user {
     }
 
 	@nativeFunction(0xB287BD61, 150, 'uint', 'int')
-	sceGeDrawSync(syncType: _gpu.SyncType): any {
+	sceGeDrawSync(syncType: SyncType): any {
 		var result = this.context.gpu.drawSync(syncType);
 		if (result instanceof PromiseFast) {
 			//result = PromiseFast.all([result, waitAsync(10)]);

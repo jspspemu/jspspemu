@@ -1,11 +1,10 @@
-﻿import * as _utils from '../utils';
-import * as _context from '../../context';
-import nativeFunction = _utils.nativeFunction;
-import { SceKernelErrors } from '../SceKernelErrors';
+﻿import { SceKernelErrors } from '../SceKernelErrors';
 import {PromiseFast} from "../../global/utils";
+import {EmulatorContext} from "../../context";
+import {nativeFunction} from "../utils";
 
 export class sceDmac {
-	constructor(private context: _context.EmulatorContext) { }
+	constructor(private context: EmulatorContext) { }
 
 	private _sceDmacMemcpy(destination: number, source: number, size: number): any {
 		if (size == 0) return SceKernelErrors.ERROR_INVALID_SIZE;
