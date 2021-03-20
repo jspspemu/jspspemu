@@ -96,7 +96,7 @@ export class UrlAsyncStream implements AsyncStream {
 		this.date = stat.date;
 	}
 
-	static fromUrlAsync(url: string) {
+	static fromUrlAsync(url: string): PromiseFast<AsyncStream> {
 		console.info('open ', url);
 		return statFileAsync(url).then((stat): PromiseFast<AsyncStream> => {
 			console.info('fromUrlAsync', stat);

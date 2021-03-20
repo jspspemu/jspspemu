@@ -16,6 +16,7 @@ import {ClearBufferSet, GL} from "./webgl_enums";
 import {mat4} from "../../../global/math";
 import {shader_frag, shader_vert} from "./webgl_shaders";
 import {BatchesTransfer, OptimizedBatchTransfer} from "../gpu_vertex";
+import {EmulatorUI} from "../../../ui/emulator_ui";
 
 var globalDriver: WebGlPspDrawDriver = null;
 export class WebGlPspDrawDriver {
@@ -59,7 +60,7 @@ export class WebGlPspDrawDriver {
 		if (!this.gl) this.gl = <WebGLRenderingContext>this.canvas.getContext('experimental-webgl', webglOptions);
 
 		if (!this.gl) {
-			alert("Can't initialize WebGL!");
+            EmulatorUI.openMessageAsync('Can\'t initialize WebGL!');
 			throw (new Error("Can't initialize WebGL!"));
 		}
 

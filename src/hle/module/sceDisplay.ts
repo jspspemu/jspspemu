@@ -1,4 +1,4 @@
-﻿import {AcceptCallbacks, sprintf, WaitingThreadInfo} from "../../global/utils";
+﻿import {AcceptCallbacks, logger, sprintf, WaitingThreadInfo} from "../../global/utils";
 import {Stream} from "../../global/stream";
 import {EmulatorContext} from "../../context";
 import {nativeFunction} from "../utils";
@@ -8,6 +8,8 @@ import {PixelFormat} from "../../core/pixelformat";
 
 type uint = number;
 type int = number;
+
+const console = logger.named("sceDisplay")
 
 export class sceDisplay {
 	constructor(private context: EmulatorContext) { }

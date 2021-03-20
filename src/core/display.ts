@@ -1,6 +1,6 @@
 ﻿import "../global"
 
-import {ArrayBufferUtils, PromiseFast, Signal1} from "../global/utils";
+import {ArrayBufferUtils, logger, PromiseFast, Signal1} from "../global/utils";
 import {PixelConverter, PixelFormat} from "./pixelformat";
 import {Memory} from "./memory";
 import {InterruptManager, PspInterrupts} from "./interrupt";
@@ -68,6 +68,8 @@ export class DummyPspDisplay extends BasePspDisplay implements IPspDisplay {
 	}
 }
 
+const console = logger.named('display')
+
 export class PspDisplay extends BasePspDisplay implements IPspDisplay {
 	private context: CanvasRenderingContext2D;
 	vblank = new Signal1<number>();
@@ -133,12 +135,12 @@ export class PspDisplay extends BasePspDisplay implements IPspDisplay {
 	constructor(public memory: Memory, private interruptManager: InterruptManager, public canvas: HTMLCanvasElement, private webglcanvas: HTMLCanvasElement) {
 		super();
 		if (this.canvas) {
-			console.warn('Canvas');
+            console.info('Canvas');
 			this.context = <CanvasRenderingContext2D>this.canvas.getContext('2d');
 			this.imageData = this.context.createImageData(512, 272);
 			this.setEnabledDisplay(true);
 		} else {
-			console.warn('NO Canvas');
+            console.info('NO Canvas');
 			this.context = null;
 			this.setEnabledDisplay(false);
 		}

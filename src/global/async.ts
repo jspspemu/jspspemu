@@ -50,14 +50,13 @@ export function toArrayBuffer(buffer:any) {
     return ab;
 }
 
-var fs: any = null
+const isNodeJs = (typeof XMLHttpRequest === 'undefined')
+
+var fs: any = isNodeJs ? eval('require')('fs') : null
 
 export function downloadFileAsync(url: string, headers?: any):PromiseFast<ArrayBuffer> {
-	if (typeof XMLHttpRequest == 'undefined') {
+	if (isNodeJs) {
 		return new PromiseFast<ArrayBuffer>((resolve, reject) => {
-		    if (fs === null) {
-		        fs = eval('require')('fs')
-            }
 			fs.readFile(url, (err:any, data:any) => {
 			  if (err) {
 				  reject(err);
@@ -81,16 +80,30 @@ export function downloadFileChunkAsync(url: string, from: number, count: number)
 	});
 }
 
-export function statFileAsync(url: string) {
-	return _downloadFileAsync('HEAD', url).then(request => {
-		//console.error('content-type', request.getResponseHeader('content-type'));
-		//console.log(request.getAllResponseHeaders());
+export function statFileAsync(url: string): PromiseFast<{size: number, date: Date}> {
+    if (isNodeJs) {
+        return new PromiseFast((resolve, reject) => {
+            fs.stat(url, (err: any, stats: any) => {
+                if (err) {
+                    reject(new Error(`File not found: '${url}'`))
+                } else if (stats.isDirectory()) {
+                    reject(new Error(`File is a directory: '${url}'`))
+                } else {
+                    resolve({size: stats.size, date: stats.mtime})
+                }
+            });
+        })
+    } else {
+        return _downloadFileAsync('HEAD', url).then(request => {
+            //console.error('content-type', request.getResponseHeader('content-type'));
+            //console.log(request.getAllResponseHeaders());
 
-		var size = parseInt(request.getResponseHeader('content-length'));
-		var date = new Date(Date.parse(request.getResponseHeader('last-modified')));
+            const size = parseInt(request.getResponseHeader('content-length'));
+            const date = new Date(Date.parse(request.getResponseHeader('last-modified')));
 
-		return { size: size, date: date };
-	});
+            return {size: size, date: date};
+        });
+    }
 }
 
 /*

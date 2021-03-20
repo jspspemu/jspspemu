@@ -17,6 +17,7 @@ import {CallbackManager} from "./callback";
 import {Memory} from "../../core/memory";
 import {InterruptManager} from "../../core/interrupt";
 import {PspDisplay} from "../../core/display";
+import {EmulatorUI} from "../../ui/emulator_ui";
 
 var console = logger.named('hle.thread');
 
@@ -376,8 +377,7 @@ export class ThreadManager {
 			//debugger;
 			if (e.message == 'CpuBreakException') return;
 			var estack = e['stack'] || e;
-			console.error(estack);
-			alert(estack);
+            EmulatorUI.openMessageAsync(estack);
 			thread.stop('error:' + estack);
 			throw (e);
 		}

@@ -2,10 +2,16 @@
 
 //declare function require(name: string): any;
 import '../src/global';
-
 import {loggerPolicies} from "../src/global/utils";
 
-loggerPolicies.disableAll = true
+//loggerPolicies.disableAll = true
+loggerPolicies.minLogLevel = 3
+//loggerPolicies.canLog('display', 3)
+//loggerPolicies.canLog('module.IoFileMgrForUser', 3)
+//loggerPolicies.canLog('module.SysMemUserForUser', 3)
+//loggerPolicies.canLog('module.ThreadManForUser', 3)
+//loggerPolicies.canLog('vfs.storage', 3)
+
 
 import './format/pspTest';
 import './format/csoTest';

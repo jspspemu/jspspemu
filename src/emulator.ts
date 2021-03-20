@@ -368,7 +368,13 @@ export class Emulator {
 		});
 	}
 
-	executeFileAsync(file: File) {
+    downloadAndExecuteAndWaitAsync(url: string, afterStartCallback: () => void) {
+        return UrlAsyncStream.fromUrlAsync(url).then(stream => {
+            return this.loadExecuteAndWaitAsync(stream, url, afterStartCallback);
+        });
+    }
+
+    executeFileAsync(file: File) {
 		Microtask.queue(() => {
 			// escape try/catch!
 			this.loadAndExecuteAsync(new FileAsyncStream(file), '.');

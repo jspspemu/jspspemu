@@ -1,5 +1,7 @@
-﻿import {PromiseFast, StringDictionary} from "../../global/utils";
+﻿import {logger, PromiseFast, StringDictionary} from "../../global/utils";
 import {FileMode, FileOpenFlags, Vfs, VfsEntry, VfsStat} from "./vfs";
+
+const console = logger.named("memory_vfs")
 
 export class MemoryVfs extends Vfs {
 	private files: StringDictionary<MemoryVfsEntry> = {};
@@ -20,8 +22,8 @@ export class MemoryVfs extends Vfs {
 		var file = this.files[path];
 		if (!file) {
 			var error:any = new Error(`MemoryVfs: Can't find '${path}'`);
-			console.error(error);
-			console.error(error['stack']);
+			console.warn(error);
+			console.warn(error['stack']);
 			return PromiseFast.reject(error);
 		} else {
 			return PromiseFast.resolve(file);

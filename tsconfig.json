@@ -1,6 +1,7 @@
 {
   "compilerOptions": {
     "experimentalDecorators": true,
+    "incremental": true,
     "target": "es6",
     "module": "commonjs",
     "noImplicitAny": true,
@@ -15,6 +16,7 @@
   "files": [
     "src/global.ts",
     "src/app.ts",
+    "src/headless.ts",
     "test/_tests.ts"
   ]
 }

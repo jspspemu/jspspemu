@@ -10,6 +10,7 @@ import {Stream} from "../../global/stream";
 import {addressToHex, Microtask, PromiseFast, Signal2, UidCollection, WatchValue} from "../../global/utils";
 import {MathFloat, MathUtils} from "../../global/math";
 import {CpuState} from "../cpu/cpu_core";
+import {EmulatorUI} from "../../ui/emulator_ui";
 
 export interface CpuExecutor {
 	execute(state: CpuState, address: number, gprArray: number[]): void;
@@ -591,8 +592,7 @@ export class PspGpu {
 				});
 				//return this.freezing.waitUntilValueAsync(false);
 			} catch (e) {
-				console.error(e['stack'] || e);
-				alert(e['stack'] || e);
+                EmulatorUI.openMessageAsync(e.stack || e)
 				throw e;
 			}
 		});

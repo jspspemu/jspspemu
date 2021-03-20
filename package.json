@@ -2,7 +2,9 @@
   "scripts": {
     "build": "npx webpack --mode production --config=webpack.prod.js",
     "serve": "npx webpack serve",
-    "test": "npx tsc && npx mocha output/test/_tests.js"
+    "test": "npx tsc && npx -n --enable-source-maps mocha output/test/_tests.js",
+    "benchmark": "npx tsc && node --enable-source-maps output/src/headless.js data/benchmark/benchmark.prx",
+    "headless": "npx tsc && node --enable-source-maps output/src/headless.js"
   },
   "name": "jspspemu",
   "description": "javascript psp emulator http://jspspemu.soywiz.com/",
