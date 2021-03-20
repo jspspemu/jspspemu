@@ -192,3 +192,4 @@ data/samples/PuzzleBobble.iso
 
 /dist
 /output
+/yarn.lock
