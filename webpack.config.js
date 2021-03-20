@@ -6,7 +6,7 @@ const HtmlWebpackPlugin = require('html-webpack-plugin');
 //console.warn("isProduction", isProduction, process.env.NODE_ENV)
 
 module.exports = {
-    entry: './source/src/app.ts',
+    entry: './src/app.ts',
     devtool: 'inline-source-map',
     mode: 'development',
     module: {

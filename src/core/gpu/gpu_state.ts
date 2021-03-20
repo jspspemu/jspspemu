@@ -1,12 +1,12 @@
 ﻿import "../../global"
 
-const Op = GpuOpCodes
-
 import {ArrayBufferUtils} from "../../global/utils";
 import {BitUtils, MathFloat, MathUtils} from "../../global/math";
 import {GpuOpCodes} from "./gpu_opcodes";
 import {Memory} from "../memory";
 import {PixelConverter, PixelFormat, PixelFormatUtils} from "../pixelformat";
+
+const Op = GpuOpCodes
 
 function bool1(p: number) { return p != 0; }
 function parambool(p: number, offset: number) { return ((p >> offset) & 0x1) != 0; }

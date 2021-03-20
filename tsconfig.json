@@ -8,13 +8,13 @@
     "preserveConstEnums": true,
     "sourceMap": true,
     "typeRoots": [
-      "source/src/declarations.d.ts"
+      "src/declarations.d.ts"
     ],
     "outDir": "output"
   },
   "files": [
-    "source/src/global.ts",
-    "source/src/app.ts",
-    "source/test/_tests.ts"
+    "src/global.ts",
+    "src/app.ts",
+    "test/_tests.ts"
   ]
 }
