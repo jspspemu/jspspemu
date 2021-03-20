@@ -1,4 +1,6 @@
 ﻿// Code from: http://docs.closure-library.googlecode.com/git/local_closure_goog_math_long.js.source.html
+import {BitUtils} from "./math";
+
 export class Integer64 {
 	private _low: number;
 	private _high: number;
@@ -196,3 +198,6 @@ export class Integer64 {
 		return Integer64.fromBits((c16 << 16) | c00, (c48 << 16) | c32);
 	}
 }
+
+// @TODO: This is required for the CPU dynamic recompilation
+(window as any).Integer64 = Integer64;

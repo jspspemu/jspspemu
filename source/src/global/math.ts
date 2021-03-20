@@ -712,3 +712,7 @@ export class ArrayUtils {
 export function xrange(start: number, end: number) {
 	return ArrayUtils.range(start, end);
 }
+
+// @TODO: This is required for the CPU dynamic recompilation
+(window as any).MathFloat = MathFloat;
+(window as any).BitUtils = BitUtils;

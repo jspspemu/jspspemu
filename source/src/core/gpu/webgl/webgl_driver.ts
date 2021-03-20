@@ -16,7 +16,7 @@ import {Stream} from "../../../global/stream";
 import {Signal1} from "../../../global/utils";
 import {ClearBufferSet, GL} from "./webgl_enums";
 import {mat4} from "../../../global/math";
-import {shader_frag} from "./webgl_shaders";
+import {shader_frag, shader_vert} from "./webgl_shaders";
 
 var globalDriver: WebGlPspDrawDriver = null;
 export class WebGlPspDrawDriver {
@@ -78,7 +78,7 @@ export class WebGlPspDrawDriver {
 	}
 	
 	initAsync() {
-	    const shaderVertString = shader_frag
+	    const shaderVertString = shader_vert
         const shaderFragString = shader_frag
 
         this.cache = new ShaderCache(this.gl, shaderVertString, shaderFragString);

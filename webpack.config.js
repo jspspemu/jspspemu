@@ -5,6 +5,7 @@ const HtmlWebpackPlugin = require('html-webpack-plugin');
 module.exports = {
     entry: './source/src/app.ts',
     devtool: 'inline-source-map',
+    mode: 'development',
     module: {
         rules: [
             {
@@ -41,11 +42,11 @@ module.exports = {
         new HtmlWebpackPlugin({
             title: 'jspspemu',
         }),
-        new CopyPlugin({
-            patterns: [
-                { from: "index.html", to: "dist" },
-                //{ from: "other", to: "public" },
-            ],
-        }),
+        //new CopyPlugin({
+        //    patterns: [
+        //        //{ from: "index.html", to: "dist" },
+        //        //{ from: "other", to: "public" },
+        //    ],
+        //}),
     ],
 };
