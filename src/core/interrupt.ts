@@ -1,4 +1,4 @@
-﻿import "../global"
+﻿import "../emu/global"
 
 import {NumberDictionary, Signal0} from "../global/utils";
 import {CpuState} from "./cpu/cpu_core";

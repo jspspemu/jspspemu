@@ -1,4 +1,4 @@
-﻿import "../global"
+﻿import "../emu/global"
 import {Int32, StructArray, StructClass} from "../global/struct";
 import {Stream} from "../global/stream";
 

@@ -1,4 +1,4 @@
-﻿import "../global"
+﻿import "../emu/global"
 import {printf, Signal0, Signal2, sprintf} from "../global/utils";
 import {IType, Pointer} from "../global/struct";
 import {Stream} from "../global/stream";

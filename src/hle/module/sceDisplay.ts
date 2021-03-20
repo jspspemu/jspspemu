@@ -1,6 +1,6 @@
 ﻿import {AcceptCallbacks, logger, sprintf, WaitingThreadInfo} from "../../global/utils";
 import {Stream} from "../../global/stream";
-import {EmulatorContext} from "../../context";
+import {EmulatorContext} from "../../emu/context";
 import {nativeFunction} from "../utils";
 import {Thread} from "../manager/thread";
 import {PspDisplay} from "../../core/display";

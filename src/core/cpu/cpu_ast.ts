@@ -1,4 +1,4 @@
-﻿import "../../global"
+﻿import "../../emu/global"
 
 import { CpuState } from './cpu_core';
 import {addressToHex, NumberDictionary} from "../../global/utils";

@@ -1,4 +1,4 @@
-﻿import "../global"
+﻿import "../emu/global"
 
 export class PspRtc {
 	getCurrentUnixSeconds() { return Date.now() / 1000; }

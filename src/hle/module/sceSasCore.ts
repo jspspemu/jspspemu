@@ -2,7 +2,7 @@
 import { SceKernelErrors } from '../SceKernelErrors';
 import {Stream} from "../../global/stream";
 import {MathUtils} from "../../global/math";
-import {EmulatorContext} from "../../context";
+import {EmulatorContext} from "../../emu/context";
 import {Sample} from "../../core/audio";
 import {VagSoundSource} from "../../format/vag";
 

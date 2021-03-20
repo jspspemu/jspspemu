@@ -1,4 +1,4 @@
-import "../global"
+import "../emu/global"
 import {PromiseFast, Signal1, SignalPromise, SortedSet} from "../global/utils";
 
 export class Sample {

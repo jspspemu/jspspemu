@@ -1,6 +1,6 @@
-import "./global"
+import "./emu/global"
 import {UrlAsyncStream} from "./global/stream";
-import {Emulator} from "./emulator";
+import {Emulator} from "./emu/emulator";
 import {loggerPolicies} from "./global/utils";
 
 declare var process: any

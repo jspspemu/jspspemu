@@ -3,7 +3,7 @@ import {Stream} from "../../global/stream";
 import {waitAsync} from "../../global/async";
 import {AcceptCallbacks, PromiseFast, WaitingThreadInfo} from "../../global/utils";
 import {MathUtils} from "../../global/math";
-import {EmulatorContext} from "../../context";
+import {EmulatorContext} from "../../emu/context";
 import {nativeFunction} from "../utils";
 import {PspAudioChannel} from "../../core/audio";
 

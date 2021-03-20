@@ -1,4 +1,4 @@
-﻿import "../../global"
+﻿import "../../emu/global"
 
 import { GpuStats } from './gpu_stats';
 import { Memory } from '../memory';

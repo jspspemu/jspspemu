@@ -1,4 +1,4 @@
-﻿import {EmulatorContext} from "../../context";
+﻿import {EmulatorContext} from "../../emu/context";
 
 export class sceNp {
 	constructor(private context: EmulatorContext) { }

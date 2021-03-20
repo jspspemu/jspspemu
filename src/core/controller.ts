@@ -1,4 +1,4 @@
-﻿import "../global"
+﻿import "../emu/global"
 import {PromiseFast} from "../global/utils";
 import {Int8, StructArray, StructClass, UInt32} from "../global/struct";
 import {MathUtils} from "../global/math";

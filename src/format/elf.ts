@@ -1,4 +1,4 @@
-﻿import "../global"
+﻿import "../emu/global"
 import {logger, StringDictionary} from "../global/utils";
 import {Int16, Int32, Int8, Stringn, StructArray, StructClass, UInt16, UInt32} from "../global/struct";
 import {Stream} from "../global/stream";

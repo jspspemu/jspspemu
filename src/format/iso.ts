@@ -1,4 +1,4 @@
-import "../global"
+import "../emu/global"
 import {AsyncStream, Stream} from "../global/stream";
 import {PromiseFast, PromiseGenerator, PromiseUtils, StringDictionary} from "../global/utils";
 import {

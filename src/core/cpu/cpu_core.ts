@@ -1,4 +1,4 @@
-﻿import "../../global"
+﻿import "../../emu/global"
 
 import {addressToHex, logger, NumberDictionary, sprintf, StringDictionary, throwEndCycles} from "../../global/utils";
 import {BitUtils, MathFloat, MathUtils} from "../../global/math";

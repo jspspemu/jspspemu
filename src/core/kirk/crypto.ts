@@ -1,4 +1,4 @@
-﻿import "../../global"
+﻿import "../../emu/global"
 import {decrypt_aes128_cbc} from "./jsaes2";
 
 function cryptoToArray(info: { words:Uint32Array }) {

@@ -1,4 +1,4 @@
-﻿import "../../../global"
+﻿import "../../../emu/global"
 import "./webgl_enums"
 import {NumberDictionary} from "../../../global/utils";
 import {WrappedWebGLProgram} from "./webgl_utils";

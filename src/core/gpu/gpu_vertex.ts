@@ -1,4 +1,4 @@
-﻿import "../../global"
+﻿import "../../emu/global"
 import {ArrayBufferUtils} from "../../global/utils";
 import {MathUtils} from "../../global/math";
 import {getMemoryInstance} from "../memory";

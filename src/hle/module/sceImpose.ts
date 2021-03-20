@@ -1,6 +1,6 @@
 ﻿import { nativeFunction } from '../utils';
 import {Stream} from "../../global/stream";
-import {EmulatorContext} from "../../context";
+import {EmulatorContext} from "../../emu/context";
 import {ButtonPreference, PspLanguages} from "../structs";
 
 export class sceImpose {

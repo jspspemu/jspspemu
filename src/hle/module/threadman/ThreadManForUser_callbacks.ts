@@ -1,4 +1,4 @@
-﻿import {EmulatorContext} from "../../../context";
+﻿import {EmulatorContext} from "../../../emu/context";
 import {nativeFunction} from "../../utils";
 import {Callback} from "../../manager/callback";
 import {Thread} from "../../manager/thread";

@@ -1,4 +1,4 @@
-﻿import "../../global"
+﻿import "../../emu/global"
 
 /*
 CryptoJS v3.1.2

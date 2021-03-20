@@ -1,5 +1,5 @@
 ﻿import {PromiseFast} from "../../global/utils";
-import {EmulatorContext} from "../../context";
+import {EmulatorContext} from "../../emu/context";
 import {nativeFunction} from "../utils";
 import {Thread} from "../manager/thread";
 

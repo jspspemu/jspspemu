@@ -1,4 +1,4 @@
-﻿import "../global"
+﻿import "../emu/global"
 import {Stream} from "../global/stream";
 import {StringDictionary} from "../global/utils";
 

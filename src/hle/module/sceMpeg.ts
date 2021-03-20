@@ -1,5 +1,5 @@
 ﻿import { nativeFunction } from '../utils';
-import { EmulatorContext } from '../../context';
+import { EmulatorContext } from '../../emu/context';
 import { Memory } from '../../core/memory';
 import { PixelFormat } from '../../core/pixelformat';
 import { SceKernelErrors } from '../SceKernelErrors';

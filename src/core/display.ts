@@ -1,4 +1,4 @@
-﻿import "../global"
+﻿import "../emu/global"
 
 import {ArrayBufferUtils, logger, PromiseFast, Signal1} from "../global/utils";
 import {PixelConverter, PixelFormat} from "./pixelformat";

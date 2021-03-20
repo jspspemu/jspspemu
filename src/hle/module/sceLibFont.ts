@@ -1,6 +1,6 @@
 ﻿import {UidCollection} from "../../global/utils";
 import {Stream} from "../../global/stream";
-import {EmulatorContext} from "../../context";
+import {EmulatorContext} from "../../emu/context";
 import {nativeFunction} from "../utils";
 
 export class sceLibFont {

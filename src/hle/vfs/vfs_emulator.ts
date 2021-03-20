@@ -2,7 +2,7 @@
 import {PromiseFast} from "../../global/utils";
 import {immediateAsync} from "../../global/async";
 import {Vfs} from "./vfs";
-import {EmulatorContext} from "../../context";
+import {EmulatorContext} from "../../emu/context";
 
 export class EmulatorVfs extends Vfs {
 	output = '';

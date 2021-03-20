@@ -1,7 +1,7 @@
 ﻿import {Stream} from "../../global/stream";
 import {MathUtils} from "../../global/math";
 import {SceKernelErrors} from "../SceKernelErrors";
-import {EmulatorContext} from "../../context";
+import {EmulatorContext} from "../../emu/context";
 import {nativeFunction} from "../utils";
 import {Memory} from "../../core/memory";
 

@@ -9,12 +9,12 @@
     "preserveConstEnums": true,
     "sourceMap": true,
     "typeRoots": [
-      "src/declarations.d.ts"
+      "src/emu/declarations.d.ts"
     ],
     "outDir": "output"
   },
   "files": [
-    "src/global.ts",
+    "src/emu/global.ts",
     "src/app.ts",
     "src/headless.ts",
     "test/_tests.ts"

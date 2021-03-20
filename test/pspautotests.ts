@@ -9,7 +9,7 @@ import {downloadFileAsync} from "../src/global/async";
 import {logger, sprintf} from "../src/global/utils";
 import {ArrayUtils} from "../src/global/math";
 import {difflib} from "../src/util/difflib";
-import {Emulator} from "../src/emulator";
+import {Emulator} from "../src/emu/emulator";
 import {MemoryVfs} from "../src/hle/vfs/vfs_memory";
 
 var _console = console;

@@ -1,7 +1,7 @@
 ﻿import {Cancelable, mac2string, UidCollection} from "../../global/utils";
 import {Stream} from "../../global/stream";
 import {MathUtils} from "../../global/math";
-import {EmulatorContext} from "../../context";
+import {EmulatorContext} from "../../emu/context";
 import {nativeFunction} from "../utils";
 import {Thread} from "../manager/thread";
 

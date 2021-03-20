@@ -1,4 +1,4 @@
-﻿import "../global"
+﻿import "../emu/global"
 
 import {addressToHex, logger} from "../global/utils";
 import {Int8, IType, StringzVariable, StructArray, StructClass, UInt16, UInt32, UInt8} from "../global/struct";

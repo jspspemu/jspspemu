@@ -1,6 +1,6 @@
 ﻿import {Stream} from "../../global/stream";
 import {AcceptCallbacks, WaitingThreadInfo} from "../../global/utils";
-import {EmulatorContext} from "../../context";
+import {EmulatorContext} from "../../emu/context";
 import {nativeFunction} from "../utils";
 import {SceCtrlData} from "../../core/controller";
 import {Thread} from "../manager/thread";

@@ -2,7 +2,7 @@
 import {Stream} from "../../global/stream";
 import {Int16, Int32, Int8, StructArray, StructClass, UInt32} from "../../global/struct";
 import {xrange} from "../../global/math";
-import {EmulatorContext} from "../../context";
+import {EmulatorContext} from "../../emu/context";
 import {MemoryPartition} from "../manager/memory";
 import {nativeFunction} from "../utils";
 import {NetPacket} from "../manager/net";

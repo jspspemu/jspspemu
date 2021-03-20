@@ -1,4 +1,4 @@
-﻿import "../../../global"
+﻿import "../../../emu/global"
 import "./webgl_enums"
 import {
 GpuState, Color, ColorEnum, VertexInfo, PrimitiveType,

@@ -1,4 +1,4 @@
-﻿import "../../global"
+﻿import "../../emu/global"
 
 import {Signal1, UidCollection} from "../../global/utils";
 import {Interop} from "./interop";

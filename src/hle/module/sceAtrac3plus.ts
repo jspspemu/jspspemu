@@ -12,7 +12,7 @@ import {
 	UIntReference
 } from "../../global/struct";
 import {MemoryCustomStream, MePacket, MeStream} from "../../global/me";
-import {EmulatorContext} from "../../context";
+import {EmulatorContext} from "../../emu/context";
 import {nativeFunction} from "../utils";
 import {Riff} from "../../format/riff";
 

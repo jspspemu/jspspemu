@@ -4,7 +4,7 @@ import {PromiseFast} from "../../global/utils";
 import {Stream} from "../../global/stream";
 import {Int32, Stringz, StructArray, StructClass, UInt32, UInt8, Utf8Stringz} from "../../global/struct";
 import {MathUtils, parseIntFormat} from "../../global/math";
-import {EmulatorContext} from "../../context";
+import {EmulatorContext} from "../../emu/context";
 import {nativeFunction} from "../utils";
 import {FileOpenFlags} from "../vfs/vfs";
 import {EmulatorUI} from "../../ui/emulator_ui";

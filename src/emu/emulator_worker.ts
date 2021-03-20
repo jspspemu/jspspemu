@@ -1,7 +1,7 @@
 import { Emulator } from './emulator';
-import { BatteryInfo } from './core/battery';
-import {ArrayBufferUtils, Microtask, PromiseFast} from "./global/utils";
-import {OptimizedDrawBufferTransfer} from "./core/gpu/gpu_vertex";
+import { BatteryInfo } from '../core/battery';
+import {ArrayBufferUtils, Microtask, PromiseFast} from "../global/utils";
+import {OptimizedDrawBufferTransfer} from "../core/gpu/gpu_vertex";
 
 declare var self: any;
 declare var documentLocation: any;

@@ -1,4 +1,4 @@
-import "../../global"
+import "../../emu/global"
 
 import {StringDictionary} from "../../global/utils";
 import {Instruction, Instructions} from "./cpu_instructions";

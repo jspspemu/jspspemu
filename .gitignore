@@ -193,3 +193,9 @@ data/samples/PuzzleBobble.iso
 /dist
 /output
 /yarn.lock
+
+src/*.js
+src/*.map
+
+test/*.js
+test/*.map

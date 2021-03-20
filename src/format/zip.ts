@@ -1,4 +1,4 @@
-﻿import "../global"
+﻿import "../emu/global"
 
 import {AsyncStream, Stream} from "../global/stream";
 import {StringWithSize, StructArray, StructClass, UInt16, UInt32} from "../global/struct";

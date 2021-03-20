@@ -1,6 +1,6 @@
 ﻿import { SceKernelErrors } from '../SceKernelErrors';
 import {AcceptCallbacks, PromiseFast, Signal1} from "../../global/utils";
-import {EmulatorContext} from "../../context";
+import {EmulatorContext} from "../../emu/context";
 import {nativeFunction} from "../utils";
 
 export class sceUmdUser {

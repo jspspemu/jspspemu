@@ -1,7 +1,7 @@
 ﻿///<reference path="./global.d.ts" />
 
 //declare function require(name: string): any;
-import '../src/global';
+import '../src/emu/global';
 import {loggerPolicies} from "../src/global/utils";
 
 //loggerPolicies.disableAll = true

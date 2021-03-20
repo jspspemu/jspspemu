@@ -2,7 +2,7 @@
 import {Stream} from "../../../global/stream";
 import {Integer64} from "../../../global/int64";
 import {SceKernelErrors} from "../../SceKernelErrors";
-import {EmulatorContext} from "../../../context";
+import {EmulatorContext} from "../../../emu/context";
 import {nativeFunction} from "../../utils";
 import {HleDirectory, HleFile} from "../../manager/file";
 import {FileMode, FileOpenFlags, VfsStat} from "../../vfs/vfs";

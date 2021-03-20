@@ -1,4 +1,4 @@
-﻿import "../global"
+﻿import "../emu/global"
 import {Stream} from "../global/stream";
 import {StructClass, UInt32, UInt32_b} from "../global/struct";
 import {BitUtils, MathUtils} from "../global/math";

@@ -1,7 +1,7 @@
 ﻿import { SceKernelErrors } from '../SceKernelErrors';
 import {logger, sprintf, UidCollection} from "../../global/utils";
 import {Stream} from "../../global/stream";
-import {EmulatorContext} from "../../context";
+import {EmulatorContext} from "../../emu/context";
 import {MemoryAnchor, MemoryPartition} from "../manager/memory";
 import {nativeFunction} from "../utils";
 import {Thread} from "../manager/thread";

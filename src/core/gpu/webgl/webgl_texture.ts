@@ -1,4 +1,4 @@
-﻿import "../../../global"
+﻿import "../../../emu/global"
 import "./webgl_enums"
 import { GpuStats } from '../gpu_stats';
 import {ArrayBufferUtils, Signal1} from "../../../global/utils";

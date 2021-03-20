@@ -1,6 +1,6 @@
 ﻿import {Stream} from "../../global/stream";
 import {Int32, Stringz, StructClass, UInt32} from "../../global/struct";
-import {EmulatorContext} from "../../context";
+import {EmulatorContext} from "../../emu/context";
 import {nativeFunction} from "../utils";
 
 export class sceReg {

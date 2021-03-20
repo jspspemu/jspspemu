@@ -1,7 +1,7 @@
 ﻿import { SceKernelErrors } from '../SceKernelErrors';
 import {Stream} from "../../global/stream";
 import {Cancelable, UidCollection} from "../../global/utils";
-import {EmulatorContext} from "../../context";
+import {EmulatorContext} from "../../emu/context";
 import {nativeFunction} from "../utils";
 
 export class sceNetAdhocctl {

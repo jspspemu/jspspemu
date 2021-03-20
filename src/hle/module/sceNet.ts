@@ -1,7 +1,7 @@
 ﻿import {mac2string, string2mac} from "../../global/utils";
 import {Stream} from "../../global/stream";
 import {xrange} from "../../global/math";
-import {EmulatorContext} from "../../context";
+import {EmulatorContext} from "../../emu/context";
 import {nativeFunction} from "../utils";
 
 export class sceNet {

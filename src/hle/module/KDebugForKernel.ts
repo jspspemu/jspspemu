@@ -1,5 +1,5 @@
 ﻿import {nativeFunction} from "../utils";
-import {EmulatorContext} from "../../context";
+import {EmulatorContext} from "../../emu/context";
 
 export class KDebugForKernel {
 	constructor(private context: EmulatorContext) { }

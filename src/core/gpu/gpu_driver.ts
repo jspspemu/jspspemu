@@ -1,4 +1,4 @@
-﻿import "../../global"
+﻿import "../../emu/global"
 
 import {PromiseFast} from "../../global/utils";
 import {GpuState} from "./gpu_state";

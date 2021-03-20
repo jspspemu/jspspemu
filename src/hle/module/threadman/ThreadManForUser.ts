@@ -12,7 +12,7 @@ import {Int32, Stringz, StructClass, UInt32} from "../../../global/struct";
 import {MathUtils} from "../../../global/math";
 import {Integer64} from "../../../global/int64";
 import {SceKernelErrors} from "../../SceKernelErrors";
-import {EmulatorContext} from "../../../context";
+import {EmulatorContext} from "../../../emu/context";
 import {PspThreadAttributes, Thread, ThreadStatus} from "../../manager/thread";
 import {nativeFunction} from "../../utils";
 import {OutOfMemoryError} from "../../manager/memory";

@@ -1,7 +1,7 @@
 ﻿import {Stream} from "../../global/stream";
 import {AcceptCallbacks, Compensate, PromiseFast, WaitingThreadInfo} from "../../global/utils";
 import {StructClass, UInt32} from "../../global/struct";
-import {EmulatorContext} from "../../context";
+import {EmulatorContext} from "../../emu/context";
 import {nativeFunction} from "../utils";
 import {Thread} from "../manager/thread";
 import {PspGpuCallback} from "../../core/gpu/gpu_core";

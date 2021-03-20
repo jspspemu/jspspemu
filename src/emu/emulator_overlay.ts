@@ -1,9 +1,9 @@
 ///<reference path="./global.ts" />
 
-import { WebGlPspDrawDriver } from './core/gpu/webgl/webgl_driver';
-import { GpuStats } from './core/gpu/gpu_stats';
+import { WebGlPspDrawDriver } from '../core/gpu/webgl/webgl_driver';
+import { GpuStats } from '../core/gpu/gpu_stats';
 import { Emulator } from './emulator';
-import {numberToFileSize, numberToSeparator, Signal0, Signal1, WatchValue} from "./global/utils";
+import {numberToFileSize, numberToSeparator, Signal0, Signal1, WatchValue} from "../global/utils";
 
 interface OverlaySection {
     element: HTMLElement;
