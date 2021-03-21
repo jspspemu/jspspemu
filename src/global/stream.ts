@@ -87,6 +87,21 @@ export class MemoryAsyncStream implements AsyncStream {
     }
 }
 
+export class DelayedAsyncStream implements AsyncStream {
+    get name() { return `delayed-${this.parent.name}` }
+
+    constructor(public parent: AsyncStream, public timeoutMs: number = 100, public date = new Date()) {
+    }
+
+    get size() { return this.parent.size; }
+
+    readChunkAsync(offset: number, count: number): PromiseFast<ArrayBuffer> {
+        return this.parent.readChunkAsync(offset, count).then(value => {
+            return PromiseFast.delay(this.timeoutMs, value)
+        })
+    }
+}
+
 export class UrlAsyncStream implements AsyncStream {
 	name: string;
 	date: Date;

@@ -12,12 +12,12 @@ import {difflib} from "../src/util/difflib";
 import {Emulator} from "../src/emu/emulator";
 import {MemoryVfs} from "../src/hle/vfs/vfs_memory";
 
-var mlogger = logger.named('');
+const mlogger = logger.named('');
 
 describe('pspautotests', function () {
 	this.timeout(5000);
 
-	var tests = [
+    const tests = [
 		//{ "audio/atrac": ["atractest", "decode", "ids", "resetting", "setdata"] },
 		//{ "audio/mp3": ["mp3test"] },
 		//{ "audio/sascore": ["adsrcurve", "getheight", "keyoff", "keyon", "noise", "outputmode", "pause", "pcm", "pitch", "sascore", "setadsr", "vag"] },
@@ -128,7 +128,8 @@ describe('pspautotests', function () {
 		return string.replace(/(\r\n|\r)/gm, '\n').replace(/[\r\n\s]+$/gm, '');
 	}
 
-	function compareLines2(lines1:string[], lines2:string[]) {
+	// noinspection JSUnusedLocalSymbols
+    function compareLines2(lines1:string[], lines2:string[]) {
 		return new (<any>difflib.SequenceMatcher)(lines1, lines2).get_opcodes();
 	}
 
@@ -242,7 +243,8 @@ describe('pspautotests', function () {
 
                 testNameList.forEach((testName:any) => {
 					it(testName, function() {
-						this.timeout(15000);
+						// noinspection JSPotentiallyInvalidUsageOfThis
+                        this.timeout(15000);
 
                         const emulator = new Emulator();
                         //emulator.interpreted = true

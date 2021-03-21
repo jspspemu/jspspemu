@@ -7,18 +7,16 @@ import {assert} from "chai"
 export function ref() { } // Workaround to allow typescript to include this module
 
 describe('pbp', () => {
-	var rtctestPbpArrayBuffer: ArrayBuffer;
+	let rtctestPbpArrayBuffer: ArrayBuffer;
 
-	before(() => {
-		return downloadFileAsync('data/samples/rtctest.pbp').then((data) => {
-			rtctestPbpArrayBuffer = data;
-		});
+	before(async () => {
+        rtctestPbpArrayBuffer = await downloadFileAsync('data/samples/rtctest.pbp');
 	});
 
-	it('should load fine', () => {
-		var pbp = new Pbp();
-		pbp.load(Stream.fromArrayBuffer(rtctestPbpArrayBuffer));
-		var pspData = pbp.get('psp.data');
-		assert.equal(pspData.length, 77550);
+	it('should load fine', async () => {
+        const pbp = new Pbp();
+        pbp.load(Stream.fromArrayBuffer(rtctestPbpArrayBuffer));
+        const pspData = pbp.get('psp.data');
+        assert.equal(pspData.length, 77550);
 	});
 });

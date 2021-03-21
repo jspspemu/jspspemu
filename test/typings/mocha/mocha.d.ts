@@ -50,6 +50,7 @@ interface MochaDone {
     (error?: Error): void;
 }
 
+// noinspection JSUnusedGlobalSymbols
 declare var mocha: Mocha;
 
 declare var describe : {

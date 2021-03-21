@@ -1102,6 +1102,14 @@ export class PromiseFast<T> implements Thenable<T> {
         })
     }
 
+    static delay<T>(timeoutMs: number, value: T): PromiseFast<T> {
+        return new PromiseFast<T>((resolve, _) => {
+            setTimeout(() => {
+                resolve(value)
+            },timeoutMs)
+        })
+    }
+
 	static resolve<T>(value: PromiseFast<T>): PromiseFast<T>;
 	static resolve<T>(value: T): PromiseFast<T>;
 	static resolve(): PromiseFast<any>;

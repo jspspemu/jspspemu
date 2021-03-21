@@ -7,6 +7,7 @@ import {assert} from "chai"
 
 export function ref() { } // Workaround to allow typescript to include this module
 
+// noinspection DuplicatedCode
 describe('utils', () => {
     
     describe('string repeat', () => {
@@ -19,12 +20,12 @@ describe('utils', () => {
 
     describe('Binary layouts', () => {
         it('should read int32', () => {
-            var stream = Stream.fromArray([0x01, 0x02, 0x03, 0x04]);
+            const stream = Stream.fromArray([0x01, 0x02, 0x03, 0x04]);
             assert.equal(Int32.read(stream), 0x04030201);
         });
 
         it('should read int16', () => {
-            var stream = Stream.fromArray([0x01, 0x02, 0x03, 0x04]);
+            const stream = Stream.fromArray([0x01, 0x02, 0x03, 0x04]);
             assert.equal(Int16.read(stream), 0x0201);
             assert.equal(Int16.read(stream), 0x0403);
         });
@@ -43,28 +44,29 @@ describe('utils', () => {
 
 	describe('Binary search', () => {
 		it('none', () => {
-			var test:number[] = [];
-			assert.equal(-1, test.binarySearchIndex(b => compareNumbers(0, b)));
+            // noinspection JSMismatchedCollectionQueryUpdate
+            const test: number[] = [];
+            assert.equal(-1, test.binarySearchIndex(b => compareNumbers(0, b)));
 			assert.equal(-1, test.binarySearchIndex(b => compareNumbers(11, b)));
 		});
 
 		it('one', () => {
-			var test = [10];
-			assert.equal(0, test.binarySearchIndex(b => compareNumbers(10, b)));
+            const test = [10];
+            assert.equal(0, test.binarySearchIndex(b => compareNumbers(10, b)));
 
 			assert.equal(-1, test.binarySearchIndex(b => compareNumbers(0, b)));
 			assert.equal(-1, test.binarySearchIndex(b => compareNumbers(11, b)));
 		});
 
 		it('odd', () => {
-			var test = [10, 20, 30, 50, 100];
-			assert.equal(0, test.binarySearchIndex(b => compareNumbers(10, b)));
+            const test = [10, 20, 30, 50, 100];
+            assert.equal(0, test.binarySearchIndex(b => compareNumbers(10, b)));
 			assert.equal(1, test.binarySearchIndex(b => compareNumbers(20, b)));
 			assert.equal(2, test.binarySearchIndex(b => compareNumbers(30, b)));
 			assert.equal(3, test.binarySearchIndex(b => compareNumbers(50, b)));
 			assert.equal(4, test.binarySearchIndex(b => compareNumbers(100, b)));
 
-			assert.equal(-1, test.binarySearchIndex(b => compareNumbers(0, b)));
+            assert.equal(-1, test.binarySearchIndex(b => compareNumbers(0, b)));
 			assert.equal(-1, test.binarySearchIndex(b => compareNumbers(11, b)));
 			assert.equal(-1, test.binarySearchIndex(b => compareNumbers(21, b)));
 			assert.equal(-1, test.binarySearchIndex(b => compareNumbers(31, b)));
@@ -73,8 +75,8 @@ describe('utils', () => {
 		});
 
 		it('even', () => {
-			var test = [10, 20, 30, 50, 100, 110];
-			assert.equal(0, test.binarySearchIndex(b => compareNumbers(10, b)));
+            const test = [10, 20, 30, 50, 100, 110];
+            assert.equal(0, test.binarySearchIndex(b => compareNumbers(10, b)));
 			assert.equal(1, test.binarySearchIndex(b => compareNumbers(20, b)));
 			assert.equal(2, test.binarySearchIndex(b => compareNumbers(30, b)));
 			assert.equal(3, test.binarySearchIndex(b => compareNumbers(50, b)));

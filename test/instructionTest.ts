@@ -5,7 +5,7 @@ import {CpuInstructions} from "../src/core/cpu/cpu_instructions";
 export function ref() { } // Workaround to allow typescript to include this module
 
 describe('instruction lookup', () => {
-	var instructions = CpuInstructions.instance;
+	const instructions = CpuInstructions.instance;
 
     it('should accept locate instruction by name', () => {
         assert.equal(instructions.findByName('addi').name, 'addi');

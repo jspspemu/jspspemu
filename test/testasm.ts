@@ -1,15 +1,14 @@
 ﻿///<reference path="./global.d.ts" />
 import {assert} from "chai"
 import {addressToHex, addressToHex2, StringDictionary} from "../src/global/utils";
-import {MipsAssembler, MipsDisassembler} from "../src/core/cpu/cpu_assembler";
-import {getMemoryInstance, TestMemory} from "../src/core/memory";
+import {MipsAssembler} from "../src/core/cpu/cpu_assembler";
+import {TestMemory} from "../src/core/memory";
 import {CpuConfig, CpuState, SyscallManager} from "../src/core/cpu/cpu_core";
 import {CpuExecutor} from "../src/core/cpu/cpu_executor";
 
 export function ref() { } // Workaround to allow typescript to include this module
 
 const assembler = new MipsAssembler();
-const disassembler = new MipsDisassembler();
 
 class TestSyscallManager extends SyscallManager {
     constructor() { super(null as any); }
@@ -228,8 +227,8 @@ describe('testasm cpu running', function () {
     });
 
     it('opcode add/addu', function () {
-        var combineValues = [0x00000000, 0x00000001, 0x00000309, 0x80000000, 0x7FFFFFFF, 0xFFFFFFFF];
-        var expectedMatrix = [
+        const combineValues = [0x00000000, 0x00000001, 0x00000309, 0x80000000, 0x7FFFFFFF, 0xFFFFFFFF];
+        const expectedMatrix = [
             ["00000000", "00000001", "00000309", "80000000", "7FFFFFFF", "FFFFFFFF"],
             ["00000001", "00000002", "0000030A", "80000001", "80000000", "00000000"],
             ["00000309", "0000030A", "00000612", "80000309", "80000308", "00000308"],
@@ -237,16 +236,16 @@ describe('testasm cpu running', function () {
             ["7FFFFFFF", "80000000", "80000308", "FFFFFFFF", "FFFFFFFE", "7FFFFFFE"],
             ["FFFFFFFF", "00000000", "00000308", "7FFFFFFF", "7FFFFFFE", "FFFFFFFE"]
         ];
-        var matrix_add = generateGpr3Matrix('add', combineValues);
-        var matrix_addu = generateGpr3Matrix('addu', combineValues);
+        const matrix_add = generateGpr3Matrix('add', combineValues);
+        const matrix_addu = generateGpr3Matrix('addu', combineValues);
 
         assert.equal(JSON.stringify(expectedMatrix), JSON.stringify(matrix_add));
         assert.equal(JSON.stringify(expectedMatrix), JSON.stringify(matrix_addu));
     });
 
     it('opcode sub/subu', function () {
-        var combineValues = [0x00000000, 0x00000001, 0x00000309, 0x80000000, 0x7FFFFFFF, 0xFFFFFFFF];
-        var expectedMatrix = [
+        const combineValues = [0x00000000, 0x00000001, 0x00000309, 0x80000000, 0x7FFFFFFF, 0xFFFFFFFF];
+        const expectedMatrix = [
             ["00000000", "FFFFFFFF", "FFFFFCF7", "80000000", "80000001", "00000001"],
             ["00000001", "00000000", "FFFFFCF8", "80000001", "80000002", "00000002"],
             ["00000309", "00000308", "00000000", "80000309", "8000030A", "0000030A"],
@@ -254,16 +253,16 @@ describe('testasm cpu running', function () {
             ["7FFFFFFF", "7FFFFFFE", "7FFFFCF6", "FFFFFFFF", "00000000", "80000000"],
             ["FFFFFFFF", "FFFFFFFE", "FFFFFCF6", "7FFFFFFF", "80000000", "00000000"]
         ];
-        var matrix_sub = generateGpr3Matrix('sub', combineValues);
-        var matrix_subu = generateGpr3Matrix('subu', combineValues);
+        const matrix_sub = generateGpr3Matrix('sub', combineValues);
+        const matrix_subu = generateGpr3Matrix('subu', combineValues);
 
         assert.equal(JSON.stringify(expectedMatrix), JSON.stringify(matrix_sub));
         assert.equal(JSON.stringify(expectedMatrix), JSON.stringify(matrix_subu));
     });
 
     it('opcode slvl', function () {
-        var combineValues = [0x00000000, 0x00000001, 0x00000002, 0x0000000A, 0x0000001F, 0x00000020, 0x80000000, 0x7FFFFFFF, 0xFFFFFFFF];
-		var expectedMatrix = [
+        const combineValues = [0x00000000, 0x00000001, 0x00000002, 0x0000000A, 0x0000001F, 0x00000020, 0x80000000, 0x7FFFFFFF, 0xFFFFFFFF];
+        const expectedMatrix = [
 			["00000000", "00000000", "00000000", "00000000", "00000000", "00000000", "00000000", "00000000", "00000000"],
 			["00000001", "00000002", "00000004", "00000400", "80000000", "00000001", "00000001", "80000000", "80000000"],
 			["00000002", "00000004", "00000008", "00000800", "00000000", "00000002", "00000002", "00000000", "00000000"],
@@ -274,7 +273,7 @@ describe('testasm cpu running', function () {
 			["7FFFFFFF", "FFFFFFFE", "FFFFFFFC", "FFFFFC00", "80000000", "7FFFFFFF", "7FFFFFFF", "80000000", "80000000"],
 			["FFFFFFFF", "FFFFFFFE", "FFFFFFFC", "FFFFFC00", "80000000", "FFFFFFFF", "FFFFFFFF", "80000000", "80000000"]
 		];
-        var matrix = generateGpr3Matrix('sllv', combineValues);
+        const matrix = generateGpr3Matrix('sllv', combineValues);
         assert.equal(JSON.stringify(expectedMatrix), JSON.stringify(matrix));
     });
 

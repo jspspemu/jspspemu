@@ -24,6 +24,7 @@ declare module chai {
     // Provides a way to extend the internals of Chai
     function use(fn: (chai: any, utils: any) => void): any;
 
+    // noinspection JSUnusedGlobalSymbols
     interface ExpectStatic {
         (target: any): Expect;
     }

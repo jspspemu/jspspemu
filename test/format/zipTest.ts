@@ -8,36 +8,29 @@ import {assert} from "chai"
 export function ref() { } // Workaround to allow typescript to include this module
 
 describe('zip', () => {
-	var arrayBuffer: ArrayBuffer;
+    let arrayBuffer: ArrayBuffer;
 
-	before(() => {
-		return downloadFileAsync('data/samples/TrigWars.zip').then((data) => {
-			arrayBuffer = data;
-		});
-	});
+    before(async () => {
+        arrayBuffer = await downloadFileAsync('data/samples/TrigWars.zip')
+	})
 
+	it('should load fine', async () => {
+	    const zip = await Zip.fromStreamAsync(MemoryAsyncStream.fromArrayBuffer(arrayBuffer))
+        assert.equal(27233, zip.get('/EBOOT.PBP').uncompressedSize);
+        assert.equal(63548, zip.get('/Data/Sounds/bullet.wav').uncompressedSize);
 
-	it('should load fine', () => {
-		return Zip.fromStreamAsync(MemoryAsyncStream.fromArrayBuffer(arrayBuffer)).then((zip) => {
-			assert.equal(27233, zip.get('/EBOOT.PBP').uncompressedSize);
-			assert.equal(63548, zip.get('/Data/Sounds/bullet.wav').uncompressedSize);
+        assert.equal(63548, zip.get('/DATA/SOUNDS/Bullet.Wav').uncompressedSize);
 
-			assert.equal(63548, zip.get('/DATA/SOUNDS/Bullet.Wav').uncompressedSize);
+        const data = await zip.get('/DATA/SOUNDS/Bullet.Wav').readAsync()
+        assert.equal(63548, data.length);
+        //console.log(data);
+	})
 
-			return zip.get('/DATA/SOUNDS/Bullet.Wav').readAsync().then((data) => {
-				assert.equal(63548, data.length);
-				//console.log(data);
-			});
-		});
-	});
-
-	it('zip vfs should work', () => {
-		return Zip.fromStreamAsync(MemoryAsyncStream.fromArrayBuffer(arrayBuffer)).then((zip) => {
-			var vfs = new ZipVfs(zip);
-			return vfs.getStatAsync('/Data/Sounds/bullet.wav').then((info) => {
-				assert.equal(false, info.isDirectory);
-				assert.equal(63548, info.size);
-			});
-		});
-	});
-});
+	it('zip vfs should work', async () => {
+	    const zip = await Zip.fromStreamAsync(MemoryAsyncStream.fromArrayBuffer(arrayBuffer))
+        const vfs = new ZipVfs(zip);
+	    const info = await vfs.getStatAsync('/Data/Sounds/bullet.wav')
+        assert.equal(false, info.isDirectory);
+        assert.equal(63548, info.size);
+	})
+})

@@ -329,13 +329,13 @@ export class Memory {
 	}
 
 	hash(address: number, count: number) {
-		var result = 0;
+		let result = 0;
 		
 		address &= MASK;
 
 		while ((address & 3) != 0) { result += this.lbu(address++); count--; }
 
-		var count2 = MathUtils.prevAligned(count, 4);
+		const count2 = MathUtils.prevAligned(count, 4);
 
 		result += this.hashWordCount(address, count2);
 

@@ -7,13 +7,14 @@ export function ref() { } // Workaround to allow typescript to include this modu
 
 describe("memorymanager", () => {
     it("low", () => {
-		var partition = new MemoryPartition("test", 0, 100, false);
+        const partition = new MemoryPartition("test", 0, 100, false);
         assert.equal(partition.getMaxContiguousFreeMemory(), 100);
         assert.equal(partition.getTotalFreeMemory(), 100);
 
-		var p1 = partition.allocate(25, MemoryAnchor.Low);
-		var p2 = partition.allocate(25, MemoryAnchor.Low);
-		var p3 = partition.allocate(25, MemoryAnchor.Low);
+        // noinspection JSUnusedLocalSymbols
+        const p1 = partition.allocate(25, MemoryAnchor.Low);
+        const p2 = partition.allocate(25, MemoryAnchor.Low);
+        const p3 = partition.allocate(25, MemoryAnchor.Low);
 
         assert.equal(partition.getMaxContiguousFreeMemory(), 25);
         assert.equal(partition.getTotalFreeMemory(), 25);
@@ -30,15 +31,16 @@ describe("memorymanager", () => {
 	});
 
 	it("low2", () => {
-		var partition = new MemoryPartition("test", 0, 100, false);
-		assert.equal(partition.getMaxContiguousFreeMemory(), 100);
+        const partition = new MemoryPartition("test", 0, 100, false);
+        assert.equal(partition.getMaxContiguousFreeMemory(), 100);
 		assert.equal(partition.getTotalFreeMemory(), 100);
 
-		var p1 = partition.allocateLow(25);
-		var p2 = partition.allocateLow(25);
-		var p3 = partition.allocateLow(25);
+        const p1 = partition.allocateLow(25);
+        // noinspection JSUnusedLocalSymbols
+        const p2 = partition.allocateLow(25);
+        const p3 = partition.allocateLow(25);
 
-		assert.equal(partition.getTotalFreeMemory(), 25);
+        assert.equal(partition.getTotalFreeMemory(), 25);
 		assert.equal(partition.getMaxContiguousFreeMemory(), 25);
 
 		p3.deallocate();
@@ -55,15 +57,15 @@ describe("memorymanager", () => {
 	});
 
 	it("high", () => {
-		var partition = new MemoryPartition("test", 0, 100, false);
-		assert.equal(partition.getMaxContiguousFreeMemory(), 100);
+        const partition = new MemoryPartition("test", 0, 100, false);
+        assert.equal(partition.getMaxContiguousFreeMemory(), 100);
 		assert.equal(partition.getTotalFreeMemory(), 100);
 
-		var p1 = partition.allocateHigh(25);
-		var p2 = partition.allocateHigh(25);
-		var p3 = partition.allocateHigh(25);
+        const p1 = partition.allocateHigh(25);
+        const p2 = partition.allocateHigh(25);
+        const p3 = partition.allocateHigh(25);
 
-		assert.equal(partition.getTotalFreeMemory(), 25);
+        assert.equal(partition.getTotalFreeMemory(), 25);
 		assert.equal(partition.getMaxContiguousFreeMemory(), 25);
 
 		p3.deallocate();

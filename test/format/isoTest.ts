@@ -9,22 +9,18 @@ import {ArrayBufferUtils} from "../../src/global/utils";
 import {Iso} from "../../src/format/iso";
 
 describe('iso', () => {
-	var isoData: Uint8Array;
+	let isoData: Uint8Array;
 
-	before(() => {
-		return downloadFileAsync('data/samples/cube.iso').then((data) => {
-			isoData = new Uint8Array(data);
-		});
-	});
+	before(async () => {
+        isoData = new Uint8Array(await downloadFileAsync('data/samples/cube.iso'))
+	})
 
-	it('should load fine', () => {
-		var asyncStream = new MemoryAsyncStream(ArrayBufferUtils.fromUInt8Array(isoData));
-
-		return Iso.fromStreamAsync(asyncStream).then(iso => {
-            assert.equal(
-                JSON.stringify(iso.children.map(item => item.path)),
-                JSON.stringify(["PSP_GAME", "PSP_GAME/PARAM.SFO", "PSP_GAME/SYSDIR", "PSP_GAME/SYSDIR/BOOT.BIN", "PSP_GAME/SYSDIR/EBOOT.BIN"])
-            );
-		});
-	});
-});
+	it('should load fine', async () => {
+		const asyncStream = new MemoryAsyncStream(ArrayBufferUtils.fromUInt8Array(isoData))
+        const iso = await Iso.fromStreamAsync(asyncStream)
+        assert.equal(
+            JSON.stringify(iso.children.map(item => item.path)),
+            JSON.stringify(["PSP_GAME", "PSP_GAME/PARAM.SFO", "PSP_GAME/SYSDIR", "PSP_GAME/SYSDIR/BOOT.BIN", "PSP_GAME/SYSDIR/EBOOT.BIN"])
+        )
+	})
+})

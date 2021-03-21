@@ -14,12 +14,11 @@ import {ModuleManager} from "../../src/hle/manager/module";
 export function ref() { } // Workaround to allow typescript to include this module
 
 describe('elf', () => {
-	var stream: Stream;
+	let stream: Stream;
 
-	before(() => {
-		return downloadFileAsync('data/samples/counter.elf').then((data) => {
-			stream = Stream.fromArrayBuffer(data)
-		});
+	before(async () => {
+        const data = await downloadFileAsync('data/samples/counter.elf').promise()
+        stream = Stream.fromArrayBuffer(data)
 	});
 
     it('load', () => {
@@ -34,7 +33,8 @@ describe('elf', () => {
 
 		context.init(null as any, display, null as any, null as any, memoryManager, null as any, null as any, memory, null as any, null as any, null as any, null as any, null as any, null as any, null as any, null as any);
 
-        var elf = new PspElfLoader(memory, memoryManager, moduleManager, syscallManager);
+        const elf = new PspElfLoader(memory, memoryManager, moduleManager, syscallManager);
         elf.load(stream);
+        assert.isTrue(true)
     });
 });
