@@ -175,121 +175,110 @@ export class Emulator {
 		this.onPic1.dispatch(data.toUInt8Array());
 	}
 
-	private _loadAndExecuteAsync(asyncStream: AsyncStream, pathToFile: string):PromiseFast<any> {
-		return detectFormatAsync(asyncStream).then((fileFormat):any => {
-			console.info(`File:: size: ${asyncStream.size}, format: "${fileFormat}", name: "${asyncStream.name}"`);
-			switch (fileFormat) {
-				case 'ciso':
-					return Cso.fromStreamAsync(asyncStream).then(asyncStream2 => this._loadAndExecuteAsync(asyncStream2, pathToFile));
-				case 'pbp':
-					return asyncStream.readChunkAsync(0, asyncStream.size).then(executableArrayBuffer => {
-						var pbp = Pbp.fromStream(Stream.fromArrayBuffer(executableArrayBuffer));
-						var psf = Psf.fromStream(pbp.get(PbpNames.ParamSfo));
-						this.processParamsPsf(psf);
-						this.loadIcon0(pbp.get(PbpNames.Icon0Png));
-						this.loadPic1(pbp.get(PbpNames.Pic1Png));
+    private async _loadAndExecuteAsync(asyncStream: AsyncStream, pathToFile: string): Promise<any> {
+        const fileFormat = await detectFormatAsync(asyncStream)
+        console.info(`File:: size: ${asyncStream.size}, format: "${fileFormat}", name: "${asyncStream.name}", pathToFile: "${pathToFile}"`);
+        switch (fileFormat) {
+            case 'ciso': {
+                const asyncStream2 = await Cso.fromStreamAsync(asyncStream)
+                return await this._loadAndExecuteAsync(asyncStream2, pathToFile);
+            }
+            case 'pbp': {
+                const executableArrayBuffer = await asyncStream.readChunkAsync(0, asyncStream.size)
+                const pbp = Pbp.fromStream(Stream.fromArrayBuffer(executableArrayBuffer));
+                const psf = Psf.fromStream(pbp.get(PbpNames.ParamSfo));
+                this.processParamsPsf(psf);
+                this.loadIcon0(pbp.get(PbpNames.Icon0Png));
+                this.loadPic1(pbp.get(PbpNames.Pic1Png));
+                return await this._loadAndExecuteAsync(new MemoryAsyncStream(pbp.get(PbpNames.PspData).toArrayBuffer()), pathToFile);
+            }
+            case 'psp': {
+                const executableArrayBuffer = await asyncStream.readChunkAsync(0, asyncStream.size)
+                return await this._loadAndExecuteAsync(new MemoryAsyncStream(decrypt(Stream.fromArrayBuffer(executableArrayBuffer)).slice().readAllBytes().buffer, pathToFile + ".CryptedPSP"), pathToFile);
+            }
+            case 'zip': {
+                const zip = await Zip.fromStreamAsync(asyncStream)
+                const zipFs = new ZipVfs(zip, this.storageVfs);
+                const mountableVfs = this.ms0Vfs;
+                mountableVfs.mountVfs('/PSP/GAME/virtual', zipFs);
+                const availableElf = ['/EBOOT.ELF', '/BOOT.ELF', '/EBOOT.PBP'].first(item => zip.has(item));
+                console.log('elf: ' + availableElf);
+                const node = await zipFs.openAsync(availableElf, FileOpenFlags.Read, parseInt('0777', 8))
+                const data = await node.readAllAsync()
+                return await this._loadAndExecuteAsync(MemoryAsyncStream.fromArrayBuffer(data), 'ms0:/PSP/GAME/virtual/EBOOT.ELF');
+            }
+            case 'iso': {
+                const iso = await Iso.fromStreamAsync(asyncStream);
+                const isoFs = new IsoVfs(iso);
+                this.fileManager.mount('umd0', isoFs);
+                this.fileManager.mount('umd1', isoFs);
+                this.fileManager.mount('disc0', isoFs);
+                this.fileManager.mount('disc1', isoFs);
 
-						return this._loadAndExecuteAsync(new MemoryAsyncStream(pbp.get(PbpNames.PspData).toArrayBuffer()), pathToFile);
-					});
-				case 'psp':
-					return asyncStream.readChunkAsync(0, asyncStream.size).then(executableArrayBuffer => {
-						return this._loadAndExecuteAsync(new MemoryAsyncStream(decrypt(Stream.fromArrayBuffer(executableArrayBuffer)).slice().readAllBytes().buffer, pathToFile + ".CryptedPSP"), pathToFile);
-					});
-				case 'zip':
-					return Zip.fromStreamAsync(asyncStream).then(zip => {
-						var zipFs = new ZipVfs(zip, this.storageVfs);
-						var mountableVfs = this.ms0Vfs;
-						mountableVfs.mountVfs('/PSP/GAME/virtual', zipFs);
+                const exists = await isoFs.existsAsync('PSP_GAME/PARAM.SFO');
 
-						var availableElf = ['/EBOOT.ELF', '/BOOT.ELF', '/EBOOT.PBP'].first(item => zip.has(item));
+                if (!exists) {
+                    const mountableVfs = this.ms0Vfs;
+                    mountableVfs.mountVfs('/PSP/GAME/virtual', new ProxyVfs([isoFs, this.storageVfs]));
 
-						console.log('elf: ' + availableElf);
+                    const bootBinData = await isoFs.readAllAsync('EBOOT.PBP')
+                    return await this._loadAndExecuteAsync(MemoryAsyncStream.fromArrayBuffer(bootBinData), 'ms0:/PSP/GAME/virtual/EBOOT.PBP')
+                } else {
+                    const paramSfoData = await isoFs.readAllAsync('PSP_GAME/PARAM.SFO')
+                    const psf = Psf.fromStream(Stream.fromArrayBuffer(paramSfoData))
+                    this.processParamsPsf(psf);
 
-						return zipFs.openAsync(availableElf, FileOpenFlags.Read, parseInt('0777', 8)).then((node) => {
-							return node.readAllAsync().then((data) => {
-								return this._loadAndExecuteAsync(MemoryAsyncStream.fromArrayBuffer(data), 'ms0:/PSP/GAME/virtual/EBOOT.ELF');
-							});
-						});
-					});
-				case 'iso':
-					return Iso.fromStreamAsync(asyncStream).then(iso => {
-						var isoFs = new IsoVfs(iso);
-						this.fileManager.mount('umd0', isoFs);
-						this.fileManager.mount('umd1', isoFs);
-						this.fileManager.mount('disc0', isoFs);
-						this.fileManager.mount('disc1', isoFs);
+                    try {
+                        this.loadIcon0(Stream.fromArrayBuffer(await isoFs.readAllAsync('PSP_GAME/ICON0.PNG')))
+                        this.loadPic1(Stream.fromArrayBuffer(await isoFs.readAllAsync('PSP_GAME/PIC1.PNG')))
+                    } catch (e) {
+                        console.error(e)
+                    }
 
-						return isoFs.existsAsync('PSP_GAME/PARAM.SFO').then((exists: boolean) => {
-							if (!exists) {
-								var mountableVfs = this.ms0Vfs;
-								mountableVfs.mountVfs('/PSP/GAME/virtual', new ProxyVfs([isoFs, this.storageVfs]));
+                    const exists = await isoFs.existsAsync('PSP_GAME/SYSDIR/BOOT.BIN');
+                    const path = exists ? 'PSP_GAME/SYSDIR/BOOT.BIN' : 'PSP_GAME/SYSDIR/EBOOT.BIN';
+                    const bootBinData = await isoFs.readAllAsync(path)
+                    return await this._loadAndExecuteAsync(MemoryAsyncStream.fromArrayBuffer(bootBinData), 'umd0:/' + path);
+                }
+            }
+            case 'elf': {
+                const executableArrayBuffer = await asyncStream.readChunkAsync(0, asyncStream.size)
 
-								return isoFs.readAllAsync('EBOOT.PBP').then(bootBinData => {
-									return this._loadAndExecuteAsync(MemoryAsyncStream.fromArrayBuffer(bootBinData), 'ms0:/PSP/GAME/virtual/EBOOT.PBP');
-								});
-							} else {
-								return isoFs.readAllAsync('PSP_GAME/PARAM.SFO').then(paramSfoData => {
-									var psf = Psf.fromStream(Stream.fromArrayBuffer(paramSfoData));
-									this.processParamsPsf(psf);
+                if (typeof document != 'undefined') {
+                    document.title = this.gameTitle ? `${this.gameTitle} - jspspemu` : 'jspspemu';
+                }
 
-									var icon0Promise = isoFs.readAllAsync('PSP_GAME/ICON0.PNG').then(data => { this.loadIcon0(Stream.fromArrayBuffer(data)); }).catch(() => { });
-									var pic1Promise = isoFs.readAllAsync('PSP_GAME/PIC1.PNG').then(data => { this.loadPic1(Stream.fromArrayBuffer(data)); }).catch(() => { });
+                const mountableVfs = this.ms0Vfs
+                mountableVfs.mountFileData('/PSP/GAME/virtual/EBOOT.ELF', executableArrayBuffer)
+                const elfStream = Stream.fromArrayBuffer(executableArrayBuffer)
 
-									return isoFs.existsAsync('PSP_GAME/SYSDIR/BOOT.BIN').then((exists) => {
-										var path = exists ? 'PSP_GAME/SYSDIR/BOOT.BIN' : 'PSP_GAME/SYSDIR/EBOOT.BIN';
-										return isoFs.readAllAsync(path).then(bootBinData => {
-											return this._loadAndExecuteAsync(MemoryAsyncStream.fromArrayBuffer(bootBinData), 'umd0:/' + path);
-										});
-									});
-								});
-							}
-						});
-					});
-				case 'elf':
-					return asyncStream.readChunkAsync(0, asyncStream.size).then(executableArrayBuffer => {
-						if (typeof document != 'undefined') {
-							if (this.gameTitle) {
-								document.title = this.gameTitle + ' - jspspemu';
-							} else {
-								document.title = 'jspspemu';
-							}
-						}
+                this.fileManager.cwd = new Uri('ms0:/PSP/GAME/virtual')
+                const args = [pathToFile]
+                const argumentsPartition = this.memoryManager.userPartition.allocateLow(0x4000)
+                const argument = args.map(argument => argument + String.fromCharCode(0)).join('')
+                this.memory.getPointerStream(argumentsPartition.low)!.writeString(argument)
 
-                        const mountableVfs = this.ms0Vfs;
-                        mountableVfs.mountFileData('/PSP/GAME/virtual/EBOOT.ELF', executableArrayBuffer);
+                const pspElf = new PspElfLoader(this.memory, this.memoryManager, this.moduleManager, this.syscallManager)
+                pspElf.load(elfStream)
+                this.context.symbolLookup = pspElf
+                this.context.gameTitle = this.gameTitle
+                this.context.gameId = pspElf.moduleInfo.name
+                const moduleInfo = pspElf.moduleInfo
 
-                        const elfStream = Stream.fromArrayBuffer(executableArrayBuffer);
+                //this.memory.dump(); debugger;
 
-                        this.fileManager.cwd = new Uri('ms0:/PSP/GAME/virtual');
-						console.info('pathToFile:', pathToFile);
-                        const args = [pathToFile];
-                        const argumentsPartition = this.memoryManager.userPartition.allocateLow(0x4000);
-                        const argument = args.map(argument => argument + String.fromCharCode(0)).join('');
-                        this.memory.getPointerStream(argumentsPartition.low)!.writeString(argument);
-
-						//console.log(new Uint8Array(executableArrayBuffer));
-                        const pspElf = new PspElfLoader(this.memory, this.memoryManager, this.moduleManager, this.syscallManager);
-                        pspElf.load(elfStream);
-						this.context.symbolLookup = pspElf;
-						this.context.gameTitle = this.gameTitle;
-						this.context.gameId = pspElf.moduleInfo.name;
-                        const moduleInfo = pspElf.moduleInfo;
-
-                        //this.memory.dump(); debugger;
-
-						// "ms0:/PSP/GAME/virtual/EBOOT.PBP"
-                        const thread = this.threadManager.create('main', moduleInfo.pc, 10);
-                        thread.state.GP = moduleInfo.gp;
-							thread.state.setGPR(4, argument.length);
-							thread.state.setGPR(5, argumentsPartition.low);
-							thread.start();
-						});
-
-				default:
-					throw new Error(`"Unhandled format '${fileFormat}'`);
-			}
-		});
-	}
+                // "ms0:/PSP/GAME/virtual/EBOOT.PBP"
+                const thread = this.threadManager!.create('main', moduleInfo.pc, 10)
+                thread.state.GP = moduleInfo.gp
+                thread.state.setGPR(4, argument.length)
+                thread.state.setGPR(5, argumentsPartition.low)
+                thread.start();
+                return;
+            }
+            default:
+                throw new Error(`"Unhandled format '${fileFormat}'`)
+        }
+    }
 
 	/*
 	toggleDropbox() {
