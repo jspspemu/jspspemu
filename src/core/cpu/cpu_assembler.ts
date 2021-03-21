@@ -4,7 +4,7 @@ import {addressToHex, sprintf, StringDictionary} from "../../global/utils";
 import {Instructions} from "./cpu_instructions";
 import {Memory} from "../memory";
 import {Instruction} from "./cpu_instruction";
-import {parseIntFormat} from "../../global/math";
+import {parseIntFormat, xrange} from "../../global/math";
 
 class Labels {
 	public labels: StringDictionary<number> = {};
@@ -151,6 +151,8 @@ export class MipsDisassembler {
     private encodeRegister(index: number) { return `$${index}`; }
 
 	disassemble(instruction: Instruction) {
+	    if (instruction.IDATA == 0) return 'nop'
+
         const instructionType = this.instructions.findByData(instruction.IDATA);
         const args = instructionType.format.replace(/(%\w+)/g, (type) => {
 			switch (type) {
@@ -160,10 +162,11 @@ export class MipsDisassembler {
                 case '%i': return `${instruction.imm16}`;
                 case '%I': return `${addressToHex(instruction.imm16 << 16)}`;
                 case '%j': return `${addressToHex(instruction.jump_real)}`;
+                case '%a': return `${instruction.pos}`;
 				default: return `UNHANDLED[${type}]`
 			}
 		});
-		return instructionType.name + ' ' + args;
+		return `${instructionType.name} ${args}`;
 	}
 
 	disassembleMemory(memory: Memory, PC: number) {
@@ -171,7 +174,17 @@ export class MipsDisassembler {
     }
 
     disassembleMemoryWithAddress(memory: Memory, PC: number) {
-        return sprintf("0x%08X: %s", PC, this.disassembleMemory(memory, PC))
+        return sprintf("0x%08X[0x%08X]: %s", PC, memory.readInt32(PC), this.disassembleMemory(memory, PC))
+    }
+
+    disassembleMemoryWithAddressArray(memory: Memory, PC: number, count: number): string[] {
+	    return xrange(0, count).map(n => this.disassembleMemoryWithAddress(memory, PC + n * 4))
+    }
+
+    dump(memory: Memory, PC: number, count: number, print: ((msg: String) => void) = (it => console.log(it))) {
+	    for (const line of this.disassembleMemoryWithAddressArray(memory, PC, count)) {
+            print(line)
+        }
     }
 }
 
