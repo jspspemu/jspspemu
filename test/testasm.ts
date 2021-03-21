@@ -1,16 +1,15 @@
 ﻿///<reference path="./global.d.ts" />
 import {assert} from "chai"
-import {addressToHex, addressToHex2} from "../src/global/utils";
+import {addressToHex, addressToHex2, StringDictionary} from "../src/global/utils";
 import {MipsAssembler, MipsDisassembler} from "../src/core/cpu/cpu_assembler";
-import {getMemoryInstance} from "../src/core/memory";
+import {getMemoryInstance, TestMemory} from "../src/core/memory";
 import {CpuConfig, CpuState, SyscallManager} from "../src/core/cpu/cpu_core";
 import {CpuExecutor} from "../src/core/cpu/cpu_executor";
 
 export function ref() { } // Workaround to allow typescript to include this module
 
-var assembler = new MipsAssembler();
-var disassembler = new MipsDisassembler();
-var memory = getMemoryInstance();
+const assembler = new MipsAssembler();
+const disassembler = new MipsDisassembler();
 
 class TestSyscallManager extends SyscallManager {
     constructor() { super(null as any); }
@@ -19,19 +18,20 @@ class TestSyscallManager extends SyscallManager {
     }
 }
 
-function executeProgram(gprInitial: any, program: string[]) {
+function executeProgram(gprInitial: StringDictionary<number>, program: string[]) {
     program = program.slice(0);
     program.push('break 0');
+    const memory = new TestMemory(4096)
     const result = assembler.assembleToMemory(memory, 4, program);
     const cpuConfig = new CpuConfig()
     const state = new CpuState(memory, new TestSyscallManager(), cpuConfig);
 
-    for (var key in gprInitial) {
-		if (key.substr(0, 1) == '$') {
-			state.setGPR(parseInt(key.substr(1)), gprInitial[key]);
-		} else {
-			(<any>state)[key] = gprInitial[key];
-		}
+    for (const [key, value] of Object.entries(gprInitial)) {
+        if (key.substr(0, 1) == '$') {
+            state.setGPR(parseInt(key.substr(1)), value);
+        } else {
+            (<any>state)[key] = gprInitial[key];
+        }
     }
 
     state.setPC(result.entrypoint);
@@ -46,35 +46,35 @@ function executeProgram(gprInitial: any, program: string[]) {
 }
 
 function generateGpr3Matrix(op: string, vector: number[]) {
-    var gprInitial: any = {};
-    var outputMatrix: string[][] = [];
-    for (var n = 0; n < vector.length; n++) gprInitial['$' + (15 + n)] = vector[n];
+    const gprInitial: any = {};
+    const outputMatrix: string[][] = [];
+    for (let n = 0; n < vector.length; n++) gprInitial['$' + (15 + n)] = vector[n];
 
-    for (var n = 0; n < vector.length; n++) {
-        var program:string[] = [];
-        for (var m = 0; m < vector.length; m++) {
+    for (let n = 0; n < vector.length; n++) {
+        const program: string[] = [];
+        for (let m = 0; m < vector.length; m++) {
             program.push(`${op} $${1 + m}, $${15 + n}, $${15 + m}`);
         }
-        var state = executeProgram(gprInitial, program);
-        var outputVector:string[] = [];
-        for (var m = 0; m < vector.length; m++) outputVector.push(addressToHex2(state.getGPR(1 + m)).toUpperCase());
+        const state = executeProgram(gprInitial, program);
+        const outputVector: string[] = [];
+        for (let m = 0; m < vector.length; m++) outputVector.push(addressToHex2(state.getGPR(1 + m)).toUpperCase());
         outputMatrix.push(outputVector);
         //console.log(state);
     }
     return outputMatrix;
 }
 
-function assertProgram(description:string, gprInitial: any, program: string[], gprAssertions: any) {
-    var state = executeProgram(gprInitial, program);
+function assertProgram(description:string, gprInitial: any, program: string[], gprAssertions: StringDictionary<number>) {
+    const state = executeProgram(gprInitial, program);
     //console.log(state);
-	for (var key in gprAssertions) {
-		var value: number = 0;
+    for (const [key, assertion] of Object.entries(gprAssertions)) {
+		let value: number = 0;
 		if (key.substr(0, 1) == '$') {
 			value = state.getGPR(parseInt(key.substr(1)));
 		} else {
 			value = (<any>state)[key];
 		}
-        assert.equal(addressToHex(value), addressToHex(gprAssertions[key]), description + ': ' + key + ' == ' + addressToHex(gprAssertions[key]));
+        assert.equal(addressToHex(value), addressToHex(assertion), description + ': ' + key + ' == ' + addressToHex(assertion));
     }
 }
 

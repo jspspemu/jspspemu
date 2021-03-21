@@ -2,9 +2,9 @@
   "scripts": {
     "build": "npx webpack --mode production --config=webpack.prod.js",
     "serve": "npx webpack serve",
-    "test": "npx tsc && npx -n --enable-source-maps mocha output/test/_tests.js",
-    "integration_test": "npx tsc && npx -n --enable-source-maps mocha output/test/_itests.js",
-    "all_test": "npx tsc && npx -n --enable-source-maps mocha output/test/_alltests.js",
+    "unit_test": "npx tsc && npx -n --enable-source-maps mocha output/test/_unittests.js",
+    "integration_test": "npx tsc && npx -n --enable-source-maps mocha output/test/_integrationtests.js",
+    "test": "npx tsc && npx -n --enable-source-maps mocha output/test/_alltests.js",
     "docgen": "npx tsc && node output/src/docgen.js",
     "benchmark": "npx tsc && node --enable-source-maps output/src/headless.js data/benchmark/benchmark.prx",
     "benchmark_interpreted": "npx tsc && node --enable-source-maps output/src/headless.js -interpreted data/benchmark/benchmark.prx",

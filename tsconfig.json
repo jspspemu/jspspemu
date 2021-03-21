@@ -21,7 +21,5 @@
     "src/headless.ts",
     "src/docgen.ts",
     "test/_alltests.ts",
-    "test/_tests.ts",
-    "test/_itests.ts"
   ]
 }

@@ -1,2 +1,2 @@
-import "./_tests"
-import "./_itests"
+import "./_unittests"
+import "./_integrationtests"
