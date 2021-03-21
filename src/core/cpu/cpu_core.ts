@@ -1419,7 +1419,13 @@ export class FunctionGenerator {
 			info.max = Math.max(info.max, PC + 4); // delayed branch
 			
 			//printf("PC: %08X: %s", PC, di.type.name);
-			if (++exploredCount >= MAX_EXPLORE) throw new Error(`Function too big ${exploredCount}`);
+			if (++exploredCount >= MAX_EXPLORE) {
+                let disassembler = new MipsDisassembler();
+                disassembler.dump(this.memory, info.min, 4, console.error)
+                console.error("...")
+                disassembler.dump(this.memory, info.max - 4 * 4, 4, console.error)
+			    throw new ProgramExitException(`Function too big ${exploredCount}`);
+            }
 
             let exploreNext = true;
             const exploreTarget = type.isBranch && !type.isRegister;
