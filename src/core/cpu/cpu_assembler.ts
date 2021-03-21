@@ -54,24 +54,25 @@ export class MipsAssembler {
 	assemble(PC: number, line: string, labels?:Labels): Instruction[] {
 		if (labels == null) labels = new Labels();
 		//console.log(line);
-		
-		var matches = line.match(/^\s*(\w+)(.*)$/);
-		var instructionName = matches[1];
-		var instructionArguments = matches[2].replace(/^\s+/, '').replace(/\s+$/, '');
 
-		switch (instructionName) {
+        let matches = line.match(/^\s*(\w+)(.*)$/);
+        if (matches == null) throw new Error(`Invalid assembly line '${line}'`)
+        const instructionName = matches[1];
+        const instructionArguments = matches[2].replace(/^\s+/, '').replace(/\s+$/, '');
+
+        switch (instructionName) {
 			case 'nop': return this.assemble(PC, 'sll r0, r0, 0');
 			case 'li':
-				var parts = instructionArguments.split(',');
-				//console.log(parts);
-				return this.assemble(PC, 'addiu ' + parts[0] + ', r0, ' + parts[1]);
+                const parts = instructionArguments.split(',');
+                //console.log(parts);
+				return this.assemble(PC, `addiu ${parts[0]}, r0, ${parts[1]}`);
 		}
 
-		var instructionType = this.instructions.findByName(instructionName);
-		var instruction = new Instruction(PC, instructionType.vm.value);
-		var types:string[] = [];
+        const instructionType = this.instructions.findByName(instructionName);
+        const instruction = new Instruction(PC, instructionType.vm.value);
+        const types: string[] = [];
 
-		var formatPattern = instructionType.format
+        const formatPattern = instructionType.format
 			.replace('(', '\\(')
 			.replace(')', '\\)')
 			.replace(/(%\w+)/g, (type) => {
@@ -79,37 +80,34 @@ export class MipsAssembler {
 
 				switch (type) {
 					// Register
-					case '%J': case '%s': case '%d': case '%t':
-						return '([$r]\\d+)';
+					case '%J': case '%s': case '%d': case '%t': return '([$r]\\d+)';
 					// Immediate
-					case '%i': case '%C': case '%c': case '%a': 
-						return '((?:0b|0x|\\-)?[0-9A-Fa-f_]+)';
+					case '%i': case '%C': case '%c': case '%a': return '((?:0b|0x|\\-)?[0-9A-Fa-f_]+)';
 					// Label
-					case '%j': case '%O':
-						return '(\\w+)';
+					case '%j': case '%O': return '(\\w+)';
 					default: throw (new Error("MipsAssembler.Transform: Unknown type '" + type + "'"));
 				}
 			})
 			.replace(/\s+/g, '\\s*')
 		;
 		//console.log(formatPattern);
-		var regex = new RegExp('^' + formatPattern + '$', '');
+        const regex = new RegExp(`^${formatPattern}$`, '');
 
-		//console.log(line);
+        //console.log(line);
 		//console.log(formatPattern);
 
-		var matches = instructionArguments.match(regex);
-		//console.log(matches);
+        matches = instructionArguments.match(regex);
+        //console.log(matches);
 		//console.log(types);
 
 		if (matches === null) {
 			throw ('Not matching ' + instructionArguments + ' : ' + regex + ' : ' + instructionType.format);
 		}
 
-		for (var n = 0; n < types.length; n++) {
-			var type = types[n];
-			var match = matches[n + 1];
-			//console.log(type + ' = ' + match);
+		for (let n = 0; n < types.length; n++) {
+            const type = types[n];
+            const match = matches[n + 1];
+            //console.log(type + ' = ' + match);
 			this.update(instruction, type, match, labels);
 		}
 
@@ -130,12 +128,10 @@ export class MipsAssembler {
 
 	private update(instruction: Instruction, type: string, value: string, labels: Labels) {
 		switch (type) {
-			case '%J':
-			case '%s': instruction.rs = this.decodeRegister(value); break;
+			case '%J': case '%s': instruction.rs = this.decodeRegister(value); break;
 			case '%d': instruction.rd = this.decodeRegister(value); break;
 			case '%t': instruction.rt = this.decodeRegister(value); break;
-			case '%a':
-			case '%i': instruction.imm16 = this.decodeInteger(value); break;
+			case '%a': case '%i': instruction.imm16 = this.decodeInteger(value); break;
 			case '%C': instruction.vsyscall = this.decodeInteger(value); break;
 			case '%c': instruction.vsyscall = this.decodeInteger(value); break;
 			case '%O': instruction.branch_address = labels.labels[value]; break;
@@ -151,9 +147,8 @@ export class MipsDisassembler {
 	constructor() {
 	}
 
-	private encodeRegister(index: number) {
-		return '$' + index;
-	}
+	// noinspection JSMethodCanBeStatic
+    private encodeRegister(index: number) { return `$${index}`; }
 
 	disassemble(instruction: Instruction) {
         const instructionType = this.instructions.findByData(instruction.IDATA);

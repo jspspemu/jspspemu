@@ -248,7 +248,7 @@ class Atrac3 {
 	numberOfLoops = 0;
 	currentFrame = 0;
 	codecType = CodecType.PSP_MODE_AT_3_PLUS;
-	public stream: MeStream;
+	public stream: MeStream|null = null;
 
 	constructor(private id:number) {
 	}
@@ -322,7 +322,7 @@ class Atrac3 {
 
 	//private static useWorker = false;
 	private static useWorker = true;
-	public packet: MePacket = null;
+	public packet: MePacket|null = null;
 	
 	seekToSample(sample: number): void {
 		this.seekToFrame(Math.floor(sample / this.maximumSamples));
@@ -331,7 +331,7 @@ class Atrac3 {
 	seekToFrame(frame: number): void {
 		if (frame >= this.totalFrames) frame = 0;
 		this.flushPacket();
-		this.stream.seek(0);
+		this.stream!.seek(0);
 		// @TODO: Fix seek times! We could detect timestamps while decoding to do a faster seek
 		// later on loops.
 		while (this.currentFrame < frame) {
@@ -352,7 +352,7 @@ class Atrac3 {
 		this.currentFrame++;
 		do {
 			if (this.packet == null) {
-				this.packet = this.stream.readPacket();
+				this.packet = this.stream!.readPacket();
 				//console.warn('readPacket', this.packet != null);
 				if (this.packet == null) {
 					return null;

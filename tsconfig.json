@@ -1,7 +1,7 @@
 {
   "compilerOptions": {
     "experimentalDecorators": true,
-    "strictNullChecks": false,
+    "strictNullChecks": true,
     "incremental": true,
     "target": "es6",
     "module": "commonjs",

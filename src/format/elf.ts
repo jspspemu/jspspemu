@@ -85,7 +85,7 @@ export class ElfProgramHeader {
 export class ElfSectionHeader {
 	nameOffset: number;
 	name: string;
-	stream: Stream = null;
+	stream: Stream;
 	type: ElfSectionHeaderType;
 	flags: ElfSectionHeaderFlags;
 	address: number;
@@ -219,8 +219,8 @@ export class ElfReloc {
 
 
 export class ElfLoader {
-	public header: ElfHeader = null;
-	stream: Stream = null;
+	public header: ElfHeader;
+	stream: Stream;
 	public programHeaders: ElfProgramHeader[];
 	public sectionHeaders: ElfSectionHeader[];
 	public sectionHeadersByName: StringDictionary<ElfSectionHeader>;
@@ -234,10 +234,10 @@ export class ElfLoader {
 		this.stream = stream;
 		this.readAndCheckHeaders(stream);
 
-		var programHeadersStream = stream.sliceWithLength(this.header.programHeaderOffset, this.header.programHeaderCount * this.header.programHeaderEntrySize);
-		var sectionHeadersStream = stream.sliceWithLength(this.header.sectionHeaderOffset, this.header.sectionHeaderCount * this.header.sectionHeaderEntrySize);
+        const programHeadersStream = stream.sliceWithLength(this.header.programHeaderOffset, this.header.programHeaderCount * this.header.programHeaderEntrySize);
+        const sectionHeadersStream = stream.sliceWithLength(this.header.sectionHeaderOffset, this.header.sectionHeaderCount * this.header.sectionHeaderEntrySize);
 
-		this.programHeaders = StructArray<ElfProgramHeader>(ElfProgramHeader.struct, this.header.programHeaderCount).read(programHeadersStream);
+        this.programHeaders = StructArray<ElfProgramHeader>(ElfProgramHeader.struct, this.header.programHeaderCount).read(programHeadersStream);
 		this.sectionHeaders = StructArray<ElfSectionHeader>(ElfSectionHeader.struct, this.header.sectionHeaderCount).read(sectionHeadersStream);
 
 		this.sectionHeaderStringTable = this.sectionHeaders[this.header.sectionHeaderStringTable];
@@ -245,8 +245,8 @@ export class ElfLoader {
 
 		this.sectionHeadersByName = {};
 		this.sectionHeaders.forEach((sectionHeader) => {
-			var name = this.getStringFromStringTable(sectionHeader.nameOffset);
-			sectionHeader.name = name;
+            const name = this.getStringFromStringTable(sectionHeader.nameOffset);
+            sectionHeader.name = name;
 			if (sectionHeader.type != ElfSectionHeaderType.Null) {
 				sectionHeader.stream = this.getSectionHeaderFileStream(sectionHeader);
 			}
@@ -273,9 +273,9 @@ export class ElfLoader {
 		//console.log('::' + sectionHeader.type + ' ; ' + sectionHeader.offset + ' ; ' + sectionHeader.size);
 		switch (sectionHeader.type) {
 			case ElfSectionHeaderType.NoBits: case ElfSectionHeaderType.Null:
-				return this.stream.sliceWithLength(0, 0);
+				return this.stream!.sliceWithLength(0, 0);
 			default:
-				return this.stream.sliceWithLength(sectionHeader.offset, sectionHeader.size);
+				return this.stream!.sliceWithLength(sectionHeader.offset, sectionHeader.size);
 		}
 	}
 

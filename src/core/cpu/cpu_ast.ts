@@ -31,23 +31,23 @@ export class ANodeStmLabel extends ANodeStm {
 				if (this.references.length == 0) return ``;
 				return `case ${addressToHex(this.address)}:`;
 			case 'while': return `loop_${addressToHex(this.address)}: while (true) {`;
+            default: throw new Error(`Unexpected type ${this.type}`)
 		}
-		
 	}
 }
 
 export class ANodeStmStaticJump extends ANodeStm {
 	type = 'normal';
-	constructor(public cond: ANodeExpr, public address: number, public branchCode: ANodeStm) { super(); }
+	constructor(public cond: ANodeExpr, public address: number, public branchCode?: ANodeStm) { super(); }
 	
-	get branchCodeJs() { return this.branchCode ? this.branchCode.toJs() : ''; }
+	get branchCodeJs() { return this.branchCode?.toJs() ?? ''; }
 
 	toJs() {
 		switch (this.type) {
 			case 'normal': return `if (${this.cond.toJs()}) { ${this.branchCodeJs}; loop_state = ${addressToHex(this.address)}; continue loop; }`;
 			case 'while': return `if (${this.cond.toJs()}) { ${this.branchCodeJs}; continue loop_${addressToHex(this.address)}; } else { break loop_${addressToHex(this.address)}; } }`;
+            default: throw new Error(`Unexpected type ${this.type}`)
 		}
-		
 	}
 }
 
@@ -71,7 +71,7 @@ class ABlock {
 	public code:string = '';
 	public rblock:any = null;
 	
-	constructor(public index:number, public label:ANodeStmLabel = null, public jump:ANodeStmStaticJump = null) {
+	constructor(public index:number, public label:ANodeStmLabel|null = null, public jump:ANodeStmStaticJump|null = null) {
 	}
 	
 	public add(node:ANodeStm) {
@@ -84,9 +84,9 @@ export class ANodeFunction extends ANodeStmList {
 	constructor(public address:number, private prefix:ANodeStm, private sufix:ANodeStm, childs: ANodeStm[]) { super(childs); }
 	
 	toJs() {
-		var block:ABlock = new ABlock(0, null);
-		var blocksByLabel:NumberDictionary<ABlock> = {};
-		var blocks = [block];
+		let block:ABlock = new ABlock(0, null);
+		const blocksByLabel:NumberDictionary<ABlock> = {};
+		const blocks = [block];
 		for (let child of this.childs) {
 			if (child instanceof ANodeStmLabel) {
 				blocks.push(block = new ABlock(blocks.length, child, null));
@@ -98,22 +98,18 @@ export class ANodeFunction extends ANodeStmList {
 			}
 		}
 		
-		var text:string = null;
+        const text = relooperProcess(relooper => {
+            //Relooper.setDebug(true);
+            for (let block of blocks) block.rblock = relooper.addBlock(block.code);
 
-		if (text === null) {
-			text = relooperProcess(relooper => {
-				//Relooper.setDebug(true);
-				for (let block of blocks) block.rblock = relooper.addBlock(block.code);
-				
-				for (let n = 0; n < blocks.length; n++) {
-					let block = blocks[n];
-					let nblock = (n < blocks.length - 1) ? blocks[n + 1] : null;
-					let jblock = block.jump ? blocksByLabel[block.jump.address] : null;
-					if (nblock) relooper.addBranch(block.rblock, nblock.rblock);
-					if (jblock) relooper.addBranch(block.rblock, jblock.rblock, block.jump.cond.toJs(), block.jump.branchCodeJs);
-				}			
-			});
-		}
+            for (let n = 0; n < blocks.length; n++) {
+                let block = blocks[n];
+                let nblock = (n < blocks.length - 1) ? blocks[n + 1] : null;
+                let jblock = block.jump ? blocksByLabel[block.jump.address] : null;
+                if (nblock) relooper.addBranch(block.rblock, nblock.rblock);
+                if (jblock) relooper.addBranch(block.rblock, jblock.rblock, block.jump!.cond.toJs(), block.jump!.branchCodeJs);
+            }
+        });
 
 		//console.log(text);		
 
@@ -152,11 +148,13 @@ export class ANodeExprLValueSetGet extends ANodeExpr {
 	private _toJs(template:string, right?: ANodeExpr) {
 		return template.replace(/(\$\d|#)/g, (match) => {
 			if (match == '#') {
-				return right.toJs();
+				return right!.toJs();
 			} else if (match.startsWith('$')) {
-				return this.replacements[parseInt(match.substr(1))].toJs();
-			}
-		});
+				return this.replacements[parseInt(match.substr(1))].toJs()!;
+			} else {
+			    return match
+            }
+		})
 	}
 
 	toAssignJs(right: ANodeExpr) {

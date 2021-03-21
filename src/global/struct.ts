@@ -203,8 +203,8 @@ export class StructClass<T> implements IType<T> {
 		return out;
 	}
 	write(stream: Stream, value: T): void {
-		for (var n = 0; n < this.processedItems.length; n++) {
-			var item = this.processedItems[n];
+		for (let n = 0; n < this.processedItems.length; n++) {
+			const item = this.processedItems[n];
 			item.type.write(stream, (<any>value)[item.name], value);
 		}
 	}
@@ -418,14 +418,14 @@ export function StructPointer<T>(type: IType<T>) {
 }
 
 export interface PointerMemory {
-	getPointerStream(address: number, size?: number): Stream;
+	getPointerStream(address: number, size?: number): Stream | null;
 }
 
 export class Pointer<T> {
 	private stream: Stream;
 
 	constructor(private type: IType<T>, public memory: PointerMemory, public address: number) {
-		this.stream = memory.getPointerStream(this.address);
+		this.stream = memory.getPointerStream(this.address)!
 	}
 
 	readWrite(callback: (item: T) => void) {

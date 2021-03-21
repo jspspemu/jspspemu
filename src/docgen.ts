@@ -9,12 +9,12 @@ import { JSDOM } from 'jsdom';
     const dom = new JSDOM(text)
     const libs: any = {}
     for (const lib of dom.window.document.querySelectorAll("LIBRARY")) {
-        const libName = lib.querySelector("NAME").textContent
+        const libName = lib.querySelector("NAME")!.textContent!
         libs[libName] = {}
         //console.log(libName)
         for (const func of lib.querySelectorAll("FUNCTION")) {
-            const nid = func.querySelector("NID").textContent
-            const name = func.querySelector("NAME").textContent
+            const nid = func.querySelector("NID")!.textContent!
+            const name = func.querySelector("NAME")!.textContent!
             const defaultName = `${libName}_${nid.substr(2)}`
             if (name != defaultName) {
                 libs[libName][nid] = name

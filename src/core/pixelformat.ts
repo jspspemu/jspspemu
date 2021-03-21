@@ -89,7 +89,7 @@ export class PixelConverter {
 		}
 	}
 	
-	static decode(format: PixelFormat, from: Uint8Array, to: Uint32Array, useAlpha: boolean = true, palette: Uint32Array = null, clutStart: number = 0, clutShift: number = 0, clutMask: number = 0):Uint32Array {
+	static decode(format: PixelFormat, from: Uint8Array, to: Uint32Array, useAlpha: boolean = true, palette: Uint32Array|null = null, clutStart: number = 0, clutShift: number = 0, clutMask: number = 0):Uint32Array {
 		//static decode(format: PixelFormat, from: ArrayBuffer, fromIndex:number, to: Uint8Array, toIndex: number, count: number, useAlpha: boolean = true, palette: Uint32Array = null, clutStart: number = 0, clutShift: number = 0, clutMask: number = 0) {
 		//console.log(format + ':' + PixelFormat[format]);
 		switch (format) {
@@ -97,42 +97,42 @@ export class PixelConverter {
 			case PixelFormat.RGBA_5551: return PixelConverter.update5551(ArrayBufferUtils.uint8ToUint16(from), to, useAlpha);
 			case PixelFormat.RGBA_5650: return PixelConverter.update5650(ArrayBufferUtils.uint8ToUint16(from), to, useAlpha);
 			case PixelFormat.RGBA_4444: return PixelConverter.update4444(ArrayBufferUtils.uint8ToUint16(from), to, useAlpha);
-			case PixelFormat.PALETTE_T8: return PixelConverter.updateT8(from, to, useAlpha, palette, clutStart, clutShift, clutMask);
-			case PixelFormat.PALETTE_T4: return PixelConverter.updateT4(from, to, useAlpha, palette, clutStart, clutShift, clutMask);
+			case PixelFormat.PALETTE_T8: return PixelConverter.updateT8(from, to, useAlpha, palette!, clutStart, clutShift, clutMask);
+			case PixelFormat.PALETTE_T4: return PixelConverter.updateT4(from, to, useAlpha, palette!, clutStart, clutShift, clutMask);
 			default: throw new Error(`Unsupported pixel format ${format}`);
 		}
 	}
 
 	private static updateTranslate = new Uint32Array(256);
-	private static updateT4(from: Uint8Array, to: Uint32Array, useAlpha: boolean = true, palette: Uint32Array = null, clutStart: number = 0, clutShift: number = 0, clutMask: number = 0) {
-		var orValue = useAlpha ? 0 : 0xFF000000;
-		var count = to.length;
-		clutStart |= 0;
+	private static updateT4(from: Uint8Array, to: Uint32Array, useAlpha: boolean, palette: Uint32Array, clutStart: number, clutShift: number, clutMask: number) {
+        const orValue = useAlpha ? 0 : 0xFF000000;
+        const count = to.length;
+        clutStart |= 0;
 		clutShift |= 0;
 		clutMask &= 0xF;
 
-		var updateT4Translate = PixelConverter.updateTranslate;
-		for (var m = 0; m < 16; m++) updateT4Translate[m] = palette[((clutStart + m) >>> clutShift) & clutMask];
+		const updateT4Translate = PixelConverter.updateTranslate;
+		for (let m = 0; m < 16; m++) updateT4Translate[m] = palette[((clutStart + m) >>> clutShift) & clutMask];
 
-		for (var n = 0, m = 0; n < count; n++) {
-			var char = from[n];
+		for (let n = 0, m = 0; n < count; n++) {
+			const char = from[n];
 			to[m++] = updateT4Translate[(char >>> 0) & 0xF] | orValue;
 			to[m++] = updateT4Translate[(char >>> 4) & 0xF] | orValue;
 		}
 		return to;
 	}
 
-	private static updateT8(from: Uint8Array, to: Uint32Array, useAlpha: boolean = true, palette: Uint32Array = null, clutStart: number = 0, clutShift: number = 0, clutMask: number = 0) {
-		var orValue = useAlpha ? 0 : 0xFF000000;
-		var count = to.length;
-		clutMask &= 0xFF;
+	private static updateT8(from: Uint8Array, to: Uint32Array, useAlpha: boolean, palette: Uint32Array, clutStart: number, clutShift: number, clutMask: number) {
+        const orValue = useAlpha ? 0 : 0xFF000000;
+        const count = to.length;
+        clutMask &= 0xFF;
 		// Big enough to be worth the translate construction
 		if (count > 1024) {
-			var updateT8Translate = PixelConverter.updateTranslate;
-			for (var m = 0; m < 256; m++) updateT8Translate[m] = palette[((clutStart + m) >>> clutShift) & clutMask];
-			for (var m = 0; m < count; m++) to[m] = updateT8Translate[from[m]] | orValue;
+            const updateT8Translate = PixelConverter.updateTranslate;
+            for (let m = 0; m < 256; m++) updateT8Translate[m] = palette[((clutStart + m) >>> clutShift) & clutMask];
+			for (let m = 0; m < count; m++) to[m] = updateT8Translate[from[m]] | orValue;
 		} else {
-			for (var m = 0; m < count; m++) to[m] = palette[clutStart + ((from[m] & clutMask) << clutShift)] | orValue;
+			for (let m = 0; m < count; m++) to[m] = palette[clutStart + ((from[m] & clutMask) << clutShift)] | orValue;
 		}
 		return to;
 	}

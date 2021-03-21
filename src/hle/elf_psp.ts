@@ -17,6 +17,7 @@ import {ModuleManager} from "./manager/module";
 import {NativeFunction, SyscallManager} from "../core/cpu/cpu_core";
 import {Instruction} from "../core/cpu/cpu_instruction";
 import {ModuleKnownFunctionNamesDatabase} from "./pspmodules_database";
+import {ISymbol, ISymbolLookup} from "../emu/context";
 
 var console = logger.named('elf.psp');
 
@@ -107,7 +108,7 @@ class InstructionReader {
 	}
 }
 
-export class PspElfLoader {
+export class PspElfLoader implements ISymbolLookup {
     private elfLoader: ElfLoader;
     moduleInfo: ElfPspModuleInfo;
 	assembler = new MipsAssembler();
@@ -140,12 +141,12 @@ export class PspElfLoader {
 		//logger.log(this.moduleInfo);
 	}
 
-	getSymbolAt(address: number) {
+	getSymbolAt(address: number): ISymbol | null {
 		return this.elfDwarfLoader.getSymbolAt(address);
 	}
 
 	private getSectionHeaderMemoryStream(sectionHeader: ElfSectionHeader) {
-		return this.memory.getPointerStream(this.baseAddress + sectionHeader.address, sectionHeader.size);
+		return this.memory.getPointerStream(this.baseAddress + sectionHeader.address, sectionHeader.size)!;
 	}
 
 	private readModuleInfo() {
@@ -213,27 +214,27 @@ export class PspElfLoader {
 	}
 
 	private relocateRelocs(relocs: ElfReloc[]) {
-		var baseAddress = this.baseAddress;
-		var hiValue: number;
-		var deferredHi16: number[] = [];
-		var instructionReader = new InstructionReader(this.memory);
+		const baseAddress = this.baseAddress;
+		let hiValue: number = 0;
+		let deferredHi16: number[] = [];
+		const instructionReader = new InstructionReader(this.memory);
 
-		for (var index = 0; index < relocs.length; index++) {
-			var reloc = relocs[index];
+		for (let index = 0; index < relocs.length; index++) {
+			const reloc = relocs[index];
 			if (reloc.type == ElfRelocType.StopRelocation) break;
 
-			var pointerBaseOffset = this.elfLoader.programHeaders[reloc.pointerSectionHeaderBase].virtualAddress;
-			var pointeeBaseOffset = this.elfLoader.programHeaders[reloc.pointeeSectionHeaderBase].virtualAddress;
+			const pointerBaseOffset = this.elfLoader.programHeaders[reloc.pointerSectionHeaderBase].virtualAddress;
+			const pointeeBaseOffset = this.elfLoader.programHeaders[reloc.pointeeSectionHeaderBase].virtualAddress;
 
 			// Address of data to relocate
-			var RelocatedPointerAddress = (baseAddress + reloc.pointerAddress + pointerBaseOffset);
+            const RelocatedPointerAddress = (baseAddress + reloc.pointerAddress + pointerBaseOffset);
 
 			// Value of data to relocate
-			var instruction = instructionReader.read(RelocatedPointerAddress);
+            const instruction = instructionReader.read(RelocatedPointerAddress);
 
-			var S = baseAddress + pointeeBaseOffset;
-			var GP_ADDR = (baseAddress + reloc.pointerAddress);
-			var GP_OFFSET = GP_ADDR - (baseAddress & 0xFFFF0000);
+			const S = baseAddress + pointeeBaseOffset;
+			const GP_ADDR = (baseAddress + reloc.pointerAddress);
+			const GP_OFFSET = GP_ADDR - (baseAddress & 0xFFFF0000);
 
 			switch (reloc.type) {
 				case ElfRelocType.None: break;
@@ -243,20 +244,16 @@ export class PspElfLoader {
 				case ElfRelocType.Mips26: instruction.jump_real = instruction.jump_real + S; break;
 				case ElfRelocType.MipsHi16: hiValue = instruction.u_imm16; deferredHi16.push(RelocatedPointerAddress); break;
 				case ElfRelocType.MipsLo16:
-					var A = instruction.u_imm16;
+                    const A = instruction.u_imm16;
 
 					instruction.u_imm16 = ((hiValue << 16) | (A & 0x0000FFFF)) + S;
 
 					deferredHi16.forEach(data_addr2 => {
-						var data2 = instructionReader.read(data_addr2);
-						var result = ((data2.IDATA & 0x0000FFFF) << 16) + A + S;
-						if ((A & 0x8000) != 0) {
-							result -= 0x10000;
-						}
-						if ((result & 0x8000) != 0) {
-							result += 0x10000;
-						}
-						data2.u_imm16 = (result >>> 16);
+						const data2 = instructionReader.read(data_addr2);
+						let result = ((data2.IDATA & 0x0000FFFF) << 16) + A + S;
+						if ((A & 0x8000) != 0) result -= 0x10000;
+                        if ((result & 0x8000) != 0) result += 0x10000;
+                        data2.u_imm16 = (result >>> 16);
 						instructionReader.write(data_addr2, data2);
 					});
 
@@ -281,36 +278,34 @@ export class PspElfLoader {
 		//console.log(moduleInfo);
 
 		this.elfLoader.programHeaders.filter(programHeader => (programHeader.type == 1)).forEach(programHeader => {
-			var fileOffset = programHeader.offset;
-			var memOffset = this.baseAddress + programHeader.virtualAddress;
-			var fileSize = programHeader.fileSize;
-			var memSize = programHeader.memorySize;
+			const fileOffset = programHeader.offset
+			const memOffset = this.baseAddress + programHeader.virtualAddress
+			const fileSize = programHeader.fileSize
+			const memSize = programHeader.memorySize
 
-			this.elfLoader.stream.sliceWithLength(fileOffset, fileSize).copyTo(this.memory.getPointerStream(memOffset, fileSize));
-			this.memory.memset(memOffset + fileSize, 0, memSize - fileSize);
+			this.elfLoader.stream.sliceWithLength(fileOffset, fileSize).copyTo(this.memory.getPointerStream(memOffset, fileSize)!)
+			this.memory.memset(memOffset + fileSize, 0, memSize - fileSize)
 
 			//this.getSectionHeaderMemoryStream
-			console.info('Program Header: ', sprintf("%08X:%08X, %08X:%08X", fileOffset, fileSize, memOffset, memSize));
+			console.info('Program Header: ', sprintf("%08X:%08X, %08X:%08X", fileOffset, fileSize, memOffset, memSize))
 		});
 
 		this.elfLoader.sectionHeaders.filter(sectionHeader => ((sectionHeader.flags & ElfSectionHeaderFlags.Allocate) != 0)).forEach(sectionHeader => {
-			var low = loadAddress + sectionHeader.address;
+			const low = loadAddress + sectionHeader.address;
 
 			console.info('Section Header: ', sectionHeader, sprintf('LOW:%08X, SIZE:%08X', low, sectionHeader.size));
 
             //console.log(sectionHeader);
             switch (sectionHeader.type) {
 				case ElfSectionHeaderType.NoBits:
-					for (var n = 0; n < sectionHeader.size; n++) this.memory.writeInt8(low + n, 0);
+					for (let n = 0; n < sectionHeader.size; n++) this.memory.writeInt8(low + n, 0);
 					break;
 				default:
 					//console.log(sprintf('low: %08X type: %08X', low, sectionHeader.type));
 					break;
                 case ElfSectionHeaderType.ProgramBits:
-                    var stream = sectionHeader.stream;
-
-					var length = stream.length;
-							
+                    const stream = sectionHeader.stream;
+                    const length = stream.length;
 					//console.log(sprintf('low: %08X, %08X, size: %08X', sectionHeader.address, low, stream.length));
                     this.memory.writeStream(low, stream);
 

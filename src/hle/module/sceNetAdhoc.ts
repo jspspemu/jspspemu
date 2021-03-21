@@ -38,7 +38,7 @@ export class sceNetAdhoc {
 	/** Create a PDP object. */
 	@nativeFunction(0x6F92741B, 150, 'int', 'byte[6]/int/uint/int')
 	sceNetAdhocPdpCreate(mac: Uint8Array, port: number, bufsize: number, unk1: number) {
-		var pdp = new Pdp(this.context, mac, port, bufsize);
+        const pdp = new Pdp(this.context, mac, port, bufsize);
 		pdp.id = this.pdps.allocate(pdp);
 		return pdp.id;
 	}
@@ -46,9 +46,8 @@ export class sceNetAdhoc {
 	/** Delete a PDP object. */
 	@nativeFunction(0x7F27BB5E, 150, 'int', 'int/int')
 	sceNetAdhocPdpDelete(pdpId: number, unk1: number) {
-		var pdp = this.pdps.get(pdpId);
+        const pdp = this.pdps.get(pdpId);
 		pdp.dispose();
-
 		this.pdps.remove(pdpId);
 		return 0;
 	}
@@ -57,9 +56,8 @@ export class sceNetAdhoc {
 	@nativeFunction(0xABED3790, 150, 'int', 'int/byte[6]/int/byte[]/int/int')
 	sceNetAdhocPdpSend(pdpId: number, destMac: Uint8Array, port: number, dataStream: Stream, timeout: number, nonblock: number) {
 		//debugger;
-		var pdp = this.pdps.get(pdpId);
-
-		var data = dataStream.readBytes(dataStream.length);
+        const pdp = this.pdps.get(pdpId);
+        const data = dataStream.readBytes(dataStream.length);
 		pdp.send(port, destMac, data);
 
 		return 0;
@@ -68,11 +66,9 @@ export class sceNetAdhoc {
 	/** Receive a PDP packet */
 	@nativeFunction(0xDFE53E03, 150, 'int', 'int/byte[6]/void*/void*/void*/void*/int')
 	sceNetAdhocPdpRecv(pdpId: number, srcMac: Uint8Array, portPtr: Stream, data: Stream, dataLengthPtr: Stream, timeout: number, nonblock: number): any {
-		var block = !nonblock;
-
-		var pdp = this.pdps.get(pdpId);
-
-		var recvOne = (chunk: NetPacket) => {
+        const block = !nonblock;
+        const pdp = this.pdps.get(pdpId);
+		const recvOne = (chunk: NetPacket) => {
 			srcMac.set(chunk.mac);
 			data.writeBytes(chunk.payload);
 			portPtr.writeInt16(pdp.port);
@@ -85,23 +81,20 @@ export class sceNetAdhoc {
 			return pdp.recvOneAsync().then(recvOne);
 		} else {
 			if (pdp.chunks.length <= 0) return 0x80410709; // ERROR_NET_ADHOC_NO_DATA_AVAILABLE
-			return recvOne(pdp.chunks.shift());
+			return recvOne(pdp.chunks.shift()!);
 		}
 	}
 
 	/** Get the status of all PDP objects */
 	@nativeFunction(0xC7C1FC57, 150, 'int', 'void*/void*')
 	sceNetAdhocGetPdpStat(sizeStream: Stream, pdpStatStruct: Stream) {
-		var maxSize = sizeStream.sliceWithLength(0).readInt32();
-
-		var pdps = this.pdps.list();
-
-		var totalSize = pdps.length * PdpStatStruct.struct.length;
-		sizeStream.sliceWithLength(0).writeInt32(totalSize);
-
+        const maxSize = sizeStream.sliceWithLength(0).readInt32();
+        const pdps = this.pdps.list();
+        const totalSize = pdps.length * PdpStatStruct.struct.length;
+        sizeStream.sliceWithLength(0).writeInt32(totalSize);
 		//var outStream = this.context.memory.getPointerStream(this.partition.low, this.partition.size);
-		var pos = 0;
-		pdps.forEach(pdp => {
+        const pos = 0;
+        pdps.forEach(pdp => {
 			var stat = new PdpStatStruct();
 			stat.nextPointer = 0;
 			stat.pdpId = pdp.id;
@@ -215,7 +208,7 @@ class PdpRecv {
 
 export class Pdp {
 	id: number;
-	onMessageCancel: Cancelable;
+	onMessageCancel: Cancelable | null;
 	chunks = <NetPacket[]>[];
 	onChunkRecv = new Signal0();
 

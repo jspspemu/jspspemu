@@ -23,17 +23,17 @@ class SpriteExpander {
 	static cache = new Map<number, SpriteExpanderFunc>();
 	
 	static forVertexInfo(vi: VertexInfo):SpriteExpanderFunc {
-		var hash = vi.hash;
-		if (!this.cache.has(hash)) {
+        const hash = vi.hash;
+        if (!this.cache.has(hash)) {
 			this.cache.set(hash, <SpriteExpanderFunc>eval(`(function read_${vi.describe()}(input, output, count) { ${this.readAllCode(vi)} })`));
 		}
-		return this.cache.get(hash);
+		return this.cache.get(hash)!;
 	}
 	
 	static readAllCode(vi: VertexInfo) {
-		var code = `"use strict";`;
+        let code = `"use strict";`;
 
-		code += `var i8  = new Uint8Array(input.buffer, input.byteOffset);\n`;
+        code += `var i8  = new Uint8Array(input.buffer, input.byteOffset);\n`;
 		code += `var i16 = new Uint16Array(input.buffer, input.byteOffset);\n`;
 		code += `var i32 = new Uint32Array(input.buffer, input.byteOffset);\n`;
 		code += `var o8  = new Uint8Array(output.buffer, output.byteOffset);\n`;
@@ -180,15 +180,15 @@ export class OptimizedDrawBufferTransfer {
 
         const memorySegments = new Map<number, number>();
 
-        function allocMemoryData(data: Uint8Array) {
+        function allocMemoryData(data: Uint8Array|null) {
 			if (data == null) return 0;
 			if (!memorySegments.has(data.byteOffset)) memorySegments.set(data.byteOffset, allocData(data));
 			return memorySegments.get(data.byteOffset);
 		}
 		
 		for (let batch of batches2) {
-			let btl = allocMemoryData(batch.textureData);
-			let bcl = allocMemoryData(batch.clutData);
+			let btl = allocMemoryData(batch.textureData)!
+			let bcl = allocMemoryData(batch.clutData)!
 			batches.push({
 				stateOffset: allocData(batch.stateData),
 				primType: batch.primType,
@@ -311,8 +311,8 @@ export class OptimizedDrawBuffer {
 
 export class OptimizedBatch {
 	public stateData:Uint32Array;
-	public textureData:Uint8Array = null;
-	public clutData: Uint8Array = null;
+	public textureData:Uint8Array|null = null;
+	public clutData: Uint8Array|null = null;
 	public indexCount: number;
 	
 	constructor(
@@ -325,11 +325,11 @@ export class OptimizedBatch {
 		this.stateData = state.readData();
 		this.indexCount = this.indexHigh - this.indexLow;
 		if (vertexInfo.hasTexture) {
-			var mipmap = state.texture.mipmaps[0];
-			this.textureData = memory.getPointerU8Array(mipmap.address, mipmap.sizeInBytes); 
+            const mipmap = state.texture.mipmaps[0];
+            this.textureData = memory.getPointerU8Array(mipmap.address, mipmap.sizeInBytes);
 			if (state.texture.hasClut) {
-				var clut = state.texture.clut;
-				this.clutData = memory.getPointerU8Array(clut.address, clut.sizeInBytes);
+                const clut = state.texture.clut;
+                this.clutData = memory.getPointerU8Array(clut.address, clut.sizeInBytes);
 			}
 		}
 	}

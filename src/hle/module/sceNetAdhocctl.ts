@@ -51,7 +51,7 @@ export class sceNetAdhocctl {
 	/** Disconnect from the Adhoc control */
 	@nativeFunction(0x34401D65, 150, 'int', '')
 	sceNetAdhocctlDisconnect() {
-		while (this.connectHandlers.length) this.connectHandlers.shift().cancel();
+		while (this.connectHandlers.length) this.connectHandlers.shift()!.cancel();
 		return 0;
 	}
 

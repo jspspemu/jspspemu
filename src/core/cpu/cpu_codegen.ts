@@ -552,14 +552,14 @@ export class InstructionAst {
 	vhtfm4(i: Instruction) { return this._vhtfm_x(i, 4); }
 
 	vmscl(i: Instruction) {
-		var vectorSize = i.ONE_TWO;
-		//return ast.stm(ast.debugger('not implemented'));
-		var src = readMatrix(i.VS, vectorSize);
-		return setMatrix(getMatrixRegsVD(i), (c, r, index) => binop(src[index], '*', vfpr(i.VT)));
+        const vectorSize = i.ONE_TWO
+        //return ast.stm(ast.debugger('not implemented'))
+        const src = readMatrix(i.VS, vectorSize)
+        return setMatrix(getMatrixRegsVD(i), (c, r, index) => binop(src[index!], '*', vfpr(i.VT)))
 	}
 
-	vzero(i: Instruction) { return this._vset1(i, (i) => imm_f(0)); }
-	vone(i: Instruction) { return this._vset1(i, (i) => imm_f(1)); }
+	vzero(i: Instruction) { return this._vset1(i, (i) => imm_f(0)) }
+	vone(i: Instruction) { return this._vset1(i, (i) => imm_f(1)) }
 
 	vmov(i: Instruction) { return this._vset3(i, (i, s, t) => s[i]); } // vset3 in order to eat prefixes
 	vrcp(i: Instruction) { return this._vset2(i, (i, s) => binop(imm_f(1.0), '/', s[i])); }
@@ -728,6 +728,7 @@ export class InstructionAst {
 				case 1: return call('state.vqmul1', [s[0], s[1], s[2], s[3], t[0], t[1], t[2], t[3]]);
 				case 2: return call('state.vqmul2', [s[0], s[1], s[2], s[3], t[0], t[1], t[2], t[3]]);
 				case 3: return call('state.vqmul3', [s[0], s[1], s[2], s[3], t[0], t[1], t[2], t[3]]);
+                default: throw new Error(`Unexpected ${i}`)
 			}
 		}, 4, 4, 4);
 	}
@@ -900,7 +901,7 @@ export class InstructionAst {
 		var dest = getMatrixRegs(i.VD, vectorSize);
 		var src = readMatrix(i.VS, vectorSize);
 		//var target = readMatrix(i.VT, i.ONE_TWO);
-		var result = setMatrix(dest, (column, row, index) => src[index]);
+		var result = setMatrix(dest, (column, row, index) => src[index!]);
 		this.eatPrefixes();
 		return result;
 	}

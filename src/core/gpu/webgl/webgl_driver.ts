@@ -18,7 +18,7 @@ import {shader_frag, shader_vert} from "./webgl_shaders";
 import {BatchesTransfer, OptimizedBatchTransfer} from "../gpu_vertex";
 import {EmulatorUI} from "../../../ui/emulator_ui";
 
-var globalDriver: WebGlPspDrawDriver = null;
+let globalDriver: WebGlPspDrawDriver|null = null;
 export class WebGlPspDrawDriver {
 	private gl: WebGLRenderingContext;
 	
@@ -290,8 +290,8 @@ export class WebGlPspDrawDriver {
 		//console.log(`${enabled}, ${name}, ${componentCount}, ${componentType}, ${vertexSize}, ${offset}`);
 	}
 	
-	private optimizedDataBuffer:WebGLBuffer = null;
-	private optimizedIndexBuffer:WebGLBuffer = null;
+	private optimizedDataBuffer:WebGLBuffer|null = null;
+	private optimizedIndexBuffer:WebGLBuffer|null = null;
 	
 	rehashSignal = new Signal1<number>();
 	enableColors: boolean = true;
@@ -309,11 +309,11 @@ export class WebGlPspDrawDriver {
 	}
 
 	getFramebufferSize() {
-		return { width: +this.canvas.getAttribute('width'), height: +this.canvas.getAttribute('height') }
+		return { width: +this.canvas.getAttribute('width')!, height: +this.canvas.getAttribute('height')! }
 	}
 	
 	public drawRatio: number = 1.0;
-	private lastTransfer: BatchesTransfer = null;
+	private lastTransfer: BatchesTransfer|null = null;
 	
 	redrawLastTransfer(): void {
 		if (this.lastTransfer != null) this.drawBatchesTransfer(this.lastTransfer);
@@ -351,7 +351,7 @@ export class WebGlPspDrawDriver {
 		
 		if (!this.optimizedDataBuffer) this.optimizedDataBuffer = gl.createBuffer();
 		if (!this.optimizedIndexBuffer) this.optimizedIndexBuffer = gl.createBuffer();
-		let databuffer = this.optimizedDataBuffer;
+		let databuffer = this.optimizedDataBuffer!
 		let indexbuffer = this.optimizedIndexBuffer;
 		let vs = this.vs; // required after serializing
 		vs.setState(this.state);

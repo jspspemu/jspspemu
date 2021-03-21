@@ -30,11 +30,11 @@ export class sceMpeg {
 	}
 
 	_sceMpegReadField(name: string, bufferAddr: number, output: Stream, readField: (p: PmfStruct) => number) {
-		var buffer = this.context.memory.getPointerStream(bufferAddr);
+		const buffer = this.context.memory.getPointerStream(bufferAddr)!
 		console.log(`${name}: ${addressToHex(bufferAddr)}`);
-		var pmf = PmfStruct.struct.createProxy(buffer);
+        const pmf = PmfStruct.struct.createProxy(buffer)
 		if (pmf.magic != 'PSMF') { debugger; return SceKernelErrors.ERROR_MPEG_INVALID_VALUE; }
-		var result = readField(pmf);
+        const result = readField(pmf);
 		output.writeInt32(result);
 		console.log(`--> ${result}`);
 		return 0;
@@ -71,13 +71,13 @@ export class sceMpeg {
 	@nativeFunction(0xA780CF7E, 150, 'uint', 'uint')
 	sceMpegMallocAvcEsBuf(mpegAddr: number) {
 		if (!this.isValidMpeg(mpegAddr)) return -1;
-		var mpeg = this.mpegs.get(mpegAddr);
+        const mpeg = this.mpegs.get(mpegAddr)!
 		return mpeg.allocAvcEsBuf();
 	}
 	
 	@nativeFunction(0x167AFD9E, 150, 'uint', 'uint/uint/void*')
 	sceMpegInitAu(mpegAddr: number, bufferAddr: number, auPointer: Stream) {
-		var au = SceMpegAu.struct.createProxy(auPointer);
+		const au = SceMpegAu.struct.createProxy(auPointer);
 		au.esBuffer = bufferAddr;
 		au.esSize = 2112;
 		au.pts = Integer64.fromNumber(0);
@@ -95,8 +95,8 @@ export class sceMpeg {
 	@nativeFunction(0x42560F23, 150, 'uint', 'uint/uint/uint')
 	sceMpegRegistStream(mpegAddr: number, streamType: StreamType, streamNum: number) {
 		if (!this.isValidMpeg(mpegAddr)) return -1;
-		var mpeg = this.mpegs.get(mpegAddr);
-		return mpeg.registerStream(streamType, streamNum);
+        const mpeg = this.mpegs.get(mpegAddr)!;
+        return mpeg.registerStream(streamType, streamNum);
 	}
 	
 	@nativeFunction(0xC132E22F, 150, 'uint', 'int')
@@ -116,7 +116,7 @@ export class sceMpeg {
 		if (!this.context.memory.isValidAddress(mpegAddr)) return -1;
 		if (size < sceMpeg.MPEG_MEMSIZE) return SceKernelErrors.ERROR_MPEG_NO_MEMORY;
 		if (ringbufferAddr == Stream.INVALID) {
-			var ringBuffer = RingBuffer.struct.createProxy(ringbufferAddr.clone());
+			const ringBuffer = RingBuffer.struct.createProxy(ringbufferAddr.clone());
 			if (ringBuffer.packetSize == 0) {
 				ringBuffer.packetsAvail = 0;
 			} else {
@@ -124,11 +124,11 @@ export class sceMpeg {
 			}
 			ringBuffer.mpeg = mpegAddr;
 		}
-		var mpeg = this.context.memory.getPointerStream(mpegAddr);
+        const mpeg = this.context.memory.getPointerStream(mpegAddr)!
 
 		mpeg.writeInt32(dataPtr + 0x30);
 
-		var mpegHandle = this.context.memory.getPointerStream(dataPtr + 0x30);
+        const mpegHandle = this.context.memory.getPointerStream(dataPtr + 0x30)!
 		mpegHandle.writeString("LIBMPEG\0" + "001\0")
 		mpegHandle.writeInt32(-1);
 		

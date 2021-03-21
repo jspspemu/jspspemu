@@ -35,31 +35,32 @@ export class CallbackManager {
 	}
 
 	notify(id: number, arg2: number) {
-		var callback = this.get(id);
-		//if (!callback) throw(new Error("Can't find callback by id '" + id + "'"));
+        const callback = this.get(id);
+        //if (!callback) throw(new Error("Can't find callback by id '" + id + "'"));
 		this.notifications.push(new CallbackNotification(callback, arg2));
 		this.onAdded.dispatch(this.notifications.length);
 	}
 
 	executeLaterPendingWithinThread(thread: Thread) {
-		var state = thread.state;
+        // noinspection UnnecessaryLocalVariableJS
+        const state = thread.state;
 
-		while (this.normalCallbacks.length > 0) {
-			var normalCallback = this.normalCallbacks.shift();
-			this.interop.execute(state, normalCallback.callback, normalCallback.args);
+        while (this.normalCallbacks.length > 0) {
+            const normalCallback = this.normalCallbacks.shift()!;
+            this.interop.execute(state, normalCallback.callback, normalCallback.args);
 		}
 	}
 
 	executePendingWithinThread(thread: Thread) {
-		var state = thread.state;
-		var count = 0;
+        const state = thread.state;
+        let count = 0;
 
-		this.executeLaterPendingWithinThread(thread);
+        this.executeLaterPendingWithinThread(thread);
 
 		while (this.notifications.length > 0) {
-			var notification = this.notifications.shift();
+            const notification = this.notifications.shift()!
 
-			this.interop.execute(
+            this.interop.execute(
 				state,
 				notification.callback.funcptr,
 				[1, notification.arg2, notification.callback.argument]

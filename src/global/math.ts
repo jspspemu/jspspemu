@@ -662,12 +662,12 @@ export function ToInt32(x:number) { return x | 0; }
 
 export class ArrayUtils {
 	static create2D<T>(w: number, h: number, generator?: (x:number, y:number) => T) {
-		if (!generator) generator = (x, y) => null;
-		var matrix = <T[][]>[];
-		for (var y = 0; y < h; y++) {
-			var row:T[] = [];
-			for (var x = 0; x < w; x++) {
-				row.push(generator(x, y));
+		if (!generator) generator = (x, y) => null as any as T;
+        const matrix = <T[][]>[];
+        for (let y = 0; y < h; y++) {
+            const row: T[] = [];
+            for (let x = 0; x < w; x++) {
+				row.push(generator!(x, y));
 			}
 			matrix.push(row);
 		}

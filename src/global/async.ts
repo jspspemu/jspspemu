@@ -19,9 +19,9 @@ export function immediateAsync() {
 
 export function _downloadFileAsync(method: string, url: string, headers?: any) {
 	return new PromiseFast<XMLHttpRequest>((resolve, reject) => {
-		var request = new XMLHttpRequest();
+        const request = new XMLHttpRequest();
 
-		request.open(method, url, true);
+        request.open(method, url, true);
 		request.overrideMimeType("text/plain; charset=x-user-defined");
 		if (headers) {
 			for (var headerKey in headers) {
@@ -42,9 +42,9 @@ export function _downloadFileAsync(method: string, url: string, headers?: any) {
 }
 
 export function toArrayBuffer(buffer:any) {
-    var ab = new ArrayBuffer(buffer.length);
-    var view = new Uint8Array(ab);
-    for (var i = 0; i < buffer.length; ++i) {
+    const ab = new ArrayBuffer(buffer.length);
+    const view = new Uint8Array(ab);
+    for (let i = 0; i < buffer.length; ++i) {
         view[i] = buffer[i];
     }
     return ab;
@@ -52,7 +52,7 @@ export function toArrayBuffer(buffer:any) {
 
 const isNodeJs = (typeof XMLHttpRequest === 'undefined')
 
-var fs: any = isNodeJs ? eval('require')('fs') : null
+const fs: any = isNodeJs ? eval('require')('fs') : null;
 
 export function downloadFileAsync(url: string, headers?: any):PromiseFast<ArrayBuffer> {
 	if (isNodeJs) {
@@ -67,15 +67,15 @@ export function downloadFileAsync(url: string, headers?: any):PromiseFast<ArrayB
 		});
 	} else {
 		return _downloadFileAsync('GET', url, headers).then(request => {
-			var arraybuffer: ArrayBuffer = request.response; // not responseText
+            const arraybuffer: ArrayBuffer = request.response; // not responseText
 			return arraybuffer;
 		});
 	}
 }
 
 export function downloadFileChunkAsync(url: string, from: number, count: number) {
-	var to = (from + count) - 1;
-	return downloadFileAsync(url, {
+    const to = (from + count) - 1;
+    return downloadFileAsync(url, {
 		'Range': 'bytes=' + from + '-' + to
 	});
 }
@@ -98,8 +98,8 @@ export function statFileAsync(url: string): PromiseFast<{size: number, date: Dat
             //console.error('content-type', request.getResponseHeader('content-type'));
             //console.log(request.getAllResponseHeaders());
 
-            const size = parseInt(request.getResponseHeader('content-length'));
-            const date = new Date(Date.parse(request.getResponseHeader('last-modified')));
+            const size = parseInt(request.getResponseHeader('content-length') ?? '0');
+            const date = new Date(Date.parse(request.getResponseHeader('last-modified') ?? ''));
 
             return {size: size, date: date};
         });

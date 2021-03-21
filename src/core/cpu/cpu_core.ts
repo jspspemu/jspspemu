@@ -14,7 +14,7 @@ import {compareNumbers} from "../../global/array";
 import {Integer64} from "../../global/int64";
 import {Memory} from "../memory";
 import {ANodeStm, ANodeStmLabel, MipsAstBuilder} from "./cpu_ast";
-import {CpuInstructions, Instructions} from "./cpu_instructions";
+import {Instructions} from "./cpu_instructions";
 import {BranchFlagStm, InstructionAst} from "./cpu_codegen";
 import {DecodedInstruction, Instruction} from "./cpu_instruction";
 import {MipsDisassembler} from "./cpu_assembler";
@@ -113,23 +113,23 @@ class VfpuPrefixRead extends VfpuPrefixBase {
 
 	transformValues(input: Int32Array | number[], output: any) {
 		this._readInfo();
-		var info = this._info;
+		const info = this._info;
 
 		if (!this.enabled) {
-			for (var n = 0; n < input.length; n++) output[n] = input[n];
+			for (let n = 0; n < input.length; n++) output[n] = input[n];
 		} else {
-			for (var n = 0; n < input.length; n++) {
+			for (let n = 0; n < input.length; n++) {
 				//var sourceIndex = this.getSourceIndex(n);
 				//var sourceAbsolute = this.getSourceAbsolute(n);
 				//var sourceConstant = this.getSourceConstant(n);
 				//var sourceNegate = this.getSourceNegate(n);
 
-				var sourceIndex = (info >> (0 + n * 2)) & 3;
-				var sourceAbsolute = (info >> (8 + n * 1)) & 1;
-				var sourceConstant = (info >> (12 + n * 1)) & 1;
-				var sourceNegate = (info >> (16 + n * 1)) & 1;
+				const sourceIndex = (info >> (0 + n * 2)) & 3;
+				const sourceAbsolute = (info >> (8 + n * 1)) & 1;
+				const sourceConstant = (info >> (12 + n * 1)) & 1;
+				const sourceNegate = (info >> (16 + n * 1)) & 1;
 
-				var value: number;
+				let value: number;
 				if (sourceConstant) {
 					switch (sourceIndex) {
 						case 0: value = sourceAbsolute ? (3) : (0); break;
@@ -157,23 +157,23 @@ class VfpuPrefixWrite extends VfpuPrefixBase {
 
 	storeTransformedValues(vfpr: any, indices: number[], values: number[]) {
 		this._readInfo();
-		var info = this._info;
+		const info = this._info;
 
 		if (!this.enabled) {
-			for (var n = 0; n < indices.length; n++) {
+			for (let n = 0; n < indices.length; n++) {
 				vfpr[indices[n]] = values[n];
 			}
 		} else {
 			//debugger;
-			for (var n = 0; n < indices.length; n++) {
+			for (let n = 0; n < indices.length; n++) {
 				//var destinationSaturation = this.getDestinationSaturation(n);
 				//var destinationMask = this.getDestinationMask(n);
-				var destinationSaturation = (info >> (0 + n * 2)) & 3;
-				var destinationMask = (info >> (8 + n * 1)) & 1;
+				const destinationSaturation = (info >> (0 + n * 2)) & 3;
+				const destinationMask = (info >> (8 + n * 1)) & 1;
 				if (destinationMask) {
 					// Masked. No write value.
 				} else {
-					var value = values[n];
+                    let value = values[n];
 					switch (destinationSaturation) {
 						case 1: value = MathFloat.sat0(value); break;
 						case 3: value = MathFloat.sat1(value); break;
@@ -235,7 +235,7 @@ export class CpuState extends Instruction {
 	gpr_Buffer = new ArrayBuffer(32 * 4);
 	gpr_f = new Float32Array(this.gpr_Buffer);
 
-	jumpCall: InvalidatableCpuFunction = null
+    jumpCall: InvalidatableCpuFunction | null = null
 
 	temp = new Array(16);
 
@@ -273,21 +273,21 @@ export class CpuState extends Instruction {
 	}
 
 	vcmovtf(register: number, _true: boolean, vdRegs: number[], vsRegs: number[]) {
-		var vectorSize = vdRegs.length;
-		this.loadVs_prefixed(vsRegs.map(reg => this.vfpr[reg]));
+        const vectorSize = vdRegs.length;
+        this.loadVs_prefixed(vsRegs.map(reg => this.vfpr[reg]));
 		this.loadVdRegs(vdRegs);
 
-		var compare = _true ? 1 : 0;
-		var cc = this.vfprc[VFPU_CTRL.CC];
+        const compare = _true ? 1 : 0;
+        const cc = this.vfprc[VFPU_CTRL.CC];
 
-		if (register < 6) {
+        if (register < 6) {
 			if (((cc >> register) & 1) == compare) {
-				for (var n = 0; n < vectorSize; n++) {
+				for (let n = 0; n < vectorSize; n++) {
 					this.vector_vd[n] = this.vector_vs[n];
 				}
 			}
 		} if (register == 6) {
-			for (var n = 0; n < vectorSize; n++) {
+			for (let n = 0; n < vectorSize; n++) {
 				if (((cc >> n) & 1) == compare) {
 					this.vector_vd[n] = this.vector_vs[n];
 				}
@@ -615,7 +615,7 @@ export class CpuState extends Instruction {
 		return this.gpr[n];
 	}
 
-	static GPR_access(base: string, n: number) {
+	static GPR_access(base: string | null, n: number) {
 		if (base == null) return `gpr[${n}]`;
 		return base + `.gpr[${n}]`;
 	}
@@ -1240,7 +1240,7 @@ class CpuFunctionWithArgs {
 type IFunctionGenerator = (address: number) => CpuFunctionWithArgs;
 
 export class InvalidatableCpuFunction {
-	private func: CpuFunctionWithArgs = null;
+	private func: CpuFunctionWithArgs | null = null;
 
 	public constructor(public PC: number, private generator: IFunctionGenerator) { }
 	public invalidate() { this.func = null; }
@@ -1254,7 +1254,7 @@ export class InvalidatableCpuFunction {
 export class InstructionCache {
 	functionGenerator: FunctionGenerator;
 	private cache: NumberDictionary<InvalidatableCpuFunction> = {};
-	private functions: NumberDictionary<FunctionGeneratorResult> = {};
+	private functions: NumberDictionary<FunctionGeneratorResult | undefined> = {};
 	private examinedAddress: NumberDictionary<boolean> = {};
 	private createBind: IFunctionGenerator;
 
@@ -1284,13 +1284,13 @@ export class InstructionCache {
 	private create(address: number, level:number): CpuFunctionWithArgs {
 		this.examinedAddress[address] = true;
 		// @TODO: check if we have a function in this range already range already!
-		var info = this.functionGenerator.getFunctionInfo(address, level);
-		//var func = this.functions[info.min];
-		var func = this.functions[info.start];
-		if (func === undefined) {
+        const info = this.functionGenerator.getFunctionInfo(address, level);
+        //var func = this.functions[info.min];
+        let func = this.functions[info.start];
+        if (func === undefined) {
 			//console.log(`Creating function ${addressToHex(address)}`);
 			//this.functions[info.min] = func = this.functionGenerator.getFunction(info);
-			this.functions[info.start] = null;
+			this.functions[info.start] = undefined;
 			this.functions[info.start] = func = this.functionGenerator.getFunction(info, level);
 
 			if (DEBUG_FUNCGEN) {
@@ -1300,7 +1300,7 @@ export class InstructionCache {
 				console.log(func.code.code);
 			}
 		}
-		return func.fargs;
+		return func!.fargs;
 	}
 
 	getFunction(address: number, level:number): InvalidatableCpuFunction {
@@ -1412,19 +1412,19 @@ export class FunctionGenerator {
 		}
 
 		while (explore.length > 0) {
-			var PC = explore.shift();
-			var di = this.decodeInstruction(PC);
-			var type = di.type;
-			info.min = Math.min(info.min, PC);
+            const PC = explore.shift()!;
+            const di = this.decodeInstruction(PC);
+            const type = di.type;
+            info.min = Math.min(info.min, PC);
 			info.max = Math.max(info.max, PC + 4); // delayed branch
 			
 			//printf("PC: %08X: %s", PC, di.type.name);
 			if (++exploredCount >= MAX_EXPLORE) throw new Error(`Function too big ${exploredCount}`);
 
-			var exploreNext = true;
-			var exploreTarget = type.isBranch && !type.isRegister;
+            let exploreNext = true;
+            const exploreTarget = type.isBranch && !type.isRegister;
 
-			//if (this.enableJumpBranch && type.isFixedAddressJump && !explored[di.targetAddress]) exploreTarget = true;
+            //if (this.enableJumpBranch && type.isFixedAddressJump && !explored[di.targetAddress]) exploreTarget = true;
 			if (type.isBreak) exploreNext = false;
 			if (type.isJumpNoLink) exploreNext = false;
 			if (di.isUnconditional) exploreNext = false;
@@ -1719,8 +1719,8 @@ export function createNativeFunction(
 			case 'void*': args.push('state.memory.getPointerStream(' + readGpr32_S() + ')'); break;
 			case 'byte[]': args.push('state.memory.getPointerStream(' + readGpr32_S() + ', ' + readGpr32_S() + ')'); break;
 			default:
-				var matches:string[] = [];
-				if (matches = item.match(/^byte\[(\d+)\]$/)) {
+                let matches = item.match(/^byte\[(\d+)\]$/)
+                if (matches) {
 					args.push('state.memory.getPointerU8Array(' + readGpr32_S() + ', ' + matches[1] + ')');
 				} else {
 					throw ('Invalid argument "' + item + '"');
@@ -1791,8 +1791,8 @@ export function createNativeFunction(
         default: throw ('Invalid return value "' + retval + '"');
     }
 
-    var nativeFunction = new NativeFunction();
-    nativeFunction.name = name;
+    const nativeFunction = new NativeFunction();
+    nativeFunction.name = name ?? 'unknown';
     nativeFunction.nid = exportId;
     nativeFunction.firmwareVersion = firmwareVersion;
 	

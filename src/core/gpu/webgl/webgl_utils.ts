@@ -8,7 +8,7 @@ export class WrappedWebGLUniform {
 	private location: WebGLUniformLocation;
 
 	constructor(private gl: WebGLRenderingContext, private program: WebGLProgram, private name: string) {
-		this.location = gl.getUniformLocation(program, name);
+		this.location = gl.getUniformLocation(program, name)!
 	}
 
 	setMat4(data: Float32Array) {
@@ -48,7 +48,7 @@ export class WrappedWebGLAttrib {
 		if (this.location < 0) return;
 
 		var gl = this.gl;
-		if (!this.buffer) this.buffer = this.gl.createBuffer();
+		if (!this.buffer) this.buffer = this.gl.createBuffer()!
 		gl.bindBuffer(gl.ARRAY_BUFFER, this.buffer);
 		(<any>gl.bufferData)(gl.ARRAY_BUFFER, arr, gl.DYNAMIC_DRAW);
 		this.enable();

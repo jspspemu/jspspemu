@@ -50,7 +50,7 @@ export class ZipEntry {
 		return this.zipDirEntry.compType;
 	}
 
-	constructor(private zip: Zip, public name: string, private parent: ZipEntry) {
+	constructor(private zip: Zip, public name: string, private parent: ZipEntry|null) {
 		this.normalizedName = ZipEntry.normalizeString(name);
 	}
 
@@ -89,18 +89,17 @@ export class ZipEntry {
 		});
 	}
 
-	access(path: string, create: boolean = false, fullPath: string = null): ZipEntry {
-		if (fullPath === null) fullPath = path;
+	access(path: string, create: boolean = false, fullPath: string = path): ZipEntry {
 		if (path == '') return this;
 		if (path == '.') return this;
 		if (path == '..') return this.parent || this;
 
-		var pathIndex = path.indexOf('/')
-		// Single component
+        const pathIndex = path.indexOf('/');
+        // Single component
 		if (pathIndex < 0) {
-			var normalizedName = ZipEntry.normalizeString(path);
-			var child = this.children[normalizedName];
-			if (!child) {
+            const normalizedName = ZipEntry.normalizeString(path);
+            let child = this.children[normalizedName];
+            if (!child) {
 				if (!create) {
 					throw (new Error("ZIP: Can't access to path '" + fullPath + "'"));
 				} else {

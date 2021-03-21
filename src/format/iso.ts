@@ -215,7 +215,7 @@ class IsoNode implements IIsoNode {
     childs: IsoNode[] = [];
     childsByName: StringDictionary<IsoNode> = {};
 
-    constructor(private iso: Iso, public directoryRecord: DirectoryRecord, public parent: IsoNode = null) {
+    constructor(private iso: Iso, public directoryRecord: DirectoryRecord, public parent: IsoNode|null = null) {
     }
 
     get isRoot() { return this.parent == null; }

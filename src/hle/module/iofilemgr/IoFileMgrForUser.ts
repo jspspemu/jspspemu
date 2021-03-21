@@ -17,8 +17,8 @@ export class IoFileMgrForUser {
 
 	@nativeFunction(0x54F5FB11, 150, 'uint', 'string/uint/uint/int/uint/int')
 	sceIoDevctl(deviceName: string, command: number, inputPointer: number, inputLength: number, outputPointer: number, outputLength: number) {
-		var input = this.context.memory.getPointerStream(inputPointer, inputLength);
-		var output = this.context.memory.getPointerStream(outputPointer, outputLength);
+        const input = this.context.memory.getPointerStream(inputPointer, inputLength)!
+		const output = this.context.memory.getPointerStream(outputPointer, outputLength)!
 
 		return this.context.fileManager.devctlAsync(deviceName, command, input, output);
 	}
@@ -355,11 +355,11 @@ export class IoFileMgrForUser {
 	@nativeFunction(0xE3EB004C, 150, 'int', 'int/void*')
 	sceIoDread(fileId: number, hleIoDirentPtr: Stream) {
 		if (!this.directoryUids.has(fileId)) return -1;
-		var directory = this.directoryUids.get(fileId);
+        const directory = this.directoryUids.get(fileId);
 		if (directory.left > 0) {
-			var stat = directory.read();
-			var hleIoDirent = new HleIoDirent();
-			hleIoDirent.name = stat.name;
+            const stat = directory.read();
+            const hleIoDirent = new HleIoDirent();
+			hleIoDirent.name = stat.name ?? '';
 			hleIoDirent.stat = this._vfsStatToSceIoStat(stat);
 			hleIoDirent.privateData = 0;
 			HleIoDirent.struct.write(hleIoDirentPtr, hleIoDirent);

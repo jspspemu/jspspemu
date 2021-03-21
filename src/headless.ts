@@ -15,7 +15,7 @@ declare var process: any
     const errors = (typeof document !== 'undefined') ? document.getElementById('errors') : null;
 
     window.onerror = function (errorMsg, url, lineNumber) {
-        errors.innerText += 'Error: ' + errorMsg + ' Script: ' + url + ' Line: ' + lineNumber + "\n";
+        errors!.innerText += 'Error: ' + errorMsg + ' Script: ' + url + ' Line: ' + lineNumber + "\n";
     };
 
     emu.cpuConfig.interpreted = false
@@ -24,7 +24,7 @@ declare var process: any
     const argv: string[] = process.argv
     const params: string[] = argv.slice(2)
     while (params.length > 0) {
-        const param = params.shift()
+        const param = params.shift()!
         if (param.startsWith("-")) {
             switch (param) {
                 case "-i": case "-interpreted": case "--interpreted":

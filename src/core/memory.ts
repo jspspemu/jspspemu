@@ -151,7 +151,7 @@ export class Memory {
 		return new Uint32Array(buffer, offset, size / 4);
 	}
 
-	getPointerStream(address: number, size?: number) {
+	getPointerStream(address: number, size?: number): Stream | null {
 		//console.log(sprintf("getPointerStream: %08X", address));
 		if (address == 0) return null;
 		if (size === 0) return new Stream(new DataView(new ArrayBuffer(0)));
@@ -468,7 +468,7 @@ class LowMemory extends Memory {
 		//this.mainmem = new LowMemorySegment('mainmem', 0x08000000, new ArrayBuffer(64 * 1024 * 1024));
 	}
 
-	getMemRange(address: number): LowMemorySegment {
+	getMemRange(address: number): LowMemorySegment | null {
 		address &= MASK;
 		if (address >= 0x08000000) {
 			return this.mainmem;
@@ -482,24 +482,24 @@ class LowMemory extends Memory {
 		}
 	}
 
-	sb(address: number, value: number) { this.getMemRange(address).sb(address, value); }
-	sh(address: number, value: number) { this.getMemRange(address).sh(address, value); }
-	sw(address: number, value: number) { this.getMemRange(address).sw(address, value); }
-	swc1(address: number, value: number) { this.getMemRange(address).swc1(address, value); }
-	lb(address: number) { return this.getMemRange(address).lb(address); }
-	lbu(address: number) { return this.getMemRange(address).lbu(address); }
-	lh(address: number) { return this.getMemRange(address).lh(address); }
-	lhu(address: number) { return this.getMemRange(address).lhu(address); }
-	lw(address: number) { return this.getMemRange(address).lw(address); }
-	lwu(address: number) { return this.getMemRange(address).lwu(address); }
-	lwc1(address: number) { return this.getMemRange(address).lwc1(address); }
-	lw_2(address4: number) { return this.getMemRange(address4 * 4).lw(address4 * 4); }
+	sb(address: number, value: number) { this.getMemRange(address)!.sb(address, value); }
+	sh(address: number, value: number) { this.getMemRange(address)!.sh(address, value); }
+	sw(address: number, value: number) { this.getMemRange(address)!.sw(address, value); }
+	swc1(address: number, value: number) { this.getMemRange(address)!.swc1(address, value); }
+	lb(address: number) { return this.getMemRange(address)!.lb(address); }
+	lbu(address: number) { return this.getMemRange(address)!.lbu(address); }
+	lh(address: number) { return this.getMemRange(address)!.lh(address); }
+	lhu(address: number) { return this.getMemRange(address)!.lhu(address); }
+	lw(address: number) { return this.getMemRange(address)!.lw(address); }
+	lwu(address: number) { return this.getMemRange(address)!.lwu(address); }
+	lwc1(address: number) { return this.getMemRange(address)!.lwc1(address); }
+	lw_2(address4: number) { return this.getMemRange(address4 * 4)!.lw(address4 * 4); }
 
-	protected getBuffer(address: number):ArrayBuffer { return this.getMemRange(address).getBuffer(address); }
-	protected getOffsetInBuffer(address: number):number { return this.getMemRange(address).getOffsetInBuffer(address); }
+	protected getBuffer(address: number):ArrayBuffer { return this.getMemRange(address)!.getBuffer(address); }
+	protected getOffsetInBuffer(address: number):number { return this.getMemRange(address)!.getOffsetInBuffer(address); }
 
 	availableAfterAddress(address: number): number {
-		return this.getMemRange(address).availableAfterAddress(address);
+		return this.getMemRange(address)!.availableAfterAddress(address);
 	}
 }
 
@@ -537,7 +537,7 @@ export function create(): Memory {
 	}
 }
 
-var _instance: Memory = null;
+let _instance: Memory | null = null;
 export function getMemoryInstance() {
 	if (_instance == null) _instance = create();
 	return _instance;

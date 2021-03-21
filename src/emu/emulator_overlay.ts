@@ -87,11 +87,11 @@ class OverlaySlider implements OverlaySection {
 }
 
 class Overlay {
-    private element: HTMLDivElement;
+    private element: HTMLDivElement | null;
     private sections: OverlaySection[] = [];
 
     constructor() {
-        var element = this.element = canDOMCreateElements ? document.createElement('div') : null;
+        const element = this.element = canDOMCreateElements ? document.createElement('div') : null;
         if (element) {
             element.style.position = 'absolute';
             element.style.zIndex = '10000';
@@ -142,8 +142,8 @@ class Overlay {
 }
 
 export class DebugOverlay {
-    overlay = new Overlay();
-    freezing = new WatchValue(false);
+    overlay = new Overlay()
+    freezing = new WatchValue(false)
     overlayBatchSlider = this.overlay.createSlider('batch', 1.0, (ratio) => {
         this.webglDriver.drawRatio = ratio;
         this.webglDriver.redrawLastTransfer();

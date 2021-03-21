@@ -30,8 +30,8 @@ export class Device {
 export class HleFile {
 	cursor = 0;
 
-	private _asyncResult: Integer64 = null;
-	private _asyncPromise: PromiseFast<Integer64> = null;
+	private _asyncResult: Integer64|null = null;
+	private _asyncPromise: PromiseFast<Integer64>|null = null;
 
 	constructor(public entry: VfsEntry) {
 	}

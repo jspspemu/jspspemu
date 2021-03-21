@@ -8,7 +8,7 @@ export class InterruptHandler {
 	enabled = false;
 	address = 0;
 	argument = 0;
-	cpuState: CpuState = null;
+	cpuState: CpuState|null = null;
 
 	constructor(public no:number) {
 	}
@@ -71,10 +71,10 @@ export class InterruptManager {
 		}
 	}
 
-	execute(_state: CpuState) {
+	execute(_state: CpuState | null) {
 		while (this.queue.length > 0) {
-			const item = this.queue.shift();
-			const state = item.cpuState;
+			const item = this.queue.shift()!
+			const state = (item.cpuState ?? _state)!
 			state.preserveRegisters(() => {
 				state.RA = 0x1234;
 				state.setGPR(4, item.no);

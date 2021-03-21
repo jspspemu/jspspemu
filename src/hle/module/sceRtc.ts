@@ -51,9 +51,8 @@ export class sceRtc {
 		//var currentDate = this.context.rtc.getCurrentUnixMicroseconds();
 
 		//currentDate += timezone * 60 * 1000000;
-		var date = new Date();
-
-		var pointer = this.context.memory.getPointerPointer<ScePspDateTime>(ScePspDateTime.struct, dateAddress);
+		const date = new Date()
+        const pointer = this.context.memory.getPointerPointer<ScePspDateTime>(ScePspDateTime.struct, dateAddress)!
 		pointer.write(ScePspDateTime.fromDate(new Date()));
 
 		return 0;

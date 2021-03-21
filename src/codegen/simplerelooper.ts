@@ -1,12 +1,12 @@
 class RelooperBlock {
 	public conditionalBranches:RelooperBranch[] = [];
-	public nextBlock:RelooperBlock = null;
+	public nextBlock:RelooperBlock|null = null;
 	public conditionalReferences:RelooperBlock[] = [];
 	constructor(public index:number, public code:string) { }
 }
 
 class RelooperBranch {
-	constructor(public to:RelooperBlock, public cond:string, public onjumpCode:string) {
+	constructor(public to:RelooperBlock, public cond?:string, public onjumpCode?:string) {
 	}
 }
 
@@ -55,7 +55,7 @@ export class SimpleRelooper {
 		return block;
 	}
 	addBranch(from:RelooperBlock, to:RelooperBlock, cond?:string, onjumpcode?:string) {
-		var branch = new RelooperBranch(to, cond, onjumpcode);
+		const branch = new RelooperBranch(to, cond, onjumpcode);
 		if (cond) {
 			from.conditionalBranches.push(branch);
 			to.conditionalReferences.push(from);

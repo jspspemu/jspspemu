@@ -8,7 +8,7 @@ function p(b: string, e: any) {
     var a = b.split(".");
     var c = l;
     !(a[0] in c) && c.execScript && c.execScript("var " + a[0]);
-    for (var d: string; a.length && (d = a.shift());) !a.length && void 0 !== e ? c[d] = e : c = c[d] ? c[d] : c[d] = {}
+    for (var d: string; a.length && (d = a.shift()!);) !a.length && void 0 !== e ? c[d] = e : c = c[d] ? c[d] : c[d] = {}
 }
 
 function t(b: Uint32Array | Uint8Array) {
@@ -84,10 +84,10 @@ u.prototype.u = function() {
                     c = this.b,
                     d = this.a,
                     f = e.length,
-                    g: number = void 0,
-                    h: number = void 0,
+                    g: number = 0,
+                    h: number = 0,
                     k = c.length,
-                    m: number = void 0;
+                    m: number = 0;
                 this.c = this.f = 0;
                 if (a + 1 >= f) throw Error("invalid uncompressed block header: LEN");
                 g = e[a++] | e[a++] << 8;

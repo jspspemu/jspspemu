@@ -354,7 +354,7 @@ interface Window {
 
 window.addEventListener('load', () => {
 	var _window: any = window;
-	var sampleDemo: string = undefined;
+	var sampleDemo: string | undefined = undefined;
 
 	if (document.location.hash) {
 		sampleDemo = document.location.hash.substr(1);

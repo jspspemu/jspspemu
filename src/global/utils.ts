@@ -31,7 +31,7 @@ export function sprintf(...args: any[]): string {
 	var format = a[i++];
 
 	// pad()
-	var pad = function(str: string, len: number, chr: string, leftJustify: boolean) {
+	var pad = function(str: string, len: number, chr: string|undefined, leftJustify: boolean) {
 		if (!chr) {
 			chr = ' ';
 		}
@@ -41,7 +41,7 @@ export function sprintf(...args: any[]): string {
 	};
 
 	// justify()
-	var justify = function(value: string, prefix: string, leftJustify: boolean, minWidth: number, zeroPad: boolean, customPadChar: string = undefined) {
+	var justify = function(value: string, prefix: string, leftJustify: boolean, minWidth: number, zeroPad: boolean, customPadChar: string|undefined = undefined) {
 		var diff = minWidth - value.length;
 		if (diff > 0) {
 			if (leftJustify || !zeroPad) {
@@ -258,7 +258,7 @@ export class AsyncCache<T> {
 			return PromiseFast.resolve(item.value);
 		} else {
 			return generator().then(value => {
-				var size = this.measure(value);
+				var size = this.measure!(value);
 				this.freeUntilAvailable(size);
 				this.itemsMap[id] = new AsyncEntry(id, size, 1, value, Date.now());
 				return value;
@@ -384,12 +384,12 @@ export class Microtask {
 	}
 
 	static execute() {
-		var start = performance.now();
-		while (Microtask.callbacks.length > 0) {
-			var callback = Microtask.callbacks.shift();
-			callback();
-			var end = performance.now();
-			if ((end - start) >= 20) {
+        const start = performance.now();
+        while (Microtask.callbacks.length > 0) {
+            const callback = Microtask.callbacks.shift()!;
+            callback();
+            const end = performance.now();
+            if ((end - start) >= 20) {
 				setTimeout(Microtask.execute, 0);
 				return;
 			}
@@ -590,9 +590,9 @@ export class PromiseUtils {
 			generators = generators.slice(0);
 			function step() {
 				if (generators.length > 0) {
-					var generator = generators.shift();
-					var promise = generator();
-					promise.then(step);
+                    const generator = generators.shift()!;
+                    const promise = generator();
+                    promise.then(step);
 				} else {
 					resolve();
 				}
@@ -775,7 +775,7 @@ export class Signal2Cancelable<T1, T2> implements Cancelable {
 export class WatchValue<T> {
 	private _value:T;
 	onChanged:Signal1<T> = new Signal1<T>();
-	constructor(value?:T) { this._value = value; }
+	constructor(value:T) { this._value = value; }
 	waitUntilValueAsync(expectedValue:T) {
 		if (this.value == expectedValue) return PromiseFast.resolve();
 		return new PromiseFast((resolve, reject) => {
@@ -1156,8 +1156,8 @@ export class PromiseFast<T> implements Thenable<T> {
 		callback(this._resolve.bind(this), this._reject.bind(this));
 	}
 
-	private _resolvedValue: T = null;
-	private _rejectedValue: Error = null;
+	private _resolvedValue: T|null = null;
+	private _rejectedValue: Error|null = null;
 	private _solved: boolean = false;
 	private _resolvedCallbacks: any[] = [];
 	private _rejectedCallbacks: any[] = [];
@@ -1223,7 +1223,7 @@ export class PromiseFast<T> implements Thenable<T> {
 	catch<Q>(rejected: (error: Error) => Q): PromiseFast<Q>;
 	catch<Q>(rejected: (error: Error) => PromiseFast<Q>): PromiseFast<Q>;
 	catch(rejected: (error: Error) => any): PromiseFast<any> {
-		return this.then(null, rejected);
+		return this.then(null as any, rejected);
 	}
 
 	private _queueCheck() {
@@ -1263,7 +1263,7 @@ export class DomHelp {
 	mousemove(callback: (e:MouseEvent) => void) { return this.on('mousemove', callback); }
 	click(callback?: (e:MouseEvent) => void) {
 		if (callback == null) this.e.click();
-		return this.on('click', callback);
+		return this.on('click', callback!);
 	}
 	showToggle() {
 		if (this.e.style.visibility == 'visible') {

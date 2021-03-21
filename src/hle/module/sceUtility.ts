@@ -77,19 +77,19 @@ export class sceUtility {
 					//return PromiseFast.resolve(-1);
 					return PromiseFast.resolve(0);
 				case PspUtilitySavedataMode.Sizes:
-					var SceKernelError = SceKernelErrors.ERROR_OK;
+                    const SceKernelError = SceKernelErrors.ERROR_OK;
 
 					//Console.Error.WriteLine("Not Implemented: sceUtilitySavedataInitStart.Sizes");
 
-					var SectorSize = 1024;
-					var FreeSize = 32 * 1024 * 1024; // 32 MB
-					var UsedSize = 0;
+					const SectorSize = 1024;
+					const FreeSize = 32 * 1024 * 1024; // 32 MB
+					const UsedSize = 0;
 
 					// MS free size.
 					// Gets the ammount of free space in the Memory Stick. If null,
 					// the size is ignored and no error is returned.
 					{
-						var sizeFreeInfoPtr = this.context.memory.getPointerPointer<SizeFreeInfo>(SizeFreeInfo.struct, params.msFreeAddr);
+						const sizeFreeInfoPtr = this.context.memory.getPointerPointer<SizeFreeInfo>(SizeFreeInfo.struct, params.msFreeAddr)!
 						sizeFreeInfoPtr.readWrite(sizeFreeInfo => {
 							sizeFreeInfo.sectorSize = SectorSize;
 							sizeFreeInfo.freeSectors = FreeSize / SectorSize;
@@ -102,17 +102,17 @@ export class sceUtility {
 					// Gets the size of the data already saved in the Memory Stick.
 					// If null, the size is ignored and no error is returned.
 					{
-						var sizeUsedInfoPtr = this.context.memory.getPointerPointer<SizeUsedInfo>(SizeUsedInfo.struct, params.msDataAddr);
+                        const sizeUsedInfoPtr = this.context.memory.getPointerPointer<SizeUsedInfo>(SizeUsedInfo.struct, params.msDataAddr);
 					}
 
 					// Utility data size.
 					// Gets the size of the data to be saved in the Memory Stick.
 					// If null, the size is ignored and no error is returned.
 					{
-						var sizeRequiredSpaceInfoPtr = this.context.memory.getPointerPointer<SizeRequiredSpaceInfo>(SizeRequiredSpaceInfo.struct, params.utilityDataAddr);
+                        const sizeRequiredSpaceInfoPtr = this.context.memory.getPointerPointer<SizeRequiredSpaceInfo>(SizeRequiredSpaceInfo.struct, params.utilityDataAddr);
 
 						if (sizeRequiredSpaceInfoPtr != null) {
-							var RequiredSize = 0;
+                            let RequiredSize = 0;
 							RequiredSize += params.icon0FileData.size;
 							RequiredSize += params.icon1FileData.size;
 							RequiredSize += params.pic1FileData.size;

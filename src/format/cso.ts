@@ -29,7 +29,7 @@ class Header {
 }
 
 class Block {
-	private _uncompressedData: Uint8Array = null;
+	private _uncompressedData: Uint8Array|null = null;
 	public compressedData: Uint8Array;
 	public compressed: boolean;
 	public low: number;

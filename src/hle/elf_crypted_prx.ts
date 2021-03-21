@@ -129,7 +129,7 @@ function decrypt1(pbIn: Stream) {
 	//console.log('buffer1', buffer1.slice().readAllBytes());
 
 	if (pti.codeExtra != 0) {
-		var buffer2 = Stream.fromSize(20 + 0xA0);
+		var buffer2 = Stream.fromSize(20 + 0xA0)
 
 		buffer2.slice()
 			// KIRK_AES128CBC_HEADER

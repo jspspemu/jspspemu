@@ -239,31 +239,31 @@ export class Emulator {
 							}
 						}
 
-						var mountableVfs = this.ms0Vfs;
-						mountableVfs.mountFileData('/PSP/GAME/virtual/EBOOT.ELF', executableArrayBuffer);
+                        const mountableVfs = this.ms0Vfs;
+                        mountableVfs.mountFileData('/PSP/GAME/virtual/EBOOT.ELF', executableArrayBuffer);
 
-						var elfStream = Stream.fromArrayBuffer(executableArrayBuffer);
+                        const elfStream = Stream.fromArrayBuffer(executableArrayBuffer);
 
-						this.fileManager.cwd = new Uri('ms0:/PSP/GAME/virtual');
+                        this.fileManager.cwd = new Uri('ms0:/PSP/GAME/virtual');
 						console.info('pathToFile:', pathToFile);
-						var args = [pathToFile];
-						var argumentsPartition = this.memoryManager.userPartition.allocateLow(0x4000);
-						var argument = args.map(argument => argument + String.fromCharCode(0)).join('');
-						this.memory.getPointerStream(argumentsPartition.low).writeString(argument);
+                        const args = [pathToFile];
+                        const argumentsPartition = this.memoryManager.userPartition.allocateLow(0x4000);
+                        const argument = args.map(argument => argument + String.fromCharCode(0)).join('');
+                        this.memory.getPointerStream(argumentsPartition.low)!.writeString(argument);
 
 						//console.log(new Uint8Array(executableArrayBuffer));
-						var pspElf = new PspElfLoader(this.memory, this.memoryManager, this.moduleManager, this.syscallManager);
-						pspElf.load(elfStream);
+                        const pspElf = new PspElfLoader(this.memory, this.memoryManager, this.moduleManager, this.syscallManager);
+                        pspElf.load(elfStream);
 						this.context.symbolLookup = pspElf;
 						this.context.gameTitle = this.gameTitle;
 						this.context.gameId = pspElf.moduleInfo.name;
-						var moduleInfo = pspElf.moduleInfo;
+                        const moduleInfo = pspElf.moduleInfo;
 
-						//this.memory.dump(); debugger;
+                        //this.memory.dump(); debugger;
 
 						// "ms0:/PSP/GAME/virtual/EBOOT.PBP"
-						var thread = this.threadManager.create('main', moduleInfo.pc, 10);
-							thread.state.GP = moduleInfo.gp;
+                        const thread = this.threadManager.create('main', moduleInfo.pc, 10);
+                        thread.state.GP = moduleInfo.gp;
 							thread.state.setGPR(4, argument.length);
 							thread.state.setGPR(5, argumentsPartition.low);
 							thread.start();

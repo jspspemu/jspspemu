@@ -222,20 +222,20 @@ class PspGpuList {
 	vertexInfo = new VertexInfo();
 
 	private prim(p: number):PrimAction {
-		var vertexCount = param16(p, 0);
-		var primitiveType = <PrimitiveType>param3(p, 16);
-		if (vertexCount <= 0) return;
+        const vertexCount = param16(p, 0);
+        const primitiveType = <PrimitiveType>param3(p, 16);
+        if (vertexCount <= 0) return PrimAction.NOTHING
 
-		var memory = this.memory;
-		var state = this.state;
-		let stats = this.stats;
-		var vertexInfo = this.vertexInfo.setState(this.state)
-		var vertexSize = vertexInfo.size;
-		var vertexAddress = state.getAddressRelativeToBaseOffset(vertexInfo.address);
-		var indicesAddress = state.getAddressRelativeToBaseOffset(state.indexAddress);
-		var hasIndices = (vertexInfo.index != IndexEnum.Void);
-		
-		if (hasIndices) {
+        const memory = this.memory;
+        const state = this.state;
+        const stats = this.stats;
+        const vertexInfo = this.vertexInfo.setState(this.state);
+        const vertexSize = vertexInfo.size;
+        const vertexAddress = state.getAddressRelativeToBaseOffset(vertexInfo.address);
+        const indicesAddress = state.getAddressRelativeToBaseOffset(state.indexAddress);
+        const hasIndices = (vertexInfo.index != IndexEnum.Void);
+
+        if (hasIndices) {
 			stats.indexCount++;
 		} else {
 			stats.nonIndexCount++;
@@ -428,8 +428,8 @@ class PspGpuListRunner {
 	
     allocate() {
         if (!this.freeLists.length) throw new Error('Out of gpu free lists');
-        var list = this.freeLists.pop();
-        this.runningLists.push(list);
+        var list = this.freeLists.pop()!
+        this.runningLists.push(list)
         return list;
     }
 

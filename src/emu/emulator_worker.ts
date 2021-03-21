@@ -72,7 +72,7 @@ onmessage = function(e: MessageEvent) {
 	var payload:any = e.data.payload;
 	switch (action) {
 		case '$complete':
-			waiters.get(payload)();
+			waiters.get(payload)!();
 			break;	
 		case 'executeUrl':
 			// @TODO: check absolute url

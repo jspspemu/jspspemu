@@ -72,11 +72,11 @@ export class Thread {
     running: boolean = false;
 	stackPartition: MemoryPartition;
 	preemptionCount: number = 0;
-	info: WaitingThreadInfo<any> = null;
-	waitingName: string = null;
+	info: WaitingThreadInfo<any>|null = null;
+	waitingName: string|null = null;
 	waitingObject: any = null;
-	waitingPromise: PromiseFast<any> = null;
-	runningPromise: PromiseFast<number> = null;
+	waitingPromise: PromiseFast<any>|null = null;
+	runningPromise: PromiseFast<number>;
 	runningStop: () => void;
 	acceptingCallbacks = false;
 
@@ -99,8 +99,8 @@ export class Thread {
 	}
 
 	private wakeupCount: number = 0;
-	private wakeupPromise: PromiseFast<number> = null;
-	private wakeupFunc: () => void = null;
+	private wakeupPromise: PromiseFast<number>|null = null;
+	private wakeupFunc: (() => void)|null = null;
 
 	private getWakeupPromise() {
 		if (!this.wakeupPromise) {
@@ -121,7 +121,7 @@ export class Thread {
 	wakeupWakeupAsync() {
 		this.wakeupCount++;
 		if (this.wakeupCount >= 0) {
-			this.wakeupFunc();
+			this.wakeupFunc?.();
 			this.wakeupPromise = null;
 			this.wakeupFunc = null;
 		}
@@ -410,7 +410,7 @@ export class ThreadManager {
         this.threads.forEach((thread) => {
             html += sprintf("%08X:%s:%s", thread.state.PC, thread.name, thread.running);
         });
-        document.getElementById('thread_list').innerHTML = html;
+        document.getElementById('thread_list')!.innerHTML = html;
     }
 
 	private callbackAdded: any = null;

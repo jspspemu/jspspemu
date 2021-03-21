@@ -10,7 +10,7 @@ export interface NetPacket {
 
 export class NetManager {
 	connected = false;
-	private ws: WebSocket = null;
+	private ws: WebSocket|null = null;
 	private _onmessageSignals = <NumberDictionary<Signal1<NetPacket>>>{};
 	onopen = new Signal0();
 	onclose = new Signal0();
@@ -70,6 +70,6 @@ export class NetManager {
 	send(port: number, type: string, toMac: Uint8Array, data: Uint8Array) {
 		this.connectOnce();
 		//console.info('NetManager: send:', { type: type, port: port, to: mac2string(toMac), payload: Stream.fromUint8Array(data).toStringAll() });
-		this.ws.send(JSON.stringify({ type: type, port: port, to: mac2string(toMac), payload: Stream.fromUint8Array(data).toBase64() }));
+		this.ws!.send(JSON.stringify({ type: type, port: port, to: mac2string(toMac), payload: Stream.fromUint8Array(data).toBase64() }));
 	}
 }

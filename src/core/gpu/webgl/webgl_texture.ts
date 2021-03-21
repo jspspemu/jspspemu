@@ -18,13 +18,13 @@ export class Texture {
 	recheckCount = 0;
 	framesEqual = 0;
 
-	_width?: number = null;
-	_height?: number = null;
+	_width?: number = undefined;
+	_height?: number = undefined;
 	
 	private state: GpuState;
 
 	constructor(private gl: WebGLRenderingContext) {
-		this.texture = gl.createTexture();
+		this.texture = gl.createTexture()!
 		this.state = new GpuState();
 	}
 	
@@ -43,9 +43,9 @@ export class Texture {
 		
 		//this.updatedTextures.add(texture);
 
-		var textureState = state.texture;
-		var clutState = state.texture.clut;
-		var mipmap = textureState.mipmaps[0];
+		const textureState = state.texture;
+		const clutState = state.texture.clut;
+		const mipmap = textureState.mipmaps[0];
 
 		var h = mipmap.textureHeight, w = mipmap.textureWidth, w2 = mipmap.bufferWidth;
 
@@ -54,9 +54,9 @@ export class Texture {
 		//data.set(new Uint8Array(this.memory.buffer, mipmap.address, data.length));
 
 		if (state.texture.swizzled) PixelConverter.unswizzleInline(state.texture.pixelFormat, data, w2, h);
-		
-		var clut: Uint32Array = null;
-		if (textureState.hasClut) {
+
+        let clut: Uint32Array | null = null;
+        if (textureState.hasClut) {
 			clut = PixelConverter.decode(
 				clutState.pixelFormat,
 				clutData,
@@ -202,7 +202,7 @@ export class TextureHandler {
 		let textureState = state.texture;
 		let clutAddress = hasClut ? clutState.address : 0;
 
-		var texture: Texture;
+		let texture: Texture;
 		
 		var fastHash = mipmap.address + clutAddress * Math.pow(2, 24) + textureState.colorComponent * Math.pow(2, 18);
 		
@@ -213,17 +213,17 @@ export class TextureHandler {
 			//console.warn('New texture allocated!', mipmap, state.texture);
 		}
 
-		texture = this.texturesByAddress.get(fastHash);
+		texture = this.texturesByAddress.get(fastHash)!
 		
 		//if (true) {
 		if (!texture.valid) {
-			var hash = textureState.getHashSlow(textureData, clutData);
+			const hash = textureState.getHashSlow(textureData!, clutData!);
 			this.stats.hashMemoryCount++;
 			this.stats.hashMemorySize += mipmap.sizeInBytes;
 			this.rehashSignal.dispatch(mipmap.sizeInBytes);
 			
 			if (this.texturesByHash.has(hash)) {
-				texture = this.texturesByHash.get(hash);
+				texture = this.texturesByHash.get(hash)!
 			} else if (texture.hash != hash) {
 				this.texturesByHash.delete(texture.hash);
 
@@ -232,7 +232,7 @@ export class TextureHandler {
 
 				this.texturesByHash.set(hash, texture);
 
-				texture.updateFromState(state, textureData, clutData);
+				texture.updateFromState(state, textureData!, clutData!);
 			}
 		}
 

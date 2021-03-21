@@ -6,7 +6,7 @@ import {EmulatorContext} from "../../emu/context";
 
 export class EmulatorVfs extends Vfs {
 	output = '';
-	screenshot:Uint8Array = null;
+	screenshot:Uint8Array|null = null;
 
 	constructor(public context:EmulatorContext) {
 		super();

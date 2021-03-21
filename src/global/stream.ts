@@ -256,7 +256,7 @@ export class Stream {
 
 	skip<T>(count: number, pass?: T): T {
 		this.offset += count;
-		return pass;
+		return pass as T
 	}
 
 	set(index: number, value: number) {

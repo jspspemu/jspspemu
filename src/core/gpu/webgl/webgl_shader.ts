@@ -56,9 +56,9 @@ export class ShaderCache {
 	}
 
 	static shaderProgram(gl: WebGLRenderingContext, vs: string, fs: string) {
-		var prog = gl.createProgram();
-		var addshader = (type:string, source:string) => {
-			var s = gl.createShader((type == 'vertex') ? gl.VERTEX_SHADER : gl.FRAGMENT_SHADER);
+		const prog = gl.createProgram()!
+        const addshader = (type:string, source:string) => {
+            const s = gl.createShader((type == 'vertex') ? gl.VERTEX_SHADER : gl.FRAGMENT_SHADER)!;
 			gl.shaderSource(s, source);
 			gl.compileShader(s);
 			if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw (new Error("Could not compile " + type + " shader:\n\n" + gl.getShaderInfoLog(s) + "\n\n" + source));

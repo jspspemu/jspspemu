@@ -600,8 +600,7 @@ export class Color {
 		return this;
 	}
 
-	static add(a: Color, b: Color, dest: Color = null) {
-		if (dest == null) dest = new Color();
+	static add(a: Color, b: Color, dest: Color = new Color()) {
 		dest.r = a.r + b.r;
 		dest.g = a.g + b.g;
 		dest.b = a.b + b.b;

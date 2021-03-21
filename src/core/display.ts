@@ -71,7 +71,7 @@ export class DummyPspDisplay extends BasePspDisplay implements IPspDisplay {
 const console = logger.named('display')
 
 export class PspDisplay extends BasePspDisplay implements IPspDisplay {
-	private context: CanvasRenderingContext2D;
+	private context: CanvasRenderingContext2D|null;
 	vblank = new Signal1<number>();
 	private imageData: ImageData;
 	private interval: number = -1;

@@ -5,6 +5,7 @@ import {Int8, IType, StringzVariable, StructArray, StructClass, UInt16, UInt32, 
 import {Stream} from "../global/stream";
 import {BitUtils} from "../global/math";
 import {ElfLoader} from "./elf";
+import {ISymbol} from "../emu/context";
 
 var console = logger.named('elf.dwarf');
 
@@ -194,19 +195,19 @@ export class ElfDwarfLoader {
 
 	private parseSymtab(elf: ElfLoader) {
 		console.log('ElfDwarfLoader.parseSymtab');
-		var symtabHeader = elf.sectionHeadersByName[".symtab"];
-		if (!symtabHeader) return;
+        const symtabHeader = elf.sectionHeadersByName[".symtab"];
+        if (!symtabHeader) return;
 
-		var nameSection = elf.sectionHeaders[symtabHeader.link];
+        const nameSection = elf.sectionHeaders[symtabHeader.link];
 
-		var nameStream = nameSection.stream.sliceWithLength(0);
-		var stream = symtabHeader.stream.sliceWithLength(0);
+        const nameStream = nameSection.stream!.sliceWithLength(0);
+        const stream = symtabHeader.stream!.sliceWithLength(0);
 
-		var n = 0;
-		try {
+        let n = 0;
+        try {
 			while (stream.available > 0) {
-				var entry = ElfSymbol.struct.read(stream);
-				entry.name = nameStream.sliceWithLength(entry.nameIndex).readStringz();
+                const entry = ElfSymbol.struct.read(stream);
+                entry.name = nameStream.sliceWithLength(entry.nameIndex).readStringz();
 				entry.index = n;
 				this.symbolEntries.push(entry);
 				n++;
@@ -218,7 +219,7 @@ export class ElfDwarfLoader {
 		this.symbolEntries.sortBy(item => item.value);
 	}
 
-	getSymbolAt(address: number) {
+	getSymbolAt(address: number): ISymbol | null {
 		//console.log('this.symbolEntries: ' + this.symbolEntries.length);
 		for (var n = 0; n < this.symbolEntries.length; n++) {
 			var entry = this.symbolEntries[n];
@@ -236,23 +237,23 @@ export class ElfDwarfLoader {
 
 	private parseDebugLine(elf: ElfLoader) {
 		console.log('ElfDwarfLoader.parseDebugLine');
-		console.log(sectionHeader);
-		var sectionHeader = elf.sectionHeadersByName[".debug_line"];
-		var stream = sectionHeader.stream.sliceWithLength(0);
-		var header = ElfDwarfHeader.struct.read(stream);
-		console.log(header);
-		var opcodes = StructArray<number>(Uleb128, header.opcode_base).read(stream);
-		console.log(opcodes);
+        const sectionHeader = elf.sectionHeadersByName[".debug_line"];
+        console.log(sectionHeader);
+        const stream = sectionHeader.stream!.sliceWithLength(0);
+        const header = ElfDwarfHeader.struct.read(stream);
+        console.log(header);
+        const opcodes = StructArray<number>(Uleb128, header.opcode_base).read(stream);
+        console.log(opcodes);
 		while (stream.available > 0) {
 			console.log('item:');
-			var item = StringzVariable.read(stream);
-			if (!item.length) break;
+            const item = StringzVariable.read(stream);
+            if (!item.length) break;
 			console.log(item);
 		}
 
 		while (stream.available > 0) {
-			var entry = FileEntry.struct.read(stream);
-			console.log(entry);
+            const entry = FileEntry.struct.read(stream);
+            console.log(entry);
 			if (!entry.name.length) break;
 		}
 	}

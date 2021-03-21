@@ -20,24 +20,24 @@ export class MemoryStickVfs extends ProxyVfs {
 				return 0;
 			case CommandType.MScmRegisterMSInsertEjectCallback:
 				if (input == null || input.length < 4) return SceKernelErrors.ERROR_ERRNO_INVALID_ARGUMENT;
-				var callbackId = input.readInt32();
+                const callbackId = input.readInt32();
 
-				this.callbackManager.notify(callbackId, 1);
+                this.callbackManager.notify(callbackId, 1);
 
-				return 0;
+				return 0
 			case CommandType.MScmUnregisterMSInsertEjectCallback:
 				// Ignore.
-				return 0;
+				return 0
 			case CommandType.GetMemoryStickCapacity:
-				if (input == null || input.length < 4) return SceKernelErrors.ERROR_ERRNO_INVALID_ARGUMENT;
+				if (input == null || input.length < 4) return SceKernelErrors.ERROR_ERRNO_INVALID_ARGUMENT
 
-				var structAddress = input.readInt32();
-				var structStream = this.memory.getPointerStream(structAddress, SizeInfoStruct.struct.length);
+                const structAddress = input.readInt32()
+                const structStream = this.memory.getPointerStream(structAddress, SizeInfoStruct.struct.length)!
 
-				var sizeInfo = new SizeInfoStruct();
-				var memoryStickSectorSize = (32 * 1024);
-				//var TotalSpaceInBytes = 2L * 1024 * 1024 * 1024;
-				var freeSpaceInBytes = 1 * 1024 * 1024 * 1024;
+                const sizeInfo = new SizeInfoStruct();
+                const memoryStickSectorSize = (32 * 1024);
+				//const TotalSpaceInBytes = 2L * 1024 * 1024 * 1024;
+				const freeSpaceInBytes = 1 * 1024 * 1024 * 1024;
 
 				sizeInfo.sectorSize = 0x200;
 				sizeInfo.sectorCount = (memoryStickSectorSize / sizeInfo.sectorSize);
@@ -57,7 +57,7 @@ export class MemoryStickVfs extends ProxyVfs {
 				output.writeInt32(4);
 				return 0;
 			default:
-				throw new Error("Invalid MemoryStick command '" + command + "'");
+				throw new Error(`Invalid MemoryStick command '${command}'`);
 		}
 	}
 }

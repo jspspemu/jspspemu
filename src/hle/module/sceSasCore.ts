@@ -304,15 +304,15 @@ class SasCore {
 	mix(sasCorePointer: number, sasOut: Stream, leftVolume: number, rightVolume: number) {
 		while (this.bufferTempArray.length < this.grainSamples) this.bufferTempArray.push(new Sample(0, 0));
 
-		var numberOfChannels = (this.outputMode == OutputMode.STEREO) ? 2 : 1;
-		var numberOfSamples = this.grainSamples;
-		var numberOfVoicesPlaying = Math.max(1, this.voices.count(Voice => Voice.onAndPlaying));
+		const numberOfChannels = (this.outputMode == OutputMode.STEREO) ? 2 : 1;
+        const numberOfSamples = this.grainSamples;
+        const numberOfVoicesPlaying = Math.max(1, this.voices.count(Voice => Voice.onAndPlaying));
 
-		for (var n = 0; n < numberOfSamples; n++) this.bufferTempArray[n].set(0, 0);
+		for (let n = 0; n < numberOfSamples; n++) this.bufferTempArray[n].set(0, 0);
 
-		var prevPosDiv = -1;
+        let prevPosDiv = -1;
 
-		for (var n = 0; n < this.voices.length; n++) {
+		for (let n = 0; n < this.voices.length; n++) {
 			var voice = this.voices[n];
 			if (!voice.onAndPlaying) continue;
 
@@ -320,16 +320,16 @@ class SasCore {
 			//var sampleLeftMax = 0, sampleRightMax = 0;
 			//var sampleCount = 0;
 
-			var pos = 0;
+            let pos = 0;
 			while (true) {
 				if ((voice.source != null) && (voice.source.hasMore)) {
-					var posDiv = Math.floor(pos / voice.pitch);
+                    const posDiv = Math.floor(pos / voice.pitch);
 
 					if (posDiv >= numberOfSamples) break;
 
-					var sample = voice.source.getNextSample();
+					const sample = voice.source.getNextSample();
 
-					for (var m = prevPosDiv + 1; m <= posDiv; m++) {
+					for (let m = prevPosDiv + 1; m <= posDiv; m++) {
 						//sampleLeftSum += voice.leftVolume;
 						//sampleRightSum += voice.rightVolume;
 						//
@@ -349,9 +349,9 @@ class SasCore {
 			}
 		}
 
-		for (var n = 0; n < numberOfSamples; n++) {
-			var sample = this.bufferTempArray[n];
-			sample.scale(leftVolume / PSP_SAS_VOL_MAX, rightVolume / PSP_SAS_VOL_MAX);
+		for (let n = 0; n < numberOfSamples; n++) {
+            const sample = this.bufferTempArray[n];
+            sample.scale(leftVolume / PSP_SAS_VOL_MAX, rightVolume / PSP_SAS_VOL_MAX);
 
 			if (numberOfChannels >= 1) sasOut.writeInt16(MathUtils.clamp(sample.left, -32768, 32767));
 			if (numberOfChannels >= 2) sasOut.writeInt16(MathUtils.clamp(sample.right, -32768, 32767));
@@ -361,7 +361,7 @@ class SasCore {
 	}
 }
 
-interface SoundSource {
+export interface SoundSource {
 	hasMore: boolean;
 	reset(): void;
 	getNextSample(): Sample;
@@ -379,7 +379,7 @@ class Voice {
 	effectLeftVolume = PSP_SAS_VOL_MAX;
 	effectRightVolume = PSP_SAS_VOL_MAX;
 	pitch = PSP_SAS_PITCH_BASE;
-	source: SoundSource = null;
+	source: SoundSource | null = null;
 
 	constructor(public index: number) {
 	}
@@ -420,7 +420,9 @@ class Voice {
 }
 
 
-class PcmSoundSource implements SoundSource {
+export class PcmSoundSource implements SoundSource {
+    public dummySample = new Sample(0, 0)
+
 	constructor(stream: Stream, loopCount: number) {
 	}
 
@@ -432,7 +434,7 @@ class PcmSoundSource implements SoundSource {
 	}
 
 	getNextSample(): Sample {
-		return null;
+		return this.dummySample;
 	}
 }
 

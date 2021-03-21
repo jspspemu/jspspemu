@@ -23,7 +23,7 @@ export interface ISymbol {
 }
 
 export interface ISymbolLookup {
-	getSymbolAt(address: number): ISymbol;
+	getSymbolAt(address: number): ISymbol | null;
 }
 
 export class EmulatorContext {
