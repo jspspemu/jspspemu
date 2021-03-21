@@ -1424,6 +1424,7 @@ export class FunctionGenerator {
                 disassembler.dump(this.memory, info.min, 4, console.error)
                 console.error("...")
                 disassembler.dump(this.memory, info.max - 4 * 4, 4, console.error)
+                console.error(this)
 			    throw new ProgramExitException(`Function too big ${exploredCount}`);
             }
 

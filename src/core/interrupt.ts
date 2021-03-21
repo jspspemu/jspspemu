@@ -1,7 +1,7 @@
 ﻿import "../emu/global"
 
 import {NumberDictionary, Signal0} from "../global/utils";
-import {CpuState} from "./cpu/cpu_core";
+import {CpuSpecialAddresses, CpuState} from "./cpu/cpu_core";
 import {CpuExecutor} from "./cpu/cpu_executor";
 
 export class InterruptHandler {
@@ -76,7 +76,7 @@ export class InterruptManager {
 			const item = this.queue.shift()!
 			const state = (item.cpuState ?? _state)!
 			state.preserveRegisters(() => {
-				state.RA = 0x1234;
+				state.RA = CpuSpecialAddresses.EXIT_INTERRUPT;
 				state.setGPR(4, item.no);
 				state.setGPR(5, item.argument);
 				state.insideInterrupt = true;

@@ -461,10 +461,7 @@ _self.navigator['getGamepads'] = _self.navigator['getGamepads'] || _self.navigat
 
 if (!_self.requestAnimationFrame) {
 	_self.requestAnimationFrame = function(callback: FrameRequestCallback) {
-		var start = Date.now();
-		return setTimeout(function() {
-			callback(Date.now());
-		}, 20);
+		return setTimeout(function() { callback(Date.now()); }, 1000 / 60);
 	};
 	_self.cancelAnimationFrame = function(id: number) {
 		clearTimeout(id);

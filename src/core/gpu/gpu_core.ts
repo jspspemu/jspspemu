@@ -497,16 +497,6 @@ export class PspGpu implements Component {
 		this.onDrawBatches.clear();
     }
 
-    startAsync() {
-        this.register()
-        return PromiseFast.resolve();
-    }
-
-    stopAsync() {
-        this.unregister()
-        return PromiseFast.resolve();
-    }
-
 	listEnqueue(start: number, stall: number, callbackId: number, argsPtr: Stream) {
         const list = this.listRunner.allocate();
         list.current4 = ((start >>> 2) & Memory.MASK);

@@ -96,54 +96,52 @@ export class Emulator {
 	private doFrameRunning = false
     private doFrame = () => {
         if (this.doFrameRunning) requestAnimationFrame(this.doFrame)
-        Microtask.queue(() => {
-            this.display.frame()
-            this.controller.frame()
-        })
-        Microtask.execute()
+        this.display.frame()
+        this.controller.frame()
+        this.audio.frame()
+        this.threadManager.frame()
     }
 
     start() {
         this.stop()
-        this.memory.reset();
+        this.memory.reset()
         this.controller = new PspController()
         this.controller.addContributor(new Html5Gamepad())
         this.controller.addContributor(new Html5Keyboard())
         this.controller.register()
-        this.context = new EmulatorContext();
-        this.memoryManager = new MemoryManager();
-        this.interruptManager = new InterruptManager();
-        this.syscallManager = new SyscallManager(this.context);
-        this.fileManager = new FileManager();
-        this.interop = new Interop();
-        this.callbackManager = new CallbackManager(this.interop);
-        this.rtc = new PspRtc();
-        this.display = new PspDisplay(this.memory, this.interruptManager, this.canvas, this.webgl_canvas);
-        this.gpu = new PspGpu(this.memory, this.display, this.interop, this.gpuStats);
-        this.gpu.onDrawBatches.pipeTo(this.onDrawBatches);
-        this.threadManager = new ThreadManager(this.memory, this.interruptManager, this.callbackManager, this.memoryManager, this.display, this.syscallManager, this.cpuConfig);
-        this.moduleManager = new ModuleManager(this.context);
-        this.netManager = new NetManager();
+        this.context = new EmulatorContext()
+        this.memoryManager = new MemoryManager()
+        this.interruptManager = new InterruptManager()
+        this.syscallManager = new SyscallManager(this.context)
+        this.fileManager = new FileManager()
+        this.interop = new Interop()
+        this.callbackManager = new CallbackManager(this.interop)
+        this.rtc = new PspRtc()
+        this.display = new PspDisplay(this.memory, this.interruptManager, this.canvas, this.webgl_canvas)
+        this.gpu = new PspGpu(this.memory, this.display, this.interop, this.gpuStats)
+        this.gpu.onDrawBatches.pipeTo(this.onDrawBatches)
+        this.threadManager = new ThreadManager(this.memory, this.interruptManager, this.callbackManager, this.memoryManager, this.display, this.syscallManager, this.cpuConfig)
+        this.moduleManager = new ModuleManager(this.context)
+        this.netManager = new NetManager()
 
-        this.emulatorVfs = new EmulatorVfs(this.context);
-        this.ms0Vfs = new MountableVfs();
-        this.storageVfs = new StorageVfs('psp_storage');
+        this.emulatorVfs = new EmulatorVfs(this.context)
+        this.ms0Vfs = new MountableVfs()
+            .mountVfs('/', new MemoryVfs())
+        this.storageVfs = new StorageVfs('psp_storage')
 
-        const msvfs = new MemoryStickVfs([this.storageVfs, this.ms0Vfs], this.callbackManager, this.memory);
-        this.fileManager.mount('fatms0', msvfs);
-        this.fileManager.mount('ms0', msvfs);
-        this.fileManager.mount('mscmhc0', msvfs);
+        const msvfs = new MemoryStickVfs([this.storageVfs, this.ms0Vfs], this.callbackManager, this.memory)
+        this.fileManager
+            .mount('fatms0', msvfs)
+            .mount('ms0', msvfs)
+            .mount('mscmhc0', msvfs)
+            .mount('host0', new MemoryVfs())
+            .mount('flash0', new UriVfs('data/flash0'))
+            .mount('emulator', this.emulatorVfs)
+            .mount('kemulator', this.emulatorVfs)
 
-        this.fileManager.mount('host0', new MemoryVfs());
-        this.fileManager.mount('flash0', new UriVfs('data/flash0'));
-        this.fileManager.mount('emulator', this.emulatorVfs);
-        this.fileManager.mount('kemulator', this.emulatorVfs);
+        registerModulesAndSyscalls(this.syscallManager, this.moduleManager)
 
-        this.ms0Vfs.mountVfs('/', new MemoryVfs());
-
-        registerModulesAndSyscalls(this.syscallManager, this.moduleManager);
-
-        this.context.init(this.interruptManager, this.display, this.controller, this.gpu, this.memoryManager, this.threadManager, this.audio, this.memory, this.fileManager, this.rtc, this.callbackManager, this.moduleManager, this.config, this.interop, this.netManager, this.battery);
+        this.context.init(this.interruptManager, this.display, this.controller, this.gpu, this.memoryManager, this.threadManager, this.audio, this.memory, this.fileManager, this.rtc, this.callbackManager, this.moduleManager, this.config, this.interop, this.netManager, this.battery)
 
         this.display.register()
         this.gpu.register()
@@ -232,6 +230,8 @@ export class Emulator {
                         console.error(e)
                     }
 
+                    //const exists = await isoFs.existsAsync('PSP_GAME/SYSDIR/EBOOT.BIN');
+                    //const path = exists ? 'PSP_GAME/SYSDIR/EBOOT.BIN' : 'PSP_GAME/SYSDIR/BOOT.BIN';
                     const exists = await isoFs.existsAsync('PSP_GAME/SYSDIR/BOOT.BIN');
                     const path = exists ? 'PSP_GAME/SYSDIR/BOOT.BIN' : 'PSP_GAME/SYSDIR/EBOOT.BIN';
                     const bootBinData = await isoFs.readAllAsync(path)
