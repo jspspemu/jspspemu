@@ -11,7 +11,7 @@ import { Texture, TextureHandler } from './webgl_texture';
 import { FastFloat32Buffer, WrappedWebGLProgram, WrappedWebGLAttrib } from './webgl_utils';
 import {downloadFileAsync} from "../../../global/async";
 import {Stream} from "../../../global/stream";
-import {Signal1} from "../../../global/utils";
+import {PromiseFast, Signal1} from "../../../global/utils";
 import {ClearBufferSet, GL} from "./webgl_enums";
 import {mat4} from "../../../global/math";
 import {shader_frag, shader_vert} from "./webgl_shaders";
@@ -76,15 +76,20 @@ export class WebGlPspDrawDriver {
 	invalidatedMemoryRange(low: number, high: number) {
 		this.textureHandler.invalidatedMemoryRange(low, high);
 	}
-	
-	initAsync() {
-	    const shaderVertString = shader_vert
-        const shaderFragString = shader_frag
 
-        this.cache = new ShaderCache(this.gl, shaderVertString, shaderFragString);
+    initAsync() {
+	    this.register()
+        return PromiseFast.resolve()
+    }
+	
+	register() {
+        this.cache = new ShaderCache(this.gl, shader_vert, shader_frag);
         this.textureHandler = new TextureHandler(this.gl, this.stats);
-        this.textureHandler.rehashSignal.pipeTo(this.rehashSignal);
 	}
+
+	unregister() {
+	    this.rehashSignal.clear()
+    }
 
 	private clearing: boolean;
 	private clearingFlags: ClearBufferSet;
@@ -293,7 +298,7 @@ export class WebGlPspDrawDriver {
 	private optimizedDataBuffer:WebGLBuffer|null = null;
 	private optimizedIndexBuffer:WebGLBuffer|null = null;
 	
-	rehashSignal = new Signal1<number>();
+	get rehashSignal() { return this.textureHandler.rehashSignal }
 	enableColors: boolean = true;
 	enableTextures: boolean = true;
 	enableSkinning: boolean = true;

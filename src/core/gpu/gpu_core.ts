@@ -11,6 +11,7 @@ import {addressToHex, Microtask, PromiseFast, Signal2, UidCollection, WatchValue
 import {MathFloat, MathUtils} from "../../global/math";
 import {CpuState} from "../cpu/cpu_core";
 import {EmulatorUI} from "../../ui/emulator_ui";
+import {Component} from "../component";
 
 export interface CpuExecutor {
 	execute(state: CpuState, address: number, gprArray: number[]): void;
@@ -466,7 +467,7 @@ export class PspGpuCallback {
 	}
 }
 
-export class PspGpu {
+export class PspGpu implements Component {
     //private gl: WebGLRenderingContext;
 	private listRunner: PspGpuListRunner;
 	callbacks = new UidCollection<PspGpuCallback>(1);
@@ -489,18 +490,25 @@ export class PspGpu {
 		dumpFrameCommands = true;
 	}
 
-	startAsync() {
-		//return this.driver.initAsync();
-		return PromiseFast.resolve();
+	register() {
     }
 
-	stopAsync() {
+    unregister() {
 		this.onDrawBatches.clear();
-		return PromiseFast.resolve();
+    }
+
+    startAsync() {
+        this.register()
+        return PromiseFast.resolve();
+    }
+
+    stopAsync() {
+        this.unregister()
+        return PromiseFast.resolve();
     }
 
 	listEnqueue(start: number, stall: number, callbackId: number, argsPtr: Stream) {
-        var list = this.listRunner.allocate();
+        const list = this.listRunner.allocate();
         list.current4 = ((start >>> 2) & Memory.MASK);
         list.stall4 = stall;
 		list.callbackId = callbackId;
