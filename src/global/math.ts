@@ -3,8 +3,8 @@
         clz32(value: number): number;
         trunc(value: number): number;
         imul(a: number, b: number): number;
-        imul32_64(a: number, b: number, result?: number[]): number[];
-        umul32_64(a: number, b: number, result?: number[]): number[];
+        imul32_64(a: number, b: number, result?: Int32Array): Int32Array;
+        umul32_64(a: number, b: number, result?: Int32Array): Int32Array;
         fround(x: number): number;
         sign(x: number): number;
         rint(x: number): number;
@@ -278,8 +278,8 @@ if (!Math['imul']) {
 
 _self['polyfills']['umul32_64'] = !Math['umul32_64'];
 if (!Math.umul32_64) {
-	Math.umul32_64 = function (a: number, b: number, result?: number[]) {
-		if (result === undefined) result = [0, 0];
+	Math.umul32_64 = function (a: number, b: number, result?: Int32Array) {
+		if (result === undefined) result = new Int32Array(2);
 
 		a >>>= 0;
 		b >>>= 0;
@@ -311,8 +311,8 @@ if (!Math.umul32_64) {
 
 _self['polyfills']['imul32_64'] = !Math['imul32_64'];
 if (!Math.imul32_64) {
-	Math.imul32_64 = function (a: number, b: number, result?: number[]) {
-		if (result === undefined) result = [0, 0];
+	Math.imul32_64 = function (a: number, b: number, result?: Int32Array) {
+		if (result === undefined) result = new Int32Array(2);
 
 		if (a == 0) {
 			result[0] = result[1] = 0;

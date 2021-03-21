@@ -835,10 +835,10 @@ export class CpuState extends Instruction {
 			//if (fc_equal) cc = cc || (s == t);
 			//if (fc_less) cc = cc || (s < t);
 			//return cc;
-			var equal = (fc_equal) && (s == t);
-			var less = (fc_less) && (s < t);
+            const equal = (fc_equal) && (s == t);
+            const less = (fc_less) && (s < t);
 
-			this.fcr31_cc = (less || equal);
+            this.fcr31_cc = (less || equal);
 		}
 	}
 
@@ -882,7 +882,7 @@ export class CpuState extends Instruction {
 		this.HI = (rs % rt) | 0;
 	}
 
-	private static _mult_temp = [0, 0];
+	private static _mult_temp = new Int32Array(2);
 
 	mult(rs: number, rt: number) {
 		Math.imul32_64(rs, rt, CpuState._mult_temp);
@@ -891,10 +891,10 @@ export class CpuState extends Instruction {
 	}
 
 	madd(rs: number, rt: number) {
-		var a64 = Integer64.fromInt(rs);
-		var b64 = Integer64.fromInt(rt);
-		var result = Integer64.fromBits(this.LO, this.HI).add(a64.multiply(b64));
-		this.HI = result.high;
+        const a64 = Integer64.fromInt(rs);
+        const b64 = Integer64.fromInt(rt);
+        const result = Integer64.fromBits(this.LO, this.HI).add(a64.multiply(b64));
+        this.HI = result.high;
 		this.LO = result.low;
 	}
 
