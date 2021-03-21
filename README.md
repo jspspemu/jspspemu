@@ -79,16 +79,17 @@ It JITs the instruction decoding nested switch.
 It JITs the vertex decoding.
 
 Module exported functions are like this:
-```js
-sceAudioOutputPannedBlocking = createNativeFunction(0x13F592BC, 150, 'uint', 'int/int/int/void*', this, (channelId: number, leftVolume: number, rightVolume: number, buffer: Stream) => {
-	var channel = this.channels[channelId];
-	return channel.channel.playAsync(core.PspAudio.convertS16ToF32(buffer.readInt16Array(2 * channel.sampleCount)));
-});
+```typescript
+@nativeFunction(0x13F592BC, 150, 'uint', 'int/int/int/void*')
+function sceAudioOutputPannedBlocking(channelId: number, leftVolume: number, rightVolume: number, buffer: Stream): any {
+    const channel = this.channels[channelId];
+    return channel.channel.playAsync(core.PspAudio.convertS16ToF32(buffer.readInt16Array(2 * channel.sampleCount)));
+}
 ```
 Exported functions returning promises suspend the current psp thread until the promise is resolved.
 
 And binary structs are defined like this so it is pretty agile to work with binary stuff:
-```js
+```typescript
 export class ElfPspModuleInfo {
     moduleAtributes: number;
     moduleVersion: number;
@@ -99,18 +100,18 @@ export class ElfPspModuleInfo {
     exportsEnd: number;
     importsStart: number;
     importsEnd: number;
-
+    
     // http://hitmen.c02.at/files/yapspd/psp_doc/chap26.html
     // 26.2.2.8
     static struct = StructClass.create<ElfPspModuleInfo>(ElfPspModuleInfo, [
-		{ moduleAtributes: UInt16 },
-		{ moduleVersion: UInt16 },
-		{ name: Stringz(28) },
-		{ gp: UInt32 },
-		{ exportsStart: UInt32 },
-		{ exportsEnd: UInt32 },
-		{ importsStart: UInt32 },
-		{ importsEnd: UInt32 },
+        { moduleAtributes: UInt16 },
+        { moduleVersion: UInt16 },
+        { name: Stringz(28) },
+        { gp: UInt32 },
+        { exportsStart: UInt32 },
+        { exportsEnd: UInt32 },
+        { importsStart: UInt32 },
+        { importsEnd: UInt32 },
     ]);
 }
 
