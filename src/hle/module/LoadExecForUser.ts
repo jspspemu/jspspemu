@@ -12,7 +12,7 @@ export class LoadExecForUser {
 	sceKernelExitGame(thread: Thread) {
         console.info('sceKernelExitGame');
 		thread.stop('sceKernelExitGame');
-		this.context.threadManager.exitGame();
+		this.context.threadManager.exitGame(0);
         throwEndCycles();
         return 0;
 	}
@@ -24,7 +24,7 @@ export class LoadExecForUser {
 		//this.context.instructionCache.functionGenerator.getInstructionUsageCount().forEach((item) => { console.log(item.name, ':', item.count); });
 
 		console.info('sceKernelExitGame2');
-		this.context.threadManager.exitGame();
+		this.context.threadManager.exitGame(0);
 		thread.stop('sceKernelExitGame2');
         throwEndCycles();
     }
