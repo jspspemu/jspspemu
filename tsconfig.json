@@ -4,12 +4,13 @@
     "incremental": true,
     "target": "es6",
     "module": "commonjs",
+    "moduleResolution": "Node",
     "noImplicitAny": true,
     "removeComments": true,
     "preserveConstEnums": true,
     "sourceMap": true,
     "typeRoots": [
-      "src/emu/declarations.d.ts"
+      "src/emu/declarations.d.ts",
     ],
     "outDir": "output"
   },
@@ -17,6 +18,7 @@
     "src/emu/global.ts",
     "src/app.ts",
     "src/headless.ts",
+    "src/docgen.ts",
     "test/_tests.ts",
     "test/_itests.ts"
   ]

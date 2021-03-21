@@ -16,6 +16,7 @@ import {MemoryManager, MemoryPartition} from "./manager/memory";
 import {ModuleManager} from "./manager/module";
 import {NativeFunction, SyscallManager} from "../core/cpu/cpu_core";
 import {Instruction} from "../core/cpu/cpu_instruction";
+import {ModuleKnownFunctionNamesDatabase} from "./pspmodules_database";
 
 var console = logger.named('elf.psp');
 
@@ -347,17 +348,25 @@ export class PspElfLoader {
 			nfunc = _module.getByNid(nid);
 			
 			if (!nfunc) {
-				unknownFunctions.push(sprintf("'%s':0x%08X", _module.moduleName, nid));
+			    const nidHex = sprintf("0x%08X", nid)
+				unknownFunctions.push(sprintf("'%s':%s", _module.moduleName, nidHex));
+			    const knownModule = ModuleKnownFunctionNamesDatabase?.[_module.moduleName]
+                const knownFuncName = knownModule?.[nidHex]
 
 				nfunc = new NativeFunction();
-                nfunc.name = sprintf("%s:0x%08X", moduleImport.name, nid);
+			    if (knownFuncName) {
+                    nfunc.name = sprintf("%s:%s:0x%08X", _module.moduleName, knownFuncName, nid)
+                } else {
+                    nfunc.name = sprintf("%s:0x%08X", moduleImport.name, nid);
+                }
                 nfunc.nid = nid;
 				nfunc.firmwareVersion = 150;
-				nfunc.nativeCall = () => {
+                nfunc.nativeCall = () => {
+				    const errorString = `updateModuleFunctions: Not implemented '${nfunc.name}'`
 					console.info(_module);
-					console.error("updateModuleFunctions: Not implemented '" + nfunc.name + "'");
+					console.error(errorString);
 					debugger;
-					throw new ProgramExitException("updateModuleFunctions: Not implemented '" + nfunc.name + "'");
+					throw new ProgramExitException(errorString);
 				};
 				nfunc.call = (context, state) => {
 					nfunc.nativeCall();

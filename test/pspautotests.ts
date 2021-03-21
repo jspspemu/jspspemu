@@ -244,8 +244,8 @@ describe('pspautotests', function () {
 						this.timeout(15000);
 
                         const emulator = new Emulator();
-                        emulator.interpreted = true
-                        //emulator.interpreted = false
+                        //emulator.interpreted = true
+                        emulator.interpreted = false
                         const file_base = './data/pspautotests/tests/' + testGroupName + '/' + testName;
                         const file_prx = file_base + '.prx';
                         //var file_prx = file_base + '.iso';

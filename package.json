@@ -4,6 +4,7 @@
     "serve": "npx webpack serve",
     "test": "npx tsc && npx -n --enable-source-maps mocha output/test/_tests.js",
     "integration_test": "npx tsc && npx -n --enable-source-maps mocha output/test/_itests.js",
+    "docgen": "npx tsc && node output/src/docgen.js",
     "benchmark": "npx tsc && node --enable-source-maps output/src/headless.js data/benchmark/benchmark.prx",
     "benchmark_interpreted": "npx tsc && node --enable-source-maps output/src/headless.js -interpreted data/benchmark/benchmark.prx",
     "headless": "npx tsc && node --enable-source-maps output/src/headless.js"
@@ -15,16 +16,20 @@
   "contributors": [],
   "private": true,
   "dependencies": {
+    "@types/jsdom": "^16.2.7",
+    "@types/node": "^14.14.35",
     "chai": "2.3.0",
     "copy-webpack-plugin": "8.0.0",
     "html-webpack-plugin": "5.3.1",
+    "jsdom": "^16.5.1",
     "mocha": "2.2.4",
     "ts-loader": "8.0.18",
     "typescript": "4.2.3",
     "webpack": "5.27.0",
     "webpack-cli": "4.5.0",
     "webpack-dev-server": "^3.11.2",
-    "webpack-merge": "5.7.3"
+    "webpack-merge": "5.7.3",
+    "xml2js": "^0.4.23"
   },
   "devDependencies": {},
   "homepage": "https://github.com/jspspemu/jspspemu",
