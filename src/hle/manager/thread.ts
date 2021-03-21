@@ -25,6 +25,7 @@ import {InterruptManager} from "../../core/interrupt";
 import {PspDisplay} from "../../core/display";
 import {EmulatorUI} from "../../ui/emulator_ui";
 import {CpuExecutor} from "../../core/cpu/cpu_executor";
+import {Component} from "../../core/component";
 
 var console = logger.named('hle.thread');
 
@@ -246,14 +247,13 @@ export class Thread {
     }
 }
 
-export class ThreadManager {
+export class ThreadManager implements Component {
     threads: DSet<Thread> = new DSet<Thread>();
-    interval: number = -1;
 	enqueued: boolean = false;
 	enqueuedTime = 0;
 	running: boolean = false;
-	exitPromise: PromiseFast<any>;
-	exitResolve: () => void;
+	exitPromise: PromiseFast<number>;
+	exitResolve: (errorCode: number) => void;
 	current: Thread;
 	private rootCpuState: CpuState;
 
@@ -274,8 +274,8 @@ export class ThreadManager {
     }
 
 	create(name: string, entryPoint: number, initialPriority: number, stackSize: number = 0x1000, attributes: PspThreadAttributes = 0) {
-		var thread = new Thread(name, this, this.memoryManager, this.rootCpuState.clone(), stackSize);
-		thread.entryPoint = entryPoint;
+        const thread = new Thread(name, this, this.memoryManager, this.rootCpuState.clone(), stackSize);
+        thread.entryPoint = entryPoint;
         thread.state.setPC(entryPoint);
         thread.state.setRA(CpuSpecialAddresses.EXIT_THREAD);
 		thread.state.SP = thread.stackPartition.high;
@@ -295,17 +295,21 @@ export class ThreadManager {
     }
 
 	eventOcurred() {
-		if (!this.running) return;
-        if (this.enqueued) return;
-		this.enqueued = true;
-		this.enqueuedTime = performance.now();
-		Microtask.queue(() => this.eventOcurredCallback());
+		if (!this.running) return
+        if (this.enqueued) return
+		this.enqueued = true
+		this.enqueuedTime = performance.now()
+		Microtask.queue(() => this.eventOcurredCallback())
+    }
+
+    frame() {
+	    //this.eventOcurred()
     }
 
     //get runningThreads() { return this.threads.filter(thread => thread.running); }
 
     private static getHighestPriority(threads: Thread[]) {
-        var priority = -9999;
+        let priority = -9999;
         threads.forEach(thread => {
             priority = Math.max(priority, thread.priority);
         });
@@ -315,23 +319,23 @@ export class ThreadManager {
 	eventOcurredCallback() {
 		if (!this.running) return;
 
-		var microsecondsToCompensate = Math.round((performance.now() - this.enqueuedTime) * 1000);
-		//console.log('delayedTime', timeMsToCompensate);
+        const microsecondsToCompensate = Math.round((performance.now() - this.enqueuedTime) * 1000);
+        //console.log('delayedTime', timeMsToCompensate);
 
         this.enqueued = false;
-        var start = window.performance.now();
+        const start = window.performance.now();
 
-		while (true) {
+        while (true) {
 			if (this.threads.elements.length > 0) {
 				this.interruptManager.execute(this.threads.elements[0].state);
 			}
 
-			var callbackThreadCount = 0;
-			var callbackPriority = Number.MAX_VALUE;
-			var runningThreadCount = 0;
-			var runningPriority = Number.MAX_VALUE;
+            let callbackThreadCount = 0;
+            let callbackPriority = Number.MAX_VALUE;
+            let runningThreadCount = 0;
+            let runningPriority = Number.MAX_VALUE;
 
-			this.threads.forEach((thread) => {
+            this.threads.forEach((thread) => {
 				if (this.callbackManager.hasPendingCallbacks) {
 					if (thread.acceptingCallbacks) {
 						callbackThreadCount++;
@@ -366,7 +370,7 @@ export class ThreadManager {
                 } catch (e) {
                     if (ProgramExitException.is(e)) {
                         console.error("Stopping game due to error", e)
-                        this.exitGame()
+                        this.exitGame(-1)
                         return;
                     }
                     throw e
@@ -375,8 +379,8 @@ export class ThreadManager {
 			
 			//Microtask.execute(); // causes game to freeze
 
-            var current = window.performance.now();
-			if (current - start >= 100) {
+            const current = window.performance.now();
+            if (current - start >= 100) {
 				setTimeout(() => this.eventOcurred(), 0);
                 return;
 			}
@@ -414,28 +418,34 @@ export class ThreadManager {
     }
 
 	private callbackAdded: any = null;
-	startAsync() {
-		this.running = true;
-		this.eventOcurred();
+	register() {
+		this.running = true
+        this.eventOcurred()
 		this.callbackAdded = this.callbackManager.onAdded.add(() => {
-			this.eventOcurred();
+			this.eventOcurred()
 		});
-		return PromiseFast.resolve();
     }
 
+    unregister() {
+		this.running = false
+		this.callbackManager.onAdded.remove(this.callbackAdded)
+	}
+
     stopAsync() {
-		this.running = false;
-		this.callbackManager.onAdded.remove(this.callbackAdded);
-		clearInterval(this.interval);
-		this.interval = -1;
-		return PromiseFast.resolve();
+	    this.unregister()
+        return PromiseFast.resolve()
+    }
+
+    startAsync() {
+        this.register()
+        return PromiseFast.resolve()
+    }
+
+	exitGame(errorCode: number = 0) {
+		this.exitResolve(errorCode);
 	}
 
-	exitGame() {
-		this.exitResolve();
-	}
-
-	waitExitGameAsync(): PromiseFast<any> {
+	waitExitGameAsync(): PromiseFast<number> {
 		return this.exitPromise;
 	}
 }
