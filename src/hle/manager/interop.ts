@@ -1,10 +1,10 @@
-﻿import {CpuState} from "../../core/cpu/cpu_core";
+﻿import {CpuSpecialAddresses, CpuState} from "../../core/cpu/cpu_core";
 import {CpuExecutor} from "../../core/cpu/cpu_executor";
 
 export class Interop {
 	execute(state: CpuState, address: number, gprArray: number[]) {
 		state.preserveRegisters(() => {
-			state.setRA(0x1234);
+			state.setRA(CpuSpecialAddresses.EXIT_INTERRUPT);
 			for (var n = 0; n < gprArray.length; n++) {
 				state.setGPR(4 + n, gprArray[n]);
 			}

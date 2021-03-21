@@ -3,7 +3,7 @@ import {assert} from "chai"
 import {addressToHex, addressToHex2} from "../src/global/utils";
 import {MipsAssembler, MipsDisassembler} from "../src/core/cpu/cpu_assembler";
 import {getMemoryInstance} from "../src/core/memory";
-import {CpuState, SyscallManager} from "../src/core/cpu/cpu_core";
+import {CpuConfig, CpuState, SyscallManager} from "../src/core/cpu/cpu_core";
 import {CpuExecutor} from "../src/core/cpu/cpu_executor";
 
 export function ref() { } // Workaround to allow typescript to include this module
@@ -22,10 +22,11 @@ class TestSyscallManager extends SyscallManager {
 function executeProgram(gprInitial: any, program: string[]) {
     program = program.slice(0);
     program.push('break 0');
-    var result = assembler.assembleToMemory(memory, 4, program);
-	var state = new CpuState(memory, new TestSyscallManager());
+    const result = assembler.assembleToMemory(memory, 4, program);
+    const cpuConfig = new CpuConfig()
+    const state = new CpuState(memory, new TestSyscallManager(), cpuConfig);
 
-	for (var key in gprInitial) {
+    for (var key in gprInitial) {
 		if (key.substr(0, 1) == '$') {
 			state.setGPR(parseInt(key.substr(1)), gprInitial[key]);
 		} else {

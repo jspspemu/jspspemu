@@ -25,7 +25,7 @@ import {OptimizedBatch, OptimizedDrawBuffer} from "../core/gpu/gpu_vertex";
 import {MemoryManager} from "../hle/manager/memory";
 import {FileManager, Uri} from "../hle/manager/file";
 import {PspGpu} from "../core/gpu/gpu_core";
-import {SyscallManager} from "../core/cpu/cpu_core";
+import {CpuConfig, SyscallManager} from "../core/cpu/cpu_core";
 import {ThreadManager} from "../hle/manager/thread";
 import {NetManager} from "../hle/manager/net";
 import {ModuleManager} from "../hle/manager/module";
@@ -68,8 +68,13 @@ export class Emulator {
 	private storageVfs: StorageVfs;
 	//private dropboxVfs: DropboxVfs;
 	public config: Config = new Config();
+	public cpuConfig = new CpuConfig()
 	//private usingDropbox: boolean = false;
 	emulatorVfs: EmulatorVfs;
+
+	// Interpreted
+	get interpreted() { return this.cpuConfig.interpreted }
+    set interpreted(value: boolean) { this.cpuConfig.interpreted = value }
 
 	constructor(memory?: Memory) {
 		if (!memory) memory = getMemoryInstance();
@@ -101,23 +106,15 @@ export class Emulator {
 			this.rtc = new PspRtc();
 			this.display = new PspDisplay(this.memory, this.interruptManager, this.canvas, this.webgl_canvas);
  			this.gpu = new PspGpu(this.memory, this.display, this.interop, this.gpuStats);
-			/*
-			this.gpu.onDrawBatches.add(() => {
-				console.log('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa');
-			});
-			*/
 			this.gpu.onDrawBatches.pipeTo(this.onDrawBatches);
-			this.threadManager = new ThreadManager(this.memory, this.interruptManager, this.callbackManager, this.memoryManager, this.display, this.syscallManager);
+			this.threadManager = new ThreadManager(this.memory, this.interruptManager, this.callbackManager, this.memoryManager, this.display, this.syscallManager, this.cpuConfig);
 			this.moduleManager = new ModuleManager(this.context);
 			this.netManager = new NetManager();
 
 			this.emulatorVfs = new EmulatorVfs(this.context);
 			this.ms0Vfs = new MountableVfs();
 			this.storageVfs = new StorageVfs('psp_storage');
-			//this.dropboxVfs = new DropboxVfs();
-			//this.dropboxVfs.enabled = this.usingDropbox;
 
-			//var msvfs = new MemoryStickVfs([this.dropboxVfs, this.storageVfs, this.ms0Vfs], this.callbackManager, this.memory);
 			var msvfs = new MemoryStickVfs([this.storageVfs, this.ms0Vfs], this.callbackManager, this.memory);
 			this.fileManager.mount('fatms0', msvfs);
 			this.fileManager.mount('ms0', msvfs);

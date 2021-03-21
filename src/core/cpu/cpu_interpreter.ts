@@ -4,7 +4,7 @@ import {BitUtils, MathFloat} from "../../global/math";
 import {ANodeStm} from "./cpu_ast";
 import {Instruction} from "./cpu_instruction";
 
-const dummy = new CpuState(null, null, true) as any
+const dummy = new CpuState(null, null, null) as any
 
 const switchCode = DecodingTable.createSwitch(Instructions.instance.instructionTypeList, iname => {
     const iiname = `int_${iname}`

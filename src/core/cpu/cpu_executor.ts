@@ -1,4 +1,4 @@
-import {CpuState} from "./cpu_core";
+import {CpuSpecialAddresses, CpuState} from "./cpu_core";
 import {interpretCpuInstruction} from "./cpu_interpreter";
 import {CpuBreakException} from "../../global/utils";
 
@@ -9,12 +9,13 @@ export class CpuExecutor {
         //while (this.PC != this.RA) {
         if (state.interpreted) {
             while (true) {
-                if (state.PC == 0x1234) break;
+                if (state.PC == CpuSpecialAddresses.EXIT_INTERRUPT) break;
+                if (state.PC == CpuSpecialAddresses.EXIT_THREAD) state.throwCpuBreakException();
                 interpretCpuInstruction(state)
             }
         } else {
             while (true) {
-                if (state.PC == 0x1234) break;
+                if (state.PC == CpuSpecialAddresses.EXIT_INTERRUPT) break;
                 state.getFunction(state.PC).execute(state);
             }
         }
@@ -25,6 +26,7 @@ export class CpuExecutor {
         try {
             if (state.interpreted) {
                 for (let n = 0; n < 100000; n++) {
+                    if (state.PC == CpuSpecialAddresses.EXIT_THREAD) state.throwCpuBreakException();
                     interpretCpuInstruction(state)
                 }
             } else {

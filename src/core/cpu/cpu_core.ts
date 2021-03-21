@@ -14,9 +14,10 @@ import {compareNumbers} from "../../global/array";
 import {Integer64} from "../../global/int64";
 import {Memory} from "../memory";
 import {ANodeStm, ANodeStmLabel, MipsAstBuilder} from "./cpu_ast";
-import {Instructions} from "./cpu_instructions";
+import {CpuInstructions, Instructions} from "./cpu_instructions";
 import {BranchFlagStm, InstructionAst} from "./cpu_codegen";
 import {DecodedInstruction, Instruction} from "./cpu_instruction";
+import {MipsDisassembler} from "./cpu_assembler";
 
 //const DEBUG_FUNCGEN = true;
 const DEBUG_FUNCGEN = false;
@@ -28,7 +29,8 @@ const BUILD_FUNC_ON_REFERENCED = true;
 //const BUILD_FUNC_ON_REFERENCED = false;
 
 export const enum CpuSpecialAddresses {
-	EXIT_THREAD = 0x0FFFFFFF,
+	EXIT_THREAD = 0x01111337,
+    EXIT_INTERRUPT = 0x1234,
 }
 
 export interface ICpuExecutable {
@@ -41,7 +43,7 @@ export interface IInstructionCache {
 
 class VfpuPrefixBase {
 	enabled = false;
-	constructor(private vfrc: number[], private index: number) { }
+	constructor(private vfrc: Int32Array, private index: number) { }
 	_info: number;
 	_readInfo() { this._info = this.getInfo(); }
 	eat() { this.enabled = false; }
@@ -108,7 +110,7 @@ class VfpuPrefixRead extends VfpuPrefixBase {
 	//private getSourceConstant(i: number) { return BitUtils.extractBool(this._info, 12 + i * 1); }
 	//private getSourceNegate(i: number) { return BitUtils.extractBool(this._info, 16 + i * 1); }
 
-	transformValues(input: number[], output: any) {
+	transformValues(input: Int32Array | number[], output: any) {
 		this._readInfo();
 		var info = this._info;
 
@@ -193,28 +195,36 @@ export const enum VCondition {
 	EZ, EN, EI, ES, NZ, NN, NI, NS
 }
 
+export class CpuConfig {
+    public constructor(public interpreted: boolean = false) {
+    //public constructor(public interpreted: boolean = true) {
+    }
+}
+
 // noinspection JSUnusedGlobalSymbols
 export class CpuState extends Instruction {
 	static lastId:number = 0;
 	id = CpuState.lastId++;
-	
-	//constructor(public memory: Memory, public syscallManager: SyscallManager, public interpreted: boolean = true) {
-    constructor(public memory: Memory, public syscallManager: SyscallManager, public interpreted: boolean = false) {
+
+	get interpreted() { return this.config.interpreted }
+
+    constructor(public memory: Memory, public syscallManager: SyscallManager, public config: CpuConfig) {
         super(0, 0)
 		this.icache = new InstructionCache(memory, syscallManager);
 		this.fcr0 = 0x00003351;
 		this.fcr31 = 0x00000e00;
-		for (var n = 0; n < 128; n++) this.vfpr[n] = NaN;
+        this.vfpr.fill(NaN)
 	}
 
 	clone() {
-		var that = new CpuState(this.memory, this.syscallManager);
+		var that = new CpuState(this.memory, this.syscallManager, this.config);
 		that.icache = this.icache;
 		that.copyRegistersFrom(this);
 		return that;
 	}
 
     throwCpuBreakException() {
+        this.thread.stop('CpuSpecialAddresses.EXIT_THREAD');
         throw new CpuBreakException()
     }
 
@@ -236,7 +246,7 @@ export class CpuState extends Instruction {
 	vfpr_Buffer = new ArrayBuffer(128 * 4);
 	vfpr: Float32Array = new Float32Array(this.vfpr_Buffer);
 	vfpr_i: Int32Array = new Int32Array(this.vfpr_Buffer);
-	vfprc = [0, 0, 0, 0xFF, 0, 0, 0, 0, 0x3F800000, 0x3F800000, 0x3F800000, 0x3F800000, 0x3F800000, 0x3F800000, 0x3F800000, 0x3F800000];
+	vfprc: Int32Array = new Int32Array([0, 0, 0, 0xFF, 0, 0, 0, 0, 0x3F800000, 0x3F800000, 0x3F800000, 0x3F800000, 0x3F800000, 0x3F800000, 0x3F800000, 0x3F800000]);
 	setVfrCc(index: number, value: boolean) {
 		if (value) {
 			this.vfprc[VFPU_CTRL.CC] |= (1 << index);
@@ -522,17 +532,33 @@ export class CpuState extends Instruction {
     get RS_IMM16() { return this.RS + this.imm16 }
 
     advance_pc(offset: number = 4) {
-        this.PC = this.nPC
-        this.nPC += offset
+	    this.jump_pc(this.nPC + offset)
+    }
+
+    dump_asm(address: number, count: number) {
+        const disassembler = new MipsDisassembler()
+        for (let n = 0; n < count; n++) {
+            console.error(disassembler.disassembleMemoryWithAddress(this.memory, address + n * 4))
+        }
     }
 
     jump_pc(address: number) {
+	    //const oldPC = this.PC
         this.PC = this.nPC
         this.nPC = address
+        //if (address % 4 != 0) {
+        //    try {
+        //        const NLINES = 4
+        //        this.dump_asm(oldPC - NLINES * 4, NLINES)
+        //    } catch (e) {
+        //        console.error(e)
+        //    }
+        //    throw new Error(sprintf(`ERROR[oldPc=0x%08X]. Jumping to invalid new address: 0x%08X`, oldPC, address))
+        //}
     }
 
     preserveRegisters(callback: () => void) {
-		var temp = new CpuState(this.memory, this.syscallManager);
+		var temp = new CpuState(this.memory, this.syscallManager, this.config);
 		temp.copyRegistersFrom(this);
 		callback();
 		this.copyRegistersFrom(temp);
@@ -545,19 +571,26 @@ export class CpuState extends Instruction {
 		this.LO = other.LO;
 		this.HI = other.HI;
 		this.insideInterrupt = other.insideInterrupt;
-		for (let n = 0; n < 32; n++) {
-			this.setGPR(n, other.getGPR(n));
-		}
-		for (let n = 0; n < 32; n++) this.fpr[n] = other.fpr[n];
-		for (let n = 0; n < 128; n++) this.vfpr[n] = other.vfpr[n];
-		for (let n = 0; n < 8; n++) this.vfprc[n] = other.vfprc[n];
+		this.gpr.set(other.gpr)
+        this.fpr.set(other.fpr)
+        this.vfpr.set(other.vfpr)
+        this.vfprc.set(other.vfprc)
+		//for (let n = 0; n < 32; n++) this.setGPR(n, other.getGPR(n));
+        //for (let n = 0; n < 32; n++) this.fpr[n] = other.fpr[n];
+		//for (let n = 0; n < 128; n++) this.vfpr[n] = other.vfpr[n];
+		//for (let n = 0; n < 8; n++) this.vfprc[n] = other.vfprc[n];
 	}
 
 	private gpr = new Int32Array(this.gpr_Buffer);
 
 	setGPR(n: number, value: number) {
 		if (n != 0) this.gpr[n] = value;
-	}
+		//if (n == 31) {
+        //    //this.dump_asm(this.PC - 4, 2)
+		//    //console.warn(sprintf("SET RA=0x%08X", value))
+        //    //if (value == 0x0FFFFFFF || value == 0) throw new Error("RA=???")
+        //}
+    }
 
 	getGPR(n: number) {
 		return this.gpr[n];
@@ -883,7 +916,7 @@ export class CpuState extends Instruction {
 	//executeAtPC() {
 	//	this.startThreadStep();
     //    while (true) {
-    //        if (this.PC == 0x1234) break;
+    //        if (this.PC == CpuSpecialAddresses.EXIT_INTERRUPT) break;
     //        this.getFunction(this.PC).execute(this);
     //    }
 	//}
@@ -1016,7 +1049,7 @@ export class CpuState extends Instruction {
     int_lh  () { this.RT = this.memory.lh(this.RS_IMM16); this.advance_pc() }
     int_lhu () { this.RT = this.memory.lhu(this.RS_IMM16); this.advance_pc() }
     int_lw  () { this.RT = this.memory.lw(this.RS_IMM16); this.advance_pc() }
-    int_lwc1() { this.RT = this.memory.lw(this.RS_IMM16); this.advance_pc() }
+    int_lwc1() { this.FT_I = this.memory.lw(this.RS_IMM16); this.advance_pc() }
     int_lwl () { this.RT = this.memory.lwl(this.RS_IMM16, this.RT); this.advance_pc() }
     int_lwr () { this.RT = this.memory.lwr(this.RS_IMM16, this.RT); this.advance_pc() }
 
@@ -1079,7 +1112,7 @@ export class CpuState extends Instruction {
 
     int_mfc1() { this.RT = this.FS_I; this.advance_pc() }
     int_mtc1() { this.FS_I = this.RT; this.advance_pc() }
-    int_cfc1() { this._cfc1_impl(this.rd, this.RT); this.advance_pc() }
+    int_cfc1() { this._cfc1_impl(this.rd, this.rt); this.advance_pc() }
     int_ctc1() { this._ctc1_impl(this.rd, this.RT); this.advance_pc() }
 
     int_j() { this.int__j(false) }
@@ -1094,7 +1127,7 @@ export class CpuState extends Instruction {
     "int_sub.s"() { this.FD = this.FS - this.FT; this.advance_pc() }
     "int_mul.s"() { this.FD = this.FS * this.FT; this.advance_pc() }
     "int_div.s"() { this.FD = this.FS / this.FT; this.advance_pc() }
-    "int_abthis.s"() { this.FD = Math.abs(this.FS); this.advance_pc() }
+    "int_abs.s"() { this.FD = Math.abs(this.FS); this.advance_pc() }
     "int_sqrt.s"() { this.FD = Math.sqrt(this.FS); this.advance_pc() }
     "int_neg.s"() { this.FD = -this.FS; this.advance_pc() }
 
@@ -1103,7 +1136,7 @@ export class CpuState extends Instruction {
     "int_ceil.w.s"() { this.FD_I = MathFloat.ceil(this.FS); this.advance_pc() }
     "int_floor.w.s"() { this.FD_I = MathFloat.floor(this.FS); this.advance_pc() }
 
-    "int_cvt.this.w"() { this.FD = this.FS_I; this.advance_pc() }
+    "int_cvt.s.w"() { this.FD = this.FS_I; this.advance_pc() }
     "int_cvt.w.s"() { this.FD_I = this._cvt_w_s_impl(this.FS); this.advance_pc() }
 
     "int_c.f.s"() { return this.int__comp(0, 0) }
@@ -1402,7 +1435,7 @@ export class FunctionGenerator {
 
 	getFunctionCode(info: FunctionInfo, level:number): FunctionCode {
 		var args: any = {};
-		if (info.start == CpuSpecialAddresses.EXIT_THREAD) return new FunctionCode("state.thread.stop('CpuSpecialAddresses.EXIT_THREAD'); state.throwCpuBreakException();", args);
+		if (info.start == CpuSpecialAddresses.EXIT_THREAD) return new FunctionCode("state.throwCpuBreakException();", args);
 
 		var func = ast.func(
 			info.start,

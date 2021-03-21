@@ -12,7 +12,13 @@ import {
 import {waitAsync} from "../../global/async";
 import {Integer64} from "../../global/int64";
 import {MemoryManager, MemoryPartition} from "./memory";
-import {CpuSpecialAddresses, CpuState, NativeFunction, SyscallManager} from "../../core/cpu/cpu_core";
+import {
+    CpuConfig,
+    CpuSpecialAddresses,
+    CpuState,
+    NativeFunction,
+    SyscallManager
+} from "../../core/cpu/cpu_core";
 import {CallbackManager} from "./callback";
 import {Memory} from "../../core/memory";
 import {InterruptManager} from "../../core/interrupt";
@@ -251,8 +257,16 @@ export class ThreadManager {
 	current: Thread;
 	private rootCpuState: CpuState;
 
-	constructor(private memory: Memory, private interruptManager: InterruptManager, private callbackManager: CallbackManager, private memoryManager: MemoryManager, private display: PspDisplay, private syscallManager: SyscallManager) {
-		this.rootCpuState = new CpuState(this.memory, this.syscallManager);
+	constructor(
+	    private memory: Memory,
+        private interruptManager: InterruptManager,
+        private callbackManager: CallbackManager,
+        private memoryManager: MemoryManager,
+        private display: PspDisplay,
+        private syscallManager: SyscallManager,
+        private cpuConfig: CpuConfig
+    ) {
+		this.rootCpuState = new CpuState(this.memory, this.syscallManager, this.cpuConfig);
 		this.exitPromise = new PromiseFast((resolve, reject) => {
 			this.exitResolve = resolve;
 		});

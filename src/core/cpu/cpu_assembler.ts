@@ -1,6 +1,6 @@
 import "../../emu/global"
 
-import {StringDictionary} from "../../global/utils";
+import {addressToHex, sprintf, StringDictionary} from "../../global/utils";
 import {Instructions} from "./cpu_instructions";
 import {Memory} from "../memory";
 import {Instruction} from "./cpu_instruction";
@@ -160,16 +160,27 @@ export class MipsDisassembler {
 	}
 
 	disassemble(instruction: Instruction) {
-		var instructionType = this.instructions.findByData(instruction.IDATA);
-		var args = instructionType.format.replace(/(\%\w+)/g, (type) => {
+        const instructionType = this.instructions.findByData(instruction.IDATA);
+        const args = instructionType.format.replace(/(%\w+)/g, (type) => {
 			switch (type) {
-				case '%s': return this.encodeRegister(instruction.rs);
+                case '%J': case '%s': return this.encodeRegister(instruction.rs);
 				case '%d': return this.encodeRegister(instruction.rd);
 				case '%t': return this.encodeRegister(instruction.rt);
-				default: throw ("MipsDisassembler.Disassemble: Unknown type '" + type + "'");
+                case '%i': return `${instruction.imm16}`;
+                case '%I': return `${addressToHex(instruction.imm16 << 16)}`;
+                case '%j': return `${addressToHex(instruction.jump_real)}`;
+				default: return `UNHANDLED[${type}]`
 			}
 		});
 		return instructionType.name + ' ' + args;
 	}
+
+	disassembleMemory(memory: Memory, PC: number) {
+	    return this.disassemble(Instruction.fromMemoryAndPC(memory, PC))
+    }
+
+    disassembleMemoryWithAddress(memory: Memory, PC: number) {
+        return sprintf("0x%08X: %s", PC, this.disassembleMemory(memory, PC))
+    }
 }
 

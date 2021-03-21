@@ -2,6 +2,7 @@ import "./emu/global"
 import {UrlAsyncStream} from "./global/stream";
 import {Emulator} from "./emu/emulator";
 import {loggerPolicies} from "./global/utils";
+import {AnsiEscapeCodes} from "./util/AnsiEscapeCodes";
 
 declare var process: any
 
@@ -17,16 +18,37 @@ declare var process: any
         errors.innerText += 'Error: ' + errorMsg + ' Script: ' + url + ' Line: ' + lineNumber + "\n";
     };
 
-    if (process.argv < 3) {
-        console.error("Must pass an extra argument with the file to execute")
-        return
+    emu.cpuConfig.interpreted = false
+
+    let fileName = ""
+    const argv: string[] = process.argv
+    const params: string[] = argv.slice(2)
+    while (params.length > 0) {
+        const param = params.shift()
+        if (param.startsWith("-")) {
+            switch (param) {
+                case "-i": case "-interpreted": case "--interpreted":
+                    emu.cpuConfig.interpreted = true
+                    break;
+                case "-d": case "-dynarec": case "--dynarec":
+                    emu.cpuConfig.interpreted = false
+                    break;
+                default:
+                    throw new Error(`Unknown switch ${param}`)
+            }
+        } else {
+            fileName = param
+        }
     }
 
+    if (fileName.length == 0) {
+        console.error(`${AnsiEscapeCodes.RED}Must pass an extra argument with the file to execute${AnsiEscapeCodes.RESET}`)
+        return
+    }
     //console.warn("process.argv", process.argv)
+    //console.warn("fileName", fileName)
 
-    emu.config.buttonPreference
-
-    const result = await emu.downloadAndExecuteAndWaitAsync(process.argv[2], function() {
+    const result = await emu.downloadAndExecuteAndWaitAsync(fileName, function() {
         emu.context.onStdout.add(function(data) {
             if (output) {
                 output.textContent = output.textContent + data;
