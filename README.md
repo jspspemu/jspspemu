@@ -10,33 +10,36 @@ A PSP emulator made using javascript (actually typescript). It works with modern
 
 ### Editing:
 
-You must have Visual Studio Code, that is available for Windows, Linux and Mac.
-https://code.visualstudio.com/
-Then you have to open "source" folder, it will detect tsconfig.json and you will be able to edit.
-In order to compile as you edit, please read next section "Building from source".
+You can use WebStorm or Visual Studio Code, that is available for Windows, Linux and Mac.
+<https://code.visualstudio.com/> or <https://www.jetbrains.com/webstorm/> 
+Then you have to open the root folder, it will detect `tsconfig.json` and you will be able to edit.
+In order to compile as you edit, please read next section `Building from source`.
 
 ### Building from source:
 
-First install node.js >= 0.12: http://nodejs.org/
-Then you must have tsc command in path, install typescript:
+First install node.js >= 14: <https://nodejs.org/>
+
+You can use yarn to execute tasks.
+
+#### To build a bundle js:
+
+```bash
+yarn build
 ```
-npm -g install typescript
+
+#### To watch and serve:
+
+```bash
+yarn serve
 ```
 
-Then you can start a debug web server that also will compile typescript whenever it changes with this command in the project's folder:
+Open <http://127.0.0.1:9000/> in a browser to start using it
+
+#### To launch tests:
+
+```bash
+yarn test
 ```
-npm start
-```
-
-Then you can just change .ts files and refresh the page.
-
-This will compile, watch for changes and start a server at port 8080. So you can check the emulator in:
-* http://127.0.0.1:8080/
-
-You can run tests accessing this url:
-* http://127.0.0.1:8080/test.html
-
-Or by calling "npm test".
 
 ### Compatibility:
 
@@ -52,12 +55,12 @@ Opera and Chrome performs the best because they use V8 that is lightning fast.
 ### More information:
 
 You can view the lastest version here (updated from git every push):
-* http://jspspemu.com/
+* <https://jspspemu.soywiz.com/>
 
 You can reference some samples like this:
-* http://jspspemu.com/#samples/reflection.pbp
-* http://jspspemu.com/#samples/TrigWars.zip
-* http://jspspemu.com/#samples/Doom.zip
+* <https://jspspemu.soywiz.com/#samples/reflection.pbp>
+* <https://jspspemu.soywiz.com/#samples/TrigWars.zip>
+* <https://jspspemu.soywiz.com/#samples/Doom.zip>
 
 It uses promises, Typed Arrays, Audio API, Canvas, WebGL, FullScreen API, File API, Web Workers, WebSockets and the Gamepad API.
 It will use FileSystem API / IndexedDB too.
@@ -121,4 +124,4 @@ Maybe in the future javascript implementations will be able to convert typed arr
 and store them when exiting functions, analyzing the origin ArrayBuffer of all the typed arrays used.
 
 You can test real psp performance with your favourite browser/platform with this demo:
-* http://jspspemu.com/#samples/compilerPerf.elf
+* <https://jspspemu.soywiz.com/#samples/compilerPerf.elf>
