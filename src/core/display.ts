@@ -14,8 +14,6 @@ export interface IPspDisplay {
 	bufferWidth: number;
 	pixelFormat: PixelFormat;
 	sync: number;
-	startAsync(): PromiseFast<void>;
-	stopAsync(): PromiseFast<void>;
 	waitVblankAsync(waiter: ThreadWaiter): PromiseFast<number>;
 	waitVblankStartAsync(waiter: ThreadWaiter): PromiseFast<number>;
 	setEnabledDisplay(enable: boolean): void;
@@ -58,14 +56,6 @@ export class DummyPspDisplay extends BasePspDisplay implements IPspDisplay {
 
 	setEnabledDisplay(enable: boolean) {
 	}
-
-	startAsync():PromiseFast<any> {
-		return PromiseFast.resolve();
-	}
-
-	stopAsync():PromiseFast<any> {
-		return PromiseFast.resolve();
-	}
 }
 
 const console = logger.named('display')
@@ -74,7 +64,6 @@ export class PspDisplay extends BasePspDisplay implements IPspDisplay {
 	private context: CanvasRenderingContext2D|null;
 	vblank = new Signal1<number>();
 	private imageData: ImageData;
-	private interval: number = -1;
 	private enabled: boolean = true;
 	private _hcount: number = 0;
 	private startTime: number;
@@ -173,30 +162,34 @@ export class PspDisplay extends BasePspDisplay implements IPspDisplay {
 	register() {
         this.startTime = this.getCurrentMs();
         this.updateTime();
+    }
 
-        this.interval = setInterval(() => {
+    unregister() {
+    }
+
+    frameLastMs = 0
+    frameCccumulatedMs = 0
+
+    frame() {
+	    const MAX_SIMULATE_FRAMES = 2
+	    const VBLANK_MS = 1000 / PspDisplay.VERTICAL_SYNC_HZ
+        const currentMs = this.getCurrentMs()
+        if (this.frameLastMs == 0) this.frameLastMs = currentMs
+        const elapsedMs = currentMs - this.frameLastMs
+        this.frameLastMs = currentMs
+        this.frameCccumulatedMs += elapsedMs
+
+        this.frameCccumulatedMs = Math.min(this.frameCccumulatedMs, VBLANK_MS * MAX_SIMULATE_FRAMES)
+
+        while (this.frameCccumulatedMs >= VBLANK_MS) {
+            this.frameCccumulatedMs -= VBLANK_MS
             this.updateTime();
             this.vblankCount++;
             this.update();
             this.vblank.dispatch(this.vblankCount);
             this.interruptManager.interrupt(PspInterrupts.PSP_VBLANK_INT);
-        }, 1000 / PspDisplay.VERTICAL_SYNC_HZ) as any;
+        }
     }
-
-    unregister() {
-        clearInterval(this.interval);
-        this.interval = -1;
-    }
-
-	startAsync() {
-	    this.register()
-		return PromiseFast.resolve();
-	}
-
-	stopAsync() {
-	    this.unregister()
-		return PromiseFast.resolve();
-	}
 
 	mustWaitVBlank = true;
 	lastTimeVblank = 0;

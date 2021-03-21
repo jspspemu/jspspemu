@@ -23,7 +23,7 @@ export class EmulatorControllerNormal {
 	    return <HTMLCanvasElement>(document.getElementById('webgl_canvas'))
     }
 
-	init() {
+	async init() {
         if (!document.getElementById('canvas_container')) {
             const canvas_container = document.createElement('div')
             canvas_container.id = 'canvas_container'
@@ -62,72 +62,69 @@ export class EmulatorControllerNormal {
             document.body.style.padding = '0'
             document.body.style.margin = '0'
         }
-        
-		let emulator = this.emulator;
-		let audio = this.audio;
-		self.emulator = emulator;
-		var canvas = this.getOrCreateCanvas();
-		var webgl_canvas = this.getOrCreateWebglCanvas();
-		var webglDriver = new WebGlPspDrawDriver(webgl_canvas, emulator.gpuStats);
-		webglDriver.initAsync();
-		let debugOverlay = new DebugOverlay(webglDriver);
-		debugOverlay.register();
 
-		emulator.canvas = canvas;
-		emulator.webgl_canvas = webgl_canvas;
-		emulator.startAsync().then(() => {
-			console.info('emulator started');
-			emulator.onPic0.add((data: Uint8Array) => {
-				Html5Icons.setPic0(data);
-			});
-			emulator.onPic1.add((data: Uint8Array) => {
-				Html5Icons.setPic1(data);
-			});
+        let emulator = this.emulator;
+        let audio = this.audio;
+        self.emulator = emulator;
+        const canvas = this.getOrCreateCanvas();
+        const webgl_canvas = this.getOrCreateWebglCanvas();
+        const webglDriver = new WebGlPspDrawDriver(webgl_canvas, emulator.gpuStats);
+        webglDriver.initAsync();
+        let debugOverlay = new DebugOverlay(webglDriver);
+        debugOverlay.register();
 
-			debugOverlay.linkTo(emulator);
+        emulator.canvas = canvas;
+        emulator.webgl_canvas = webgl_canvas;
+        try {
+            emulator.start()
+            console.info('emulator started');
+            emulator.onPic0.add((data: Uint8Array) => {
+                Html5Icons.setPic0(data);
+            });
+            emulator.onPic1.add((data: Uint8Array) => {
+                Html5Icons.setPic1(data);
+            });
 
-			emulator.onDrawBatches.add(function onDrawBatchesFrame(drawBufferData, batches) {
-				//console.log('emulator.onDrawBatches');
-				emulator.display.setEnabledDisplay(false);
+            debugOverlay.linkTo(emulator);
+
+            emulator.onDrawBatches.add(async function onDrawBatchesFrame(drawBufferData, batches) {
+                //console.log('emulator.onDrawBatches');
+                emulator.display.setEnabledDisplay(false);
                 const transferData = OptimizedDrawBufferTransfer.buildBatchesTransfer(drawBufferData, batches);
                 webglDriver.invalidatedMemoryAll();
-				debugOverlay.overlay.updateAndReset();
-				webglDriver.drawBatchesTransfer(transferData);
-				debugOverlay.freezing.waitUntilValueAsync(false).then(() => {
-					emulator.gpu.sync();
-				});
-				//console.log('drawBatches UI:', batches.length);
-			});
+                debugOverlay.overlay.updateAndReset();
+                webglDriver.drawBatchesTransfer(transferData);
+                await debugOverlay.freezing.waitUntilValueAsync(false)
+                emulator.gpu.sync();
+                //console.log('drawBatches UI:', batches.length);
+            });
 
-			emulator.memory.invalidateDataAll.add(() => {
-				//postAction('memory.invalidateDataAll', {});
-			});
+            emulator.memory.invalidateDataAll.add(() => {
+                //postAction('memory.invalidateDataAll', {});
+            });
 
-			emulator.memory.invalidateDataRange.add((low, high) => {
-				//postAction('memory.invalidateDataRange', {low: low, high: high});
-			});
+            emulator.memory.invalidateDataRange.add((low, high) => {
+                //postAction('memory.invalidateDataRange', {low: low, high: high});
+            });
 
-			emulator.audio.onPlayDataAsync.add((id: number, channels: number, data: Int16Array, leftvolume: number, rightvolume: number) => {
-				var clonedData = ArrayBufferUtils.cloneInt16Array(data);
-				return audio.playDataAsync(id, channels, data, leftvolume, rightvolume);
-			});
-			emulator.audio.onStart.add((id: number) => {
-				audio.startChannel(id);
-			});
-			emulator.audio.onStop.add((id: number) => {
-				audio.stopChannel(id);
-			});
-		}).catch(e => {
+            emulator.audio.onPlayDataAsync.add((id: number, channels: number, data: Int16Array, leftvolume: number, rightvolume: number) => {
+                return audio.playDataAsync(id, channels, ArrayBufferUtils.cloneInt16Array(data), leftvolume, rightvolume);
+            });
+            emulator.audio.onStart.add((id: number) => {
+                audio.startChannel(id);
+            });
+            emulator.audio.onStop.add((id: number) => {
+                audio.stopChannel(id);
+            });
+        } catch (e) {
 			console.error(e);
-		});
+		}
 
 		console.log('base path', this.documentLocation);
 
 		emulator.config.language = Config.detectLanguage();
 
-		var canDOMCreateElements = (typeof document != 'undefined');
-
-		debugOverlay.gpuFreezing.add((value: boolean) => {
+        debugOverlay.gpuFreezing.add((value: boolean) => {
 			emulator.gpu.freezing.value = value;
 		});
 		debugOverlay.gpuDumpCommands.add(() => {

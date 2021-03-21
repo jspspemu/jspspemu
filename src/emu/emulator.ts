@@ -83,7 +83,7 @@ export class Emulator {
 		this.memory = memory;
 	}
 
-	async stopAsync() {
+    stop() {
         this.doFrameRunning = false
 		if (!this.display) return
         this.controller?.unregister()
@@ -96,11 +96,15 @@ export class Emulator {
 	private doFrameRunning = false
     private doFrame = () => {
         if (this.doFrameRunning) requestAnimationFrame(this.doFrame)
-        this.controller.frame()
+        Microtask.queue(() => {
+            this.display.frame()
+            this.controller.frame()
+        })
+        Microtask.execute()
     }
 
-	async startAsync() {
-        await this.stopAsync()
+    start() {
+        this.stop()
         this.memory.reset();
         this.controller = new PspController()
         this.controller.addContributor(new Html5Gamepad())
@@ -281,7 +285,7 @@ export class Emulator {
 
             //console.error('WAITING!');
             await this.threadManager.waitExitGameAsync()
-            await this.stopAsync()
+            this.stop()
             return this.emulatorVfs.output;
         } catch (e) {
             console.error(e);
@@ -304,7 +308,7 @@ export class Emulator {
 		this.loadIcon0(Stream.fromArray([]));
 		this.loadPic1(Stream.fromArray([]));
 		try {
-            await this.startAsync()
+            this.start()
             const parentUrl = url.replace(/\/[^//]+$/, '');
             console.info('parentUrl: ' + parentUrl);
             this.ms0Vfs.mountVfs('/PSP/GAME/virtual', new UriVfs(parentUrl));
