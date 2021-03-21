@@ -170,23 +170,31 @@ export class PspDisplay extends BasePspDisplay implements IPspDisplay {
 		//this.webglcanvas.style.display = 'block';
 	}
 
-	startAsync() {
-		this.startTime = this.getCurrentMs();
-		this.updateTime();
+	register() {
+        this.startTime = this.getCurrentMs();
+        this.updateTime();
 
-		this.interval = setInterval(() => {
-			this.updateTime();
-			this.vblankCount++;
-			this.update();
-			this.vblank.dispatch(this.vblankCount);
-			this.interruptManager.interrupt(PspInterrupts.PSP_VBLANK_INT);
-		}, 1000 / PspDisplay.VERTICAL_SYNC_HZ) as any;
+        this.interval = setInterval(() => {
+            this.updateTime();
+            this.vblankCount++;
+            this.update();
+            this.vblank.dispatch(this.vblankCount);
+            this.interruptManager.interrupt(PspInterrupts.PSP_VBLANK_INT);
+        }, 1000 / PspDisplay.VERTICAL_SYNC_HZ) as any;
+    }
+
+    unregister() {
+        clearInterval(this.interval);
+        this.interval = -1;
+    }
+
+	startAsync() {
+	    this.register()
 		return PromiseFast.resolve();
 	}
 
 	stopAsync() {
-		clearInterval(this.interval);
-		this.interval = -1;
+	    this.unregister()
 		return PromiseFast.resolve();
 	}
 

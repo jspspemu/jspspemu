@@ -83,18 +83,14 @@ export class Emulator {
 		this.memory = memory;
 	}
 
-	stopAsync() {
+	async stopAsync() {
         this.doFrameRunning = false
-		if (!this.display) return PromiseFast.resolve();
-
+		if (!this.display) return
         this.controller?.unregister()
-
-		return PromiseFast.all([
-			this.display.stopAsync(),
-			this.gpu.stopAsync(),
-			this.audio.stopAsync(),
-			this.threadManager.stopAsync(),
-		]);
+        this.display.unregister()
+        this.gpu.unregister()
+        this.audio.unregister()
+        this.threadManager.unregister()
 	}
 
 	private doFrameRunning = false
@@ -103,58 +99,55 @@ export class Emulator {
         this.controller.frame()
     }
 
-	startAsync() {
-		return this.stopAsync().then(() => {
-			this.memory.reset();
-			this.controller = new PspController()
-            this.controller.addContributor(new Html5Gamepad())
-            this.controller.addContributor(new Html5Keyboard())
-            this.controller.register()
-			this.context = new EmulatorContext();
-			this.memoryManager = new MemoryManager();
-			this.interruptManager = new InterruptManager();
-			this.syscallManager = new SyscallManager(this.context);
-			this.fileManager = new FileManager();
-			this.interop = new Interop();
-			this.callbackManager = new CallbackManager(this.interop);
-			this.rtc = new PspRtc();
-			this.display = new PspDisplay(this.memory, this.interruptManager, this.canvas, this.webgl_canvas);
- 			this.gpu = new PspGpu(this.memory, this.display, this.interop, this.gpuStats);
-			this.gpu.onDrawBatches.pipeTo(this.onDrawBatches);
-			this.threadManager = new ThreadManager(this.memory, this.interruptManager, this.callbackManager, this.memoryManager, this.display, this.syscallManager, this.cpuConfig);
-			this.moduleManager = new ModuleManager(this.context);
-			this.netManager = new NetManager();
+	async startAsync() {
+        await this.stopAsync()
+        this.memory.reset();
+        this.controller = new PspController()
+        this.controller.addContributor(new Html5Gamepad())
+        this.controller.addContributor(new Html5Keyboard())
+        this.controller.register()
+        this.context = new EmulatorContext();
+        this.memoryManager = new MemoryManager();
+        this.interruptManager = new InterruptManager();
+        this.syscallManager = new SyscallManager(this.context);
+        this.fileManager = new FileManager();
+        this.interop = new Interop();
+        this.callbackManager = new CallbackManager(this.interop);
+        this.rtc = new PspRtc();
+        this.display = new PspDisplay(this.memory, this.interruptManager, this.canvas, this.webgl_canvas);
+        this.gpu = new PspGpu(this.memory, this.display, this.interop, this.gpuStats);
+        this.gpu.onDrawBatches.pipeTo(this.onDrawBatches);
+        this.threadManager = new ThreadManager(this.memory, this.interruptManager, this.callbackManager, this.memoryManager, this.display, this.syscallManager, this.cpuConfig);
+        this.moduleManager = new ModuleManager(this.context);
+        this.netManager = new NetManager();
 
-			this.emulatorVfs = new EmulatorVfs(this.context);
-			this.ms0Vfs = new MountableVfs();
-			this.storageVfs = new StorageVfs('psp_storage');
+        this.emulatorVfs = new EmulatorVfs(this.context);
+        this.ms0Vfs = new MountableVfs();
+        this.storageVfs = new StorageVfs('psp_storage');
 
-			var msvfs = new MemoryStickVfs([this.storageVfs, this.ms0Vfs], this.callbackManager, this.memory);
-			this.fileManager.mount('fatms0', msvfs);
-			this.fileManager.mount('ms0', msvfs);
-			this.fileManager.mount('mscmhc0', msvfs);
+        const msvfs = new MemoryStickVfs([this.storageVfs, this.ms0Vfs], this.callbackManager, this.memory);
+        this.fileManager.mount('fatms0', msvfs);
+        this.fileManager.mount('ms0', msvfs);
+        this.fileManager.mount('mscmhc0', msvfs);
 
-			this.fileManager.mount('host0', new MemoryVfs());
-			this.fileManager.mount('flash0', new UriVfs('data/flash0'));
-			this.fileManager.mount('emulator', this.emulatorVfs);
-			this.fileManager.mount('kemulator', this.emulatorVfs);
+        this.fileManager.mount('host0', new MemoryVfs());
+        this.fileManager.mount('flash0', new UriVfs('data/flash0'));
+        this.fileManager.mount('emulator', this.emulatorVfs);
+        this.fileManager.mount('kemulator', this.emulatorVfs);
 
-			this.ms0Vfs.mountVfs('/', new MemoryVfs());
+        this.ms0Vfs.mountVfs('/', new MemoryVfs());
 
-			registerModulesAndSyscalls(this.syscallManager, this.moduleManager);
+        registerModulesAndSyscalls(this.syscallManager, this.moduleManager);
 
-			this.context.init(this.interruptManager, this.display, this.controller, this.gpu, this.memoryManager, this.threadManager, this.audio, this.memory, this.fileManager, this.rtc, this.callbackManager, this.moduleManager, this.config, this.interop, this.netManager, this.battery);
-			
-			return PromiseFast.all([
-				this.display.startAsync().then(() => { console.info('display initialized'); }),
-				this.gpu.startAsync().then(() => { console.info('gpu initialized'); }),
-				this.audio.startAsync().then(() => { console.info('audio initialized'); }),
-				this.threadManager.startAsync().then(() => { console.info('threadManager initialized'); }),
-			]).then(() => {
-			    this.doFrameRunning = true
-			    this.doFrame()
-            });
-		});
+        this.context.init(this.interruptManager, this.display, this.controller, this.gpu, this.memoryManager, this.threadManager, this.audio, this.memory, this.fileManager, this.rtc, this.callbackManager, this.moduleManager, this.config, this.interop, this.netManager, this.battery);
+
+        this.display.register()
+        this.gpu.register()
+        this.audio.register()
+        this.threadManager.register()
+
+        this.doFrameRunning = true
+        this.doFrame()
 	}
 
 	private gameTitle: string = '';
@@ -280,60 +273,21 @@ export class Emulator {
         }
     }
 
-	/*
-	toggleDropbox() {
-		this.connectToDropbox(!(localStorage["dropbox"] == 'true'));
-	}
-
-	connectToDropbox(newValue: boolean) {
-		if (typeof $ == 'undefined') return;
-
-		newValue = !!newValue;
-		$('#dropbox').html(newValue ? '<span style="color:#3A3;">enabled</span>' : '<span style="color:#777;">disabled</span>');
-		var oldValue = (localStorage["dropbox"] == 'true');
-
-		console.log('dropbox: ', oldValue, '->', newValue);
-
-		if (newValue) {
-			localStorage["dropbox"] = 'true';
-
-			DropboxVfs.tryLoginAsync().then(() => {
-				$('#dropbox').html('<span style="color:#6A6;">connected</span>');
-			}).catch((e) => {
-				console.error(e);
-				$('#dropbox').html('<span style="color:#F77;">error</span>');
-			});
-		} else {
-			delete localStorage["dropbox"];
-		}
-		this.usingDropbox = newValue;
-		if (this.dropboxVfs) {
-			this.dropboxVfs.enabled = newValue;
-		}
-	}
-	*/
-
-	checkPlugins() {
-		//this.connectToDropbox(localStorage["dropbox"] == 'true');
-	}
-
-	loadExecuteAndWaitAsync(asyncStream: AsyncStream, url: string, afterStartCallback: () => void) {
+	async loadExecuteAndWaitAsync(asyncStream: AsyncStream, url: string, afterStartCallback: () => void) {
 		this.gameTitle = '';
-		return this.loadAndExecuteAsync(asyncStream, url).then(() => {
-			if (afterStartCallback) afterStartCallback();
+        await this.loadAndExecuteAsync(asyncStream, url)
+        try {
+            if (afterStartCallback) afterStartCallback();
 
-			//console.error('WAITING!');
-			return this.threadManager.waitExitGameAsync().then(() => {
-				//console.error('STOPPING!');
-				return this.stopAsync().then(() => {
-					return this.emulatorVfs.output;
-				});
-			});
-		}).catch((e:any) => {
-			console.error(e);
-			console.error(e.stack);
-			throw(e);
-		});
+            //console.error('WAITING!');
+            await this.threadManager.waitExitGameAsync()
+            await this.stopAsync()
+            return this.emulatorVfs.output;
+        } catch (e) {
+            console.error(e);
+            console.error(e.stack);
+            throw(e);
+        }
 	}
 
 	static disableLog() {
@@ -342,44 +296,37 @@ export class Emulator {
 	
 	onDrawBatches = new Signal2<OptimizedDrawBuffer, OptimizedBatch[]>();
 
-	loadAndExecuteAsync(asyncStream: AsyncStream, url: string) {
+	async loadAndExecuteAsync(asyncStream: AsyncStream, url: string) {
 		if (typeof document != 'undefined') DomHelp.fromId('game_menu').hide();
 		url = String(url);
 
 		this.gameTitle = '';
 		this.loadIcon0(Stream.fromArray([]));
 		this.loadPic1(Stream.fromArray([]));
-		return this.startAsync().then(() => {
-			var parentUrl = url.replace(/\/[^//]+$/, '');
-			console.info('parentUrl: ' + parentUrl);
-			this.ms0Vfs.mountVfs('/PSP/GAME/virtual', new UriVfs(parentUrl));
-			return this._loadAndExecuteAsync(asyncStream, "ms0:/PSP/GAME/virtual/EBOOT.PBP");
-		}).catch((e:any) => {
+		try {
+            await this.startAsync()
+            const parentUrl = url.replace(/\/[^//]+$/, '');
+            console.info('parentUrl: ' + parentUrl);
+            this.ms0Vfs.mountVfs('/PSP/GAME/virtual', new UriVfs(parentUrl));
+            return await this._loadAndExecuteAsync(asyncStream, "ms0:/PSP/GAME/virtual/EBOOT.PBP");
+        } catch (e) {
 			console.error(e);
 			console.error(e.stack);
 			throw (e);
-		});
+		}
 	}
 
-	downloadAndExecuteAsync(url: string) {
-		return UrlAsyncStream.fromUrlAsync(url).then(stream => {
-			Microtask.queue(() => {
-				// escape try/catch!
-				this.loadAndExecuteAsync(stream, url);
-			});
-		});
+	async downloadAndExecuteAsync(url: string) {
+	    const stream = await UrlAsyncStream.fromUrlAsync(url)
+        await this.loadAndExecuteAsync(stream, url);
 	}
 
-    downloadAndExecuteAndWaitAsync(url: string, afterStartCallback: () => void) {
-        return UrlAsyncStream.fromUrlAsync(url).then(stream => {
-            return this.loadExecuteAndWaitAsync(stream, url, afterStartCallback);
-        });
+    async downloadAndExecuteAndWaitAsync(url: string, afterStartCallback: () => void) {
+	    const stream = await UrlAsyncStream.fromUrlAsync(url)
+        return await this.loadExecuteAndWaitAsync(stream, url, afterStartCallback);
     }
 
-    executeFileAsync(file: File) {
-		Microtask.queue(() => {
-			// escape try/catch!
-			this.loadAndExecuteAsync(new FileAsyncStream(file), '.');
-		});
+    async executeFileAsync(file: File) {
+        await this.loadAndExecuteAsync(new FileAsyncStream(file), '.');
 	}
 }
