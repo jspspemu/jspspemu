@@ -50,10 +50,10 @@ export class sceGe_user {
 
 	@nativeFunction(0xB287BD61, 150, 'uint', 'int')
 	sceGeDrawSync(syncType: SyncType): any {
-		var result = this.context.gpu.drawSync(syncType);
-		if (result instanceof PromiseFast) {
+        const result = this.context.gpu.drawSync(syncType);
+        if (PromiseFast.isPromise(result)) {
 			//result = PromiseFast.all([result, waitAsync(10)]);
-			return new WaitingThreadInfo('sceGeDrawSync', this.context.gpu, <PromiseFast<any>>result.then(() => {
+			return new WaitingThreadInfo('sceGeDrawSync', this.context.gpu, PromiseFast.ensure(result).then(() => {
 			}), AcceptCallbacks.NO, Compensate.YES);
 		} else {
 			return result;

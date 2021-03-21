@@ -429,6 +429,14 @@ export class BitUtils {
 		data |= value << offset;
 		return data;
 	}
+
+    static withBit(initial: number, bit: number, set: boolean): number {
+	    return this.withMask(initial, 1 << bit, set)
+    }
+
+    static withMask(initial: number, mask: number, set: boolean): number {
+        return set ? (initial | mask) : (initial & ~mask)
+    }
 }
 
 export class MathVfpu {
@@ -640,6 +648,22 @@ export class MathUtils {
 		if (v > max) return max;
 		return v;
 	}
+
+    static clampM1_1(v: number) {
+	    return this.clamp(v, -1, +1)
+    }
+
+    static clamp0_255(v: number) {
+	    return this.clamp(v, 0, 255)
+    }
+
+    static transformRange(value: number, srcMin: number, srcMax: number, dstMin: number, dstMax: number): number {
+        return this.transformRange01((value - srcMin) / (srcMax - srcMin), dstMin, dstMax)
+    }
+
+    static transformRange01(ratio: number, dstMin: number, dstMax: number): number {
+        return ratio * (dstMax - dstMin) + dstMin
+    }
 }
 
 export class IntUtils {

@@ -151,8 +151,8 @@ export class StructClass<T> implements IType<T> {
 	readWrite(stream: Stream, callback: (p: T) => any) {
 		var p = this.read(stream.clone());
 		var result = callback(p);
-		if (result instanceof PromiseFast) {
-			return result.then((result: any) => {
+		if (PromiseFast.isPromise(result)) {
+			return PromiseFast.ensure(result).then((result: any) => {
 				this.write(stream.clone(), p);
 				return result;
 			});

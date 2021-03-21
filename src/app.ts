@@ -1,5 +1,4 @@
 ﻿import "./emu/global"
-import "./emu/emulator_worker"
 import { EmulatorController } from './emu/emulator_controller';
 import {DomHelp, isTouchDevice} from "./global/utils";
 import {globalReferenced} from "./emu/global";

@@ -1734,11 +1734,11 @@ export function createNativeFunction(
 	}
 	
 	
-	code += 'var error = false;\n';
+	code += 'let error = false;\n';
 	if (DEBUG_NATIVEFUNC) {
 		code += `console.info(state.thread.name, nativeFunction.name);`;
 	}
-	code += 'var result = internalFunc(' + args.join(', ') + ');\n';
+	code += 'let result = internalFunc(' + args.join(', ') + ');\n';
 
 	/*
 	var debugSyscalls = false;
@@ -1748,30 +1748,29 @@ export function createNativeFunction(
 		code += "var info = 'calling:' + state.thread.name + ':RA=' + state.RA.toString(16) + ':' + nativeFunction.name;\n";
 		code += "if (DebugOnce(info, 10)) {\n";
 		code += "logger.warn('#######', info, 'args=', args, 'result=', " + ((retval == 'uint') ? "sprintf('0x%08X', result) " : "result") + ");\n";
-		code += "if (result instanceof PromiseFast) { result.then(function(value) { logger.warn('------> PROMISE: ',info,'args=', args, 'result-->', " + ((retval == 'uint') ? "sprintf('0x%08X', value) " : "value") + "); }); }\n";
+		code += "if (PromiseFast.isPromise(result)) { result.then(function(value) { logger.warn('------> PROMISE: ',info,'args=', args, 'result-->', " + ((retval == 'uint') ? "sprintf('0x%08X', value) " : "value") + "); }); }\n";
 		code += "}\n";
 	}
 	*/
 
     if (!options.doNotWait) {
+        //language=JavaScript
         code += `
-            if (result instanceof PromiseFast) {
+            if (PromiseFast.isPromise(result)) {
                 ${DEBUG_NATIVEFUNC ? 'console.log("returned promise!");' : ''}
-                state.thread.suspendUntilPromiseDone(result, nativeFunction);
+                state.thread.suspendUntilPromiseDone(PromiseFast.ensure(result), nativeFunction);
                 throwEndCycles();
                 //return state.thread.suspendUntilPromiseDone(result, nativeFunction);
-            }\n
-        `;
-        code += `
+            }
             if (result instanceof WaitingThreadInfo) {
                 ${DEBUG_NATIVEFUNC ? 'console.log("returned WaitingThreadInfo!");' : ''}
-                if (result.promise instanceof PromiseFast) {
+                if (PromiseFast.isPromise(result.promise)) {
                     state.thread.suspendUntilDone(result);
                     throwEndCycles();
                 } else {
                     result = result.promise;
                 }
-            }\n
+            }
         `;
     }
 

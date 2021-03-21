@@ -1114,23 +1114,24 @@ export class PromiseFast<T> implements Thenable<T> {
 	static resolve<T>(value: T): PromiseFast<T>;
 	static resolve(): PromiseFast<any>;
 	static resolve<T>(value?: any): PromiseFast<T> {
-		if (value instanceof PromiseFast) return value;
-		return new PromiseFast<T>((resolve, reject) => resolve(value));
+        if (value instanceof Promise) return PromiseFast.fromPromise(value)
+		if (value instanceof PromiseFast) return value
+		return new PromiseFast<T>((resolve, _) => resolve(value))
 	}
 	static reject(error: Error): PromiseFast<any> { return new PromiseFast((resolve, reject) => reject(error)); }
 
 	static all(promises: PromiseFast<any>[]): PromiseFast<any> {
 		return new PromiseFast((resolve, reject) => {
 			if (promises.length == 0) return resolve();
-			var total = promises.length;
-			var one = () => {
+            let total = promises.length;
+            const one = () => {
 				total--;
 				if (total <= 0) resolve();
-			};
-			var oneError = (e: Error) => {
-				reject(e);
-			};
-			for (let p of promises) {
+			}
+            const oneError = (e: Error) => {
+                reject(e);
+            }
+            for (let p of promises) {
 				if (p instanceof PromiseFast) {
 					p.then(one, oneError);
 				} else {
@@ -1153,6 +1154,20 @@ export class PromiseFast<T> implements Thenable<T> {
 			}
 		});
 	}
+
+    static ensure(object: any): PromiseFast<any> {
+        if (object instanceof PromiseFast) return object
+	    if (object instanceof Promise) return PromiseFast.fromPromise(object)
+        return PromiseFast.resolve(object)
+    }
+
+	static isPromise(object: any): boolean {
+	    return object instanceof Promise || object instanceof PromiseFast
+    }
+
+	static fromPromise<T>(promise: Promise<T>): PromiseFast<T> {
+	    return this.fromThenable(promise)
+    }
 	
 	static fromThenable<T>(thenable:Thenable<T>):PromiseFast<T> {
 		return new PromiseFast<T>((resolve, reject) => {

@@ -98,7 +98,7 @@ export class sceAudio {
 	@nativeFunction(0x13F592BC, 150, 'uint', 'int/int/int/void*')
 	sceAudioOutputPannedBlocking(channelId: number, leftVolume: number, rightVolume: number, buffer: Stream): any {
         const result = this._sceAudioOutput(channelId, leftVolume, rightVolume, buffer);
-        if (!(result instanceof PromiseFast)) return result;
+        if (!PromiseFast.isPromise(result)) return result;
 		return new WaitingThreadInfo('sceAudioOutputPannedBlocking', channelId, result, AcceptCallbacks.NO);
 	}
 

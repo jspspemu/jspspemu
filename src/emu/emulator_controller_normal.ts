@@ -1,15 +1,12 @@
 import { WebGlPspDrawDriver } from '../core/gpu/webgl/webgl_driver';
-//import { BatteryInfo } from './core/battery';
 import { DebugOverlay } from './emulator_overlay';
 import { Emulator } from './emulator';
-import { PspCtrlButtons, IPspControllerSet } from '../core/controller';
 import { Html5Audio2 } from '../html5/Html5Audio';
 import { Html5Battery } from '../html5/Html5Battery';
 import { Html5Icons } from '../html5/Html5Icons';
 import {ArrayBufferUtils, Microtask} from "../global/utils";
 import {OptimizedDrawBufferTransfer} from "../core/gpu/gpu_vertex";
 import {Config} from "../hle/config";
-import {Html5Gamepad} from "../html5/Html5Gamepad";
 
 declare var self: any;
 
@@ -124,22 +121,12 @@ export class EmulatorControllerNormal {
 			console.error(e);
 		});
 
-
-
 		console.log('base path', this.documentLocation);
-
-		document.addEventListener('keydown', (e: KeyboardEvent) => {
-			emulator.controller.setKeyDown(e.keyCode);
-		});
-		document.addEventListener('keyup', (e: KeyboardEvent) => {
-			emulator.controller.setKeyUp(e.keyCode);
-		});
 
 		emulator.config.language = Config.detectLanguage();
 
 		var canDOMCreateElements = (typeof document != 'undefined');
 
-		new Html5Gamepad().register(emulator.controller);
 		debugOverlay.gpuFreezing.add((value: boolean) => {
 			emulator.gpu.freezing.value = value;
 		});
@@ -151,8 +138,6 @@ export class EmulatorControllerNormal {
 			emulator.battery.level = binfo.level;
 			emulator.battery.lifetime = binfo.lifetime;
 		});
-
-		new Html5Gamepad().register(emulator.controller);
 
 		Microtask.execute();
 	}

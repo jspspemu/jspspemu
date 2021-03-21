@@ -40,6 +40,8 @@ import {UriVfs} from "../hle/vfs/vfs_uri";
 import {ZipVfs} from "../hle/vfs/vfs_zip";
 import {FileOpenFlags, ProxyVfs} from "../hle/vfs/vfs";
 import {IsoVfs} from "../hle/vfs/vfs_iso";
+import {Html5Gamepad} from "../html5/Html5Gamepad";
+import {Html5Keyboard} from "../html5/Html5Keyboard";
 
 var console = logger.named('emulator');
 
@@ -57,7 +59,7 @@ export class Emulator {
 	public gpu: PspGpu;
 	public gpuStats: GpuStats = new GpuStats();
 	public battery = new Battery();
-	public controller: PspController = new PspController();
+	public controller: PspController;
 	private syscallManager: SyscallManager;
 	private threadManager: ThreadManager;
 	private netManager: NetManager;
@@ -82,20 +84,32 @@ export class Emulator {
 	}
 
 	stopAsync() {
+        this.doFrameRunning = false
 		if (!this.display) return PromiseFast.resolve();
+
+        this.controller?.unregister()
 
 		return PromiseFast.all([
 			this.display.stopAsync(),
-			this.controller.stopAsync(),
 			this.gpu.stopAsync(),
 			this.audio.stopAsync(),
 			this.threadManager.stopAsync(),
 		]);
 	}
 
+	private doFrameRunning = false
+    private doFrame = () => {
+        if (this.doFrameRunning) requestAnimationFrame(this.doFrame)
+        this.controller.frame()
+    }
+
 	startAsync() {
 		return this.stopAsync().then(() => {
 			this.memory.reset();
+			this.controller = new PspController()
+            this.controller.addContributor(new Html5Gamepad())
+            this.controller.addContributor(new Html5Keyboard())
+            this.controller.register()
 			this.context = new EmulatorContext();
 			this.memoryManager = new MemoryManager();
 			this.interruptManager = new InterruptManager();
@@ -133,11 +147,13 @@ export class Emulator {
 			
 			return PromiseFast.all([
 				this.display.startAsync().then(() => { console.info('display initialized'); }),
-				this.controller.startAsync().then(() => { console.info('controller initialized'); }),
 				this.gpu.startAsync().then(() => { console.info('gpu initialized'); }),
 				this.audio.startAsync().then(() => { console.info('audio initialized'); }),
 				this.threadManager.startAsync().then(() => { console.info('threadManager initialized'); }),
-			]);
+			]).then(() => {
+			    this.doFrameRunning = true
+			    this.doFrame()
+            });
 		});
 	}
 

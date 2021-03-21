@@ -1,7 +1,7 @@
 {
   "scripts": {
     "build": "npx webpack --mode production --config=webpack.prod.js",
-    "serve": "npx webpack serve",
+    "serve": "npx webpack serve --open",
     "unit_test": "npx tsc && npx -n --enable-source-maps mocha output/test/_unittests.js",
     "integration_test": "npx tsc && npx -n --enable-source-maps mocha output/test/_integrationtests.js",
     "test": "npx tsc && npx -n --enable-source-maps mocha output/test/_alltests.js",

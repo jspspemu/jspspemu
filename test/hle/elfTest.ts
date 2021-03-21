@@ -17,7 +17,7 @@ describe('elf', () => {
 	let stream: Stream;
 
 	before(async () => {
-        const data = await downloadFileAsync('data/samples/counter.elf').promise()
+        const data = await downloadFileAsync('data/samples/counter.elf')
         stream = Stream.fromArrayBuffer(data)
 	});
 
