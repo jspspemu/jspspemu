@@ -1,13 +1,22 @@
 ﻿import "../../emu/global"
 
-import {addressToHex, logger, NumberDictionary, sprintf, StringDictionary, throwEndCycles} from "../../global/utils";
+import {
+    addressToHex,
+    CpuBreakException,
+    logger,
+    NumberDictionary,
+    sprintf,
+    StringDictionary,
+    throwEndCycles
+} from "../../global/utils";
 import {BitUtils, MathFloat, MathUtils} from "../../global/math";
 import {compareNumbers} from "../../global/array";
 import {Integer64} from "../../global/int64";
 import {Memory} from "../memory";
 import {ANodeStm, ANodeStmLabel, MipsAstBuilder} from "./cpu_ast";
-import {DecodedInstruction, Instruction, Instructions} from "./cpu_instructions";
+import {Instructions} from "./cpu_instructions";
 import {BranchFlagStm, InstructionAst} from "./cpu_codegen";
+import {DecodedInstruction, Instruction} from "./cpu_instruction";
 
 //const DEBUG_FUNCGEN = true;
 const DEBUG_FUNCGEN = false;
@@ -184,13 +193,14 @@ export const enum VCondition {
 	EZ, EN, EI, ES, NZ, NN, NI, NS
 }
 
-
-export class CpuState {
+// noinspection JSUnusedGlobalSymbols
+export class CpuState extends Instruction {
 	static lastId:number = 0;
 	id = CpuState.lastId++;
 	
 	//constructor(public memory: Memory, public syscallManager: SyscallManager, public interpreted: boolean = true) {
     constructor(public memory: Memory, public syscallManager: SyscallManager, public interpreted: boolean = false) {
+        super(0, 0)
 		this.icache = new InstructionCache(memory, syscallManager);
 		this.fcr0 = 0x00003351;
 		this.fcr31 = 0x00000e00;
@@ -204,7 +214,11 @@ export class CpuState {
 		return that;
 	}
 
-	icache: InstructionCache;
+    throwCpuBreakException() {
+        throw new CpuBreakException()
+    }
+
+    icache: InstructionCache;
 
 	insideInterrupt: boolean = false;
 	gpr_Buffer = new ArrayBuffer(32 * 4);
@@ -484,7 +498,40 @@ export class CpuState {
         this.nPC = pc + 4
     }
 
-	preserveRegisters(callback: () => void) {
+    get RD(): number { return this.getGPR(this.rd) }
+    set RD(value: number) { this.setGPR(this.rd, value) }
+    get RS(): number { return this.getGPR(this.rs) }
+    set RS(value: number) { this.setGPR(this.rs, value) }
+    get RT(): number { return this.getGPR(this.rt) }
+    set RT(value: number) { this.setGPR(this.rt, value) }
+
+    get FD(): number { return this.fpr[this.fd] }
+    set FD(value: number) { this.fpr[this.fd] = value }
+    get FS(): number { return this.fpr[this.fs] }
+    set FS(value: number) { this.fpr[this.fs] = value }
+    get FT(): number { return this.fpr[this.ft] }
+    set FT(value: number) { this.fpr[this.ft] = value }
+
+    get FD_I(): number { return this.fpr_i[this.fd] }
+    set FD_I(value: number) { this.fpr_i[this.fd] = value }
+    get FS_I(): number { return this.fpr_i[this.fs] }
+    set FS_I(value: number) { this.fpr_i[this.fs] = value }
+    get FT_I(): number { return this.fpr_i[this.ft] }
+    set FT_I(value: number) { this.fpr_i[this.ft] = value }
+
+    get RS_IMM16() { return this.RS + this.imm16 }
+
+    advance_pc(offset: number = 4) {
+        this.PC = this.nPC
+        this.nPC += offset
+    }
+
+    jump_pc(address: number) {
+        this.PC = this.nPC
+        this.nPC = address
+    }
+
+    preserveRegisters(callback: () => void) {
 		var temp = new CpuState(this.memory, this.syscallManager);
 		temp.copyRegistersFrom(this);
 		callback();
@@ -833,8 +880,6 @@ export class CpuState {
 		return this.icache.getFunction(pc, 0);
 	}
 
-    interpreter?: any = null
-
 	//executeAtPC() {
 	//	this.startThreadStep();
     //    while (true) {
@@ -847,7 +892,7 @@ export class CpuState {
 	//	try {
 	//		this.getFunction(this.PC).execute(this);
 	//	} catch (e) {
-	//		if (e.message != 'CpuBreakException') throw e;
+	//		if (!CpuBreakException.is(e)) throw e;
 	//	}
 	//}
 
@@ -893,6 +938,212 @@ export class CpuState {
 		}
 		*/
 	}
+
+    // https://phoenix.goucher.edu/~kelliher/f2009/cs220/mipsir.html
+
+    // UNKNOWN
+    int_unknown(name: string) { this.advance_pc(); throw new Error(`Unimplemented instruction '${name}'`) }
+
+    // CPU
+    int_lui() { this.RT = this.imm16 << 16; this.advance_pc() }
+    int_add() { this.RD = this.RS + this.RT; this.advance_pc() }
+    int_addu() { this.RD = this.RS + this.RT; this.advance_pc() }
+    int_addi() { this.RT = this.RS + this.imm16; this.advance_pc() }
+    int_addiu() { this.RT = this.RS + this.imm16; this.advance_pc() }
+    int_sub() { this.RD = this.RS - this.RT; this.advance_pc() }
+    int_subu() { this.RD = this.RS - this.RT; this.advance_pc() }
+    int_sll() { this.RD = this.RT << this.pos; this.advance_pc() }
+    int_sra() { this.RD = this.RT >> this.pos; this.advance_pc() }
+    int_srl() { this.RD = this.RT >>> this.pos; this.advance_pc() }
+    int_rotr() { this.RD = BitUtils.rotr(this.RT, this.pos); this.advance_pc() }
+    int_sllv() { this.RD = this.RT << (this.RS & 0b11111); this.advance_pc() }
+    int_srav() { this.RD = this.RT >> (this.RS & 0b11111); this.advance_pc() }
+    int_srlv() { this.RD = this.RT >>> (this.RS & 0b11111); this.advance_pc() }
+    int_rotrv() { this.RD = BitUtils.rotr(this.RT, this.RS); this.advance_pc() }
+    int_bitrev() { this.RD = BitUtils.bitrev32(this.RT); this.advance_pc() }
+    int_and() { this.RD = this.RS & this.RT; this.advance_pc() }
+    int_or() { this.RD = this.RS | this.RT; this.advance_pc() }
+    int_xor() { this.RD = this.RS ^ this.RT; this.advance_pc()}
+    int_nor() { this.RD = ~(this.RS | this.RT); this.advance_pc()}
+    int_andi() { this.RT = this.RS & this.u_imm16; this.advance_pc() }
+    int_ori() { this.RT = this.RS | this.u_imm16; this.advance_pc() }
+    int_xori() { this.RT = this.RS ^ this.u_imm16; this.advance_pc() }
+    int_mflo() { this.RD = this.LO; this.advance_pc() }
+    int_mfhi() { this.RD = this.HI; this.advance_pc() }
+    int_mfic() { this.RT = this.IC; this.advance_pc() }
+    int_mtlo() { this.LO = this.RS; this.advance_pc() }
+    int_mthi() { this.HI = this.RS; this.advance_pc() }
+    int_mtic() { this.IC = this.RT; this.advance_pc() }
+    int_slt() { this.RD = this.slt(this.RS, this.RT); this.advance_pc() }
+    int_sltu() { this.RD = this.sltu(this.RS, this.RT); this.advance_pc() }
+    int_slti() { this.RT = this.slt(this.RS, this.imm16); this.advance_pc() }
+    int_sltiu() { this.RT = this.sltu(this.RS, this.imm16); this.advance_pc() }
+    int_movz() { if (this.RT == 0) { this.RD = this.RS } this.advance_pc() }
+    int_movn() { if (this.RT != 0) { this.RD = this.RS } this.advance_pc() }
+    int_ext() { this.RT = BitUtils.extract(this.RS, this.pos, this.size_e); this.advance_pc() }
+    int_ins() { this.RT = BitUtils.insert(this.RT, this.pos, this.size_i, this.RS); this.advance_pc() }
+    int_clz() { this.RD = BitUtils.clz(this.RS); this.advance_pc() }
+    int_clo() { this.RD = BitUtils.clo(this.RS); this.advance_pc() }
+    int_seb() { this.RD = BitUtils.seb(this.RT); this.advance_pc() }
+    int_seh() { this.RD = BitUtils.seh(this.RT); this.advance_pc() }
+    int_wsbh() { this.RD = BitUtils.wsbh(this.RT); this.advance_pc() }
+    int_wsbw() { this.RD = BitUtils.wsbw(this.RT); this.advance_pc() }
+    int_min() { this.RD = this.min(this.RS, this.RT); this.advance_pc() }
+    int_max() { this.RD = this.max(this.RS, this.RT); this.advance_pc() }
+    int_div() { this.div(this.RS, this.RT); this.advance_pc() }
+    int_divu() { this.divu(this.RS, this.RT); this.advance_pc() }
+    int_mult() { this.mult(this.RS, this.RT); this.advance_pc() }
+    int_multu() { this.multu(this.RS, this.RT); this.advance_pc() }
+    int_madd() { this.madd(this.RS, this.RT); this.advance_pc() }
+    int_maddu() { this.maddu(this.RS, this.RT); this.advance_pc() }
+    int_msub() { this.msub(this.RS, this.RT); this.advance_pc() }
+    int_msubu() { this.msubu(this.RS, this.RT); this.advance_pc() }
+    int_cache() { this.cache(this.RS, this.RT, this.imm16); this.advance_pc() }
+    int_syscall() { this.advance_pc(); this.syscall(this.vsyscall) }
+    int_break() { this.advance_pc(); this.break() }
+    int_dbreak() { debugger; this.advance_pc() }
+
+    // MEMORY
+
+    int_sb  () { this.memory.sb(this.RS_IMM16, this.RT); this.advance_pc() }
+    int_sh  () { this.memory.sh(this.RS_IMM16, this.RT); this.advance_pc() }
+    int_sw  () { this.memory.sw(this.RS_IMM16, this.RT); this.advance_pc() }
+    int_swc1() { this.memory.sw(this.RS_IMM16, this.FT_I); this.advance_pc() }
+    int_swl () { this.memory.swl(this.RS_IMM16, this.RT); this.advance_pc() }
+    int_swr () { this.memory.swr(this.RS_IMM16, this.RT); this.advance_pc() }
+    int_lb  () { this.RT = this.memory.lb(this.RS_IMM16); this.advance_pc() }
+    int_lbu () { this.RT = this.memory.lbu(this.RS_IMM16); this.advance_pc() }
+    int_lh  () { this.RT = this.memory.lh(this.RS_IMM16); this.advance_pc() }
+    int_lhu () { this.RT = this.memory.lhu(this.RS_IMM16); this.advance_pc() }
+    int_lw  () { this.RT = this.memory.lw(this.RS_IMM16); this.advance_pc() }
+    int_lwc1() { this.RT = this.memory.lw(this.RS_IMM16); this.advance_pc() }
+    int_lwl () { this.RT = this.memory.lwl(this.RS_IMM16, this.RT); this.advance_pc() }
+    int_lwr () { this.RT = this.memory.lwr(this.RS_IMM16, this.RT); this.advance_pc() }
+
+    // BRANCHES
+
+    int__link() {
+	    this.RA = this.nPC + 4
+    }
+
+    int__branchN(cond: boolean) {
+        this.advance_pc(cond ? (this.imm16 * 4) : 4)
+    }
+
+    int__branchN_likely(cond: boolean) {
+	    if (cond) {
+            this.advance_pc(this.imm16 * 4)
+        } else {
+            this.PC = this.nPC + 4
+            this.nPC = this.PC + 4
+        }
+    }
+
+    int__j(link: boolean) {
+        this.jump_pc(this.jump_address)
+        if (link) {
+            this.setGPR(31, this.PC + 4)
+        }
+    }
+
+    int__jr(link: boolean) {
+        this.jump_pc((this.PC & 0xf0000000) | this.RS)
+        if (link) {
+            this.RD = this.PC + 4
+        }
+    }
+
+    int_beq () { this.int__branchN(this.RS == this.RT) }
+    int_bne () { this.int__branchN(this.RS != this.RT) }
+    int_bltz() { this.int__branchN(this.RS < 0) }
+    int_blez() { this.int__branchN(this.RS <= 0) }
+    int_bgtz() { this.int__branchN(this.RS > 0) }
+    int_bgez() { this.int__branchN(this.RS >= 0) }
+
+    int_beql () { this.int__branchN_likely(this.RS == this.RT) }
+    int_bnel () { this.int__branchN_likely(this.RS != this.RT) }
+    int_bltzl() { this.int__branchN_likely(this.RS < 0) }
+    int_blezl() { this.int__branchN_likely(this.RS <= 0) }
+    int_bgtzl() { this.int__branchN_likely(this.RS > 0) }
+    int_bgezl() { this.int__branchN_likely(this.RS >= 0) }
+
+    int_bltzal()  { this.int__link(); this.int__branchN(this.RS < 0) }
+    int_bgezal()  { this.int__link(); this.int__branchN(this.RS >= 0) }
+    int_bltzall() { this.int__link(); this.int__branchN_likely(this.RS < 0) }
+    int_bgezall() { this.int__link(); this.int__branchN_likely(this.RS >= 0) }
+
+    int_bc1t() { this.int__branchN(this.fcr31_cc) }
+    int_bc1f() { this.int__branchN(!this.fcr31_cc) }
+    int_bc1tl() { this.int__branchN_likely(this.fcr31_cc) }
+    int_bc1fl() { this.int__branchN_likely(!this.fcr31_cc) }
+
+    int_mfc1() { this.RT = this.FS_I; this.advance_pc() }
+    int_mtc1() { this.FS_I = this.RT; this.advance_pc() }
+    int_cfc1() { this._cfc1_impl(this.rd, this.RT); this.advance_pc() }
+    int_ctc1() { this._ctc1_impl(this.rd, this.RT); this.advance_pc() }
+
+    int_j() { this.int__j(false) }
+    int_jr() { this.int__jr(false) }
+    int_jal() { this.int__j(true) }
+    int_jalr() { this.int__jr(true) }
+
+    // FPU
+
+    "int_mov.s"() { this.FD = this.FS; this.advance_pc() }
+    "int_add.s"() { this.FD = this.FS + this.FT; this.advance_pc() }
+    "int_sub.s"() { this.FD = this.FS - this.FT; this.advance_pc() }
+    "int_mul.s"() { this.FD = this.FS * this.FT; this.advance_pc() }
+    "int_div.s"() { this.FD = this.FS / this.FT; this.advance_pc() }
+    "int_abthis.s"() { this.FD = Math.abs(this.FS); this.advance_pc() }
+    "int_sqrt.s"() { this.FD = Math.sqrt(this.FS); this.advance_pc() }
+    "int_neg.s"() { this.FD = -this.FS; this.advance_pc() }
+
+    "int_trunc.w.s"() { this.FD_I = MathFloat.trunc(this.FS); this.advance_pc() }
+    "int_round.w.s"() { this.FD_I = MathFloat.round(this.FS); this.advance_pc() }
+    "int_ceil.w.s"() { this.FD_I = MathFloat.ceil(this.FS); this.advance_pc() }
+    "int_floor.w.s"() { this.FD_I = MathFloat.floor(this.FS); this.advance_pc() }
+
+    "int_cvt.this.w"() { this.FD = this.FS_I; this.advance_pc() }
+    "int_cvt.w.s"() { this.FD_I = this._cvt_w_s_impl(this.FS); this.advance_pc() }
+
+    "int_c.f.s"() { return this.int__comp(0, 0) }
+    "int_c.un.s"() { return this.int__comp(1, 0) }
+    "int_c.eq.s"() { return this.int__comp(2, 0) }
+    "int_c.ueq.s"() { return this.int__comp(3, 0) }
+    "int_c.olt.s"() { return this.int__comp(4, 0) }
+    "int_c.ult.s"() { return this.int__comp(5, 0) }
+    "int_c.ole.s"() { return this.int__comp(6, 0) }
+    "int_c.ule.s"() { return this.int__comp(7, 0) }
+
+    "int_c.sf.s"() { return this.int__comp(0, 1) }
+    "int_c.ngle.s"() { return this.int__comp(1, 1) }
+    "int_c.seq.s"() { return this.int__comp(2, 1) }
+    "int_c.ngl.s"() { return this.int__comp(3, 1) }
+    "int_c.lt.s"() { return this.int__comp(4, 1) }
+    "int_c.nge.s"() { return this.int__comp(5, 1) }
+    "int_c.le.s"() { return this.int__comp(6, 1) }
+    "int_c.ngt.s"() { return this.int__comp(7, 1) }
+
+    int__comp(fc02: number, fc3: number) {
+        const fc_unordererd = ((fc02 & 1) != 0);
+        const fc_equal = ((fc02 & 2) != 0);
+        const fc_less = ((fc02 & 4) != 0);
+        const fc_inv_qnan = (fc3 != 0); // TODO -- Only used for detecting invalid operations?
+
+        const s = this.FS;
+        const t = this.FT;
+
+        let result = false
+        if (isNaN(s) || isNaN(t)) {
+            result ||= fc_unordererd
+        } else {
+            if (fc_equal) result ||= s == t
+            if (fc_less) result ||= s < t
+        }
+
+        this.fcr31_cc = result
+        this.advance_pc()
+    }
 }
 
 var ast = new MipsAstBuilder();
@@ -1046,7 +1297,7 @@ export class FunctionGenerator {
 	}
 
 	private getInstructionType(i: Instruction) {
-		return this.instructions.findByData(i.data, i.PC);
+		return this.instructions.findByData(i.IDATA, i.PC);
 	}
 
 	private generatePspInstruction(di: DecodedInstruction): PspInstructionStm {
@@ -1151,7 +1402,7 @@ export class FunctionGenerator {
 
 	getFunctionCode(info: FunctionInfo, level:number): FunctionCode {
 		var args: any = {};
-		if (info.start == CpuSpecialAddresses.EXIT_THREAD) return new FunctionCode("state.thread.stop('CpuSpecialAddresses.EXIT_THREAD'); throw new Error('CpuBreakException');", args);
+		if (info.start == CpuSpecialAddresses.EXIT_THREAD) return new FunctionCode("state.thread.stop('CpuSpecialAddresses.EXIT_THREAD'); state.throwCpuBreakException();", args);
 
 		var func = ast.func(
 			info.start,

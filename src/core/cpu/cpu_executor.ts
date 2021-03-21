@@ -1,24 +1,16 @@
 import {CpuState} from "./cpu_core";
-import {CpuInterpreter} from "./cpu_interpreter";
+import {interpretCpuInstruction} from "./cpu_interpreter";
+import {CpuBreakException} from "../../global/utils";
 
 export class CpuExecutor {
-    static getInterpreter(state: CpuState): CpuInterpreter | null {
-        if (!state.interpreted) return null
-        if (state.interpreter == null) {
-            state.interpreter = new CpuInterpreter()
-        }
-        return state.interpreter
-    }
-
     static executeAtPC(state: CpuState) {
         state.startThreadStep();
         //var expectedRA = this.RA;
         //while (this.PC != this.RA) {
-        const int = CpuExecutor.getInterpreter(state)
-        if (int) {
+        if (state.interpreted) {
             while (true) {
                 if (state.PC == 0x1234) break;
-                int.execute(state)
+                interpretCpuInstruction(state)
             }
         } else {
             while (true) {
@@ -30,17 +22,16 @@ export class CpuExecutor {
 
     static executeAtPCAsync(state: CpuState) {
         state.startThreadStep();
-        const int = CpuExecutor.getInterpreter(state)
         try {
-            if (int) {
+            if (state.interpreted) {
                 for (let n = 0; n < 100000; n++) {
-                    int.execute(state)
+                    interpretCpuInstruction(state)
                 }
             } else {
                 state.getFunction(state.PC).execute(state);
             }
         } catch (e) {
-            if (e.message != 'CpuBreakException') throw e;
+            if (!CpuBreakException.is(e)) throw e;
         }
     }
 }

@@ -89,7 +89,7 @@ export class InterruptManager {
 				//	try {
 				//		state.executeAtPC();
 				//	} catch (e) {
-				//		if (e.message != 'CpuBreakException') throw e;
+				//		if (!CpuBreakException.is(e)) throw e;
 				//	}
 				//}
 			});

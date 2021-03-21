@@ -1,8 +1,9 @@
 import "../../emu/global"
 
 import {StringDictionary} from "../../global/utils";
-import {Instruction, Instructions} from "./cpu_instructions";
+import {Instructions} from "./cpu_instructions";
 import {Memory} from "../memory";
+import {Instruction} from "./cpu_instruction";
 
 class Labels {
 	public labels: StringDictionary<number> = {};
@@ -39,7 +40,7 @@ export class MipsAssembler {
 					default:
 						var instructions = this.assemble(PC, line, labels);
 						for (let instruction of instructions) {
-							memory.writeInt32(PC, instruction.data);
+							memory.writeInt32(PC, instruction.IDATA);
 							PC += 4;
 						}
 						break;
@@ -159,7 +160,7 @@ export class MipsDisassembler {
 	}
 
 	disassemble(instruction: Instruction) {
-		var instructionType = this.instructions.findByData(instruction.data);
+		var instructionType = this.instructions.findByData(instruction.IDATA);
 		var args = instructionType.format.replace(/(\%\w+)/g, (type) => {
 			switch (type) {
 				case '%s': return this.encodeRegister(instruction.rs);

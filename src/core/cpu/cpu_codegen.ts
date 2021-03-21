@@ -1,7 +1,7 @@
 ﻿import {ArrayUtils, BitUtils, xrange} from "../../global/math";
 import {ANodeExpr, ANodeExprLValue, ANodeExprLValueSetGet, ANodeStm, MipsAstBuilder} from "./cpu_ast";
-import {Instruction} from "./cpu_instructions";
 import {VFPU_CTRL} from "./cpu_core";
+import {Instruction} from "./cpu_instruction";
 
 var ast: MipsAstBuilder = new MipsAstBuilder();
 
@@ -461,23 +461,23 @@ export class InstructionAst {
 
 	// Prefixes
 	vpfxs(i: Instruction) {
-		this._vpfxs.set(i.data);
+		this._vpfxs.set(i.IDATA);
 		return stms([
-			call_stm('state.setVpfxs', [imm32(i.data)]),
+			call_stm('state.setVpfxs', [imm32(i.IDATA)]),
 			//ast.debugger(),
 		]);
 	}
 	vpfxt(i: Instruction) {
-		this._vpfxt.set(i.data);
+		this._vpfxt.set(i.IDATA);
 		return stms([
-			call_stm('state.setVpfxt', [imm32(i.data)]),
+			call_stm('state.setVpfxt', [imm32(i.IDATA)]),
 			//ast.debugger(),
 		]);
 	}
 	vpfxd(i: Instruction) {
-		this._vpfxd.set(i.data);
+		this._vpfxd.set(i.IDATA);
 		return stms([
-			call_stm('state.setVpfxd', [imm32(i.data)]),
+			call_stm('state.setVpfxd', [imm32(i.IDATA)]),
 			//ast.debugger(),
 		]);
 	}

@@ -1,13 +1,13 @@
 ﻿import { SceKernelErrors } from '../SceKernelErrors';
 import {
-	AcceptCallbacks,
-	Compensate,
-	DSet,
-	logger,
-	Microtask,
-	PromiseFast,
-	sprintf,
-	WaitingThreadInfo
+    AcceptCallbacks,
+    Compensate, CpuBreakException,
+    DSet,
+    logger,
+    Microtask,
+    PromiseFast,
+    sprintf,
+    WaitingThreadInfo
 } from "../../global/utils";
 import {waitAsync} from "../../global/async";
 import {Integer64} from "../../global/int64";
@@ -373,7 +373,7 @@ export class ThreadManager {
 			//console.log(e);
 			//console.log(e['stack']);
 			//debugger;
-			if (e.message == 'CpuBreakException') return;
+			if (CpuBreakException.is(e)) return;
 			var estack = e['stack'] || e;
             EmulatorUI.openMessageAsync(estack);
 			thread.stop('error:' + estack);

@@ -3,7 +3,7 @@
 import {assert} from "chai"
 import {MipsAssembler} from "../../src/core/cpu/cpu_assembler";
 import {getMemoryInstance, Memory, TestMemory} from "../../src/core/memory";
-import {CpuInterpreter} from "../../src/core/cpu/cpu_interpreter";
+import {interpretCpuInstruction} from "../../src/core/cpu/cpu_interpreter";
 import {CpuState, SyscallManager} from "../../src/core/cpu/cpu_core";
 
 describe("cpu_interpreter", () => {
@@ -12,7 +12,6 @@ describe("cpu_interpreter", () => {
     let asm = new MipsAssembler();
     asm.assembleToMemory(mem, 0, ["addi r1, r0, 1000"])
     const state = new CpuState(mem, syscalls)
-    const interpreter = new CpuInterpreter()
-    interpreter.execute(state)
-    assert.equal(interpreter.state.getGPR(1), 1000)
+    interpretCpuInstruction(state)
+    assert.equal(state.getGPR(1), 1000)
 })

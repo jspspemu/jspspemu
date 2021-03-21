@@ -3,7 +3,6 @@ import {Stringz, StructArray, StructClass, UInt16, UInt32, UInt8} from "../globa
 import {Stream} from "../global/stream";
 import {MathUtils} from "../global/math";
 import {Memory} from "../core/memory";
-import {Instruction} from "../core/cpu/cpu_instructions";
 import {
     ElfLoader,
     ElfProgramHeaderType, ElfReloc, ElfRelocType,
@@ -16,6 +15,7 @@ import {ElfDwarfLoader} from "../format/elf_dwarf";
 import {MemoryManager, MemoryPartition} from "./manager/memory";
 import {ModuleManager} from "./manager/module";
 import {NativeFunction, SyscallManager} from "../core/cpu/cpu_core";
+import {Instruction} from "../core/cpu/cpu_instruction";
 
 var console = logger.named('elf.psp');
 
@@ -102,7 +102,7 @@ class InstructionReader {
 	}
 
 	write(address: number, instruction: Instruction) {
-		this.memory.writeInt32(address, instruction.data);
+		this.memory.writeInt32(address, instruction.IDATA);
 	}
 }
 
@@ -237,7 +237,7 @@ export class PspElfLoader {
 			switch (reloc.type) {
 				case ElfRelocType.None: break;
 				case ElfRelocType.Mips16: instruction.u_imm16 += S; break;
-				case ElfRelocType.Mips32: instruction.data += S; break;
+				case ElfRelocType.Mips32: instruction.IDATA += S; break;
 				case ElfRelocType.MipsRel32: throw ("Not implemented MipsRel32"); 
 				case ElfRelocType.Mips26: instruction.jump_real = instruction.jump_real + S; break;
 				case ElfRelocType.MipsHi16: hiValue = instruction.u_imm16; deferredHi16.push(RelocatedPointerAddress); break;
@@ -248,7 +248,7 @@ export class PspElfLoader {
 
 					deferredHi16.forEach(data_addr2 => {
 						var data2 = instructionReader.read(data_addr2);
-						var result = ((data2.data & 0x0000FFFF) << 16) + A + S;
+						var result = ((data2.IDATA & 0x0000FFFF) << 16) + A + S;
 						if ((A & 0x8000) != 0) {
 							result -= 0x10000;
 						}
@@ -375,8 +375,8 @@ export class PspElfLoader {
             var nid = nidsStream.readUInt32();
             var syscall = registerN(nid, n);
 
-            callStream.writeInt32(this.assembler.assemble(0, sprintf('jr $31'))[0].data);
-            callStream.writeInt32(this.assembler.assemble(0, sprintf('syscall %d', syscall))[0].data);
+            callStream.writeInt32(this.assembler.assemble(0, sprintf('jr $31'))[0].IDATA);
+            callStream.writeInt32(this.assembler.assemble(0, sprintf('syscall %d', syscall))[0].IDATA);
 		}
 
 		if (unknownFunctions.length > 0) {

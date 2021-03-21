@@ -923,8 +923,8 @@ export class SignalPromise<T1, T2, T3, T4, T5> {
 	}
 
 	dispatchAsync(v1?: T1, v2?: T2, v3?: T3, v4?: T4, v5?: T5) {
-		var promises:PromiseFast<any>[] = [];
-		this.callbacks.forEach((callback) => {
+        const promises: PromiseFast<any>[] = [];
+        this.callbacks.forEach((callback) => {
 			promises.push(callback(v1, v2, v3, v4, v5));
 		});
 		return PromiseFast.all(promises)
@@ -1292,8 +1292,18 @@ export class DomHelp {
 	toggleClass(clazz:string, value:boolean) { if (value) this.addClass(clazz); else this.removeClass(clazz); }
 }
 
+export class CpuBreakException extends Error {
+    constructor() {
+        super('CpuBreakException');
+    }
+
+    static is(v: any): boolean {
+        return v instanceof CpuBreakException
+    }
+}
+
 export function throwEndCycles() {
-	throw new Error("CpuBreakException");
+	throw new CpuBreakException();
 }
 
 export function throwWaitPromise<T>(promise:PromiseFast<T>) {
