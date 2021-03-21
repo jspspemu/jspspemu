@@ -104,6 +104,10 @@ export class VertexInfo {
 	textureSize:number;
 	positionSize:number;
 	normalSize:number;
+
+	describe() {
+	    return `vertexInfo_${this.value >>> 0}_${this.textureComponentsCount}`
+    }
 	
 	clone() {
 		return new VertexInfo().copyFrom(this);
@@ -213,7 +217,7 @@ export class VertexInfo {
 	get normalComponents() { return 3; }
 	get colorComponents() { return 4; }
 	get textureComponents() { return this.textureComponentsCount; }
-	get hash() { return this.value + (this.textureComponentsCount * Math.pow(2, 24)); }
+	get hash() { return (this.value + (this.textureComponentsCount * Math.pow(2, 24))) | 0; }
 
 	read(memory: Memory, count: number) {
 		//console.log('read vertices ' + count);

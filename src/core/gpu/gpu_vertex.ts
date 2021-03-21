@@ -25,7 +25,7 @@ class SpriteExpander {
 	static forVertexInfo(vi: VertexInfo):SpriteExpanderFunc {
 		var hash = vi.hash;
 		if (!this.cache.has(hash)) {
-			this.cache.set(hash, <SpriteExpanderFunc>new Function('input', 'output', 'count', this.readAllCode(vi)));
+			this.cache.set(hash, <SpriteExpanderFunc>eval(`(function read_${vi.describe()}(input, output, count) { ${this.readAllCode(vi)} })`));
 		}
 		return this.cache.get(hash);
 	}

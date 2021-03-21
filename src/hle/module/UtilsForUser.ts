@@ -39,25 +39,25 @@ export class UtilsForUser {
         return Math.round(Math.random() * 0xFFFFFFFF);
     }
 
-    @nativeFunction(0x71EC4271, 150, 'uint', 'void*/void*')
-	sceKernelLibcGettimeofday(timevalPtr: Stream, timezonePtr: Stream) {
+    @nativeFunction(0x71EC4271, 150, 'int', 'int/int', {doNotWait: true})
+	sceKernelLibcGettimeofday(timevalPtr: number, timezonePtr: number) {
 		if (timevalPtr) {
-			var totalMilliseconds = Date.now();
-			var totalSeconds = Math.floor(totalMilliseconds / 1000);
-			var milliseconds = Math.floor(totalMilliseconds % 1000);
-			var microseconds = milliseconds * 1000;
-            timevalPtr.writeInt32(totalSeconds);
-            timevalPtr.writeInt32(microseconds);
+            const totalMilliseconds = Date.now()
+            const totalSeconds = Math.floor(totalMilliseconds / 1000)
+            const milliseconds = Math.floor(totalMilliseconds % 1000)
+            const microseconds = milliseconds * 1000
+            this.context.memory.writeInt32(timevalPtr, totalSeconds)
+            this.context.memory.writeInt32(timevalPtr + 4, microseconds)
         }
 
         if (timezonePtr) {
-            var minutesWest = 0;
-            var dstTime = 0;
-            timevalPtr.writeInt32(minutesWest);
-            timevalPtr.writeInt32(dstTime);
+            const minutesWest = 0
+            const dstTime = 0
+            this.context.memory.writeInt32(timezonePtr, minutesWest)
+            this.context.memory.writeInt32(timezonePtr + 4, dstTime)
         }
 
-        return 0;
+        return 0
 	}
 
 	@nativeFunction(0x34B9FA9E, 150, 'uint', 'uint/uint')

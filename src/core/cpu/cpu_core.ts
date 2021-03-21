@@ -1631,10 +1631,22 @@ export class FunctionGenerator {
 }
 
 export interface CreateOptions {
+    originalName?: string;
 	disableInsideInterrupt?: boolean;
+	doNotWait?: boolean
 }
 
-export function createNativeFunction(exportId: number, firmwareVersion: number, retval: string, argTypesString: string, that: any, internalFunc: Function, options?: CreateOptions, classname?:string, name?:string) {
+export function createNativeFunction(
+    exportId: number,
+    firmwareVersion: number,
+    retval: string,
+    argTypesString: string,
+    that: any,
+    internalFunc: Function,
+    options?: CreateOptions,
+    classname?:string,
+    name?:string
+) {
 	options = options || {};
 	//var console = logger.named('createNativeFunction');
     var code = '';
@@ -1724,25 +1736,27 @@ export function createNativeFunction(exportId: number, firmwareVersion: number, 
 	}
 	*/
 
-	code += `
-		if (result instanceof PromiseFast) {
-			${DEBUG_NATIVEFUNC ? 'console.log("returned promise!");' : ''}
-			state.thread.suspendUntilPromiseDone(result, nativeFunction);
-			throwEndCycles();
-			//return state.thread.suspendUntilPromiseDone(result, nativeFunction);
-		}\n
-	`;
-	code += `
-		if (result instanceof WaitingThreadInfo) {
-			${DEBUG_NATIVEFUNC ? 'console.log("returned WaitingThreadInfo!");' : ''}
-			if (result.promise instanceof PromiseFast) {
-				state.thread.suspendUntilDone(result);
-				throwEndCycles();
-			} else {
-				result = result.promise;
-			}
-		}\n
-	`;
+    if (!options.doNotWait) {
+        code += `
+            if (result instanceof PromiseFast) {
+                ${DEBUG_NATIVEFUNC ? 'console.log("returned promise!");' : ''}
+                state.thread.suspendUntilPromiseDone(result, nativeFunction);
+                throwEndCycles();
+                //return state.thread.suspendUntilPromiseDone(result, nativeFunction);
+            }\n
+        `;
+        code += `
+            if (result instanceof WaitingThreadInfo) {
+                ${DEBUG_NATIVEFUNC ? 'console.log("returned WaitingThreadInfo!");' : ''}
+                if (result.promise instanceof PromiseFast) {
+                    state.thread.suspendUntilDone(result);
+                    throwEndCycles();
+                } else {
+                    result = result.promise;
+                }
+            }\n
+        `;
+    }
 
     switch (retval) {
         case 'void': break;
@@ -1770,12 +1784,18 @@ export function createNativeFunction(exportId: number, firmwareVersion: number, 
 	}
 
 	nativeFunction.nativeCall = internalFunc.bind(that);
+	const funcName = ensureValidFunctionName(`${classname}.${name}.${addressToHex(nativeFunction.nid)}`)
 	nativeFunction.call = <any>new Function(
 		'logger', 'internalFunc', 'nativeFunction',
-		`return function(context, state) { "use strict"; /* ${addressToHex(nativeFunction.nid)} ${classname}.${name} */\n${code} };`
+		`return function ${funcName}_wrapper(context, state) { "use strict"; /* ${addressToHex(nativeFunction.nid)} ${classname}.${name} */\n${code} };`
 	)(
 		logger, nativeFunction.nativeCall, nativeFunction
 	);
 
     return nativeFunction;
+}
+
+export function ensureValidFunctionName(name: string) {
+    const out = String(name).replace(/\W/g, '_')
+    return out.substr(0, 1).match(/\d/) ? `_${out}` : out
 }
