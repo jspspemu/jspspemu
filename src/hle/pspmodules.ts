@@ -52,6 +52,7 @@ import * as ThreadManForUser_callbacks from './module/threadman/ThreadManForUser
 import * as ThreadManForUser_sema from './module/threadman/ThreadManForUser_sema';
 import * as ThreadManForUser_eventflag from './module/threadman/ThreadManForUser_eventflag';
 import * as ThreadManForUser_vpl from './module/threadman/ThreadManForUser_vpl';
+import * as ThreadManForUser_fpl from './module/threadman/ThreadManForUser_fpl';
 import * as ThreadManForUser_mutex from './module/threadman/ThreadManForUser_mutex';
 import {SyscallManager} from "../core/cpu/cpu_core";
 import {ModuleManager} from "./manager/module";
@@ -117,6 +118,7 @@ function registerModules(manager: ModuleManager) {
 	manager.registerModule(ThreadManForUser_sema);
 	manager.registerModule(ThreadManForUser_eventflag);
 	manager.registerModule(ThreadManForUser_vpl);
+    manager.registerModule(ThreadManForUser_fpl);
 	manager.registerModule(ThreadManForUser_mutex);
 }
 

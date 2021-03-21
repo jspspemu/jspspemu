@@ -17,6 +17,7 @@
     "src/emu/global.ts",
     "src/app.ts",
     "src/headless.ts",
-    "test/_tests.ts"
+    "test/_tests.ts",
+    "test/_itests.ts"
   ]
 }

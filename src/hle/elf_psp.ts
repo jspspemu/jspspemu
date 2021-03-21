@@ -1,4 +1,4 @@
-﻿import {logger, sprintf} from "../global/utils";
+﻿import {logger, ProgramExitException, sprintf} from "../global/utils";
 import {Stringz, StructArray, StructClass, UInt16, UInt32, UInt8} from "../global/struct";
 import {Stream} from "../global/stream";
 import {MathUtils} from "../global/math";
@@ -357,7 +357,7 @@ export class PspElfLoader {
 					console.info(_module);
 					console.error("updateModuleFunctions: Not implemented '" + nfunc.name + "'");
 					debugger;
-					throw (new Error("updateModuleFunctions: Not implemented '" + nfunc.name + "'"));
+					throw new ProgramExitException("updateModuleFunctions: Not implemented '" + nfunc.name + "'");
 				};
 				nfunc.call = (context, state) => {
 					nfunc.nativeCall();

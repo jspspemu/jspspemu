@@ -931,6 +931,14 @@ export class SignalPromise<T1, T2, T3, T4, T5> {
 	}
 }
 
+export const enum LoggerLevel {
+    DEBUG = 0,
+    LOG = 1,
+    INFO = 2,
+    WARN = 3,
+    ERROR = 4
+}
+
 export class Logger {
 	constructor(private policy: LoggerPolicies, private console: any, private name: string) {
 	}
@@ -939,30 +947,40 @@ export class Logger {
 		return new Logger(this.policy, this.console, (this.name + '.' + name).replace(/^\.+/, ''));
 	}
 
-	_log(type: string, level: number, args: any[]) {
+	_log(type: string, level: LoggerLevel, args: any[]) {
 		if (this.policy.canLog(this.name, level)) {
 			args.unshift(this.name + ':');
 			if (this.console[type]) this.console[type].apply(this.console, args);
 		}
 	}
 
-	debug(...args: any[]) { this._log('debug', 0, args); }
-	log(...args: any[]) { this._log('log', 1, args); }
-	info(...args: any[]) { this._log('info', 2, args); }
-	warn(...args: any[]) { this._log('warn', 3, args); }
-	error(...args: any[]) { this._log('error', 4, args); }
+	debug(...args: any[]) { this._log('debug', LoggerLevel.DEBUG, args); }
+	log(...args: any[]) { this._log('log', LoggerLevel.LOG, args); }
+	info(...args: any[]) { this._log('info', LoggerLevel.INFO, args); }
+	warn(...args: any[]) { this._log('warn', LoggerLevel.WARN, args); }
+	error(...args: any[]) { this._log('error', LoggerLevel.ERROR, args); }
 
 	groupCollapsed(...args: any[]) { this._log('groupCollapsed', 5, args); }
 	groupEnd(...args: any[]) { this._log('groupEnd', 5, args); }
+
+	setMinLoggerLevel(level: LoggerLevel) {
+	    loggerPolicies.setNameMinLoggerLevel(this.name, level)
+    }
 }
 
 export class LoggerPolicies {
-	public disableAll = false;
-	public minLogLevel = 1;
+	public disableAll: boolean = false;
+	public minLogLevel: LoggerLevel = LoggerLevel.LOG;
+	private namedLevels: StringDictionary<number> = {};
+
+	setNameMinLoggerLevel(name: string, level: LoggerLevel) {
+	    this.namedLevels[name] = level
+    }
 
 	canLog(name: string, level: number) {
-		if (this.disableAll) return false;
-		if (level < this.minLogLevel) return false;
+		if (this.disableAll) return false
+		if (level < this.minLogLevel) return false
+		if (name in this.namedLevels && level < this.namedLevels[name]) return false
 		return true;
 	}
 }
@@ -1299,6 +1317,16 @@ export class CpuBreakException extends Error {
 
     static is(v: any): boolean {
         return v instanceof CpuBreakException
+    }
+}
+
+export class ProgramExitException extends Error {
+    constructor(message: String) {
+        super(`ProgramExitException: ${message}`);
+    }
+
+    static is(v: any): boolean {
+        return v instanceof ProgramExitException
     }
 }
 

@@ -4,7 +4,7 @@ import {
     addressToHex,
     CpuBreakException,
     logger,
-    NumberDictionary,
+    NumberDictionary, ProgramExitException,
     sprintf,
     StringDictionary,
     throwEndCycles
@@ -18,6 +18,7 @@ import {CpuInstructions, Instructions} from "./cpu_instructions";
 import {BranchFlagStm, InstructionAst} from "./cpu_codegen";
 import {DecodedInstruction, Instruction} from "./cpu_instruction";
 import {MipsDisassembler} from "./cpu_assembler";
+import {AnsiEscapeCodes} from "../../util/AnsiEscapeCodes";
 
 //const DEBUG_FUNCGEN = true;
 const DEBUG_FUNCGEN = false;
@@ -29,8 +30,8 @@ const BUILD_FUNC_ON_REFERENCED = true;
 //const BUILD_FUNC_ON_REFERENCED = false;
 
 export const enum CpuSpecialAddresses {
-	EXIT_THREAD = 0x01111337,
-    EXIT_INTERRUPT = 0x1234,
+	EXIT_THREAD = 0x01337000,
+    EXIT_INTERRUPT = 0x01337004,
 }
 
 export interface ICpuExecutable {
@@ -217,8 +218,8 @@ export class CpuState extends Instruction {
 	}
 
 	clone() {
-		var that = new CpuState(this.memory, this.syscallManager, this.config);
-		that.icache = this.icache;
+        const that = new CpuState(this.memory, this.syscallManager, this.config);
+        that.icache = this.icache;
 		that.copyRegistersFrom(this);
 		return that;
 	}
@@ -558,10 +559,12 @@ export class CpuState extends Instruction {
     }
 
     preserveRegisters(callback: () => void) {
-		var temp = new CpuState(this.memory, this.syscallManager, this.config);
-		temp.copyRegistersFrom(this);
-		callback();
-		this.copyRegistersFrom(temp);
+        const temp = this.clone()
+		try {
+            callback();
+        } finally {
+            this.copyRegistersFrom(temp);
+        }
 	}
 
 	copyRegistersFrom(other: CpuState) {
@@ -975,7 +978,12 @@ export class CpuState extends Instruction {
     // https://phoenix.goucher.edu/~kelliher/f2009/cs220/mipsir.html
 
     // UNKNOWN
-    int_unknown(name: string) { this.advance_pc(); throw new Error(`Unimplemented instruction '${name}'`) }
+    int_unknown(name: string) {
+	    this.advance_pc();
+	    const message = `${AnsiEscapeCodes.RED}Unimplemented instruction '${name}'${AnsiEscapeCodes.RESET}`
+        console.error(message)
+        throw new ProgramExitException(message)
+	}
 
     // CPU
     int_lui() { this.RT = this.imm16 << 16; this.advance_pc() }
@@ -1073,17 +1081,18 @@ export class CpuState extends Instruction {
     }
 
     int__j(link: boolean) {
-        this.jump_pc(this.jump_address)
         if (link) {
-            this.setGPR(31, this.PC + 4)
+            this.RA = this.PC + 8
         }
+        this.jump_pc(this.jump_address)
     }
 
     int__jr(link: boolean) {
-        this.jump_pc((this.PC & 0xf0000000) | this.RS)
+	    const newAddress = (this.PC & 0xf0000000) | (this.RS & ~0b11)
         if (link) {
-            this.RD = this.PC + 4
+            this.RD = this.PC + 8
         }
+        this.jump_pc(newAddress)
     }
 
     int_beq () { this.int__branchN(this.RS == this.RT) }
@@ -1371,7 +1380,7 @@ export class FunctionGenerator {
 	
 	getFunctionInfo(address: number, level:number): FunctionInfo {
 		if (address == CpuSpecialAddresses.EXIT_THREAD) return { start: address, min: address, max: address + 4, labels: {} };
-		if (address == 0x00000000) throw (new Error("Trying to execute 0x00000000"));
+		if (address == 0x00000000) throw new ProgramExitException("Trying to execute 0x00000000");
 
 		const explored: NumberDictionary<Boolean> = {};
 		const explore = [address];

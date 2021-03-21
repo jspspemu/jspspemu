@@ -4,7 +4,7 @@ import {
     Compensate, CpuBreakException,
     DSet,
     logger,
-    Microtask,
+    Microtask, ProgramExitException,
     PromiseFast,
     sprintf,
     WaitingThreadInfo
@@ -355,13 +355,22 @@ export class ThreadManager {
 			}
 
 			if (runningThreadCount != 0) {
-				this.threads.forEach((thread) => {
-					if (thread.running && (thread.priority == runningPriority)) {
-						// No callbacks?
-						this.callbackManager.executeLaterPendingWithinThread(thread);
-						this.runThreadStep(thread);
-					}
-				});
+                try {
+                    this.threads.forEach((thread) => {
+                        if (thread.running && (thread.priority == runningPriority)) {
+                            // No callbacks?
+                            this.callbackManager.executeLaterPendingWithinThread(thread);
+                            this.runThreadStep(thread);
+                        }
+                    });
+                } catch (e) {
+                    if (ProgramExitException.is(e)) {
+                        console.error("Stopping game due to error", e)
+                        this.exitGame()
+                        return;
+                    }
+                    throw e
+                }
 			}
 			
 			//Microtask.execute(); // causes game to freeze
@@ -387,11 +396,12 @@ export class ThreadManager {
 			//console.log(e);
 			//console.log(e['stack']);
 			//debugger;
-			if (CpuBreakException.is(e)) return;
-			var estack = e['stack'] || e;
-            EmulatorUI.openMessageAsync(estack);
-			thread.stop('error:' + estack);
-			throw (e);
+			if (CpuBreakException.is(e)) return
+            if (ProgramExitException.is(e)) throw e
+			var estack = e['stack'] || e
+            EmulatorUI.openMessageAsync(estack)
+			thread.stop('thread.stop.error:' + estack)
+			throw e
 		}
 	}
 

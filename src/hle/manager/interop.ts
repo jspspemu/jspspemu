@@ -5,7 +5,7 @@ export class Interop {
 	execute(state: CpuState, address: number, gprArray: number[]) {
 		state.preserveRegisters(() => {
 			state.setRA(CpuSpecialAddresses.EXIT_INTERRUPT);
-			for (var n = 0; n < gprArray.length; n++) {
+			for (let n = 0; n < gprArray.length; n++) {
 				state.setGPR(4 + n, gprArray[n]);
 			}
 

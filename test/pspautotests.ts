@@ -6,14 +6,13 @@ import {assert} from "chai"
 export function ref() { } // Workaround to allow typescript to include this module
 
 import {downloadFileAsync} from "../src/global/async";
-import {logger, sprintf} from "../src/global/utils";
+import {logger, LoggerLevel, loggerPolicies, sprintf} from "../src/global/utils";
 import {ArrayUtils} from "../src/global/math";
 import {difflib} from "../src/util/difflib";
 import {Emulator} from "../src/emu/emulator";
 import {MemoryVfs} from "../src/hle/vfs/vfs_memory";
 
-var _console = console;
-var console = logger.named('');
+var mlogger = logger.named('');
 
 describe('pspautotests', function () {
 	this.timeout(5000);
@@ -140,102 +139,122 @@ describe('pspautotests', function () {
 		output = normalizeString(output);
 		expected = normalizeString(expected);
 
-		var outputLines = difflib.stringAsLines(output);
-		var expectedLines = difflib.stringAsLines(expected);
+		if (output == expected) return;
 
-		var equalLines = 0;
-		var totalLines = expectedLines.length;
-		console.groupCollapsed(name + ' (TEST RESULT DIFF)');
+        const outputLines = difflib.stringAsLines(output);
+        const expectedLines = difflib.stringAsLines(expected);
 
-		var opcodes = compareText2(output, expected);
+        let equalLines = 0;
+        const totalLines = expectedLines.length;
+        mlogger.groupCollapsed(name + ' (TEST RESULT DIFF)');
 
-		for (var n = 0; n < opcodes.length; n++) {
-			var opcode = <string>(opcodes[n]);
-			var start1 = <number><any>(opcode[1]), end1 = <number><any>(opcode[2]);
-			var start2 = <number><any>(opcode[3]), end2 = <number><any>(opcode[4]);
-			var length1 = end1 - start1;
-			var length2 = end2 - start2;
-			switch (opcode[0]) {
+        const opcodes = compareText2(output, expected);
+
+        for (let n = 0; n < opcodes.length; n++) {
+            const opcode = <string>(opcodes[n]);
+            const start1 = <number><any>(opcode[1]), end1 = <number><any>(opcode[2]);
+            const start2 = <number><any>(opcode[3]), end2 = <number><any>(opcode[4]);
+            const length1 = end1 - start1;
+            const length2 = end2 - start2;
+            switch (opcode[0]) {
 				case 'equal':
-					var showBegin = (n > 0);
-					var showEnd = (n < opcodes.length - 1);
-					var broke = false;
-					for (var m = start1; m < end1; m++) {
+                    const showBegin = (n > 0);
+                    const showEnd = (n < opcodes.length - 1);
+                    let broke = false;
+                    for (let m = start1; m < end1; m++) {
 						equalLines++;
 						if (!((showBegin && m < start1 + 2) || (showEnd && m > end1 - 2))) {
-							if (!broke) console.log(' ...');
+							if (!broke) mlogger.log(' ...');
 							broke = true;
 							continue;
 						}
-						console.log(sprintf('\u2714%04d %s', m + 1, outputLines[m]));
+						mlogger.log(sprintf('\u2714%04d %s', m + 1, outputLines[m]));
 					}
 					break;
 				case 'delete':
-					for (var m = start1; m < end1; m++) console.warn(sprintf('\u2716%04d %s', m + 1, outputLines[m]));
+					for (let m = start1; m < end1; m++) mlogger.warn(sprintf('\u2716%04d %s', m + 1, outputLines[m]));
 					break;
 				case 'insert':
-					for (var m = start2; m < end2; m++) console.info(sprintf(' %04d %s', m + 1, expectedLines[m]));
+					for (let m = start2; m < end2; m++) mlogger.info(sprintf(' %04d %s', m + 1, expectedLines[m]));
 					break;
 				case 'replace':
 					if (length1 == length2) {
-						for (var m = 0; m < length1; m++) {
-							console.warn(sprintf('\u2716%04d %s', m + start1 + 1, outputLines[m + start1]));
-							console.info(sprintf(' %04d %s', m + start2 + 1, expectedLines[m + start2]));
+						for (let m = 0; m < length1; m++) {
+							mlogger.warn(sprintf('\u2716%04d %s', m + start1 + 1, outputLines[m + start1]));
+							mlogger.info(sprintf(' %04d %s', m + start2 + 1, expectedLines[m + start2]));
 						}
 					} else {
-						for (var m = start1; m < end1; m++) console.warn(sprintf('\u2716%04d %s', m + 1, outputLines[m]));
-						for (var m = start2; m < end2; m++) console.info(sprintf(' %04d %s', m + 1, expectedLines[m]));
+						for (let m = start1; m < end1; m++) mlogger.warn(sprintf('\u2716%04d %s', m + 1, outputLines[m]));
+						for (let m = start2; m < end2; m++) mlogger.info(sprintf(' %04d %s', m + 1, expectedLines[m]));
 					}
 					break;
 			}
-			//console.log(opcode);
+			//mlogger.log(opcode);
 		}
-		var distinctLines = totalLines - equalLines;
+        const distinctLines = totalLines - equalLines;
 
-		var table:any[] = [];
-		for (var n = 0; n < Math.max(outputLines.length, expectedLines.length); n++) {
+        const table: any[] = [];
+        for (let n = 0; n < Math.max(outputLines.length, expectedLines.length); n++) {
 			table[n + 1] = { output: outputLines[n], expected: expectedLines[n] };
 		}
 
-		console.groupEnd();
+		mlogger.groupEnd();
 
-		console.groupCollapsed(name + ' (TEST RESULT TABLE)');
-		if ((<any>console)['table']) {
-			(<any>console)['table'](table);
+		mlogger.groupCollapsed(name + ' (TEST RESULT TABLE)');
+		if ((<any>mlogger)['table']) {
+			(<any>mlogger)['table'](table);
 		} else {
-			for (var n:number = 1; n < table.length; n++) {
+            let totalOut = 0
+            let totalDiff = 0
+			for (let n = 1; n < table.length; n++) {
 				if (table[n].output != table[n].expected) {
-					_console.log('NOT EQUAL:', table[n].output, table[n].expected);
+                    totalDiff++
+                    if (totalOut < 5) {
+                        totalOut++
+                        const out = table[n].output
+                        const exp = table[n].expected
+                        if (out === undefined || out == '') {
+                            console.log('MISSING LINE:', exp);
+                        } else {
+                            console.log('NOT EQUAL:', out, exp);
+                        }
+                    }
 				}
 			}
+		    if (totalDiff > totalOut) {
+		        console.log(` AND ${totalDiff - totalOut} more...`)
+            }
 		}
-		console.groupEnd();
+		mlogger.groupEnd();
 
 
-		assert(output == expected, "Output not expected. " + distinctLines + "/" + totalLines + " lines didn't match. Please check console for details.");
+		assert(output == expected, "Output not expected. " + distinctLines + "/" + totalLines + " lines didn't match. Please check mlogger for details.");
 	}
 
-	var groupCollapsed = false;
+    let groupCollapsed = false;
 
-	tests.forEach((testGroup) => {
+    tests.forEach((testGroup) => {
 		ArrayUtils.keys(testGroup).forEach(testGroupName => {
 			describe(testGroupName, function () {
-				var testNameList:any[] = (<any>testGroup)[testGroupName];
+                const testNameList: any[] = (<any>testGroup)[testGroupName];
+                loggerPolicies.setNameMinLoggerLevel("elf.psp", LoggerLevel.ERROR)
 
-				testNameList.forEach((testName:any) => {
+                testNameList.forEach((testName:any) => {
 					it(testName, function() {
 						this.timeout(15000);
 
-						var emulator = new Emulator();
-						var file_base = './data/pspautotests/tests/' + testGroupName + '/' + testName;
-						var file_prx = file_base + '.prx';
-						//var file_prx = file_base + '.iso';
-						var file_expected = file_base + '.expected';
+                        const emulator = new Emulator();
+                        emulator.interpreted = true
+                        //emulator.interpreted = false
+                        const file_base = './data/pspautotests/tests/' + testGroupName + '/' + testName;
+                        const file_prx = file_base + '.prx';
+                        //var file_prx = file_base + '.iso';
+                        const file_expected = file_base + '.expected';
 
-						if (!groupCollapsed) console.groupEnd();
+                        if (!groupCollapsed) mlogger.groupEnd();
 						groupCollapsed = false;
 
-						console.groupCollapsed('' + testName);
+						mlogger.groupCollapsed('' + testName);
 
 						return downloadFileAsync(file_prx).then((data_prx) => {
 							return downloadFileAsync(file_expected).then((data_expected) => {
@@ -249,7 +268,7 @@ describe('pspautotests', function () {
 									emulator.fileManager.mount('umd0', mount);
 								}).then(() => {
 									groupCollapsed = true;
-									console.groupEnd();
+									mlogger.groupEnd();
 									compareOutput(testName, emulator.emulatorVfs.output, string_expected);
 									if (emulator.emulatorVfs.screenshot != null) {
 										throw(new Error("Not implemented screenshot comparison"));
@@ -257,8 +276,8 @@ describe('pspautotests', function () {
 								});
 							});
 						}, (err) => {
-							_console.log(file_prx);
-							_console.error(err);
+							console.log(file_prx);
+							console.error(err);
 							assert.fail(err);
 							return err;
 						});

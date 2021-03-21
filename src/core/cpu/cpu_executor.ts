@@ -33,7 +33,8 @@ export class CpuExecutor {
                 state.getFunction(state.PC).execute(state);
             }
         } catch (e) {
-            if (!CpuBreakException.is(e)) throw e;
+            if (CpuBreakException.is(e)) return;
+            throw e;
         }
     }
 }
