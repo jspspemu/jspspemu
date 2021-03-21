@@ -230,7 +230,7 @@ describe('pspautotests', function () {
 		mlogger.groupEnd();
 
 
-		assert(output == expected, "Output not expected. " + distinctLines + "/" + totalLines + " lines didn't match. Please check mlogger for details.");
+		assert.isTrue(output == expected, "Output not expected. " + distinctLines + "/" + totalLines + " lines didn't match. Please check mlogger for details.");
 	}
 
     let groupCollapsed = false;
@@ -242,7 +242,7 @@ describe('pspautotests', function () {
                 loggerPolicies.setNameMinLoggerLevel("elf.psp", LoggerLevel.ERROR)
 
                 testNameList.forEach((testName:any) => {
-					it(testName, function() {
+					it(testName, async () => {
 						// noinspection JSPotentiallyInvalidUsageOfThis
                         this.timeout(15000);
 
@@ -259,29 +259,31 @@ describe('pspautotests', function () {
 
 						//mlogger.groupCollapsed('' + testName);
 
-						return downloadFileAsync(file_prx).then((data_prx) => {
-							return downloadFileAsync(file_expected).then((data_expected) => {
-                                const string_expected = Stream.fromArrayBuffer(data_expected).readString(data_expected.byteLength);
+                        try {
+                            const data_prx = await downloadFileAsync(file_prx)
+                            const data_expected = await downloadFileAsync(file_expected)
 
-                                return emulator.loadExecuteAndWaitAsync(MemoryAsyncStream.fromArrayBuffer(data_prx), file_prx, () => {
-                                    const mount = new MemoryVfs();
-                                    emulator.fileManager.mount('disc0', mount);
-									emulator.fileManager.mount('umd0', mount);
-								}).then(() => {
-									groupCollapsed = true;
-									//mlogger.groupEnd();
-									compareOutput(testName, emulator.emulatorVfs.output, string_expected);
-									if (emulator.emulatorVfs.screenshot != null) {
-										throw(new Error("Not implemented screenshot comparison"));
-									}
-								});
-							});
-						}, (err) => {
+                            const string_expected = Stream.fromArrayBuffer(data_expected).readString(data_expected.byteLength);
+
+                            await emulator.loadExecuteAndWaitAsync(MemoryAsyncStream.fromArrayBuffer(data_prx), file_prx, () => {
+                                const mount = new MemoryVfs();
+                                emulator.fileManager.mount('disc0', mount);
+                                emulator.fileManager.mount('umd0', mount);
+                            })
+
+                            groupCollapsed = true;
+                            //mlogger.groupEnd();
+                            compareOutput(testName, emulator.emulatorVfs.output, string_expected);
+                        } catch (err) {
 							console.log(file_prx);
 							console.error(err);
 							assert.fail(err);
 							return err;
-						});
+						}
+
+                        if (emulator.emulatorVfs.screenshot != null) {
+                            throw new Error("Not implemented screenshot comparison")
+                        }
 					});
 				});
 			});
