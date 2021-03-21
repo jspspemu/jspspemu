@@ -4,6 +4,7 @@ import {addressToHex, sprintf, StringDictionary} from "../../global/utils";
 import {Instructions} from "./cpu_instructions";
 import {Memory} from "../memory";
 import {Instruction} from "./cpu_instruction";
+import {parseIntFormat} from "../../global/math";
 
 class Labels {
 	public labels: StringDictionary<number> = {};
@@ -125,12 +126,7 @@ export class MipsAssembler {
 		throw ('Invalid register "' + name + '"');
 	}
 
-	private decodeInteger(str: string) {
-		str = str.replace(/_/g, '');
-		if (str.substr(0, 2) == '0b') return parseInt(str.substr(2), 2);
-		if (str.substr(0, 2) == '0x') return parseInt(str.substr(2), 16);
-		return parseInt(str, 10);
-	}
+	private decodeInteger(str: string) { return parseIntFormat(str) }
 
 	private update(instruction: Instruction, type: string, value: string, labels: Labels) {
 		switch (type) {
