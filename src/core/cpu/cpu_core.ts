@@ -1386,6 +1386,7 @@ export class FunctionGenerator {
 		const explore = [address];
 		const info: FunctionInfo = { start: address, min: address, max: address, labels: {} };
 		const MAX_EXPLORE = 20000;
+        //const MAX_EXPLORE = 50000;
 		var exploredCount = 0;
 
 		function addToExplore(pc: number) {

@@ -711,4 +711,5 @@ export function xrange(start: number, end: number) {
 
 // @TODO: This is required for the CPU dynamic recompilation
 (window as any).MathFloat = MathFloat;
+(window as any).MathVfpu = MathVfpu;
 (window as any).BitUtils = BitUtils;
