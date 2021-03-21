@@ -22,7 +22,8 @@ describe('pspautotests', function () {
 		//{ "audio/mp3": ["mp3test"] },
 		//{ "audio/sascore": ["adsrcurve", "getheight", "keyoff", "keyon", "noise", "outputmode", "pause", "pcm", "pitch", "sascore", "setadsr", "vag"] },
 		//{ "audio/sceaudio": ["datalen", "output", "reserve"] },
-		{ "cpu/cpu_alu": ["cpu_alu", "cpu_branch"] },
+        { "cpu/cpu_alu": ["cpu_alu"] },
+		//{ "cpu/cpu_alu": ["cpu_alu", "cpu_branch"] },
 		//{ "cpu/fpu": ["fpu"] },
 		//{ "cpu/fpu": ["fcr", "fpu"] },
 		{ "cpu/icache": ["icache"] },
@@ -246,7 +247,7 @@ describe('pspautotests', function () {
                         const emulator = new Emulator();
                         //emulator.interpreted = true
                         emulator.interpreted = false
-                        const file_base = './data/pspautotests/tests/' + testGroupName + '/' + testName;
+                        const file_base = `./data/pspautotests/tests/${testGroupName}/${testName}`;
                         const file_prx = file_base + '.prx';
                         //var file_prx = file_base + '.iso';
                         const file_expected = file_base + '.expected';
@@ -254,21 +255,19 @@ describe('pspautotests', function () {
                         if (!groupCollapsed) mlogger.groupEnd();
 						groupCollapsed = false;
 
-						mlogger.groupCollapsed('' + testName);
+						//mlogger.groupCollapsed('' + testName);
 
 						return downloadFileAsync(file_prx).then((data_prx) => {
 							return downloadFileAsync(file_expected).then((data_expected) => {
+                                const string_expected = Stream.fromArrayBuffer(data_expected).readString(data_expected.byteLength);
 
-
-								var string_expected = Stream.fromArrayBuffer(data_expected).readString(data_expected.byteLength);
-
-								return emulator.loadExecuteAndWaitAsync(MemoryAsyncStream.fromArrayBuffer(data_prx), file_prx, () => {
-									var mount = new MemoryVfs();
-									emulator.fileManager.mount('disc0', mount);
+                                return emulator.loadExecuteAndWaitAsync(MemoryAsyncStream.fromArrayBuffer(data_prx), file_prx, () => {
+                                    const mount = new MemoryVfs();
+                                    emulator.fileManager.mount('disc0', mount);
 									emulator.fileManager.mount('umd0', mount);
 								}).then(() => {
 									groupCollapsed = true;
-									mlogger.groupEnd();
+									//mlogger.groupEnd();
 									compareOutput(testName, emulator.emulatorVfs.output, string_expected);
 									if (emulator.emulatorVfs.screenshot != null) {
 										throw(new Error("Not implemented screenshot comparison"));

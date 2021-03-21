@@ -13,5 +13,7 @@ jobs:
         run: yarn install
       - name: Build
         run: yarn build
-      - name: Test
+      - name: Unit Test
         run: yarn test
+      - name: Integration Test
+        run: yarn integration_test
