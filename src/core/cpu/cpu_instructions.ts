@@ -548,8 +548,10 @@ export class Instructions {
 
 	private fastFindByData(i32: number, pc: number = 0) {
 		if (!this.decoder) {
-			var switchCode = DecodingTable.createSwitch(this.instructionTypeList);
-			this.decoder = <any>(new Function('instructionsByName', 'value', 'pc', '"use strict";' + switchCode));
+            const switchCode = DecodingTable.createSwitch(this.instructionTypeList, iname =>
+                `instructionsByName[${JSON.stringify(iname)}]`
+            );
+            this.decoder = <any>(new Function('instructionsByName', 'value', 'pc', '"use strict";' + switchCode));
 		}
 		return this.decoder(this.instructionTypeListByName, i32, pc);
 		/*
@@ -575,21 +577,21 @@ export class Instructions {
 
 export const CpuInstructions = Instructions
 
-class DecodingTable {
+export class DecodingTable {
 	private lastId = 0;
 
 	private getCommonMask(instructions: InstructionType[], baseMask: number = 0xFFFFFFFF) {
 		return instructions.reduce<number>((left, item) => left & item.vm.mask, baseMask);
 	}
 
-	static createSwitch(instructions: InstructionType[]) {
+	static createSwitch(instructions: InstructionType[], gen: (name: string) => string) {
 		var writer = new IndentStringGenerator();
 		var decodingTable = new DecodingTable();
-		decodingTable._createSwitch(writer, instructions);
+		decodingTable._createSwitch(writer, instructions, gen);
 		return writer.output;
 	}
 
-	private _createSwitch(writer: IndentStringGenerator, instructions: InstructionType[], baseMask: number = 0xFFFFFFFF, level: number = 0) {
+	private _createSwitch(writer: IndentStringGenerator, instructions: InstructionType[], gen: (name: string) => string, baseMask: number = 0xFFFFFFFF, level: number = 0) {
 		if (level >= 10) throw ('ERROR: Recursive detection');
 		var commonMask = this.getCommonMask(instructions, baseMask);
 		var groups: NumberDictionary<InstructionType[]> = {};
@@ -601,15 +603,15 @@ class DecodingTable {
 
 		writer.write('switch ((value & ' + sprintf('0x%08X', commonMask) + ') >>> 0) {\n');
 		writer.indent(() => {
-			for (var groupKey in groups) {
-				var group = groups[groupKey];
-				writer.write('case ' + sprintf('0x%08X', groupKey) + ':');
+			for (const groupKey in groups) {
+                const group = groups[groupKey];
+                writer.write('case ' + sprintf('0x%08X', groupKey) + ':');
 				writer.indent(() => {
 					if (group.length == 1) {
-						writer.write(' return instructionsByName[' + JSON.stringify(group[0].name) + '];');
+					    writer.write(` return ${gen(group[0].name)};`)
 					} else {
 						writer.write('\n');
-						this._createSwitch(writer, group, ~commonMask, level + 1);
+						this._createSwitch(writer, group, gen, ~commonMask, level + 1);
 						writer.write('break;\n');
 					}
 				});

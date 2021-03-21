@@ -368,9 +368,9 @@ class FastMemory extends Memory {
 	private u32: Uint32Array;
 	private f32: Float32Array;
 
-	constructor() {
+	constructor(size: number = 0x0a000000 + 4) {
 		super();
-		this.buffer = new ArrayBuffer(0x0a000000 + 4);
+		this.buffer = new ArrayBuffer(size);
 		this.s8 = new Int8Array(this.buffer);
 		this.u8 = new Uint8Array(this.buffer);
 		this.u16 = new Uint16Array(this.buffer);
@@ -501,6 +501,12 @@ class LowMemory extends Memory {
 	availableAfterAddress(address: number): number {
 		return this.getMemRange(address).availableAfterAddress(address);
 	}
+}
+
+export class TestMemory extends FastMemory {
+    constructor(size: number) {
+        super(size);
+    }
 }
 
 declare var process: any;

@@ -28,4 +28,5 @@ import './gpuTest';
 import './instructionTest';
 import './hle/elfTest';
 import './promisetest';
+import './cpu/cpu_interpreterTest';
 //import './pspautotests';
