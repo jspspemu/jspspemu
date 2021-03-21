@@ -145,5 +145,6 @@ export class FileManager {
 
 	mount(device: string, vfs: Vfs) {
 		this.devices[device] = new Device(device, vfs);
+		return this
 	}
 }

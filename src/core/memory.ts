@@ -30,7 +30,7 @@ const SWL_SHIFT = new Uint32Array([24, 16, 8, 0]);
 const SWR_MASK = new Uint32Array([0x00000000, 0x000000FF, 0x0000FFFF, 0x00FFFFFF]);
 const SWR_SHIFT = new Uint32Array([0, 8, 16, 24]);
 
-export class Memory {
+export abstract class Memory {
 	lwl(address: number, value: number) {
 		var align = address & 3;
 		var oldvalue = this.lw(address & ~3);
@@ -129,14 +129,14 @@ export class Memory {
 	}
 	
 	slice(low: number, high: number) {
-		var buffer = this.getBuffer(low), offset = this.getOffsetInBuffer(low);
-		return new Uint8Array(buffer, offset, high - low);
+        const buffer = this.getBuffer(low), offset = this.getOffsetInBuffer(low);
+        return new Uint8Array(buffer, offset, high - low);
 	}
 
 	getPointerU8Array(address: number, size?: number) {
 		if (!size) size = this.availableAfterAddress(address);
-		var buffer = this.getBuffer(address), offset = this.getOffsetInBuffer(address);
-		return new Uint8Array(buffer, offset, size);
+        const buffer = this.getBuffer(address), offset = this.getOffsetInBuffer(address);
+        return new Uint8Array(buffer, offset, size);
 	}
 
 	getPointerU16Array(address: number, size?: number) {
@@ -255,9 +255,7 @@ export class Memory {
 		return new Stream(this.getPointerDataView(address, size));
 	}
 
-	reset() {
-		this.memset(FastMemory.DEFAULT_FRAME_ADDRESS, 0, 0x200000);
-	}
+	abstract reset(): this
 
 	copy(from: number, to: number, length: number) {
 		if (length <= 0) return;
@@ -268,14 +266,11 @@ export class Memory {
 
 	memset(address: number, value: number, length: number) {
 		let buffer = this.getPointerU8Array(address, length);
+        let value8 = value & 0xFF;
 		if (typeof buffer.fill != 'undefined') {
-			buffer.fill(value);
+			buffer.fill(value8);
 		} else {
-			let value8 = value & 0xFF;
-			//let value16 = value8 | (value8 << 8);
-			//let value32 = value16 | (value16 << 8);
-			// @TODO: Improve performance writing 32-bit values
-			for (var n = 0; n < buffer.length; n++) buffer[n] = value8;
+			for (let n = 0; n < buffer.length; n++) buffer[n] = value8;
 		}
 		//this._checkWriteBreakpoints(address, address + length);
 	}
@@ -380,7 +375,12 @@ class FastMemory extends Memory {
 		this.f32 = new Float32Array(this.buffer);
 	}
 
-	sb(address: number, value: number) { this.u8[(address & MASK) >> 0] = value; }
+	reset() {
+	    this.s8.fill(0)
+        return this
+    }
+
+    sb(address: number, value: number) { this.u8[(address & MASK) >> 0] = value; }
 	sh(address: number, value: number) { this.u16[(address & MASK) >> 1] = value; }
 	sw(address: number, value: number) { this.u32[(address & MASK) >> 2] = value; }
 	swc1(address: number, value: number) { this.f32[(address & MASK) >> 2] = value; }
@@ -468,14 +468,21 @@ class LowMemory extends Memory {
 		//this.mainmem = new LowMemorySegment('mainmem', 0x08000000, new ArrayBuffer(64 * 1024 * 1024));
 	}
 
-	getMemRange(address: number): LowMemorySegment | null {
+    reset() {
+	    this.scratchpad.u8.fill(0)
+        this.videomem.u8.fill(0)
+        this.mainmem.u8.fill(0)
+        return this
+    }
+
+    getMemRange(address: number): LowMemorySegment | null {
 		address &= MASK;
 		if (address >= 0x08000000) {
 			return this.mainmem;
 		} else {
+            if (this.mainmem.contains(address)) return this.mainmem;
+            if (this.videomem.contains(address)) return this.videomem;
 			if (this.scratchpad.contains(address)) return this.scratchpad;
-			if (this.videomem.contains(address)) return this.videomem;
-			if (this.mainmem.contains(address)) return this.mainmem;
 			// 02203738
 			printf("Unmapped: %08X", address);
 			return null;
@@ -541,4 +548,8 @@ let _instance: Memory | null = null;
 export function getMemoryInstance() {
 	if (_instance == null) _instance = create();
 	return _instance;
+}
+
+export function getMemoryInstanceReset() {
+    return getMemoryInstance().reset()
 }

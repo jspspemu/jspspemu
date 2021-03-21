@@ -23,7 +23,7 @@ export class NetManager {
 
 	connectOnce() {
 		if (this.ws) return;
-		this.ws = new WebSocket('ws://' + location.host + '/adhoc', 'adhoc');
+		this.ws = new WebSocket(`ws://${location.host}/adhoc`, 'adhoc');
 
 		this.ws.onopen = (e) => {
 		};
@@ -36,8 +36,8 @@ export class NetManager {
 			}, 5000);
 		};
 		this.ws.onmessage = (e) => {
-			var info = JSON.parse(e.data);
-			if (info.from == 'ff:ff:ff:ff:ff:ff') {
+            const info = JSON.parse(e.data);
+            if (info.from == 'ff:ff:ff:ff:ff:ff') {
 				console.info('NetManager: from_server:', info);
 				switch (info.type) {
 					case 'setid':
@@ -47,13 +47,13 @@ export class NetManager {
 						break;
 				}
 			} else {
-				var packet = {
-					port: info.port,
-					type: info.type,
-					mac: string2mac(info.from),
-					payload: Stream.fromBase64(info.payload).toUInt8Array(),
-				};
-				//console.info('NetManager: from_user:', { port: info.port, type: info.type, mac: info.from, payload: Stream.fromBase64(info.payload).toStringAll() });
+                const packet = {
+                    port: info.port,
+                    type: info.type,
+                    mac: string2mac(info.from),
+                    payload: Stream.fromBase64(info.payload).toUInt8Array(),
+                };
+                //console.info('NetManager: from_user:', { port: info.port, type: info.type, mac: info.from, payload: Stream.fromBase64(info.payload).toStringAll() });
 				this.onmessage(info.port).dispatch(packet);
 			}
 		};

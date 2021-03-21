@@ -1095,7 +1095,7 @@ export interface Thenable<T> {
 }
 
 // Note that this class is used since Promise.then is not executed immediately and that could lead to performance issues on critical paths
-export class PromiseFast<T> implements Thenable<T> {
+export class PromiseFast<T> implements Thenable<T>, PromiseLike<T> {
     promise(): Promise<T> {
         return new Promise<T>((resolve, reject) => {
             this.then(resolve, reject)

@@ -7,6 +7,7 @@ export class MountableVfs extends Vfs {
 
 	mountVfs(path: string, vfs: Vfs) {
 		this.mounts.unshift(new MountableEntry(this.normalizePath(path), vfs, null as any));
+		return this
 	}
 
 	mountFileData(path: string, data: ArrayBuffer) {
