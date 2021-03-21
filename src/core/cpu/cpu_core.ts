@@ -9,7 +9,7 @@ import {
     StringDictionary,
     throwEndCycles
 } from "../../global/utils";
-import {BitUtils, MathFloat, MathUtils} from "../../global/math";
+import {BitUtils, MathFloat, MathUtils, MathVfpu} from "../../global/math";
 import {compareNumbers} from "../../global/array";
 import {Integer64} from "../../global/int64";
 import {Memory} from "../memory";
@@ -381,6 +381,22 @@ export class CpuState extends Instruction {
 		this.vpfxd.storeTransformedValues(this.vfpr_i, indices, values);
 		this.vpfxd.eat();
 	}
+
+    vqmul0(s0:number, s1:number, s2:number, s3:number, t0:number, t1:number, t2:number, t3:number) { return MathVfpu.vqmul0(s0, s1, s2, s3, t0, t1, t2, t3); }
+    vqmul1(s0:number, s1:number, s2:number, s3:number, t0:number, t1:number, t2:number, t3:number) { return MathVfpu.vqmul1(s0, s1, s2, s3, t0, t1, t2, t3); }
+    vqmul2(s0:number, s1:number, s2:number, s3:number, t0:number, t1:number, t2:number, t3:number) { return MathVfpu.vqmul2(s0, s1, s2, s3, t0, t1, t2, t3); }
+    vqmul3(s0:number, s1:number, s2:number, s3:number, t0:number, t1:number, t2:number, t3:number) { return MathVfpu.vqmul3(s0, s1, s2, s3, t0, t1, t2, t3); }
+    vi2uc(x: number, y: number, z: number, w: number) { return MathVfpu.vi2uc(x, y, z, w) }
+    vc2i(index: number, value: number) { return MathVfpu.vc2i(index, value) }
+    vuc2i(index: number, value: number) { return MathVfpu.vuc2i(index, value) }
+    vs2i(index: number, value: number) { return MathVfpu.vs2i(index, value) }
+    vi2f(value: number, count: number) { return MathVfpu.vi2f(value, count) }
+    vf2id(value: number, count: number) { return MathVfpu.vf2id(value, count) }
+    vf2in(value: number, count: number) { return MathVfpu.vf2in(value, count) }
+    vf2iu(value: number, count: number) { return MathVfpu.vf2iu(value, count) }
+    vf2iz(value: number, count: number) { return MathVfpu.vf2iz(value, count) }
+    vf2h() { debugger; return 0; }
+    vh2f() { debugger; return 0; }
 
 	_vt4444_step(i0: number, i1: number) {
 		var o = 0;

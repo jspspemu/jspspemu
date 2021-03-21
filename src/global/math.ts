@@ -370,30 +370,12 @@ export class BitUtils {
 		return v;
 	}
 
-	static rotr(value: number, offset: number) {
-		return (value >>> offset) | (value << (32 - offset));
-	}
-
-	static clo(x: number) {
-		return Math['clz32'](~x);
-	}
-
-	static clz(x: number) {
-		return Math['clz32'](x);
-	}
-
-	static seb(x: number) {
-		return (x << 24) >> 24;
-	}
-
-	static seh(x: number) {
-		return (x << 16) >> 16;
-	}
-
-	static wsbh(v: number) {
-		return ((v & 0xFF00FF00) >>> 8) | ((v & 0x00FF00FF) << 8);
-	}
-
+	static rotr(value: number, offset: number) { return (value >>> offset) | (value << (32 - offset)); }
+	static clo(x: number) { return Math.clz32(~x) }
+	static clz(x: number) { return Math.clz32(x) }
+	static seb(x: number) { return (x << 24) >> 24 }
+	static seh(x: number) { return (x << 16) >> 16 }
+	static wsbh(v: number) { return ((v & 0xFF00FF00) >>> 8) | ((v & 0x00FF00FF) << 8) }
 	static wsbw(v: number) {
 		return (
 			((v & 0xFF000000) >>> 24) |
@@ -412,10 +394,10 @@ export class BitUtils {
 	}
 
 	static extractSigned(data: number, offset: number, length: number) {
-		var mask = this.mask(length);
-		var value = this.extract(data, offset, length);
-		var signBit = (1 << (offset + (length - 1)));
-		if ((value & signBit) != 0) value |= ~mask;
+        const mask = this.mask(length);
+        const signBit = (1 << (offset + (length - 1)));
+        let value = this.extract(data, offset, length);
+        if ((value & signBit) != 0) value |= ~mask;
 		return value;
 	}
 
@@ -489,16 +471,16 @@ export class MathVfpu {
 		return MathFloat.ceil(MathFloat.scalb(value, count));
 	}
 	static vf2iz(Value: number, count: number) {
-		var ScalabValue = MathFloat.scalb(Value, count);
-		var DoubleValue = (Value >= 0) ? MathFloat.floor(ScalabValue) : MathFloat.ceil(ScalabValue);
-		return isNaN(DoubleValue) ? 0x7FFFFFFF : DoubleValue;
+        const ScalabValue = MathFloat.scalb(Value, count);
+        const DoubleValue = (Value >= 0) ? MathFloat.floor(ScalabValue) : MathFloat.ceil(ScalabValue);
+        return isNaN(DoubleValue) ? 0x7FFFFFFF : DoubleValue;
 	}
 	static vf2h() {
-		//debugger;
+		debugger;
 		return 0;
 	}
 	static vh2f() {
-		//debugger;
+		debugger;
 		return 0;
 	}
 }
@@ -595,62 +577,62 @@ export class MathFloat {
 }
 
 export function handleCastInfinite(value: number) {
-	return (value < 0) ? -2147483648 : 2147483647;
+	return (value < 0) ? -2147483648 : 2147483647
 }
 
 export function compare<T>(a: T, b: T): number {
-	if (a < b) return -1;
-	if (a > b) return +1;
-	return 0;
+	if (a < b) return -1
+	if (a > b) return +1
+	return 0
 }
 
 export function parseIntFormat(str: string) {
-	str = str.replace(/_/g, '');
-	if (str.substr(0, 2) == '0b') return parseInt(str.substr(2), 2);
-	if (str.substr(0, 2) == '0x') return parseInt(str.substr(2), 16);
-	return parseInt(str, 10);
+	str = str.replace(/_/g, '')
+	if (str.substr(0, 2) == '0b') return parseInt(str.substr(2), 2)
+	if (str.substr(0, 2) == '0x') return parseInt(str.substr(2), 16)
+	return parseInt(str, 10)
 }
 
 export class MathUtils {
 	static sextend16(value: number) {
-		return (((value & 0xFFFF) << 16) >> 16);
+		return (((value & 0xFFFF) << 16) >> 16)
 		//value >>= 0; if (value & 0x8000) return value | 0xFFFF0000; else return value;
 	}
 	
 	static interpolate(a:number, b:number, ratio:number) {
-		return a * (1 - ratio) + b * ratio; 
+		return a * (1 - ratio) + b * ratio
 	}
 
 	static prevAligned(value: number, alignment: number) {
-		return Math.floor(value / alignment) * alignment;
+		return Math.floor(value / alignment) * alignment
 	}
 
 	static isAlignedTo(value: number, alignment: number) {
-		return (value % alignment) == 0;
+		return (value % alignment) == 0
 	}
 
 	static requiredBlocks(size: number, blockSize: number) {
 		if ((size % blockSize) != 0) {
-			return (size / blockSize) + 1;
+			return (size / blockSize) + 1
 		}
 		else {
-			return size / blockSize;
+			return size / blockSize
 		}
 	}
 
 	static isPowerOfTwo(x: number) {
-		return (x != 0) && ((x & (x - 1)) == 0);
+		return (x != 0) && ((x & (x - 1)) == 0)
 	}
 
 	static nextAligned(value: number, alignment: number) {
-		if (alignment <= 1) return value;
-		return value + ((alignment - (value % alignment)) % alignment);
+		if (alignment <= 1) return value
+		return value + ((alignment - (value % alignment)) % alignment)
 	}
 	
 	static clamp01(v: number) {
-		if (v < 0.0) return 0.0;
-		if (v > 1.0) return 1.0;
-		return v;
+		if (v < 0.0) return 0.0
+		if (v > 1.0) return 1.0
+		return v
 	}
 
 	static clamp(v: number, min: number, max: number) {
@@ -662,8 +644,8 @@ export class MathUtils {
 
 export class IntUtils {
 	static toHexString(value: number, padCount: number) {
-		var str = (value >>> 0).toString(16);
-		while (str.length < padCount) str = '0' + str;
+        let str = (value >>> 0).toString(16);
+        while (str.length < padCount) str = '0' + str;
 		return str;
 	}
 }
@@ -711,5 +693,4 @@ export function xrange(start: number, end: number) {
 
 // @TODO: This is required for the CPU dynamic recompilation
 (window as any).MathFloat = MathFloat;
-(window as any).MathVfpu = MathVfpu;
 (window as any).BitUtils = BitUtils;

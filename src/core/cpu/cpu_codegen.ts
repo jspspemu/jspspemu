@@ -703,18 +703,17 @@ export class InstructionAst {
 		}, 3, 3, 3);
 	}
 
-	vc2i(i: Instruction) { return this._vset2(i, (index, src) => call('MathVfpu.vc2i', [imm32(index), src[0]]), 0, 1, 'int', 'int'); }
-	vuc2i(i: Instruction) { return this._vset2(i, (index, src) => call('MathVfpu.vuc2i', [imm32(index), src[0]]), 0, 1, 'int', 'int'); }
-	vs2i(i: Instruction) { return this._vset2(i, (index, src) => call('MathVfpu.vs2i', [imm32(index), src[Math.floor(index / 2)]]), i.ONE_TWO * 2, i.ONE_TWO, 'int', 'int'); }
-	vi2f(i: Instruction) { return this._vset2(i, (index, src) => call('MathVfpu.vi2f', [src[index], imm32(-i.IMM5)]), 0, 0, 'float', 'int'); }
-	vi2uc(i: Instruction) { return this._vset2(i, (index, src) => call('MathVfpu.vi2uc', [src[0], src[1], src[2], src[3]]), 1, 4, 'int', 'int'); }
-	vf2id(i: Instruction) { return this._vset2(i, (index, src) => call('MathVfpu.vf2id', [src[index], imm32(i.IMM5)]), 0, 0, 'int', 'float'); }
-	vf2in(i: Instruction) { return this._vset2(i, (index, src) => call('MathVfpu.vf2in', [src[index], imm32(i.IMM5)]), 0, 0, 'int', 'float'); }
-	vf2iu(i: Instruction) { return this._vset2(i, (index, src) => call('MathVfpu.vf2iu', [src[index], imm32(i.IMM5)]), 0, 0, 'int', 'float'); }
-	vf2iz(i: Instruction) { return this._vset2(i, (index, src) => call('MathVfpu.vf2iz', [src[index], imm32(i.IMM5)]), 0, 0, 'int', 'float'); }
-
-	vf2h(i: Instruction) { return this._vset2(i, (index, src) => call('MathVfpu.vf2h', [imm32(index), src[index]]), 0, 0, 'float', 'float'); }
-	vh2f(i: Instruction) { return this._vset2(i, (index, src) => call('MathVfpu.vh2f', [imm32(index), src[index]]), 0, 0, 'float', 'float'); }
+	vc2i(i: Instruction) { return this._vset2(i, (index, src) => call('state.vc2i', [imm32(index), src[0]]), 0, 1, 'int', 'int'); }
+	vuc2i(i: Instruction) { return this._vset2(i, (index, src) => call('state.vuc2i', [imm32(index), src[0]]), 0, 1, 'int', 'int'); }
+	vs2i(i: Instruction) { return this._vset2(i, (index, src) => call('state.vs2i', [imm32(index), src[Math.floor(index / 2)]]), i.ONE_TWO * 2, i.ONE_TWO, 'int', 'int'); }
+	vi2f(i: Instruction) { return this._vset2(i, (index, src) => call('state.vi2f', [src[index], imm32(-i.IMM5)]), 0, 0, 'float', 'int'); }
+	vi2uc(i: Instruction) { return this._vset2(i, (index, src) => call('state.vi2uc', [src[0], src[1], src[2], src[3]]), 1, 4, 'int', 'int'); }
+	vf2id(i: Instruction) { return this._vset2(i, (index, src) => call('state.vf2id', [src[index], imm32(i.IMM5)]), 0, 0, 'int', 'float'); }
+	vf2in(i: Instruction) { return this._vset2(i, (index, src) => call('state.vf2in', [src[index], imm32(i.IMM5)]), 0, 0, 'int', 'float'); }
+	vf2iu(i: Instruction) { return this._vset2(i, (index, src) => call('state.vf2iu', [src[index], imm32(i.IMM5)]), 0, 0, 'int', 'float'); }
+	vf2iz(i: Instruction) { return this._vset2(i, (index, src) => call('state.vf2iz', [src[index], imm32(i.IMM5)]), 0, 0, 'int', 'float'); }
+	vf2h(i: Instruction) { return this._vset2(i, (index, src) => call('state.vf2h', [imm32(index), src[index]]), 0, 0, 'float', 'float'); }
+	vh2f(i: Instruction) { return this._vset2(i, (index, src) => call('state.vh2f', [imm32(index), src[index]]), 0, 0, 'float', 'float'); }
 
 	vdet(i: Instruction) {
 		return this._vset3(i, (i, s, t) => {
@@ -725,10 +724,10 @@ export class InstructionAst {
 	vqmul(i: Instruction) {
 		return this._vset3(i, (i, s, t) => {
 			switch (i) {
-				case 0: return call('MathVfpu.vqmul0', [s[0], s[1], s[2], s[3], t[0], t[1], t[2], t[3]]);
-				case 1: return call('MathVfpu.vqmul1', [s[0], s[1], s[2], s[3], t[0], t[1], t[2], t[3]]);
-				case 2: return call('MathVfpu.vqmul2', [s[0], s[1], s[2], s[3], t[0], t[1], t[2], t[3]]);
-				case 3: return call('MathVfpu.vqmul3', [s[0], s[1], s[2], s[3], t[0], t[1], t[2], t[3]]);
+				case 0: return call('state.vqmul0', [s[0], s[1], s[2], s[3], t[0], t[1], t[2], t[3]]);
+				case 1: return call('state.vqmul1', [s[0], s[1], s[2], s[3], t[0], t[1], t[2], t[3]]);
+				case 2: return call('state.vqmul2', [s[0], s[1], s[2], s[3], t[0], t[1], t[2], t[3]]);
+				case 3: return call('state.vqmul3', [s[0], s[1], s[2], s[3], t[0], t[1], t[2], t[3]]);
 			}
 		}, 4, 4, 4);
 	}
