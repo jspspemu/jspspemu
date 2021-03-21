@@ -41,8 +41,8 @@ export class Html5Gamepad extends PspControllerContributor {
         if (!firstGamePad) return undefined
         const buttons = firstGamePad.buttons
         const axes = firstGamePad.axes
-        this.data.x = axes[0]
-        this.data.y = axes[1]
+        this.data.x = MathUtils.transformRange(axes[0], -0.6, +0.6, -1, +1)
+        this.data.y = MathUtils.transformRange(axes[1], -0.6, +0.6, -1, +1)
         this.data.buttons = PspCtrlButtons.none
         for (let n = 0; n < 16; n++) {
             this.data.buttons = BitUtils.withMask(this.data.buttons, gamepadButtonMapping[n], this.checkButton(buttons[n]))
