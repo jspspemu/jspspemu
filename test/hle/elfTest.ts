@@ -24,15 +24,15 @@ describe('elf', () => {
 
     it('load', () => {
         //var stream = Stream.fromBase64(minifireElfBase64);
-		var memory = getMemoryInstance();
-		var memoryManager = new MemoryManager();
-        var display = new DummyPspDisplay();
-        var syscallManager = new SyscallManager(context);
-        var context = new EmulatorContext();
-		var moduleManager = new ModuleManager(context);
-		registerModulesAndSyscalls(syscallManager, moduleManager);
+        const memory = getMemoryInstance();
+        const memoryManager = new MemoryManager();
+        const display = new DummyPspDisplay();
+        const context = new EmulatorContext();
+        const syscallManager = new SyscallManager(context);
+        const moduleManager = new ModuleManager(context);
+        registerModulesAndSyscalls(syscallManager, moduleManager);
 
-		context.init(null, display, null, null, memoryManager, null, null, memory, null, null, null, null, null, null, null, null);
+		context.init(null as any, display, null as any, null as any, memoryManager, null as any, null as any, memory, null as any, null as any, null as any, null as any, null as any, null as any, null as any, null as any);
 
         var elf = new PspElfLoader(memory, memoryManager, moduleManager, syscallManager);
         elf.load(stream);

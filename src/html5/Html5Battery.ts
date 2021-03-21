@@ -13,8 +13,8 @@ export interface BatteryManager {
 }
 
 export class Html5Battery {
-    static instance: Html5Battery = null;
-    private static promise: PromiseFast<Html5Battery> = null;
+    static instance: Html5Battery = null as any;
+    private static promise: PromiseFast<Html5Battery> = null as any;
 
     constructor(private manager: BatteryManager) {
         Html5Battery.instance = this;
@@ -46,7 +46,7 @@ export class Html5Battery {
                 return new Html5Battery(v);
             });
         }
-        return PromiseFast.resolve(new Html5Battery(null));
+        return PromiseFast.resolve(new Html5Battery(null as any));
     }
 
     static registerAndSetCallback(callback: (bi: BatteryInfo) => void) {

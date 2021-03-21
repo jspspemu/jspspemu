@@ -1,4 +1,4 @@
-import {ProgramExitException, UidCollection} from "../../../global/utils";
+import {NumberDictionary, ProgramExitException, UidCollection} from "../../../global/utils";
 import {Stream} from "../../../global/stream";
 import {SceKernelErrors} from "../../SceKernelErrors";
 import {EmulatorContext} from "../../../emu/context";
@@ -25,8 +25,17 @@ export class ThreadManForUser {
         return this._sceKernelAllocateFpl(uid, dataAddr, timeoutAddr, true, false);
     }
 
-    private _sceKernelAllocateFpl(uid: number, dataAddr: Stream, timeoutAddr: Stream, wait: boolean, doCallbacks: boolean): number {
+    @nativeFunction(0xF6414A71, 150, 'int', 'uint/void*')
+    sceKernelFreeFpl(uid: number, dataAddr: Stream) {
         const fpl = this.fplUid.get(uid)
+        fpl.free(dataAddr.position)
+    }
+
+    private _sceKernelAllocateFpl(uid: number, dataAddr: Stream | null, timeoutAddr: Stream, wait: boolean, doCallbacks: boolean): number {
+        const fpl = this.fplUid.get(uid)
+        if (dataAddr == null || dataAddr.isNull) {
+            return SceKernelErrors.ERROR_INVALID_POINTER
+        }
         dataAddr.writeInt32(fpl.alloc())
         return 0
     }
@@ -34,7 +43,8 @@ export class ThreadManForUser {
 
 class Fpl {
     private currentOffset = 0
-    private freeList: number[] = []
+    private allocList = new Set<number>()
+    private freeList = new Set<number>()
 
     constructor(
         public name: string,
@@ -44,22 +54,38 @@ class Fpl {
     ) {
     }
 
-    getAddress(index: number) {
+    private getAddress(index: number) {
         return this.partition.low + (index * this.size)
+    }
+
+    private getIndexFromAddress(address: number) {
+        return Math.floor((address - this.partition.low) / this.size)
     }
 
     alloc() {
         return this.getAddress(this.allocIndex())
     }
 
+    free(address: number) {
+        const index = this.getIndexFromAddress(address)
+        if (this.allocList.has(index)) {
+            this.allocList.delete(index)
+            this.freeList.add(index)
+        }
+    }
+
     private allocIndex() {
-        if (this.freeList.length > 0) {
-            return this.freeList.pop()
+        let index = -1
+        if (this.freeList.size > 0) {
+            index = this.freeList.keys().next().value
+            this.freeList.delete(index)
+        } else if (this.currentOffset < this.blocks) {
+            index = this.currentOffset++
+        } else {
+            throw new ProgramExitException("TODO: Fpl is full")
         }
-        if (this.currentOffset < this.blocks) {
-            return this.currentOffset++
-        }
-        throw new ProgramExitException("TODO: Fpl is full")
+        this.allocList.add(index)
+        return index
     }
 }
 

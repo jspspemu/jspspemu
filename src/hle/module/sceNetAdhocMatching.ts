@@ -100,7 +100,7 @@ export class Matching {
 	public hello = new Uint8Array(0);
 	private helloTimer = -1;
 	private dataTimer = -1;
-	private onMessageCancelable: Cancelable = null;
+	private onMessageCancelable: Cancelable | null = null;
 	private state = State.START;
 
 	private sendHello() {
@@ -130,7 +130,7 @@ export class Matching {
 		}
 	}
 
-	selectTarget(mac: Uint8Array, data: Uint8Array) {
+	selectTarget(mac: Uint8Array, data: Uint8Array | null) {
 		var macstr = mac2string(mac);
 		console.info("net.adhoc: selectTarget", macstr);
 		// Accept
@@ -150,12 +150,12 @@ export class Matching {
 		var macstr = mac2string(mac);
 		console.info("net.adhoc: cancelTarget", macstr);
 		this.state = State.START;
-		this.sendMessage(Event.Cancel, mac, null);
+		this.sendMessage(Event.Cancel, mac, null as any);
 	}
 
 	//private messageQueue = [];
 
-	sendMessage(event: Event, tomac: Uint8Array, data: Uint8Array) {
+	sendMessage(event: Event, tomac: Uint8Array, data: Uint8Array | null) {
 		//this.messageQueue.push({ event: event, tomac: ArrayBufferUtils.cloneBytes(tomac), data: ArrayBufferUtils.cloneBytes(data) });
 		if (!data) data = new Uint8Array(0);
 		if (event != Event.Hello) {
@@ -211,7 +211,7 @@ export class Matching {
 				}
 				break;
 			case Event.Data:
-				this.sendMessage(Event.DataConfirm, frommac, null);
+				this.sendMessage(Event.DataConfirm, frommac, null as any);
 				break;
 			case Event.Disconnect:
 			case Event.Left:

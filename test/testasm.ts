@@ -13,7 +13,7 @@ var disassembler = new MipsDisassembler();
 var memory = getMemoryInstance();
 
 class TestSyscallManager extends SyscallManager {
-    constructor() { super(null); }
+    constructor() { super(null as any); }
     
 	call(state: CpuState, id: number) {
     }

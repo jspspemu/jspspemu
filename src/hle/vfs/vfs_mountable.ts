@@ -6,11 +6,11 @@ export class MountableVfs extends Vfs {
 	private mounts: MountableEntry[] = [];
 
 	mountVfs(path: string, vfs: Vfs) {
-		this.mounts.unshift(new MountableEntry(this.normalizePath(path), vfs, null));
+		this.mounts.unshift(new MountableEntry(this.normalizePath(path), vfs, null as any));
 	}
 
 	mountFileData(path: string, data: ArrayBuffer) {
-		this.mounts.unshift(new MountableEntry(this.normalizePath(path), null, new MemoryVfsEntry(path, data)));
+		this.mounts.unshift(new MountableEntry(this.normalizePath(path), null as any, new MemoryVfsEntry(path, data)));
 	}
 
 	private normalizePath(path: string) {
@@ -20,9 +20,9 @@ export class MountableVfs extends Vfs {
 	private transformPath(path: string) {
 		path = this.normalizePath(path);
 
-		for (var n = 0; n < this.mounts.length; n++) {
-			var mount = this.mounts[n];
-			//console.log(mount.path + ' -- ' + path);
+		for (let n = 0; n < this.mounts.length; n++) {
+            const mount = this.mounts[n];
+            //console.log(mount.path + ' -- ' + path);
 			if (path.startsWith(mount.path)) {
 				var part = path.substr(mount.path.length);
 				return { mount: mount, part: part };
@@ -33,9 +33,9 @@ export class MountableVfs extends Vfs {
 	}
 
 	openAsync(path: string, flags: FileOpenFlags, mode: FileMode): PromiseFast<VfsEntry> {
-		var info = this.transformPath(path);
+        const info = this.transformPath(path);
 
-		if (info.mount.file) {
+        if (info.mount.file) {
 			return PromiseFast.resolve(info.mount.file);
 		} else {
 			return info.mount.vfs.openAsync(info.part, flags, mode);
@@ -43,9 +43,9 @@ export class MountableVfs extends Vfs {
 	}
 
 	openDirectoryAsync(path: string) {
-		var info = this.transformPath(path);
+        const info = this.transformPath(path);
 
-		if (info.mount.file) {
+        if (info.mount.file) {
 			return PromiseFast.resolve(info.mount.file);
 		} else {
 			return info.mount.vfs.openDirectoryAsync(info.part);
@@ -53,9 +53,9 @@ export class MountableVfs extends Vfs {
 	}
 
 	getStatAsync(path: string): PromiseFast<VfsStat> {
-		var info = this.transformPath(path);
+        const info = this.transformPath(path);
 
-		if (info.mount.file) {
+        if (info.mount.file) {
 			return PromiseFast.resolve(info.mount.file.stat());
 		} else {
 			return info.mount.vfs.getStatAsync(info.part);
@@ -63,8 +63,8 @@ export class MountableVfs extends Vfs {
 	}
 	
 	deleteAsync(path: string): PromiseFast<void> {
-		var info = this.transformPath(path);
-		return info.mount.vfs.deleteAsync(info.part);
+        const info = this.transformPath(path);
+        return info.mount.vfs.deleteAsync(info.part);
 	}
 }
 

@@ -246,6 +246,10 @@ export class Stream {
 		this.offset = value;
 	}
 
+	get isNull() {
+	    return this.offset == 0
+    }
+
 	get position() {
 		return this.offset;
 	}

@@ -4,7 +4,7 @@ import {waitAsync} from "../global/async";
 export class PspAudioBuffer {
     offset: number = 0;
 
-    constructor(private readedCallback: Function, public data: Float32Array) {
+    constructor(private readedCallback: Function | null, public data: Float32Array) {
     }
 
     resolve() {
@@ -32,7 +32,7 @@ export class PspAudioBuffer {
 class Audio2Channel {
     private buffers: PspAudioBuffer[] = [];
     private node: ScriptProcessorNode;
-    currentBuffer: PspAudioBuffer;
+    currentBuffer: PspAudioBuffer | undefined | null;
 
     static convertS16ToF32(channels: number, input: Int16Array, leftVolume: number, rightVolume: number) {
         const output = new Float32Array(input.length * 2 / channels);
@@ -65,7 +65,7 @@ class Audio2Channel {
         return output;
     }
 
-    constructor(public id: number, public context: AudioContext) {
+    constructor(public id: number, public context: AudioContext | null) {
         if (this.context) {
             this.node = this.context.createScriptProcessor(1024, 2, 2)
             this.node.addEventListener("audioprocess", (e) => {
@@ -75,7 +75,7 @@ class Audio2Channel {
     }
 
     start() {
-        if (this.node) this.node.connect(this.context.destination);
+        if (this.node) this.node.connect(this.context!.destination);
     }
 
     stop() {
@@ -100,10 +100,10 @@ class Audio2Channel {
                 }
 
                 this.currentBuffer = this.buffers.shift();
-                this.currentBuffer.resolve()
+                this.currentBuffer?.resolve()
             }
 
-            if (this.currentBuffer.available >= 2) {
+            if (this.currentBuffer != null && this.currentBuffer.available >= 2) {
                 left[n] = this.currentBuffer.read()
                 right[n] = this.currentBuffer.read()
             } else {
@@ -140,7 +140,7 @@ class Audio2Channel {
 
 export class Html5Audio2 {
     private channels = new Map<number, Audio2Channel>();
-    private context?: AudioContext = null;
+    private context: AudioContext | null = null;
 
     constructor() {
         try {
@@ -181,7 +181,7 @@ export class Html5Audio2 {
 
     getChannel(id: number): Audio2Channel {
         if (!this.channels.has(id)) this.channels.set(id, new Audio2Channel(id, this.context));
-        return this.channels.get(id);
+        return this.channels.get(id)!;
     }
 
     startChannel(id: number) {

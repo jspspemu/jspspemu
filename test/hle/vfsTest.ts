@@ -92,7 +92,7 @@ describe('vfs', () => {
 
 	it('memorystick', () => {
 		var storageVfs = new StorageVfs('test');
-		var msVfs = new MemoryStickVfs([storageVfs], null, null);
+		var msVfs = new MemoryStickVfs([storageVfs], null as any, null as any);
 
 		return PromiseFast.resolve(0)
 			.then(() => {
@@ -123,7 +123,7 @@ describe('vfs', () => {
 		var vfs1 = new MemoryVfs();
 		var vfs2 = new MemoryVfs();
 
-		var msVfs = new MemoryStickVfs([vfs1, vfs2], null, null);
+		var msVfs = new MemoryStickVfs([vfs1, vfs2], null as any, null as any);
 
 		return PromiseFast.resolve(0)
 			.then(() => {
