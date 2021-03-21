@@ -2,6 +2,7 @@ jspspemu
 ========
 
 [![CI](https://github.com/jspspemu/jspspemu/actions/workflows/test.yml/badge.svg)](https://github.com/jspspemu/jspspemu/actions/workflows/test.yml)
+<a href="https://discord.jspspemu.soywiz.com/"><img alt="Discord" src="https://img.shields.io/discord/822982598992723978?logo=discord" /></a>
 
 A PSP emulator made using javascript (actually typescript). It works with modern browsers.
 
