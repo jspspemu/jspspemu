@@ -189,7 +189,8 @@ export class CpuState {
 	static lastId:number = 0;
 	id = CpuState.lastId++;
 	
-	constructor(public memory: Memory, public syscallManager: SyscallManager) {
+	//constructor(public memory: Memory, public syscallManager: SyscallManager, public interpreted: boolean = true) {
+    constructor(public memory: Memory, public syscallManager: SyscallManager, public interpreted: boolean = false) {
 		this.icache = new InstructionCache(memory, syscallManager);
 		this.fcr0 = 0x00003351;
 		this.fcr31 = 0x00000e00;
@@ -470,12 +471,18 @@ export class CpuState {
         this.eatPrefixes();
     }
 
+    nPC: number = 4;
 	PC: number = 0;
 	IC: number = 0;
 	LO: number = 0;
 	HI: number = 0;
 
 	thread: any = null;
+
+	setPC(pc: number) {
+	    this.PC = pc
+        this.nPC = pc + 4
+    }
 
 	preserveRegisters(callback: () => void) {
 		var temp = new CpuState(this.memory, this.syscallManager);
@@ -485,17 +492,18 @@ export class CpuState {
 	}
 
 	copyRegistersFrom(other: CpuState) {
+        this.nPC = other.nPC;
 		this.PC = other.PC;
 		this.IC = other.IC;
 		this.LO = other.LO;
 		this.HI = other.HI;
 		this.insideInterrupt = other.insideInterrupt;
-		for (var n = 0; n < 32; n++) {
+		for (let n = 0; n < 32; n++) {
 			this.setGPR(n, other.getGPR(n));
 		}
-		for (var n = 0; n < 32; n++) this.fpr[n] = other.fpr[n];
-		for (var n = 0; n < 128; n++) this.vfpr[n] = other.vfpr[n];
-		for (var n = 0; n < 8; n++) this.vfprc[n] = other.vfprc[n];
+		for (let n = 0; n < 32; n++) this.fpr[n] = other.fpr[n];
+		for (let n = 0; n < 128; n++) this.vfpr[n] = other.vfpr[n];
+		for (let n = 0; n < 8; n++) this.vfprc[n] = other.vfprc[n];
 	}
 
 	private gpr = new Int32Array(this.gpr_Buffer);
@@ -825,24 +833,23 @@ export class CpuState {
 		return this.icache.getFunction(pc, 0);
 	}
 
-	executeAtPC() {
-		this.startThreadStep();
-		//var expectedRA = this.RA;
-		//while (this.PC != this.RA) {
-		while (true) {
-			if (this.PC == 0x1234) break;
-			this.getFunction(this.PC).execute(this);
-		}
-	}
-	
-	executeAtPCAsync() {
-		this.startThreadStep();
-		try {
-			this.getFunction(this.PC).execute(this);
-		} catch (e) {
-			if (e.message != 'CpuBreakException') throw e;
-		}
-	}
+    interpreter?: any = null
+
+	//executeAtPC() {
+	//	this.startThreadStep();
+    //    while (true) {
+    //        if (this.PC == 0x1234) break;
+    //        this.getFunction(this.PC).execute(this);
+    //    }
+	//}
+	//executeAtPCAsync() {
+	//	this.startThreadStep();
+	//	try {
+	//		this.getFunction(this.PC).execute(this);
+	//	} catch (e) {
+	//		if (e.message != 'CpuBreakException') throw e;
+	//	}
+	//}
 
 	break() {
 		throwEndCycles();
@@ -1136,7 +1143,7 @@ export class FunctionGenerator {
 		var di = this.decodeInstruction(pc);
 		var di2 = this.decodeInstruction(pc + 4);
 		if (di.type.name == 'jr' && di2.type.name == 'syscall') {
-			return di2.instruction.syscall;
+			return di2.instruction.vsyscall;
 		} else {
 			return -1;
 		}

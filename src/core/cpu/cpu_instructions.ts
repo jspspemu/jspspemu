@@ -10,45 +10,45 @@ export interface ValueMask {
 	mask: number;
 }
 
-var ADDR_TYPE_NONE = 0;
-var ADDR_TYPE_REG = 1;
-var ADDR_TYPE_16 = 2;
-var ADDR_TYPE_26 = 3;
-var INSTR_TYPE_PSP = (1 << 0);
-var INSTR_TYPE_SYSCALL = (1 << 1);
-var INSTR_TYPE_B = (1 << 2);
-var INSTR_TYPE_LIKELY = (1 << 3);
-var INSTR_TYPE_JAL = (1 << 4);
-var INSTR_TYPE_JUMP = (1 << 5);
-var INSTR_TYPE_BREAK = (1 << 6);
+const ADDR_TYPE_NONE = 0;
+const ADDR_TYPE_REG = 1;
+const ADDR_TYPE_16 = 2;
+const ADDR_TYPE_26 = 3;
+const INSTR_TYPE_PSP = (1 << 0);
+const INSTR_TYPE_SYSCALL = (1 << 1);
+const INSTR_TYPE_B = (1 << 2);
+const INSTR_TYPE_LIKELY = (1 << 3);
+const INSTR_TYPE_JAL = (1 << 4);
+const INSTR_TYPE_JUMP = (1 << 5);
+const INSTR_TYPE_BREAK = (1 << 6);
 
 function VM(format: string): ValueMask {
-	var counts: { [k: string]: number } = {
-		"cstw": 1, "cstz": 1, "csty": 1, "cstx": 1,
-		"absw": 1, "absz": 1, "absy": 1, "absx": 1,
-		"mskw": 1, "mskz": 1, "msky": 1, "mskx": 1,
-		"negw": 1, "negz": 1, "negy": 1, "negx": 1,
-		"one": 1, "two": 1, "vt1": 1,
-		"vt2": 2,
-		"satw": 2, "satz": 2, "saty": 2, "satx": 2,
-		"swzw": 2, "swzz": 2, "swzy": 2, "swzx": 2,
-		"imm3": 3,
-		"imm4": 4,
-		"fcond": 4,
-		"c0dr": 5, "c0cr": 5, "c1dr": 5, "c1cr": 5, "imm5": 5, "vt5": 5,
-		"rs": 5, "rd": 5, "rt": 5, "sa": 5, "lsb": 5, "msb": 5, "fs": 5, "fd": 5, "ft": 5,
-		"vs": 7, "vt": 7, "vd": 7, "imm7": 7,
-		"imm8": 8,
-		"imm14": 14,
-		"imm16": 16,
-		"imm20": 20,
-		"imm26": 26
-	};
+    const counts: { [k: string]: number } = {
+        "cstw": 1, "cstz": 1, "csty": 1, "cstx": 1,
+        "absw": 1, "absz": 1, "absy": 1, "absx": 1,
+        "mskw": 1, "mskz": 1, "msky": 1, "mskx": 1,
+        "negw": 1, "negz": 1, "negy": 1, "negx": 1,
+        "one": 1, "two": 1, "vt1": 1,
+        "vt2": 2,
+        "satw": 2, "satz": 2, "saty": 2, "satx": 2,
+        "swzw": 2, "swzz": 2, "swzy": 2, "swzx": 2,
+        "imm3": 3,
+        "imm4": 4,
+        "fcond": 4,
+        "c0dr": 5, "c0cr": 5, "c1dr": 5, "c1cr": 5, "imm5": 5, "vt5": 5,
+        "rs": 5, "rd": 5, "rt": 5, "sa": 5, "lsb": 5, "msb": 5, "fs": 5, "fd": 5, "ft": 5,
+        "vs": 7, "vt": 7, "vd": 7, "imm7": 7,
+        "imm8": 8,
+        "imm14": 14,
+        "imm16": 16,
+        "imm20": 20,
+        "imm26": 26
+    };
 
-	var value: number = 0;
-	var mask: number = 0;
+    let value: number = 0;
+    let mask: number = 0;
 
-	format.split(':').forEach((item) => {
+    format.split(':').forEach((item) => {
 		// normal chunk
 		if (/^[01\-]+$/.test(item)) {
 			for (var n = 0; n < item.length; n++) {
@@ -670,7 +670,7 @@ export class Instruction {
 	get msb() { return this.extract(6 + 5 * 1, 5); } set msb(value: number) { this.insert(6 + 5 * 1, 5, value); }
 	get c1cr() { return this.extract(6 + 5 * 1, 5); } set c1cr(value: number) { this.insert(6 + 5 * 1, 5, value); }
 
-	get syscall() { return this.extract(6, 20); } set syscall(value: number) { this.insert(6, 20, value); }
+	get vsyscall() { return this.extract(6, 20); } set vsyscall(value: number) { this.insert(6, 20, value); }
 
 	get imm16() { var res = this.u_imm16; if (res & 0x8000) res |= 0xFFFF0000; return res; } set imm16(value: number) { this.insert(0, 16, value); }
 	get u_imm16() { return this.extract(0, 16); } set u_imm16(value: number) { this.insert(0, 16, value); }

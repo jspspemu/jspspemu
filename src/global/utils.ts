@@ -1307,6 +1307,8 @@ export function isInsideWorker() {
 	return typeof (<any>window).document == 'undefined';
 }
 
+
+(<any>window).sprintf = sprintf;
 (<any>window).throwEndCycles = throwEndCycles;
 (<any>window).throwWaitPromise = throwWaitPromise;
 (<any>window).PromiseFast = PromiseFast;

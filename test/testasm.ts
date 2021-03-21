@@ -4,6 +4,7 @@ import {addressToHex, addressToHex2} from "../src/global/utils";
 import {MipsAssembler, MipsDisassembler} from "../src/core/cpu/cpu_assembler";
 import {getMemoryInstance} from "../src/core/memory";
 import {CpuState, SyscallManager} from "../src/core/cpu/cpu_core";
+import {CpuExecutor} from "../src/core/cpu/cpu_executor";
 
 export function ref() { } // Workaround to allow typescript to include this module
 
@@ -32,12 +33,11 @@ function executeProgram(gprInitial: any, program: string[]) {
 		}
     }
 
-    state.PC = result.entrypoint;
+    state.setPC(result.entrypoint);
     state.SP = 0x10000;
    
     try {
-        state.startThreadStep();
-        state.executeAtPC();
+        CpuExecutor.executeAtPC(state)
     } catch (e) {
         if (e.message != 'CpuBreakException') throw e;
     }

@@ -18,6 +18,7 @@ import {Memory} from "../../core/memory";
 import {InterruptManager} from "../../core/interrupt";
 import {PspDisplay} from "../../core/display";
 import {EmulatorUI} from "../../ui/emulator_ui";
+import {CpuExecutor} from "../../core/cpu/cpu_executor";
 
 var console = logger.named('hle.thread');
 
@@ -234,11 +235,8 @@ export class Thread {
 
 	runStep() {
 		this.manager.current = this;
-
 		this.preemptionCount++;
-
-		this.state.startThreadStep();		
-		this.state.executeAtPC();
+        CpuExecutor.executeAtPC(this.state)
     }
 }
 
@@ -264,7 +262,7 @@ export class ThreadManager {
 	create(name: string, entryPoint: number, initialPriority: number, stackSize: number = 0x1000, attributes: PspThreadAttributes = 0) {
 		var thread = new Thread(name, this, this.memoryManager, this.rootCpuState.clone(), stackSize);
 		thread.entryPoint = entryPoint;
-        thread.state.PC = entryPoint;
+        thread.state.setPC(entryPoint);
         thread.state.setRA(CpuSpecialAddresses.EXIT_THREAD);
 		thread.state.SP = thread.stackPartition.high;
 		thread.initialPriority = initialPriority;

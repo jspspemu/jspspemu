@@ -1025,7 +1025,7 @@ export class InstructionAst {
 
 	cache(i: Instruction) { return stm(call('state.cache', [gpr(i.rs), imm32(i.rt), imm32(i.imm16)])); }
 
-	syscall(i: Instruction) { return stm(call('state.syscall', [imm32(i.syscall)])); }
+	syscall(i: Instruction) { return stm(call('state.syscall', [imm32(i.vsyscall)])); }
 	"break"(i: Instruction) { return stm(call('state.break', [])); }
 	dbreak(i: Instruction) { return ast.debugger("dbreak"); }
 

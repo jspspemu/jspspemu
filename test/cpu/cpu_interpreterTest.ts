@@ -11,7 +11,8 @@ describe("cpu_interpreter", () => {
     const syscalls = new SyscallManager({})
     let asm = new MipsAssembler();
     asm.assembleToMemory(mem, 0, ["addi r1, r0, 1000"])
-    const interpreter = new CpuInterpreter(new CpuState(mem, syscalls))
-    interpreter.execute()
+    const state = new CpuState(mem, syscalls)
+    const interpreter = new CpuInterpreter()
+    interpreter.execute(state)
     assert.equal(interpreter.state.getGPR(1), 1000)
 })

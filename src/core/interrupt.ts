@@ -2,6 +2,7 @@
 
 import {NumberDictionary, Signal0} from "../global/utils";
 import {CpuState} from "./cpu/cpu_core";
+import {CpuExecutor} from "./cpu/cpu_executor";
 
 export class InterruptHandler {
 	enabled = false;
@@ -72,16 +73,16 @@ export class InterruptManager {
 
 	execute(_state: CpuState) {
 		while (this.queue.length > 0) {
-			var item = this.queue.shift();
-			var state = item.cpuState;
+			const item = this.queue.shift();
+			const state = item.cpuState;
 			state.preserveRegisters(() => {
 				state.RA = 0x1234;
 				state.setGPR(4, item.no);
 				state.setGPR(5, item.argument);
 				state.insideInterrupt = true;
-				state.PC = item.address;
+				state.setPC(item.address);
 				state.startThreadStep();
-				state.executeAtPC();
+                CpuExecutor.executeAtPC(state)
 				//var RA = state.RA;
 				//// @FIXME! @TODO: this is probably wrong, since the CpuBreakException means that a promise was yielded and we should not continue until it has been resolved!!!
 				//while (state.PC != RA) {

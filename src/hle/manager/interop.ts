@@ -1,4 +1,5 @@
 ﻿import {CpuState} from "../../core/cpu/cpu_core";
+import {CpuExecutor} from "../../core/cpu/cpu_executor";
 
 export class Interop {
 	execute(state: CpuState, address: number, gprArray: number[]) {
@@ -8,9 +9,9 @@ export class Interop {
 				state.setGPR(4 + n, gprArray[n]);
 			}
 
-			state.PC = address;			
-			state.executeAtPCAsync();			
-            
+			state.setPC(address);
+			CpuExecutor.executeAtPCAsync(state)
+
 			//state.PC = address;
 			//state.executeAtPC();
 		});

@@ -139,8 +139,8 @@ export class MipsAssembler {
 			case '%t': instruction.rt = this.decodeRegister(value); break;
 			case '%a':
 			case '%i': instruction.imm16 = this.decodeInteger(value); break;
-			case '%C': instruction.syscall = this.decodeInteger(value); break;
-			case '%c': instruction.syscall = this.decodeInteger(value); break;
+			case '%C': instruction.vsyscall = this.decodeInteger(value); break;
+			case '%c': instruction.vsyscall = this.decodeInteger(value); break;
 			case '%O': instruction.branch_address = labels.labels[value]; break;
 			case '%j': instruction.jump_address = labels.labels[value]; break;
 			default: throw (`MipsAssembler.Update: Unknown type '${type}' with value '${value}'`);
