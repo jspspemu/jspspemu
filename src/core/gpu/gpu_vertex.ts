@@ -99,8 +99,19 @@ class SpriteExpander {
 			}
 		}
 		*/
-		code += `o8.subarray(o + ${vsize * 0}, o + ${vsize * 2}).set(i8.subarray(i, i + ${vsize * 2}));\n`;
-		code += `o8.subarray(o + ${vsize * 2}, o + ${vsize * 4}).set(i8.subarray(i, i + ${vsize * 2}));\n`;
+        const vsizex2 = vsize * 2
+        if ((vsize % 4) == 0) {
+            for (let n = 0; n < vsizex2 / 4; n++) {
+                const n4 = n * 4
+                code += `o32[(o + ${n4}) >> 2] = i32[(i + ${n4}) >> 2]; o32[(o + ${n4 + vsizex2}) >> 2] = i32[(i + ${n4}) >> 2];\n`
+            }
+        } else {
+            for (let n = 0; n < vsizex2; n++) {
+                code += `o8[o + ${n}] = i8[i + ${n}]; o8[o + ${n + vsizex2}] = i8[i + ${n}];\n`
+            }
+        }
+		//code += `o8.subarray(o + ${vsize * 0}, o + ${vsize * 2}).set(i8.subarray(i, i + ${vsize * 2}));\n`;
+		//code += `o8.subarray(o + ${vsize * 2}, o + ${vsize * 4}).set(i8.subarray(i, i + ${vsize * 2}));\n`;
 	
 		var TL = SpriteVID.TL;
 		var BR = SpriteVID.BR;
@@ -144,14 +155,14 @@ export interface BatchesTransfer {
 }
 
 export class OptimizedDrawBufferTransfer {
-	static build(odb:OptimizedDrawBuffer, batches2:OptimizedBatch[]):BatchesTransfer {
-		var chunks: { offset: number, size: number, data: ArrayBufferView }[] = [];
-		var offset = 0;
-		var batches:OptimizedBatchTransfer[] = [];
+	static buildBatchesTransfer(odb:OptimizedDrawBuffer, batches2:OptimizedBatch[]):BatchesTransfer {
+		const chunks: { offset: number, size: number, data: ArrayBufferView }[] = [];
+		let offset = 0;
+		const batches:OptimizedBatchTransfer[] = [];
 		
 		function alloc(size: number) {
-			var address = offset;
-			offset += MathUtils.nextAligned(size, 16);
+            const address = offset;
+            offset += MathUtils.nextAligned(size, 16);
 			return address;
 		}
 		
@@ -159,16 +170,17 @@ export class OptimizedDrawBufferTransfer {
 			chunks.push({ offset: offset, size: data.byteLength, data: data });
 			return alloc(data.byteLength);
 		}
-		
-		var odbData = odb.getData();
-		var odbIndices = odb.getIndices();
-		var data:OptimizedDrawBufferDataTransfer = {
+
+        const odbData = odb.getData();
+        const odbIndices = odb.getIndices();
+		const data:OptimizedDrawBufferDataTransfer = {
 			data: allocData(odbData), datasize: odbData.length,
 			indices: allocData(odbIndices), indicesCount: odbIndices.length,
 		}
-		
-		var memorySegments = new Map<number, number>();
-		function allocMemoryData(data: Uint8Array) {
+
+        const memorySegments = new Map<number, number>();
+
+        function allocMemoryData(data: Uint8Array) {
 			if (data == null) return 0;
 			if (!memorySegments.has(data.byteOffset)) memorySegments.set(data.byteOffset, allocData(data));
 			return memorySegments.get(data.byteOffset);
@@ -191,12 +203,14 @@ export class OptimizedDrawBufferTransfer {
 				clutHigh: bcl + (batch.clutData ? batch.clutData.length : 0),
 			});
 		}
-		
-		var buffer = new ArrayBuffer(offset);
+
+        const buffer = new ArrayBuffer(offset);
+		const bufferU8 = new Uint8Array(buffer)
 		for (let chunk of chunks) {
-			new Uint8Array(buffer, chunk.offset, chunk.size).set(
-				new Uint8Array(chunk.data.buffer, chunk.data.byteOffset, chunk.size)
-			);
+            bufferU8.set(
+                new Uint8Array(chunk.data.buffer, chunk.data.byteOffset, chunk.size),
+                chunk.offset
+            );
 		}
 		
 		return {
@@ -270,7 +284,8 @@ export class OptimizedDrawBuffer {
 	}
 	
 	addVerticesDataSprite(vertices:Uint8Array, verticesSize:number, count:number, vi: VertexInfo) {
-		SpriteExpander.forVertexInfo(vi)(vertices, this.data.subarray(this.dataOffset), count / 2);
+		const func = SpriteExpander.forVertexInfo(vi)
+        func(vertices, this.data.subarray(this.dataOffset), count / 2);
 		this.dataOffset += verticesSize * 2;
 	}
 	

@@ -89,11 +89,11 @@ export class EmulatorControllerNormal {
 
 			debugOverlay.linkTo(emulator);
 
-			emulator.onDrawBatches.add((drawBufferData, batches) => {
+			emulator.onDrawBatches.add(function onDrawBatchesFrame(drawBufferData, batches) {
 				//console.log('emulator.onDrawBatches');
 				emulator.display.setEnabledDisplay(false);
-				var transferData = OptimizedDrawBufferTransfer.build(drawBufferData, batches);
-				webglDriver.invalidatedMemoryAll();
+                const transferData = OptimizedDrawBufferTransfer.buildBatchesTransfer(drawBufferData, batches);
+                webglDriver.invalidatedMemoryAll();
 				debugOverlay.overlay.updateAndReset();
 				webglDriver.drawBatchesTransfer(transferData);
 				debugOverlay.freezing.waitUntilValueAsync(false).then(() => {

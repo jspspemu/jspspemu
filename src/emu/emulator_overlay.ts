@@ -23,7 +23,7 @@ class OverlayCounter<T> implements OverlaySection {
         }
     }
     update() {
-        if (this.element) this.element.innerHTML = `${this.name}: ${this.representedValue}`;
+        if (this.element) this.element.innerText = `${this.name}: ${this.representedValue}`;
     }
     get representedValue() {
         return this.representer ? this.representer(this.value) : this.value;

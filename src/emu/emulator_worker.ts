@@ -41,8 +41,8 @@ emulator.startAsync().then(() => {
 });
 
 emulator.onDrawBatches.add((drawBufferData, batches) => {
-	var transferData = OptimizedDrawBufferTransfer.build(drawBufferData, batches);
-	postAction('gpu.draw', transferData, [transferData.buffer]);
+    const transferData = OptimizedDrawBufferTransfer.buildBatchesTransfer(drawBufferData, batches);
+    postAction('gpu.draw', transferData, [transferData.buffer]);
 });
 
 emulator.memory.invalidateDataAll.add(() => {
