@@ -10,8 +10,13 @@ export class PspController implements IPspController {
     private contributors: PspControllerContributor[] = []
 
     addContributor(contributor: PspControllerContributor) {
-        this.contributors.push(contributor)
-        contributor.register()
+        this.addContributors(contributor)
+    }
+
+    addContributors(...contributors: PspControllerContributor[]) {
+        this.contributors.push(...contributors)
+        contributors.forEach(it => it.register())
+        return this
     }
 
     register() {

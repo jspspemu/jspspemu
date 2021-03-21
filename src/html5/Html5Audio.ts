@@ -1,5 +1,6 @@
 import {PromiseFast} from "../global/utils";
 import {waitAsync} from "../global/async";
+import {convertS16ToF32} from "../core/audio";
 
 export class PspAudioBuffer {
     offset: number = 0;
@@ -33,37 +34,6 @@ class Audio2Channel {
     private buffers: PspAudioBuffer[] = [];
     private node: ScriptProcessorNode;
     currentBuffer: PspAudioBuffer | undefined | null;
-
-    static convertS16ToF32(channels: number, input: Int16Array, leftVolume: number, rightVolume: number) {
-        const output = new Float32Array(input.length * 2 / channels);
-        const optimized = leftVolume == 1.0 && rightVolume == 1.0;
-        switch (channels) {
-            case 2:
-                if (optimized) {
-                    for (let n = 0; n < output.length; n++) output[n] = input[n] / 32767.0;
-                } else {
-                    for (let n = 0; n < output.length; n += 2) {
-                        output[n + 0] = (input[n + 0] / 32767.0) * leftVolume;
-                        output[n + 1] = (input[n + 1] / 32767.0) * rightVolume;
-                    }
-                }
-                break;
-            case 1:
-                if (optimized) {
-                    for (let n = 0, m = 0; n < input.length; n++) {
-                        output[m++] = output[m++] = (input[n] / 32767.0);
-                    }
-                } else {
-                    for (let n = 0, m = 0; n < input.length; n++) {
-                        let sample = (input[n] / 32767.0);
-                        output[m++] = sample * leftVolume;
-                        output[m++] = sample * rightVolume;
-                    }
-                }
-                break;
-        }
-        return output;
-    }
 
     constructor(public id: number, public context: AudioContext | null) {
         if (this.context) {
@@ -134,7 +104,7 @@ class Audio2Channel {
 
     playDataAsync(channels: number, data: Int16Array, leftVolume: number, rightVolume: number): PromiseFast<any> {
         //console.log(channels, data);
-        return this.playAsync(Audio2Channel.convertS16ToF32(channels, data, leftVolume, rightVolume));
+        return this.playAsync(convertS16ToF32(channels, data, leftVolume, rightVolume));
     }
 }
 

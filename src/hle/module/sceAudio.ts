@@ -40,8 +40,8 @@ export class sceAudio {
 				return -2;
 			}
 		}
-		var channel = this.channels[channelId];
-		channel.allocated = true;
+        const channel = this.channels[channelId];
+        channel.allocated = true;
 		channel.sampleCount = sampleCount;
 		channel.format = format;
 		//console.log(this.context);
