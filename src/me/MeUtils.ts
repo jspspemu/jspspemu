@@ -12,6 +12,27 @@ export interface IMemory {
     read8(addr: Int): Int
 }
 
+export class MemoryUtils {
+    static arraycopyI(src: Int32Array, srcPos: Int, dst: Int32Array, dstPos: Int, length: Int) {
+        src.set(dst.subarray(dstPos, dstPos + length), srcPos)
+    }
+    static arraycopyF(src: Float32Array, srcPos: Int, dst: Float32Array, dstPos: Int, length: Int) {
+        src.set(dst.subarray(dstPos, dstPos + length), srcPos)
+    }
+    static arraycopyA<T>(src: T[], srcPos: Int, dst: T[], dstPos: Int, length: Int) {
+        const overlapping = (src === dst && dstPos > srcPos)
+        if (overlapping) {
+            let n = length;
+            while (--n >= 0) dst[dstPos + n] = src[srcPos + n];
+        } else {
+            for (let n = 0; n < length; n++) {
+                dst[dstPos + n] = src[srcPos + n]
+            }
+        }
+    }
+
+}
+
 export class CodecUtils {
     private static convertSampleFloatToInt16(sample: Float): Int {
         return Math.min(Math.max(Math.floor(sample * 32768 + 0.5), -32768), 32767) & 0xFFFF
@@ -155,7 +176,7 @@ export class BitReader implements IBitReader {
 
     get bitsRead(): Int { return (this.addr - this.initialAddr) * 8 - this.bits }
 
-    readBool(): Boolean { return this.read1() != 0 }
+    readBool(): boolean { return this.read1() != 0 }
 
     read1(): Int {
         if (this.bits <= 0) {
@@ -583,7 +604,11 @@ export class FloatDSP {
     }
 }
 
-class VLCcode {
+interface Comparable<T> {
+    compareTo(o: T): Int
+}
+
+class VLCcode implements Comparable<VLCcode> {
     bits: Int = 0
     symbol: Int = 0
     code: Int = 0
@@ -601,7 +626,7 @@ export class VLC {
         return this.initVLCSparse(bits.length, codes.length, bits, codes, symbols)
     }
 
-    initVLCSparse(nbBits: Int, nbCodes: Int, bits: Int32Array, codes: Int32Array, symbols?: Int32Array): Int {
+    initVLCSparse(nbBits: Int, nbCodes: Int, bits: Int32Array, codes: Int32Array, symbols: Int32Array|null): Int {
         const buf = new Array<VLCcode>(nbCodes + 1)
 
         this.bits = nbBits
@@ -656,9 +681,9 @@ export class VLC {
         return this.buildTable(nbBits, nbCodes, buf as Array<VLCcode>, 0)
     }
 
-    private Arrays_sort<T>(buf: T[], fromIndex: Int, toIndex: Int) {
-        const sorted = buf.copyOfRange(fromIndex, toIndex).sortedArray()
-        arraycopy(sorted, 0, buf, fromIndex, toIndex - fromIndex)
+    private Arrays_sort<T extends Comparable<T>>(buf: T[], fromIndex: Int, toIndex: Int) {
+        const sorted = buf.slice(fromIndex, toIndex).sort((a, b) => a.compareTo(b))
+        MemoryUtils.arraycopyA(sorted, 0, buf, fromIndex, toIndex - fromIndex)
     }
 
     private buildTable(tableNbBits: Int, nbCodes: Int, codes: Array<VLCcode>, codeOffset: Int): Int {

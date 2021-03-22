@@ -1,10 +1,10 @@
 import {logger} from "../../global/utils";
 import {Stream} from "../../global/stream";
-import {Memory} from "../../core/memory";
 import {Context} from "./Atrac3PlusDtos";
 import {Atrac} from "./Atrac";
 import {Atrac3plusDsp} from "./Atrac3plusDsp";
-import {BitReader, FFT, IMemory} from "../MeUtils";
+import {BitReader, CodecUtils, FFT, IMemory} from "../MeUtils";
+import {ChannelUnit} from "./ChannelUnit";
 
 type Int = number
 
@@ -114,7 +114,7 @@ class Atrac3plusDecoder {
             channelUnit.decodeResidualSpectrum(ctx!!.samples)
             channelUnit.reconstructFrame(ctx!!)
 
-            writeOutput(ctx!!.outpBuf, output, ATRAC3P_FRAME_SAMPLES, channelsToProcess, ctx!!.outputChannels)
+            CodecUtils.writeOutput(ctx!!.outpBuf, output, ATRAC3P_FRAME_SAMPLES, channelsToProcess, ctx!!.outputChannels)
 
             chBlock++
         }

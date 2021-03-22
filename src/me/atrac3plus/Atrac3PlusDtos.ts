@@ -8,6 +8,7 @@ import {
 import {Atrac} from "./Atrac";
 import {Atrac3plusDsp} from "./Atrac3plusDsp";
 import {BitReader, FFT} from "../MeUtils";
+import {ChannelUnit} from "./ChannelUnit";
 
 type Int = number
 function BooleanArray(size: number) { return ArrayUtils.create(size, _ => false) }

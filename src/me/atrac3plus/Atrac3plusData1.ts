@@ -4,7 +4,7 @@ function arrayOf<T>(...values: T[]) { return values }
 type Int = number
 
 /** Tables for spectrum coding.  */
-class Atrac3pSpecCodeTab {
+export class Atrac3pSpecCodeTab {
     get isSigned() { return this.is_signed != 0 }
 
     constructor(public groupSize: Int, public numCoeffs: Int, public bits: Int, public is_signed: Int, public redirect: Int, public cb: Int32Array|null, public xlat: Int32Array|null) {

@@ -1,4 +1,5 @@
 import {AtracGainInfo} from "./Atrac3PlusDtos";
+import {MemoryUtils} from "../MeUtils";
 
 type Int = number
 
@@ -68,7 +69,7 @@ export class Atrac {
         }
 
         // copy the overlapping part into the delay buffer
-        arraycopy(_in, inOffset + numSamples, prev, prevOffset, numSamples)
+        MemoryUtils.arraycopyF(_in, inOffset + numSamples, prev, prevOffset, numSamples)
     }
 
     static ff_atrac_sf_table = new Float32Array(64)
@@ -95,7 +96,7 @@ export class Atrac {
 
     static iqmf(inlo: Float32Array, inloOffset: Int, inhi: Float32Array, inhiOffset: Int, nIn: Int, out: Float32Array, outOffset: Int, delayBuf: Float32Array, temp: Float32Array) {
         var outOffset = outOffset
-        arraycopy(delayBuf, 0, temp, 0, 46)
+        MemoryUtils.arraycopyF(delayBuf, 0, temp, 0, 46)
 
         // loop1
         {
@@ -130,6 +131,6 @@ export class Atrac {
         }
 
         // Update the delay buffer.
-        arraycopy(temp, nIn * 2, delayBuf, 0, 46)
+        MemoryUtils.arraycopyF(temp, nIn * 2, delayBuf, 0, 46)
     }
 }
