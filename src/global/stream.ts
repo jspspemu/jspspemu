@@ -283,6 +283,24 @@ export class Stream {
 		return this.data.getUint8(index);
 	}
 
+    readInt8LE() { return this.readInt8(Endian.LITTLE) }
+    readInt16LE() { return this.readInt16(Endian.LITTLE) }
+    readInt32LE() { return this.readInt32(Endian.LITTLE) }
+    readInt64LE() { return this.readInt64(Endian.LITTLE) }
+    readFloat32LE() { return this.readFloat32(Endian.LITTLE) }
+    readUInt8LE() { return this.readUInt8(Endian.LITTLE) }
+    readUInt16LE() { return this.readUInt16(Endian.LITTLE) }
+    readUInt32LE() { return this.readUInt32(Endian.LITTLE) }
+
+    readInt8BE() { return this.readInt8(Endian.BIG) }
+    readInt16BE() { return this.readInt16(Endian.BIG) }
+    readInt32BE() { return this.readInt32(Endian.BIG) }
+    readInt64BE() { return this.readInt64(Endian.BIG) }
+    readFloat32BE() { return this.readFloat32(Endian.BIG) }
+    readUInt8BE() { return this.readUInt8(Endian.BIG) }
+    readUInt16BE() { return this.readUInt16(Endian.BIG) }
+    readUInt32BE() { return this.readUInt32(Endian.BIG) }
+
 	readInt8(endian: Endian = Endian.LITTLE) { return this.skip(1, this.data.getInt8(this.offset)); }
 	readInt16(endian: Endian = Endian.LITTLE) { return this.skip(2, this.data.getInt16(this.offset, (endian == Endian.LITTLE))); }
 	readInt32(endian: Endian = Endian.LITTLE) { return this.skip(4, this.data.getInt32(this.offset, (endian == Endian.LITTLE))); }

@@ -388,6 +388,11 @@ export class BitUtils {
 		return (data >> offset) & ((1 << length) - 1);
 	}
 
+    static extract4(data: number, offset: number) { return (data >> offset) & 0xF; }
+    static extract8(data: number, offset: number) { return (data >> offset) & 0xFF; }
+    static extract16(data: number, offset: number) { return (data >> offset) & 0xFFFF; }
+    static extract24(data: number, offset: number) { return (data >> offset) & 0xFFFFFF; }
+
 	static extractBool(data: number, offset: number) {
 		return (this.extract(data, offset, 1) != 0);
 	}
@@ -686,6 +691,12 @@ export function ToUint32(x:number) { return x >>> 0; }
 export function ToInt32(x:number) { return x | 0; }
 
 export class ArrayUtils {
+    static create<T>(size: number, gen: (index: number) => T): T[] {
+        const out = new Array(size)
+        for (let n = 0; n < size; n++) out[n] = gen(n)
+        return out
+    }
+
 	static create2D<T>(w: number, h: number, generator?: (x:number, y:number) => T) {
 		if (!generator) generator = (x, y) => null as any as T;
         const matrix = <T[][]>[];

@@ -1,8 +1,25 @@
 import "./array"
 import "./math"
-import {MathFloat, MathUtils} from "./math";
+import {BitUtils, MathFloat, MathUtils} from "./math";
 
 const _self: any = (typeof window != 'undefined') ? window : self;
+
+declare global {
+    interface String {
+        format(...args: any[]): string
+    }
+    interface Number {
+        extract(offset: number, length: number): number
+        extract8(offset: number): number
+    }
+}
+
+Number.prototype.extract = function(offset: number, length: number): number { return BitUtils.extract(this, offset, length) }
+Number.prototype.extract8 = function(offset: number): number { return BitUtils.extract8(this, offset) }
+
+String.prototype.format = function(...args: any[]): string {
+    return sprintf(this, ...args)
+}
 
 export function sprintf(...args: any[]): string {
 	//  discuss at: http://phpjs.org/functions/sprintf/
@@ -949,6 +966,7 @@ export class Logger {
 		}
 	}
 
+    trace(...args: any[]) { this._log('debug', LoggerLevel.DEBUG, args); }
 	debug(...args: any[]) { this._log('debug', LoggerLevel.DEBUG, args); }
 	log(...args: any[]) { this._log('log', LoggerLevel.LOG, args); }
 	info(...args: any[]) { this._log('info', LoggerLevel.INFO, args); }
@@ -957,6 +975,14 @@ export class Logger {
 
 	groupCollapsed(...args: any[]) { this._log('groupCollapsed', 5, args); }
 	groupEnd(...args: any[]) { this._log('groupEnd', 5, args); }
+
+	isEnabled(level: LoggerLevel): boolean { return loggerPolicies.canLog(this.name, level) }
+    get isTraceEnabled(): boolean { return this.isEnabled(LoggerLevel.DEBUG) }
+    get isDebugEnabled(): boolean { return this.isEnabled(LoggerLevel.DEBUG) }
+    get isLogEnabled(): boolean { return this.isEnabled(LoggerLevel.LOG) }
+    get isInfoEnabled(): boolean { return this.isEnabled(LoggerLevel.INFO) }
+    get isWarnEnabled(): boolean { return this.isEnabled(LoggerLevel.WARN) }
+    get isErrorEnabled(): boolean { return this.isEnabled(LoggerLevel.ERROR) }
 
 	setMinLoggerLevel(level: LoggerLevel) {
 	    loggerPolicies.setNameMinLoggerLevel(this.name, level)
