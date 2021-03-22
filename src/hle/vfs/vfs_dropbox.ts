@@ -120,21 +120,25 @@ export class AsyncClient {
 				this.statCachePromise[fullpath] = this.readdirAsync(getDirectoryPath(fullpath)).then((files) => {
                     const basename = getBaseName(fullpath);
 					if (!files.contains(basename)) throw(new Error("folder not contains file"));
-					return new PromiseFast<any>((resolve, reject) => {
-						this.client.stat(fullpath, {}, (e:Error, data:any) => {
-							if (e) {
-								reject(e);
-							} else {
-								this.statCacheValue[fullpath] = data;
-								resolve(data);
-							}
-						});
-					});
+					return this._statAsync(fullpath)
 				});
-				return this.statCachePromise[fullpath];
 			}
+            return this.statCachePromise[fullpath]!
 		});
 	}
+
+	private _statAsync(fullpath: string): PromiseFast<Info> {
+        return new PromiseFast<Info>((resolve, reject) => {
+            this.client.stat(fullpath, {}, (e:Error, data:any) => {
+                if (e) {
+                    reject(e);
+                } else {
+                    this.statCacheValue[fullpath] = data;
+                    resolve(data);
+                }
+            });
+        });
+    }
 
 	readdirCacheValue: StringDictionary<string[]> = {};
 	readdirCachePromise: StringDictionary<PromiseFast<string[]>> = {};
@@ -225,7 +229,7 @@ export class DropboxVfsEntry extends VfsEntry {
 		function readedErrorAsync(e: Error) {
 			if (flags & FileOpenFlags.Create) {
 				//console.log('creating file!');
-                const entry = new DropboxVfsEntry(path, path.split('/').pop(), 0, true, new Date());
+                const entry = new DropboxVfsEntry(path, path.split('/').pop()!, 0, true, new Date());
 				return client.writeFileAsync(path, new ArrayBuffer(0)).then(() => {
 					//console.log('created file!');
 					return entry;
