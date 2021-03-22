@@ -69,7 +69,7 @@ export class EmulatorControllerNormal {
         const canvas = this.getOrCreateCanvas();
         const webgl_canvas = this.getOrCreateWebglCanvas();
         const webglDriver = new WebGlPspDrawDriver(webgl_canvas, emulator.gpuStats);
-        webglDriver.initAsync();
+        webglDriver.register(emulator.memory);
         let debugOverlay = new DebugOverlay(webglDriver);
         debugOverlay.register();
 

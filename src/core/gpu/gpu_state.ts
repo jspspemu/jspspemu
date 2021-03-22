@@ -398,10 +398,26 @@ export class ClutState {
 	get addressEnd() { return this.address + this.sizeInBytes; }
 	get numberOfColors() { return this.data[Op.CLOAD] * 8; }
 	get pixelFormat() { return <PixelFormat>param2(this.data[Op.CMODE], 0); }
-	get shift() { return param5(this.data[Op.CMODE], 2); }
+    get colorBits() { return PixelConverter.getSizeInBits(this.pixelFormat) }
+
+    get shift() { return param5(this.data[Op.CMODE], 2); }
 	get mask() { return param8(this.data[Op.CMODE], 8); }
 	get start() { return param5(this.data[Op.CMODE], 16); }
 	get sizeInBytes() { return PixelConverter.getSizeInBytes(this.pixelFormat, this.numberOfColors); }
+
+    getIndex(n: number) { return ((this.start + n) >>> this.shift) & this.mask }
+
+    getRawColor(mem: Memory, n: number): number {
+        switch (this.colorBits) {
+            case 16: return mem.lhu(this.address + this.getIndex(n) * 2)
+            case 32: return mem.lw(this.address + this.getIndex(n) * 4)
+            default: throw new Error("Invalid palette")
+        }
+    }
+
+    getColor(mem: Memory, n: number): number {
+        return PixelConverter.unpackToRGBA(this.pixelFormat, this.getRawColor(mem, n))
+    }
 }
 
 export const enum TextureProjectionMapMode {

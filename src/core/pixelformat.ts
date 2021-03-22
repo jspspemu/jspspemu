@@ -37,6 +37,10 @@ sizes[PixelFormat.RGBA_5650] = 2;
 sizes[PixelFormat.RGBA_8888] = 4;
 
 export class PixelConverter {
+    static getSizeInBits(format: PixelFormat) {
+        return sizes[format] * 8;
+    }
+
 	static getSizeInBytes(format: PixelFormat, count: number) {
 		return sizes[format] * count;
 	}
@@ -139,52 +143,73 @@ export class PixelConverter {
 
 	private static decode8888(from8: Uint8Array, to: Uint32Array, useAlpha: boolean = true) {
 		const from = ArrayBufferUtils.uint8ToUint32(from8);
-		const orValue = useAlpha ? 0 : 0xFF000000;
-		for (let n = 0; n < to.length; n++) to[n] = from[n] | orValue;
+		for (let n = 0; n < to.length; n++) to[n] = this._decode8888(from[n])
 		return to;
 	}
 
 	private static update5551(from: Uint16Array, to: Uint32Array, useAlpha: boolean = true) {
-		const orValue = useAlpha ? 0 : 0xFF000000;
-
 		for (let n = 0; n < to.length; n++) {
-			const it = from[n];
-			let value = 0;
-			value |= BitUtils.extractScalei(it, 0, 5, 0xFF) << 0;
-			value |= BitUtils.extractScalei(it, 5, 5, 0xFF) << 8;
-			value |= BitUtils.extractScalei(it, 10, 5, 0xFF) << 16;
-			value |= BitUtils.extractScalei(it, 15, 1, 0xFF) << 24;
-			value |= orValue;
-			to[n] = value;
+			to[n] = this.decode5551(from[n], useAlpha);
 		}
 		return to;
 	}
 
 	private static update5650(from: Uint16Array, to: Uint32Array, useAlpha: boolean = true) {
 		for (let n = 0; n < to.length; n++) {
-			const it = from[n];
-			let value = 0;
-			value |= BitUtils.extractScalei(it, 0, 5, 0xFF) << 0;
-			value |= BitUtils.extractScalei(it, 5, 6, 0xFF) << 8;
-			value |= BitUtils.extractScalei(it, 11, 5, 0xFF) << 16;
-			value |= 0xFF000000;
-			to[n] = value;
+			to[n] = this.decode5650(from[n], useAlpha)
 		}
 		return to;
 	}
 
 	private static update4444(from: Uint16Array, to: Uint32Array, useAlpha: boolean = true): Uint32Array {
 		for (let n = 0; n < to.length; n++) {
-			const it = from[n];
-			let value = 0;
-			value |= BitUtils.extractScalei(it, 0, 4, 0xFF) << 0;
-			value |= BitUtils.extractScalei(it, 4, 4, 0xFF) << 8;
-			value |= BitUtils.extractScalei(it, 8, 4, 0xFF) << 16;
-			value |= (useAlpha ? BitUtils.extractScalei(it, 12, 4, 0xFF) : 0xFF) << 24;
-			to[n] = value;
+			to[n] = this.decode4444(from[n], useAlpha)
 		}
 		return to;
 	}
+
+    private static _decode8888(it: number, useAlpha: boolean = true): number {
+        const orValue = useAlpha ? 0 : 0xFF000000;
+        return it | orValue
+    }
+
+	private static decode5551(it: number, useAlpha: boolean = true): number {
+        let value = 0;
+        value |= BitUtils.extractScalei(it, 0, 5, 0xFF) << 0;
+        value |= BitUtils.extractScalei(it, 5, 5, 0xFF) << 8;
+        value |= BitUtils.extractScalei(it, 10, 5, 0xFF) << 16;
+        value |= BitUtils.extractScalei(it, 15, 1, 0xFF) << 24;
+        value |= useAlpha ? 0 : 0xFF000000;
+        return value
+    }
+
+    private static decode5650(it: number, useAlpha: boolean = true): number {
+        let value = 0;
+        value |= BitUtils.extractScalei(it, 0, 5, 0xFF) << 0;
+        value |= BitUtils.extractScalei(it, 5, 6, 0xFF) << 8;
+        value |= BitUtils.extractScalei(it, 11, 5, 0xFF) << 16;
+        value |= 0xFF000000;
+        return value
+    }
+
+	private static decode4444(it: number, useAlpha: boolean = true): number {
+        let value = 0;
+        value |= BitUtils.extractScalei(it, 0, 4, 0xFF) << 0;
+        value |= BitUtils.extractScalei(it, 4, 4, 0xFF) << 8;
+        value |= BitUtils.extractScalei(it, 8, 4, 0xFF) << 16;
+        value |= (useAlpha ? BitUtils.extractScalei(it, 12, 4, 0xFF) : 0xFF) << 24;
+        return value
+    }
+
+    static unpackToRGBA(pixelFormat: PixelFormat, rawColor: number, useAlpha: boolean = true): number {
+	    switch (pixelFormat) {
+            case PixelFormat.RGBA_8888: return this._decode8888(rawColor, useAlpha)
+            case PixelFormat.RGBA_5551: return this.decode5551(rawColor, useAlpha)
+            case PixelFormat.RGBA_5650: return this.decode5650(rawColor, useAlpha)
+            case PixelFormat.RGBA_4444: return this.decode4444(rawColor, useAlpha)
+            default: throw new Error(`Unsupported pixelFormat ${pixelFormat}`)
+        }
+    }
 }
 
 export default { PixelFormat };

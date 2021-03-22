@@ -9,6 +9,7 @@ import {GpuState, TextureFilter} from "../gpu_state";
 import {PixelConverter, PixelFormatUtils} from "../../pixelformat";
 import {WrappedWebGLProgram} from "./webgl_utils";
 import {OptimizedBatchTransfer} from "../gpu_vertex";
+import {Memory} from "../../memory";
 
 export class Texture {
 	private texture: WebGLTexture;
@@ -38,7 +39,7 @@ export class Texture {
 	get addressEnd() { return this.mipmap.addressEnd; }
 	get pixelFormat() { return this.textureState.pixelFormat; }
 
-	updateFromState(state: GpuState, textureData:Uint8Array, clutData:Uint8Array) {
+	updateFromState(state: GpuState, textureData:Uint8Array, clutData:Uint8Array, mem: Memory) {
 		this.state.copyFrom(state);
 		
 		//this.updatedTextures.add(texture);
@@ -57,17 +58,16 @@ export class Texture {
 
         let clut: Uint32Array | null = null;
         if (textureState.hasClut) {
-			clut = PixelConverter.decode(
-				clutState.pixelFormat,
-				clutData,
-				new Uint32Array(256), textureState.hasAlpha, null
-			);
+            clut = new Uint32Array(clutState.numberOfColors);
+            for (let n = 0; n < clut.length; n++) {
+                clut[n] = clutState.getColor(mem, n)
+            }
 		}
 		
 		this.fromBytesRGBA(PixelConverter.decode(
 			textureState.pixelFormat, data, new Uint32Array(w2 * h),
 			textureState.hasAlpha,
-			clut, clutState.start, clutState.shift, clutState.mask 
+			clut, 0, 0, 0xFF
 		), w2, h);
 		
 		//console.log('texture updated!');
@@ -148,7 +148,7 @@ export class Texture {
 }
 
 export class TextureHandler {
-	constructor(private gl: WebGLRenderingContext, public stats: GpuStats) {
+	constructor(private gl: WebGLRenderingContext, public stats: GpuStats, public mem: Memory) {
 		this.invalidateWithGl(gl);
 	}
 
@@ -232,7 +232,7 @@ export class TextureHandler {
 
 				this.texturesByHash.set(hash, texture);
 
-				texture.updateFromState(state, textureData!, clutData!);
+				texture.updateFromState(state, textureData!, clutData!, this.mem);
 			}
 		}
 

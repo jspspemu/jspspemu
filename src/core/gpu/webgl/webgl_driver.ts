@@ -17,6 +17,7 @@ import {mat4} from "../../../global/math";
 import {shader_frag, shader_vert} from "./webgl_shaders";
 import {BatchesTransfer, OptimizedBatchTransfer} from "../gpu_vertex";
 import {EmulatorUI} from "../../../ui/emulator_ui";
+import {Memory} from "../../memory";
 
 let globalDriver: WebGlPspDrawDriver|null = null;
 export class WebGlPspDrawDriver {
@@ -77,14 +78,9 @@ export class WebGlPspDrawDriver {
 		this.textureHandler.invalidatedMemoryRange(low, high);
 	}
 
-    initAsync() {
-	    this.register()
-        return PromiseFast.resolve()
-    }
-	
-	register() {
+	register(memory: Memory) {
         this.cache = new ShaderCache(this.gl, shader_vert, shader_frag);
-        this.textureHandler = new TextureHandler(this.gl, this.stats);
+        this.textureHandler = new TextureHandler(this.gl, this.stats, memory);
 	}
 
 	unregister() {
