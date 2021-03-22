@@ -20,9 +20,9 @@ export class sceGe_user {
 
 	@nativeFunction(0xA4FC06A4, 150, 'uint', 'Thread/void*')
 	sceGeSetCallback(thread: Thread, callbackDataPtr: Stream) {
-		var callbacks = this.context.gpu.callbacks;
-		var info = CallbackData.struct.read(callbackDataPtr);
-		return callbacks.allocate(new PspGpuCallback(thread.state, info.signalFunction, info.signalArgument, info.finishFunction, info.finishArgument));
+        const callbacks = this.context.gpu.callbacks;
+        const info = CallbackData.struct.read(callbackDataPtr);
+        return callbacks.allocate(new PspGpuCallback(thread.state, info.signalFunction, info.signalArgument, info.finishFunction, info.finishArgument));
 	}
 
 	@nativeFunction(0x05DB22CE, 150, 'uint', 'int')

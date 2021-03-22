@@ -23,7 +23,7 @@ export enum PixelFormat {
 	COMPRESSED_DXT5 = 10,
 }
 
-var sizes = new Float32Array(16);
+const sizes = new Float32Array(16);
 sizes[PixelFormat.COMPRESSED_DXT1] = 0.5;
 sizes[PixelFormat.COMPRESSED_DXT3] = 1;
 sizes[PixelFormat.COMPRESSED_DXT5] = 1;
@@ -42,29 +42,29 @@ export class PixelConverter {
 	}
 
 	static unswizzleInline(format: PixelFormat, from: Uint8Array, width: number, height: number) {
-		var rowWidth = PixelConverter.getSizeInBytes(format, width);
-		var textureHeight = height;
-		var size = rowWidth * textureHeight;
-		var temp = new Uint8Array(size);
-		PixelConverter.unswizzle(from, temp, rowWidth, textureHeight);
+        const rowWidth = PixelConverter.getSizeInBytes(format, width);
+        const textureHeight = height;
+        const size = rowWidth * textureHeight;
+        const temp = new Uint8Array(size);
+        PixelConverter.unswizzle(from, temp, rowWidth, textureHeight);
 		ArrayBufferUtils.copy(temp, 0, from, 0, size);
 	}
 
 	private static unswizzle(input: Uint8Array, output: Uint8Array, rowWidth: number, textureHeight: number) {
-		var pitch = ToInt32((rowWidth - 16) / 4);
-		var bxc = ToInt32(rowWidth / 16);
-		var byc = ToInt32(textureHeight / 8);
-		var pitch4 = ToInt32(pitch * 4);
+        const pitch = ToInt32((rowWidth - 16) / 4);
+        const bxc = ToInt32(rowWidth / 16);
+        const byc = ToInt32(textureHeight / 8);
+        const pitch4 = ToInt32(pitch * 4);
 
-		var src = 0;
-		var ydest = 0;
-		for (var by = 0; by < byc; by++) {
-			var xdest = ydest;
-			for (var bx = 0; bx < bxc; bx++) {
-				var dest = xdest;
-				for (var n = 0; n < 8; n++, dest += pitch4) {
+        let src = 0;
+        let ydest = 0;
+        for (let by = 0; by < byc; by++) {
+            let xdest = ydest;
+            for (let bx = 0; bx < bxc; bx++) {
+                let dest = xdest;
+                for (let n = 0; n < 8; n++, dest += pitch4) {
 					//ArrayBufferUtils.copy(input, src, output, dest, 16);
-					for (var m = 0; m < 16; m++) output[dest++] = input[src++];
+					for (let m = 0; m < 16; m++) output[dest++] = input[src++];
 				}
 				xdest += 16;
 			}
@@ -75,10 +75,10 @@ export class PixelConverter {
 	static decodeIndex(format: PixelFormat, from: Uint8Array, to: Uint8Array):Uint8Array {
 		switch (format) {
 			case PixelFormat.PALETTE_T4:
-				var m = 0;
-				for (var n = 0; n < from.length; n++) {
-					var value = from[n]; 
-					to[m++] = (value >> 0) & 0xF;
+                let m = 0;
+                for (let n = 0; n < from.length; n++) {
+                    const value = from[n];
+                    to[m++] = (value >> 0) & 0xF;
 					to[m++] = (value >> 4) & 0xF; 
 				}
 				return to;

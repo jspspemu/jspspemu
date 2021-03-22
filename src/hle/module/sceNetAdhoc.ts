@@ -92,11 +92,11 @@ export class sceNetAdhoc {
         const pdps = this.pdps.list();
         const totalSize = pdps.length * PdpStatStruct.struct.length;
         sizeStream.sliceWithLength(0).writeInt32(totalSize);
-		//var outStream = this.context.memory.getPointerStream(this.partition.low, this.partition.size);
+		//const outStream = this.context.memory.getPointerStream(this.partition.low, this.partition.size);
         const pos = 0;
         pdps.forEach(pdp => {
-			var stat = new PdpStatStruct();
-			stat.nextPointer = 0;
+            const stat = new PdpStatStruct();
+            stat.nextPointer = 0;
 			stat.pdpId = pdp.id;
 			stat.port = pdp.port;
 			stat.mac = xrange(0, 6).map(index => pdp.mac[index]);

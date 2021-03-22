@@ -28,9 +28,9 @@
  DAMAGE.
  ***/
 /* Author: Chas Emerick <cemerick@snowtide.com> */
-var __whitespace = {" ":true, "\t":true, "\n":true, "\f":true, "\r":true};
+const __whitespace = {" ": true, "\t": true, "\n": true, "\f": true, "\r": true};
 
-export var difflib = {
+export const difflib = {
     defaultJunkFunction: function (c:string) {
         return __whitespace.hasOwnProperty(c);
     },

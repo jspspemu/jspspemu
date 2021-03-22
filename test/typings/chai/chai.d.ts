@@ -14,8 +14,8 @@ declare module chai {
 
     export function expect(target: any, message?: string): Expect;
 
-    export var assert: Assert;
-    export var config: Config;
+    export const assert: Assert;
+    export const config: Config;
 
     export interface Config {
         includeStack: boolean;

@@ -56,22 +56,22 @@ export class MemoryPartition {
     }
 
 	allocateSet(size: number, addressLow: number, name: string = '') {
-        var childs = this.childPartitions;
-        var addressHigh = addressLow + size;
+        const childs = this.childPartitions;
+        const addressHigh = addressLow + size;
 
         if (!this.contains(addressLow) || !this.contains(addressHigh)) {
 			throw (new OutOfMemoryError(sprintf("Can't allocate [%08X-%08X] in [%08X-%08X]", addressLow, addressHigh, this.low, this.high)));
         }
 
-        for (var n = 0; n < childs.length; n++) {
-            var child = childs[n];
+        for (let n = 0; n < childs.length; n++) {
+            const child = childs[n];
             if (!child.contains(addressLow)) continue;
             if (child.allocated) throw (new Error("Memory already allocated"));
             if (!child.contains(addressHigh - 1)) throw (new Error("Can't fit memory"));
 
-            var p1 = new MemoryPartition('', child.low, addressLow, false, this);
-            var p2 = new MemoryPartition(name, addressLow, addressHigh, true, this);
-            var p3 = new MemoryPartition('', addressHigh, child.high, false, this);
+            const p1 = new MemoryPartition('', child.low, addressLow, false, this);
+            const p2 = new MemoryPartition(name, addressLow, addressHigh, true, this);
+            const p3 = new MemoryPartition('', addressHigh, child.high, false, this);
 
             childs.splice(n, 1, p1, p2, p3);
 
@@ -92,40 +92,41 @@ export class MemoryPartition {
 	}
 
 	private _validateChilds() {
-		var childs = this._childPartitions;
+        const childs = this._childPartitions;
 
-		if (childs[0].low != this.low) throw(new Error("Invalid state [1]"));
+        if (childs[0].low != this.low) throw(new Error("Invalid state [1]"));
 		if (childs[childs.length - 1].high != this.high) throw (new Error("Invalid state [2]"));
 
-		for (var n = 0; n < childs.length - 1; n++) {
+		for (let n = 0; n < childs.length - 1; n++) {
 			if (childs[n + 0].high != childs[n + 1].low) throw (new Error("Invalid state [3] -> " + n));
 		}
 	}
 
 	private allocateLowHigh(size: number, low: boolean, name: string = '') {
-        var childs = this.childPartitions;
-        for (var n = 0; n < childs.length; n++) {
-            var child = childs[n];
-            if (child.allocated) continue;
-            if (child.size < size) continue;
+        const childs = this.childPartitions
+        for (let n = 0; n < childs.length; n++) {
+            const child = childs[n]
+            if (child.allocated) continue
+            if (child.size < size) continue
 
+            let allocatedChild: MemoryPartition
             if (low) {
-                var p1 = child.low;
-                var p2 = child.low + size;
-                var p3 = child.high;
-                var allocatedChild = new MemoryPartition(name, p1, p2, true, this);
-                var unallocatedChild = new MemoryPartition("", p2, p3, false, this);
-				childs.splice(n, 1, allocatedChild, unallocatedChild);
+                const p1 = child.low
+                const p2 = child.low + size
+                const p3 = child.high
+                allocatedChild = new MemoryPartition(name, p1, p2, true, this)
+                const unallocatedChild = new MemoryPartition("", p2, p3, false, this)
+				childs.splice(n, 1, allocatedChild, unallocatedChild)
             } else {
-                var p1 = child.low;
-                var p2 = child.high - size;
-                var p3 = child.high;
-                var unallocatedChild = new MemoryPartition("", p1, p2, false, this);
-				var allocatedChild = new MemoryPartition(name, p2, p3, true, this);
-				childs.splice(n, 1, unallocatedChild, allocatedChild);
+                const p1 = child.low
+                const p2 = child.high - size
+                const p3 = child.high
+                const unallocatedChild = new MemoryPartition("", p1, p2, false, this)
+                allocatedChild = new MemoryPartition(name, p2, p3, true, this)
+				childs.splice(n, 1, unallocatedChild, allocatedChild)
             }
             this.cleanup();
-            return allocatedChild;
+            return allocatedChild
         }
 
         //console.info(this);
@@ -139,16 +140,16 @@ export class MemoryPartition {
     }
 
 	private cleanup() {
-		var startTotalFreeMemory = this.getTotalFreeMemory();
+        const startTotalFreeMemory = this.getTotalFreeMemory();
 
-		//this._validateChilds();
+        //this._validateChilds();
 
         // join contiguous free memory
-        var childs = this.childPartitions;
+        const childs = this.childPartitions;
         if (childs.length >= 2) {
-            for (var n = 0; n < childs.length - 1; n++) {
-                var child = childs[n + 0];
-                var c1 = childs[n + 1];
+            for (let n = 0; n < childs.length - 1; n++) {
+                const child = childs[n + 0];
+                const c1 = childs[n + 1];
 				if (!child.allocated && !c1.allocated) {
 					//console.log('joining', child, c1, child.low, c1.high);
 					childs.splice(n, 2, new MemoryPartition("", child.low, c1.high, false, this));
@@ -157,16 +158,16 @@ export class MemoryPartition {
             }
         }
         // remove empty segments
-		for (var n = 0; n < childs.length; n++) {
-            var child = childs[n];
+		for (let n = 0; n < childs.length; n++) {
+            const child = childs[n];
             if (!child.allocated && child.size == 0) childs.splice(n, 1);
 		}
 
 		//this._validateChilds();
 
-		var endTotalFreeMemory = this.getTotalFreeMemory();
+        const endTotalFreeMemory = this.getTotalFreeMemory();
 
-		if (endTotalFreeMemory != startTotalFreeMemory) {
+        if (endTotalFreeMemory != startTotalFreeMemory) {
 			console.log('assertion failed! : ' + startTotalFreeMemory + ',' + endTotalFreeMemory);
 		}
     }

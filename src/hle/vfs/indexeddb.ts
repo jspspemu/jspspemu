@@ -1,9 +1,9 @@
 ﻿import {logger, PromiseFast, StringDictionary} from "../../global/utils";
 
-var console = logger.named('indexeddb');
+const console = logger.named('indexeddb');
 
 //declare var indexedDB: any;
-declare var IDBKeyRange: IDBKeyRange;
+declare const IDBKeyRange: IDBKeyRange;
 
 export interface MyStorage {
 	putAsync(key: string, value: any): PromiseFast<void>;
@@ -19,11 +19,11 @@ class MyStorageIndexedDb implements MyStorage {
 	static openAsync(name: string) {
 		console.info('MyStorageIndexedDb.openAsync("' + name + '")');
 		return new PromiseFast<MyStorage>((resolve, reject) => {
-			var request = indexedDB.open(name, 1);
-			request.onupgradeneeded = function (e) {
-				var db = request.result;
+            const request = indexedDB.open(name, 1);
+            request.onupgradeneeded = function (e) {
+                const db = request.result;
 
-				// A versionchange transaction is started automatically.
+                // A versionchange transaction is started automatically.
 				//request.transaction.onerror = html5rocks.indexedDB.onerror;
 				console.log('upgrade!');
 
@@ -45,10 +45,10 @@ class MyStorageIndexedDb implements MyStorage {
 
 	putAsync(key: string, value: any): PromiseFast<void> {
 		console.log('putAsync', key, value);
-		var store = this.getItemsStore();
-		return new PromiseFast<void>((resolve, reject) => {
-			var request = store.put({ key: key, value: value });
-			request.onsuccess = function (e) {
+        const store = this.getItemsStore();
+        return new PromiseFast<void>((resolve, reject) => {
+            const request = store.put({key: key, value: value});
+            request.onsuccess = function (e) {
 				resolve();
 			};
 			request.onerror = function (e:any) {
@@ -59,11 +59,11 @@ class MyStorageIndexedDb implements MyStorage {
 
 	deleteAsync(key: string): PromiseFast<void> {
 		console.log('deleteAsync', key);
-		var store = this.getItemsStore();
-		return new PromiseFast<void>((resolve, reject) => {
-			var request = store.delete(key);
+        const store = this.getItemsStore();
+        return new PromiseFast<void>((resolve, reject) => {
+            const request = store.delete(key);
 
-			request.onsuccess = function (e) {
+            request.onsuccess = function (e) {
 				resolve();
 			};
 
@@ -79,17 +79,17 @@ class MyStorageIndexedDb implements MyStorage {
 	}
 
 	getAsync(key: string): PromiseFast<any> {
-		var store = this.getItemsStore();
-		return new PromiseFast((resolve, reject) => {
+        const store = this.getItemsStore();
+        return new PromiseFast((resolve, reject) => {
 			//console.log('rr');
-			//var keyRange = IDBKeyRange.only(key);
-			//var keyRange = IDBKeyRange.lowerBound(0);
+			//const keyRange = IDBKeyRange.only(key);
+			//const keyRange = IDBKeyRange.lowerBound(0);
 
-			var request = store.get(key);
+            const request = store.get(key);
 
-			request.onsuccess = (e:any) => {
-				var result = e.target['result'];
-				if (!result) {
+            request.onsuccess = (e:any) => {
+                const result = e.target['result'];
+                if (!result) {
 					console.log('getAsync', key, undefined);
 					resolve(undefined);
 				} else {
@@ -126,14 +126,14 @@ class MyStorageFake implements MyStorage {
 	}
 
 	hasAsync(key: string): PromiseFast<boolean> {
-		var value = this.items[key] !== undefined;
-		console.log('hasAsync', key, value);
+        const value = this.items[key] !== undefined;
+        console.log('hasAsync', key, value);
 		return PromiseFast.resolve(value);
 	}
 
 	getAsync(key: string): PromiseFast<any> {
-		var result = this.items[key];
-		console.log('getAsync', key, result);
+        const result = this.items[key];
+        console.log('getAsync', key, result);
 		return PromiseFast.resolve(result);
 	}
 }

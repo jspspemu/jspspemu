@@ -4,7 +4,7 @@ import {Emulator} from "./emu/emulator";
 import {loggerPolicies} from "./global/utils";
 import {AnsiEscapeCodes} from "./util/AnsiEscapeCodes";
 
-declare var process: any
+declare const process: any
 
 (async () => {
     const emu = new Emulator();

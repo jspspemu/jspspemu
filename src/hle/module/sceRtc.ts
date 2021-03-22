@@ -30,16 +30,16 @@ export class sceRtc {
 	
 	@nativeFunction(0x7ED29E40, 150, 'int', 'void*/void*')
 	sceRtcSetTick(datePtr: Stream, ticksPtr: Stream) {
-		var ticks = ticksPtr.readInt64();
-		datePtr.writeStruct(ScePspDateTime.struct, ScePspDateTime.fromTicks(ticks));
+        const ticks = ticksPtr.readInt64();
+        datePtr.writeStruct(ScePspDateTime.struct, ScePspDateTime.fromTicks(ticks));
 		return 0;
 	}
 
 	@nativeFunction(0x6FF40ACC, 150, 'int', 'void*/void*')
 	sceRtcGetTick(datePtr: Stream, ticksPtr: Stream) {
 		try {
-			var date = ScePspDateTime.struct.read(datePtr);
-			ticksPtr.writeUInt64(date.getTotalMicroseconds());
+            const date = ScePspDateTime.struct.read(datePtr);
+            ticksPtr.writeUInt64(date.getTotalMicroseconds());
 			return 0;
 		} catch (e) {
 			return SceKernelErrors.ERROR_INVALID_VALUE;
@@ -48,8 +48,7 @@ export class sceRtc {
 
 	@nativeFunction(0x4CFA57B0, 150, 'int', 'uint/int')
 	sceRtcGetCurrentClock(dateAddress: number, timezone: number) {
-		//var currentDate = this.context.rtc.getCurrentUnixMicroseconds();
-
+		//let currentDate = this.context.rtc.getCurrentUnixMicroseconds();
 		//currentDate += timezone * 60 * 1000000;
 		const date = new Date()
         const pointer = this.context.memory.getPointerPointer<ScePspDateTime>(ScePspDateTime.struct, dateAddress)!

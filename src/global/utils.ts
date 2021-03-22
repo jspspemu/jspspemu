@@ -1340,6 +1340,16 @@ export class CpuBreakException extends Error {
     }
 }
 
+export class InterruptBreakException extends Error {
+    constructor() {
+        super('InterruptBreakException');
+    }
+
+    static is(v: any): boolean {
+        return v instanceof InterruptBreakException
+    }
+}
+
 export class ProgramExitException extends Error {
     constructor(message: String) {
         super(`ProgramExitException: ${message}`);

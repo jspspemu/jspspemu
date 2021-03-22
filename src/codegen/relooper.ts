@@ -9,13 +9,13 @@ interface IRelooper {
 }
 
 export function processAdvance(callback: (r:IRelooper) => void):string {
-	//var sr = new simplerelooper.SimpleRelooper();
+	//const sr = new simplerelooper.SimpleRelooper();
 	throw new Error("Not implemented relooper advanced");
 }
 
 export function processSimple(callback: (r:IRelooper) => void):string {
-	var sr = new SimpleRelooper();
-	sr.init();
+    const sr = new SimpleRelooper();
+    sr.init();
 	try {
 		callback(sr);
 		return sr.render(sr.blocks[0]);
@@ -30,11 +30,11 @@ export function processType(type:string, callback: (r:IRelooper) => void):string
 		case 'advanced':  return processAdvance(callback);
 		default: throw new Error(`Invalid relooper process type ${type}`);
 	}
-	//var sr = new simplerelooper.SimpleRelooper();
+	//const sr = new simplerelooper.SimpleRelooper();
 	
 }
 
 export function relooperProcess(callback: (r:IRelooper) => void):string {
-	//var sr = new simplerelooper.SimpleRelooper();
+	//const sr = new simplerelooper.SimpleRelooper();
 	return processSimple(callback);
 }

@@ -8,7 +8,7 @@ export class sceReg {
 
 	@nativeFunction(0x92E41280, 150, 'int', 'void*/int/void*')
 	sceRegOpenRegistry(regParamPtr: Stream, mode: number, regHandlePtr: Stream) {
-		var regParam = RegParam.struct.read(regParamPtr);
+		const regParam = RegParam.struct.read(regParamPtr);
 		console.warn('sceRegOpenRegistry: ' + regParam.name);
 		regHandlePtr.writeInt32(0);
 		return 0;

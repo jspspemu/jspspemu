@@ -27,7 +27,7 @@ import {EmulatorUI} from "../../ui/emulator_ui";
 import {CpuExecutor} from "../../core/cpu/cpu_executor";
 import {Component} from "../../core/component";
 
-var console = logger.named('hle.thread');
+const console = logger.named('hle.thread');
 
 export const enum ThreadStatus {
 	RUNNING = 1,
@@ -139,8 +139,8 @@ export class Thread {
 
 		if (allowCompensating) {
 			//debugger;
-			var subtractAccumulatedMicroseconds = Math.min(delayMicroseconds, this.accumulatedMicroseconds);
-			delayMicroseconds -= subtractAccumulatedMicroseconds;
+            const subtractAccumulatedMicroseconds = Math.min(delayMicroseconds, this.accumulatedMicroseconds);
+            delayMicroseconds -= subtractAccumulatedMicroseconds;
 			this.accumulatedMicroseconds -= subtractAccumulatedMicroseconds;
 		}
 
@@ -151,12 +151,12 @@ export class Thread {
 			//return PromiseFast.resolve(0);
 		}
 
-		var start = performance.now();
-		return waitAsync(delayMicroseconds / 1000).then(() => {
-			var end = performance.now();
-			var elapsedmicroseconds = (end - start) * 1000;
+        const start = performance.now();
+        return waitAsync(delayMicroseconds / 1000).then(() => {
+            const end = performance.now();
+            const elapsedmicroseconds = (end - start) * 1000;
 
-			this.accumulatedMicroseconds += ((elapsedmicroseconds - delayMicroseconds) | 0);
+            this.accumulatedMicroseconds += ((elapsedmicroseconds - delayMicroseconds) | 0);
 
 			return 0;
 		});
@@ -184,9 +184,9 @@ export class Thread {
 	}
 
 	_suspendUntilPromiseDone(promise: PromiseFast<any>, compensate: Compensate) {
-
+        let startTime: number = 0
 		if (compensate == Compensate.YES) {
-			var startTime = performance.now();
+			startTime = performance.now();
 		}
 
 		this.waitingPromise = promise;
@@ -210,8 +210,8 @@ export class Thread {
 			}
 
 			if (compensate == Compensate.YES) {
-				var endTime = performance.now();
-				this.accumulatedMicroseconds += (endTime - startTime) * 1000;
+                const endTime = performance.now();
+                this.accumulatedMicroseconds += (endTime - startTime) * 1000;
 			}
 
 			//console.error('resumed ' + this.name);
@@ -402,7 +402,7 @@ export class ThreadManager implements Component {
 			//debugger;
 			if (CpuBreakException.is(e)) return
             if (ProgramExitException.is(e)) throw e
-			var estack = e['stack'] || e
+            const estack = e['stack'] || e;
             EmulatorUI.openMessageAsync(estack)
 			thread.stop('thread.stop.error:' + estack)
 			throw e
@@ -410,7 +410,7 @@ export class ThreadManager implements Component {
 	}
 
     private debugThreads() {
-        var html = '';
+        let html = '';
         this.threads.forEach((thread) => {
             html += sprintf("%08X:%s:%s", thread.state.PC, thread.name, thread.running);
         });

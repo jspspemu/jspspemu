@@ -4,7 +4,7 @@ import {MathUtils} from "../../global/math";
 import {getMemoryInstance} from "../memory";
 import {GpuState, NumericEnum, PrimitiveType, VertexInfo} from "./gpu_state";
 
-var memory = getMemoryInstance();
+const memory = getMemoryInstance();
 
 const enum SpriteVID {
 	TL = 0,
@@ -33,34 +33,34 @@ class SpriteExpander {
 	static readAllCode(vi: VertexInfo) {
         let code = `"use strict";`;
 
-        code += `var i8  = new Uint8Array(input.buffer, input.byteOffset);\n`;
-		code += `var i16 = new Uint16Array(input.buffer, input.byteOffset);\n`;
-		code += `var i32 = new Uint32Array(input.buffer, input.byteOffset);\n`;
-		code += `var o8  = new Uint8Array(output.buffer, output.byteOffset);\n`;
+        code += `const i8  = new Uint8Array(input.buffer, input.byteOffset);\n`;
+		code += `const i16 = new Uint16Array(input.buffer, input.byteOffset);\n`;
+		code += `const i32 = new Uint32Array(input.buffer, input.byteOffset);\n`;
+		code += `const o8  = new Uint8Array(output.buffer, output.byteOffset);\n`;
 		if (vi.align >= 2) {
-			code += `var o16 = new Uint16Array(output.buffer, output.byteOffset);\n`;
+			code += `const o16 = new Uint16Array(output.buffer, output.byteOffset);\n`;
 			if (vi.align >= 4) {
-				code += `var o32 = new Uint32Array(output.buffer, output.byteOffset);\n`;
+				code += `const o32 = new Uint32Array(output.buffer, output.byteOffset);\n`;
 			}
 		}
-		code += `var i = 0, o = 0;\n`;
-		code += `for (var n = 0; n < count; n++) {\n`;
+		code += `let i = 0, o = 0;\n`;
+		code += `for (let n = 0; n < count; n++) {\n`;
 		code += this.readOneCode(vi);
 		code += `}\n`;
 		return code;
 	}
 	
 	private static readOneCode(vi: VertexInfo) {
-		var code = '';
-		var vsize = vi.size;
-		
-		var CONVV = [null, 'o8', 'o16', 'o32'];
-		var CONVS = [0, 0, 1, 2];
-		
-		var COLV = [null, null, null, null, 'o16', 'o16', 'o16', 'o32']; // ColorEnum
-		var COLS = [0, 0, 0, 0, 1, 1, 1, 2];
-		
-		function _get(vid:SpriteVID, type: NumericEnum, offset:number, component:number) {
+        let code = '';
+        const vsize = vi.size;
+
+        const CONVV = [null, 'o8', 'o16', 'o32'];
+        const CONVS = [0, 0, 1, 2];
+
+        const COLV = [null, null, null, null, 'o16', 'o16', 'o16', 'o32']; // ColorEnum
+        const COLS = [0, 0, 0, 0, 1, 1, 1, 2];
+
+        function _get(vid:SpriteVID, type: NumericEnum, offset:number, component:number) {
 			return `${CONVV[type]}[((o + ${offset + vsize * +vid}) >> ${CONVS[type]}) + ${component}]`;
 		}
 
@@ -70,8 +70,8 @@ class SpriteExpander {
 		function getT_(vid:SpriteVID, n:number) { return _get(vid, vi.texture, vi.textureOffset, n); }
 
 		function copy_(vidTo:SpriteVID, vidFrom:SpriteVID, n:number) {
-			var out:string[] = [];
-			if (vi.hasPosition) out.push(`${getP_(vidTo, n)} = ${getP_(vidFrom, n)};`);
+            const out: string[] = [];
+            if (vi.hasPosition) out.push(`${getP_(vidTo, n)} = ${getP_(vidFrom, n)};`);
 			if (vi.hasNormal) out.push(`${getN_(vidTo, n)} = ${getN_(vidFrom, n)};`);
 			if (vi.hasTexture) out.push(`${getT_(vidTo, n)} = ${getT_(vidFrom, n)};`);
 			return out.join('\n');
@@ -83,17 +83,17 @@ class SpriteExpander {
 		
 		/*
 		if ((vsize % 4) == 0) {
-			for (var n = 0; n < (vsize / 4) * 2; n++) {
+			for (let n = 0; n < (vsize / 4) * 2; n++) {
 				code += `o32[(o >> 2) + ${n + vsize * 0}] = i32[(i >> 2) + ${n + (vsize * 0)}];\n`;
 				code += `o32[(o >> 2) + ${n + vsize * 2}] = i32[(i >> 2) + ${n + (vsize * 1)}];\n`;
 			}
 		} else if ((vsize % 2) == 0) {
-			for (var n = 0; n < (vsize / 2) * 2; n++) {
+			for (let n = 0; n < (vsize / 2) * 2; n++) {
 				code += `o16[(o >> 1) + ${n + vsize * 0}] = i16[(i >> 1) + ${n + (vsize * 0)}];\n`;
 				code += `o16[(o >> 1) + ${n + vsize * 2}] = i16[(i >> 1) + ${n + (vsize * 1)}];\n`;
 			}
 		} else {
-			for (var n = 0; n < vsize * 2; n++) {
+			for (let n = 0; n < vsize * 2; n++) {
 				code += `o8[(o >> 0) + ${n + vsize * 0}] = i8[(i >> 0) + ${n + (vsize * 0)}];\n`;
 				code += `o8[(o >> 0) + ${n + vsize * 2}] = i8[(i >> 0) + ${n + (vsize * 1)}];\n`;
 			}
@@ -112,11 +112,11 @@ class SpriteExpander {
         }
 		//code += `o8.subarray(o + ${vsize * 0}, o + ${vsize * 2}).set(i8.subarray(i, i + ${vsize * 2}));\n`;
 		//code += `o8.subarray(o + ${vsize * 2}, o + ${vsize * 4}).set(i8.subarray(i, i + ${vsize * 2}));\n`;
-	
-		var TL = SpriteVID.TL;
-		var BR = SpriteVID.BR;
 
-		code += copyX(SpriteVID.TR, BR);
+        const TL = SpriteVID.TL;
+        const BR = SpriteVID.BR;
+
+        code += copyX(SpriteVID.TR, BR);
 		code += copyY(SpriteVID.TR, TL);
 		code += copyX(SpriteVID.BL, TL);
 		code += copyY(SpriteVID.BL, BR);	
@@ -246,12 +246,12 @@ export class OptimizedDrawBuffer {
 	}
 	
 	createBatch(state: GpuState, primType: PrimitiveType, vertexInfo: VertexInfo) {
-		var data = new OptimizedBatch(
-			state, this, primType, vertexInfo,
-			this.batchDataOffset, this.dataOffset,
-			this.batchIndexOffset, this.indexOffset
-		);
-		this.dataOffset = this.batchDataOffset = (this.dataOffset + 15) & ~0xF;
+        const data = new OptimizedBatch(
+            state, this, primType, vertexInfo,
+            this.batchDataOffset, this.dataOffset,
+            this.batchIndexOffset, this.indexOffset
+        );
+        this.dataOffset = this.batchDataOffset = (this.dataOffset + 15) & ~0xF;
 		this.batchIndexOffset = this.indexOffset;
 		this.vertexIndex = 0;
 		return data;
@@ -268,11 +268,11 @@ export class OptimizedDrawBuffer {
 	}
 
 	addVerticesIndices(vertexCount:number) {
-		for (var n = 0; n < vertexCount; n++) this.indices[this.indexOffset++] = this.vertexIndex++;
+		for (let n = 0; n < vertexCount; n++) this.indices[this.indexOffset++] = this.vertexIndex++;
 	}
 
 	addVerticesIndicesSprite(vertexCount:number) {
-		for (var n = 0; n < vertexCount / 2; n++) {
+		for (let n = 0; n < vertexCount / 2; n++) {
 			this.indices[this.indexOffset++] = this.vertexIndex + 3;
 			this.indices[this.indexOffset++] = this.vertexIndex + 0;
 			this.indices[this.indexOffset++] = this.vertexIndex + 2;
@@ -290,11 +290,11 @@ export class OptimizedDrawBuffer {
 	}
 	
 	addVerticesIndicesList(indices:Uint8Array | Uint16Array) {
-		var max = 0;
-		var ioffset = this.indexOffset;
-		for (var n = 0; n < indices.length; n++) {
-			var v = indices[n];
-			this.indices[ioffset + n] = v;
+        let max = 0;
+        const ioffset = this.indexOffset;
+        for (let n = 0; n < indices.length; n++) {
+            const v = indices[n];
+            this.indices[ioffset + n] = v;
 			max = Math.max(max, v);
 		}
 		max++;

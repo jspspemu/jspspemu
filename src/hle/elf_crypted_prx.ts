@@ -85,24 +85,24 @@ function getTagInfo2(checkTag: number) {
 }
 
 function copyFromTo(from: Uint8Array, fromOffset: number, to: Uint8Array, toOffset: number, count: number) {
-	for (var n = 0; n < count; n++) {
+	for (let n = 0; n < count; n++) {
 		to[toOffset + n] = from[fromOffset + n];
 	}
 }
 
 function memset(array: Uint8Array, offset: number, count: number, value: number) {
-	for (var n = 0; n < count; n++) array[offset + n] = value;
+	for (let n = 0; n < count; n++) array[offset + n] = value;
 }
 
 function decrypt1(pbIn: Stream) {
-	var cbTotal = pbIn.length;
-	var _pbOut = new Uint8Array(cbTotal);
-	var pbOut = Stream.fromUint8Array(_pbOut);
-	pbOut.slice().writeStream(pbIn);
+    const cbTotal = pbIn.length;
+    const _pbOut = new Uint8Array(cbTotal);
+    const pbOut = Stream.fromUint8Array(_pbOut);
+    pbOut.slice().writeStream(pbIn);
 
-	var header = Header.struct.read(pbIn.slice());
-	var pti = getTagInfo(header.tag);
-	if (!pti) throw(new Error("Can't find tag " + header.tag));
+    const header = Header.struct.read(pbIn.slice());
+    const pti = getTagInfo(header.tag);
+    if (!pti) throw(new Error("Can't find tag " + header.tag));
 
 	// build conversion into pbOut
 	pbOut.slice().writeStream(pbIn);
@@ -111,8 +111,8 @@ function decrypt1(pbIn: Stream) {
 
 	// step3 demangle in place
 	//kirk.KIRK_AES128CBC_HEADER.struct.write();
-	var h7_header = new (KIRK_AES128CBC_HEADER)();
-	h7_header.mode = KirkMode.DecryptCbc;
+    const h7_header = new (KIRK_AES128CBC_HEADER)();
+    h7_header.mode = KirkMode.DecryptCbc;
 	h7_header.unk_4 = 0;
 	h7_header.unk_8 = 0;
 	h7_header.keyseed = pti.code; // initial seed for PRX
@@ -121,17 +121,17 @@ function decrypt1(pbIn: Stream) {
 	KIRK_AES128CBC_HEADER.struct.write(pbOut.sliceFrom(0x2C), h7_header);
 
 	// redo part of the SIG check (step2)
-	var buffer1 = Stream.fromSize(0x150);
-	buffer1.sliceWithLength(0x00).writeStream(pbIn.sliceWithLength(0xD0, 0x80));
+    const buffer1 = Stream.fromSize(0x150);
+    buffer1.sliceWithLength(0x00).writeStream(pbIn.sliceWithLength(0xD0, 0x80));
 	buffer1.sliceWithLength(0x80).writeStream(pbIn.sliceWithLength(0x80, 0x50));
 	buffer1.sliceWithLength(0xD0).writeStream(pbIn.sliceWithLength(0x00, 0x80));
 
 	//console.log('buffer1', buffer1.slice().readAllBytes());
 
 	if (pti.codeExtra != 0) {
-		var buffer2 = Stream.fromSize(20 + 0xA0)
+        const buffer2 = Stream.fromSize(20 + 0xA0);
 
-		buffer2.slice()
+        buffer2.slice()
 			// KIRK_AES128CBC_HEADER
 			.writeUInt32(5)
 			.writeUInt32(0)
@@ -154,7 +154,7 @@ function decrypt1(pbIn: Stream) {
 
 	pbOut.sliceFrom(0x40).writeStream(buffer1.sliceWithLength(0x40, 0x40));
 
-	for (var iXOR = 0; iXOR < 0x70; iXOR++) pbOut.set(0x40 + iXOR, ((pbOut.get(0x40 + iXOR) ^ pti.key[0x14 + iXOR]) & 0xFF));
+	for (let iXOR = 0; iXOR < 0x70; iXOR++) pbOut.set(0x40 + iXOR, ((pbOut.get(0x40 + iXOR) ^ pti.key[0x14 + iXOR]) & 0xFF));
 
 	hleUtilsBufferCopyWithRange(
 		pbOut.sliceWithLength(0x2C, 20 + 0x70),
@@ -162,7 +162,7 @@ function decrypt1(pbIn: Stream) {
 		CommandEnum.DECRYPT_IV_0
     );
 
-	for (var iXOR = 0x6F; iXOR >= 0; iXOR--) pbOut.set(0x40 + iXOR, ((pbOut.get(0x2C + iXOR) ^ pti.key[0x20 + iXOR]) & 0xFF));
+	for (let iXOR = 0x6F; iXOR >= 0; iXOR--) pbOut.set(0x40 + iXOR, ((pbOut.get(0x2C + iXOR) ^ pti.key[0x20 + iXOR]) & 0xFF));
 
 	pbOut.sliceFrom(0x80).writeByteRepeated(0, 0x30);
 	
@@ -181,9 +181,9 @@ function decrypt1(pbIn: Stream) {
 
 	//File.WriteAllBytes("../../../TestInput/temp.bin", _pbOut);
 
-	var outputSize = pbIn.sliceFrom(0xB0).readUInt32();
+    const outputSize = pbIn.sliceFrom(0xB0).readUInt32();
 
-	return pbOut.sliceWithLength(0, outputSize);
+    return pbOut.sliceWithLength(0, outputSize);
 }
 
 /*
@@ -201,17 +201,17 @@ function Scramble(buf: Stream, code: number) {
 }
 
 function decrypt2(input: Stream) {
-	var size = input.length;
-	var _pbOut = new Uint8Array(size);
+	const size = input.length;
+	let _pbOut = new Uint8Array(size);
 	_pbIn.CopyTo(_pbOut, 0);
 
-	var _tmp1 = new Uint8Array(0x150);
-	var _tmp2 = new Uint8Array(0x90 + 0x14);
-	var _tmp3 = new Uint8Array(0x60 + 0x14);
+	let _tmp1 = new Uint8Array(0x150);
+	let _tmp2 = new Uint8Array(0x90 + 0x14);
+	let _tmp3 = new Uint8Array(0x60 + 0x14);
 
-	var HeaderPointer = (HeaderStruct*) inbuf;
+	let HeaderPointer = (HeaderStruct*) inbuf;
 	this.Header = * (HeaderStruct*) inbuf;
-	var pti = GetTagInfo2(this.Header.Tag);
+	let pti = GetTagInfo2(this.Header.Tag);
 	Console.WriteLine("{0}", pti);
 
 				int retsize = * (int *) & inbuf[0xB0];
@@ -232,8 +232,8 @@ function decrypt2(input: Stream) {
 
 	PointerUtils.Memcpy(tmp1, outbuf, 0x150);
 
-	for (var i = 0; i < 9; i++) {
-		for (var j = 0; j < 0x10; j++) {
+	for (let i = 0; i < 9; i++) {
+		for (let j = 0; j < 0x10; j++) {
 			_tmp2[0x14 + (i << 4) + j] = pti.key[j];
 		}
 
@@ -276,7 +276,7 @@ function decrypt2(input: Stream) {
 		throw (new InvalidDataException("WARNING (SHA-1 incorrect), "));
 	}
 	
-	for (var iXOR = 0; iXOR < 0x40; iXOR++) {
+	for (let iXOR = 0; iXOR < 0x40; iXOR++) {
 		tmp3[iXOR + 0x14] = (byte)(outbuf[iXOR + 0x80] ^ _tmp2[iXOR + 0x10]);
 	}
 
@@ -284,7 +284,7 @@ function decrypt2(input: Stream) {
 		throw (new InvalidDataException("error in Scramble#3, "));
 	}
 
-	for (var iXOR = 0x3F; iXOR >= 0; iXOR--) {
+	for (let iXOR = 0x3F; iXOR >= 0; iXOR--) {
 		outbuf[iXOR + 0x40] = (byte)(_tmp3[iXOR] ^ _tmp2[iXOR + 0x50]); // uns 8
 	}
 
@@ -295,7 +295,7 @@ function decrypt2(input: Stream) {
 	PointerUtils.Memset(outbuf + 0xC0, 0, 0x10);
 
 	// the real decryption
-	var ret = Kirk.hleUtilsBufferCopyWithRange(outbuf, size, outbuf + 0x40, size - 0x40, Core.Crypto.Kirk.CommandEnum.PSP_KIRK_CMD_DECRYPT_PRIVATE);
+	let ret = Kirk.hleUtilsBufferCopyWithRange(outbuf, size, outbuf + 0x40, size - 0x40, Core.Crypto.Kirk.CommandEnum.PSP_KIRK_CMD_DECRYPT_PRIVATE);
 	if (ret != 0) {
 		throw (new InvalidDataException(String.Format("error in sceUtilsBufferCopyWithRange 0x1 (0x{0:X}), ", ret)));
 	}

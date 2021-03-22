@@ -221,16 +221,16 @@ export class VertexInfo {
 
 	read(memory: Memory, count: number) {
 		//console.log('read vertices ' + count);
-		var vertices:any[] = [];
-		for (var n = 0; n < count; n++) vertices.push(this.readOne(memory));
+        const vertices: any[] = [];
+        for (let n = 0; n < count; n++) vertices.push(this.readOne(memory));
 		return vertices;
 	}
 
 	private readOne(memory: Memory) {
-		var address = this.address;
-		var vertex: any = {};
+        const address = this.address;
+        const vertex: any = {};
 
-		//console.log(vertex);
+        //console.log(vertex);
 		this.address += this.size;
 
 		return vertex;
@@ -433,8 +433,8 @@ export class TextureState {
 	}
 	
 	getHashSlow(textureData:Uint8Array, clutData:Uint8Array) {
-		var hash: number[] = [];
-		hash.push(ArrayBufferUtils.hashFast(textureData));
+        const hash: number[] = [];
+        hash.push(ArrayBufferUtils.hashFast(textureData));
 		hash.push(this.mipmap.address);
 		hash.push(this.mipmap.textureWidth);
 		hash.push(this.colorComponent);
@@ -652,7 +652,7 @@ export class Rectangle {
 }
 
 export class ClipPlane {
-	constructor(private data:Uint32Array) { }
+	constructor(private data: Uint32Array) { }
 	
 	get enabled() { return bool1(this.data[Op.CLIPENABLE]); }
 	get scissor() { return new Rectangle(this.left, this.top, this.right, this.bottom); }

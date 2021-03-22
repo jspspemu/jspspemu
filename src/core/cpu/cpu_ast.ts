@@ -129,7 +129,7 @@ export class ANodeStmExpr extends ANodeStm {
 
 export class ANodeAllocVarStm extends ANodeStm {
 	constructor(public name: string, public initialValue: ANodeExpr) { super(); }
-	toJs() { return 'var ' + this.name + ' = ' + this.initialValue.toJs() + ';'; }
+	toJs() { return `var ${this.name} = ${this.initialValue.toJs()};`; }
 }
 
 export class ANodeExpr extends ANode {
@@ -166,11 +166,9 @@ export class ANodeExprLValueSetGet extends ANodeExpr {
 	}
 }
 
-
-
 export class ANodeExprLValueVar extends ANodeExprLValue {
 	constructor(public name: string) { super(); }
-	toAssignJs(right: ANodeExpr) { return this.name + ' = ' + right.toJs(); }
+	toAssignJs(right: ANodeExpr) { return `${this.name} = ${right.toJs()}`; }
 	toJs() { return this.name; }
 }
 
@@ -182,8 +180,8 @@ export class ANodeExprI32 extends ANodeExpr {
 export class ANodeExprFloat extends ANodeExpr {
 	constructor(public value: number) { super(); }
 	toJs() {
-		var rfloat = MathFloat.reinterpretFloatAsInt(this.value);
-		if (rfloat & 0x80000000) {
+        const rfloat = MathFloat.reinterpretFloatAsInt(this.value);
+        if (rfloat & 0x80000000) {
 			return '-' + MathFloat.reinterpretIntAsFloat(rfloat & 0x7FFFFFFF);
 		} else {
 			return String(this.value);
@@ -240,8 +238,8 @@ export class ANodeExprCall extends ANodeExpr {
 export class ANodeStmIf extends ANodeStm {
 	constructor(public cond: ANodeExpr, public codeTrue: ANodeStm, public codeFalse?: ANodeStm) { super(); }
 	toJs() {
-		var result = '';
-		result += 'if (' + this.cond.toJs() + ')';
+        let result = '';
+        result += 'if (' + this.cond.toJs() + ')';
 		result += ' { ' + this.codeTrue.toJs() + ' }';
 		if (this.codeFalse) result += ' else { ' + this.codeFalse.toJs() + ' }';
 		return result;

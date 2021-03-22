@@ -24,8 +24,8 @@ class IndentWriter {
 			this.chunks.push(this.i);
 			this.startline = false;
 		}
-		var parts = chunk.split('\n').join();
-		var jumpIndex = chunk.indexOf('\n');
+		const parts = chunk.split('\n').join();
+		const jumpIndex = chunk.indexOf('\n');
 		if (jumpIndex >= 0) {
 			this.chunks.push(chunk.substr(0, jumpIndex));
 			this.chunks.push('\n');
@@ -50,8 +50,8 @@ export class SimpleRelooper {
 	cleanup() {
 	}
 	addBlock(code:string) {
-		var block = new RelooperBlock(this.lastId++, code);
-		this.blocks.push(block);
+        const block = new RelooperBlock(this.lastId++, code);
+        this.blocks.push(block);
 		return block;
 	}
 	addBranch(from:RelooperBlock, to:RelooperBlock, cond?:string, onjumpcode?:string) {
@@ -65,9 +65,9 @@ export class SimpleRelooper {
 	}
 	
 	render(first:RelooperBlock) {
-		var writer = new IndentWriter();
-		
-		if (this.blocks.length <= 1) {
+        const writer = new IndentWriter();
+
+        if (this.blocks.length <= 1) {
 			if (this.blocks.length == 1) writer.write(this.blocks[0].code);
 		} else {
 			writer.write('label = 0; loop_label: while (true) switch (label) { case 0:\n');

@@ -34,30 +34,28 @@ Array.prototype.contains = function <T>(item: T) {
 };
 
 Array.prototype.binarySearchValue = function <T>(selector: (item: T) => number) {
-	var array = <T[]>this;
-
-	var index = array.binarySearchIndex(selector);
-	if (index < 0) return null;
+    const array = <T[]>this;
+    const index = array.binarySearchIndex(selector);
+    if (index < 0) return null;
 	return array[index];
 };
 
 Array.prototype.binarySearchIndex = function <T>(selector: (item: T) => number) {
-	var array = <T[]>this;
-	var min = 0;
-	var max = array.length - 1;
-	var step = 0;
+    const array = <T[]>this;
+    let min = 0;
+    let max = array.length - 1;
+    let step = 0;
 
-	if (array.length == 0) return -1;
+    if (array.length == 0) return -1;
 
 	//console.log('--------');
 
 	while (true) {
-		var current = Math.floor((min + max) / 2);
+        let current = Math.floor((min + max) / 2);
+        const item = array[current];
+        const result = selector(item);
 
-		var item = array[current];
-		var result = selector(item);
-
-		if (result == 0) {
+        if (result == 0) {
 			//console.log('->', current);
 			return current;
 		}
@@ -88,15 +86,15 @@ Array.prototype.binarySearchIndex = function <T>(selector: (item: T) => number) 
 };
 
 Array.prototype.min = <any>(function (selector: Function) {
-	var array = <any[]>this;
-	if (!selector) selector = (a:any) => a;
+    const array = <any[]>this;
+    if (!selector) selector = (a:any) => a;
 	if (array.length == 0) return null;
 	return array.reduce((previous, current) => { return (selector(previous) < selector(current) ? previous : current); }, array[0]);
 });
 
 Array.prototype.max = <any>(function (selector: Function) {
-	var array = <any[]>this;
-	if (!selector) selector = (a:any) => a;
+    const array = <any[]>this;
+    if (!selector) selector = (a:any) => a;
 	if (array.length == 0) return null;
 	return array.reduce((previous, current) => { return (selector(previous) > selector(current) ? previous : current); }, array[0]);
 });
@@ -110,43 +108,43 @@ Array.prototype.cast = <any>(function () {
 });
 
 Array.prototype.count = <any>(function (selector: Function) {
-	var array = <any[]>this;
-	if (!selector) selector = funcTrue;
-	var result = 0;
-	for (var n = 0; n < array.length; n++) if (selector(array[n])) result++;
+    const array = <any[]>this;
+    if (!selector) selector = funcTrue;
+    let result = 0;
+    for (let n = 0; n < array.length; n++) if (selector(array[n])) result++;
 	return result;
 });
 
 Array.prototype.any = <any>(function (selector: Function) {
-	var array = <any[]>this;
-	if (!selector) selector = funcTrue;
-	for (var n = 0; n < array.length; n++) if (selector(array[n])) return true;
+    const array = <any[]>this;
+    if (!selector) selector = funcTrue;
+	for (let n = 0; n < array.length; n++) if (selector(array[n])) return true;
 	return false;
 });
 
 Array.prototype.first = <any>(function (selector: Function) {
-	var array = <any[]>this;
-	if (!selector) selector = identity;
-	for (var n = 0; n < array.length; n++) if (selector(array[n])) return array[n];
+    const array = <any[]>this;
+    if (!selector) selector = identity;
+	for (let n = 0; n < array.length; n++) if (selector(array[n])) return array[n];
 	return undefined;
 });
 
 Array.prototype.sum = <any>(function (selector: Function) {
-	var array = <any[]>this;
-	if (!selector) selector = (a:any) => a;
+    const array = <any[]>this;
+    if (!selector) selector = (a:any) => a;
 	return array.reduce((previous, current) => { return previous + selector(current); }, 0);
 });
 
 Array.prototype.remove = function (item) {
-	var array = <any[]>this;
-	var index = array.indexOf(item);
-	if (index >= 0) array.splice(index, 1);
+    const array = <any[]>this;
+    const index = array.indexOf(item);
+    if (index >= 0) array.splice(index, 1);
 };
 
 Array.prototype.toLookupMap = <any>function () {
-	var array = <any[]>this;
-	var lookup:{[k:string]:any} = {};
-	for (var n = 0; n < array.length; n++) {
+    const array = <any[]>this;
+    const lookup: { [k: string]: any } = {};
+    for (let n = 0; n < array.length; n++) {
 		lookup[array[n]] = n;
 	}
 	return lookup;

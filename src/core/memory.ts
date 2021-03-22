@@ -32,29 +32,29 @@ const SWR_SHIFT = new Uint32Array([0, 8, 16, 24]);
 
 export abstract class Memory {
 	lwl(address: number, value: number) {
-		var align = address & 3;
-		var oldvalue = this.lw(address & ~3);
-		return ((oldvalue << LWL_SHIFT[align]) | (value & LWL_MASK[align]));
+        const align = address & 3;
+        const oldvalue = this.lw(address & ~3);
+        return ((oldvalue << LWL_SHIFT[align]) | (value & LWL_MASK[align]));
 	}
 
 	lwr(address: number, value: number) {
-		var align = address & 3;
-		var oldvalue = this.lw(address & ~3);
-		return ((oldvalue >>> LWR_SHIFT[align]) | (value & LWR_MASK[align]));
+        const align = address & 3;
+        const oldvalue = this.lw(address & ~3);
+        return ((oldvalue >>> LWR_SHIFT[align]) | (value & LWR_MASK[align]));
 	}
 
 	swl(address: number, value: number) {
-		var align = address & 3;
-		var aadress = address & ~3;
-		var vwrite = (value >>> SWL_SHIFT[align]) | (this.lw(aadress) & SWL_MASK[align]);
-		this.sw(aadress, vwrite);
+        const align = address & 3;
+        const aadress = address & ~3;
+        const vwrite = (value >>> SWL_SHIFT[align]) | (this.lw(aadress) & SWL_MASK[align]);
+        this.sw(aadress, vwrite);
 	}
 
 	swr(address: number, value: number) {
-		var align = address & 3;
-		var aadress = address & ~3;
-		var vwrite = (value << SWR_SHIFT[align]) | (this.lw(aadress) & SWR_MASK[align]);
-		this.sw(aadress, vwrite);
+        const align = address & 3;
+        const aadress = address & ~3;
+        const vwrite = (value << SWR_SHIFT[align]) | (this.lw(aadress) & SWR_MASK[align]);
+        this.sw(aadress, vwrite);
 	}
 
 	// ALIASES!
@@ -124,8 +124,8 @@ export abstract class Memory {
 
 	getPointerDataView(address: number, size?: number) {
 		if (!size) size = this.availableAfterAddress(address);
-		var buffer = this.getBuffer(address), offset = this.getOffsetInBuffer(address);
-		return new DataView(buffer, offset, size);
+        const buffer = this.getBuffer(address), offset = this.getOffsetInBuffer(address);
+        return new DataView(buffer, offset, size);
 	}
 	
 	slice(low: number, high: number) {
@@ -141,14 +141,14 @@ export abstract class Memory {
 
 	getPointerU16Array(address: number, size?: number) {
 		if (!size) size = this.availableAfterAddress(address);
-		var buffer = this.getBuffer(address), offset = this.getOffsetInBuffer(address);
-		return new Uint16Array(buffer, offset, size / 2);
+        const buffer = this.getBuffer(address), offset = this.getOffsetInBuffer(address);
+        return new Uint16Array(buffer, offset, size / 2);
 	}
 
 	getPointerU32Array(address: number, size?: number) {
 		if (!size) size = this.availableAfterAddress(address);
-		var buffer = this.getBuffer(address), offset = this.getOffsetInBuffer(address);
-		return new Uint32Array(buffer, offset, size / 4);
+        const buffer = this.getBuffer(address), offset = this.getOffsetInBuffer(address);
+        return new Uint32Array(buffer, offset, size / 4);
 	}
 
 	getPointerStream(address: number, size?: number): Stream | null {
@@ -212,9 +212,9 @@ export abstract class Memory {
 		//Watch: 0x0951044C < - 0x2A000000 
 
 		this.addWriteAction(address, (actualAddress: number) => {
-			var actualValue: number = this.lwu(address);
+            const actualValue: number = this.lwu(address);
 
-			console.log(sprintf('TryBreakpoint:0x%08X <- 0x%08X | 0x%08X (%d)', address, actualValue, value, (actualValue == value)));
+            console.log(sprintf('TryBreakpoint:0x%08X <- 0x%08X | 0x%08X (%d)', address, actualValue, value, (actualValue == value)));
 
 			if (actualValue == value) {
 				debugger;
@@ -231,9 +231,9 @@ export abstract class Memory {
 	_checkWriteBreakpoints(start: number, end: number) {
 		start &= FastMemory.MASK;
 		end &= FastMemory.MASK;
-		for (var n = 0; n < this.writeBreakpoints.length; n++) {
-			var writeBreakpoint = this.writeBreakpoints[n];
-			var addressCheck = writeBreakpoint.address & FastMemory.MASK;
+		for (let n = 0; n < this.writeBreakpoints.length; n++) {
+			const writeBreakpoint = this.writeBreakpoints[n];
+			const addressCheck = writeBreakpoint.address & FastMemory.MASK;
 			if (addressCheck >= start && addressCheck < end) {
 				writeBreakpoint.action(writeBreakpoint.address);
 			}
@@ -242,7 +242,7 @@ export abstract class Memory {
 	*/
 
 	readArrayBuffer(address: number, length: number) {
-		var out = new Uint8Array(length);
+		const out = new Uint8Array(length);
 		out.set(this.getPointerU8Array(address, length));
 		return out.buffer;
 	}
@@ -292,8 +292,8 @@ export abstract class Memory {
 
 	readStringz(address: number) {
 		if (address == 0) return null;
-		var endAddress = address;
-		while (this.lbu(endAddress) != 0) endAddress++;
+        let endAddress = address;
+        while (this.lbu(endAddress) != 0) endAddress++;
 		return String.fromCharCode.apply(null, this.getPointerU8Array(address, endAddress - address));
 	}
 
@@ -302,9 +302,9 @@ export abstract class Memory {
 		addressAligned >>>= 2;
 		count >>>= 2;
 
-		var result = 0;
-		for (var n = 0; n < count; n++) {
-			var v = this.lw_2(addressAligned + n);
+		let result = 0;
+		for (let n = 0; n < count; n++) {
+			const v = this.lw_2(addressAligned + n);
 			result = (result + v ^ n) | 0;
 		}
 		return result;
@@ -315,10 +315,10 @@ export abstract class Memory {
 		let addressAligned = (_addressAligned >>> 2) | 0;
 		let count = (_count >>> 2) | 0;
 
-		var result = 0;
-		for (var n = 0; n < count; n++) {
-			var v = this.lw_2(addressAligned + n);
-			result = (result + v ^ n);
+        let result = 0;
+        for (let n = 0; n < count; n++) {
+            const v = this.lw_2(addressAligned + n);
+            result = (result + v ^ n);
 		}
 		return result;
 	}
@@ -343,9 +343,9 @@ export abstract class Memory {
 	}
 
 	static memoryCopy(source: ArrayBuffer, sourcePosition: number, destination: ArrayBuffer, destinationPosition: number, length: number) {
-		var _source = new Uint8Array(source, sourcePosition, length);
-		var _destination = new Uint8Array(destination, destinationPosition, length);
-		_destination.set(_source);
+        const _source = new Uint8Array(source, sourcePosition, length);
+        const _destination = new Uint8Array(destination, destinationPosition, length);
+        _destination.set(_source);
 	}
 
 	dump(name = 'memory.bin') {
@@ -516,15 +516,15 @@ export class TestMemory extends FastMemory {
     }
 }
 
-declare var process: any;
+declare const process: any;
 function isNodeJs() {
 	return typeof process != 'undefined';
 }
 
 function allowBigAlloc() {
 	try {
-		var ab = new ArrayBuffer(0x0a000000 + 4);
-		return true;
+        const ab = new ArrayBuffer(0x0a000000 + 4);
+        return true;
 	} catch (e) {
 		return false;
 	}

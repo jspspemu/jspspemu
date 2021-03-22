@@ -60,24 +60,24 @@ export class Psf {
 	}
 
 	static fromStream(stream: Stream) {
-		var psf = new Psf();
-		psf.load(stream);
+        const psf = new Psf();
+        psf.load(stream);
 		return psf;
 	}
 
 	load(stream: Stream) {
-		var header = this.header = HeaderStruct.struct.read(stream);
-		if (header.magic != 0x46535000) throw ("Not a PSF file");
-		var entries = StructArray<EntryStruct>(EntryStruct.struct, header.numberOfPairs).read(stream);
-		var entriesByName: StringDictionary<IEntryStruct>  = {};
+        const header = this.header = HeaderStruct.struct.read(stream);
+        if (header.magic != 0x46535000) throw ("Not a PSF file");
+        const entries = StructArray<EntryStruct>(EntryStruct.struct, header.numberOfPairs).read(stream);
+        const entriesByName: StringDictionary<IEntryStruct> = {};
 
-		var keysStream = stream.sliceWithLength(header.keyTable);
-		var valuesStream = stream.sliceWithLength(header.valueTable);
+        const keysStream = stream.sliceWithLength(header.keyTable);
+        const valuesStream = stream.sliceWithLength(header.valueTable);
 
-		entries.forEach(entry => {
-			var key = keysStream.sliceWithLength(entry.keyOffset).readUtf8Stringz();
-			var valueStream = valuesStream.sliceWithLength(entry.valueOffset, entry.valueSize);
-			entry.key = key;
+        entries.forEach(entry => {
+            const key = keysStream.sliceWithLength(entry.keyOffset).readUtf8Stringz();
+            const valueStream = valuesStream.sliceWithLength(entry.valueOffset, entry.valueSize);
+            entry.key = key;
 
 			switch (entry.dataType) {
 				case DataType.Binary: entry.value = valueStream.sliceWithLength(0); break;

@@ -135,23 +135,23 @@ export class WebGlPspDrawDriver {
 		}
 
 		if (this.enableDisable(gl.SCISSOR_TEST, state.clipPlane.enabled)) {
-			var rect = state.clipPlane.scissor;
-			var ratio = this.getScaleRatio();
-			gl.scissor(rect.left * ratio, rect.top * ratio, rect.width * ratio, rect.height * ratio);
+            const rect = state.clipPlane.scissor;
+            const ratio = this.getScaleRatio();
+            gl.scissor(rect.left * ratio, rect.top * ratio, rect.width * ratio, rect.height * ratio);
 		}
 
-		var blending = state.blending;
-		if (this.enableDisable(gl.BLEND, blending.enabled)) {
-			var getBlendFix = (color: Color) => {
-				if (color.equals(0, 0, 0, 1)) return gl.ZERO;
-				if (color.equals(1, 1, 1, 1)) return gl.ONE;
-				return gl.CONSTANT_COLOR;
-			};
+        const blending = state.blending;
+        if (this.enableDisable(gl.BLEND, blending.enabled)) {
+            const getBlendFix = (color: Color) => {
+                if (color.equals(0, 0, 0, 1)) return gl.ZERO;
+                if (color.equals(1, 1, 1, 1)) return gl.ONE;
+                return gl.CONSTANT_COLOR;
+            };
 
-			var sfactor = gl.SRC_COLOR + blending.functionSource;
-			var dfactor = gl.SRC_COLOR + blending.functionDestination;
+            let sfactor = gl.SRC_COLOR + blending.functionSource;
+            let dfactor = gl.SRC_COLOR + blending.functionDestination;
 
-			if (blending.functionSource == GuBlendingFactor.GU_FIX) {
+            if (blending.functionSource == GuBlendingFactor.GU_FIX) {
 				sfactor = getBlendFix(blending.fixColorSource);
 			}
 

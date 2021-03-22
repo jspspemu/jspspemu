@@ -11,31 +11,31 @@ export class sceLibFont {
 
 	@nativeFunction(0x67F17ED7, 150, 'uint', 'void*/void*')
 	sceFontNewLib(paramsPtr: Stream, errorCodePtr: Stream) {
-		var fontLib = new FontLib();
-		return this.fontLibUid.allocate(fontLib);
+        const fontLib = new FontLib();
+        return this.fontLibUid.allocate(fontLib);
 	}
 
 	@nativeFunction(0x099EF33C, 150, 'uint', 'int/void*/void*')
 	sceFontFindOptimumFont(fontLibId: number, fontStylePointer: Stream, errorCodePointer: Stream) {
-		var fontLib = this.fontLibUid.get(fontLibId);
-		return 0;
+        const fontLib = this.fontLibUid.get(fontLibId);
+        return 0;
 	}
 
 	@nativeFunction(0xA834319D, 150, 'uint', 'int/int/int/void*')
 	sceFontOpen(fontLibId: number, index: number, mode:number, errorCodePointer:Stream) {
-		var fontLib = this.fontLibUid.get(fontLibId);
-		return this.fontUid.allocate(new Font());
+        const fontLib = this.fontLibUid.get(fontLibId);
+        return this.fontUid.allocate(new Font());
 	}
 
 	@nativeFunction(0x0DA7535E, 150, 'uint', 'int/void*')
 	sceFontGetFontInfo(fontId: number, fontInfoPointer: Stream) {
-		var font = this.fontUid.get(fontId);
-		return 0;
+        const font = this.fontUid.get(fontId);
+        return 0;
 	}
 
 	@nativeFunction(0x48293280, 150, 'uint', 'int/float/float')
 	sceFontSetResolution(fontLibId: number, horizontalResolution: number, verticalResolution: number) {
-		//var font = this.fontUid.get(fontId);
+		//const font = this.fontUid.get(fontId);
 		//FontLibrary.HorizontalResolution = HorizontalResolution;
 		//FontLibrary.VerticalResolution = VerticalResolution;
 		return 0;

@@ -24,7 +24,7 @@ export function _downloadFileAsync(method: string, url: string, headers?: any) {
         request.open(method, url, true);
 		request.overrideMimeType("text/plain; charset=x-user-defined");
 		if (headers) {
-			for (var headerKey in headers) {
+			for (const headerKey in headers) {
 				request.setRequestHeader(headerKey, headers[headerKey]);
 			}
 		}

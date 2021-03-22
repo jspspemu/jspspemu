@@ -139,13 +139,13 @@ export class PspDisplay extends BasePspDisplay implements IPspDisplay {
 		if (!this.context || !this.imageData) return;
 		if (!this.enabled) return;
 
-		var imageData = this.imageData;
-		//var w8 = <Uint8ClampedArray><any>imageData.data;
-		var w8 = <Uint8Array><any>imageData.data;
-		var w32 = ArrayBufferUtils.uint8ToUint32(w8);
-		var baseAddress = this.address & 0x0FFFFFFF;
+        const imageData = this.imageData;
+        //const w8 = <Uint8ClampedArray><any>imageData.data;
+        const w8 = <Uint8Array><any>imageData.data;
+        const w32 = ArrayBufferUtils.uint8ToUint32(w8);
+        const baseAddress = this.address & 0x0FFFFFFF;
 
-		PixelConverter.decode(this.pixelFormat, this.memory.getPointerU8Array(baseAddress), w32, false);
+        PixelConverter.decode(this.pixelFormat, this.memory.getPointerU8Array(baseAddress), w32, false);
 		this.context.putImageData(imageData, 0, 0);
 	}
 
@@ -196,8 +196,8 @@ export class PspDisplay extends BasePspDisplay implements IPspDisplay {
 	//mustWaitVBlank = false;
 
 	private checkVblankThrottle() {
-		var currentTime = performance.now();
-		if ((currentTime - this.lastTimeVblank) >= (PspDisplay.VERTICAL_SECONDS * 1000)) {
+        const currentTime = performance.now();
+        if ((currentTime - this.lastTimeVblank) >= (PspDisplay.VERTICAL_SECONDS * 1000)) {
 			this.lastTimeVblank = currentTime;
 			return true;
 		}

@@ -8,7 +8,7 @@ import {ArrayBufferUtils, Microtask} from "../global/utils";
 import {OptimizedDrawBufferTransfer} from "../core/gpu/gpu_vertex";
 import {Config} from "../hle/config";
 
-declare var self: any;
+declare const self: any;
 
 export class EmulatorControllerNormal {
 	documentLocation = document.location.href.replace(/#.*$/, '').replace(/\/[^\/]*$/, '');

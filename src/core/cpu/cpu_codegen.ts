@@ -3,7 +3,7 @@ import {ANodeExpr, ANodeExprLValue, ANodeExprLValueSetGet, ANodeStm, MipsAstBuil
 import {VFPU_CTRL} from "./cpu_core";
 import {Instruction} from "./cpu_instruction";
 
-var ast: MipsAstBuilder = new MipsAstBuilder();
+const ast: MipsAstBuilder = new MipsAstBuilder();
 
 function assignGpr(index: number, expr: ANodeStm) { return ast.assignGpr(index, expr); }
 function assignFpr(index: number, expr: ANodeStm) { return ast.assignFpr(index, expr); }
@@ -50,9 +50,9 @@ class VMatRegClass {
 
 	_setMatrix(generator: (column: number, row: number) => ANodeExpr) {
 		// @TODO
-		var array = <ANodeExpr[]>[];
-		for (var column = 0; column < 4; column++) {
-			for (var row = 0; row < 4; row++) {
+        const array = <ANodeExpr[]>[];
+        for (let column = 0; column < 4; column++) {
+			for (let row = 0; row < 4; row++) {
 				array.push(generator(column, row));
 			}
 		}
@@ -81,11 +81,11 @@ class VVecRegClass {
 
 	private _setVector(generator: (index: number) => ANodeExpr) {
 		// @TODO
-		var array = <ANodeExpr[]>[];
-		var statements:ANodeExpr[] = [];
-		var regs = getVectorRegs(this.reg, VectorSize.Quad);
-	
-		statements.push(stm(ast.call('state.vfpuStore', [
+        const array = <ANodeExpr[]>[];
+        const statements: ANodeExpr[] = [];
+        const regs = getVectorRegs(this.reg, VectorSize.Quad);
+
+        statements.push(stm(ast.call('state.vfpuStore', [
 			ast.array(regs.map(item => imm32(item))),
 			ast.array([0, 1, 2, 3].map(index => generator(index)))
 		])));
@@ -118,13 +118,13 @@ export const enum MatrixSize { M_2x2 = 2, M_3x3 = 3, M_4x4 = 4 };
 //}
 
 function getVectorRegs(vectorReg: number, N: VectorSize) {
-	var mtx = (vectorReg >>> 2) & 7;
-	var col = vectorReg & 3;
-	var row = 0;
-	var length = 0;
-	var transpose = (vectorReg >>> 5) & 1;
+    const mtx = (vectorReg >>> 2) & 7;
+    const col = vectorReg & 3;
+    let row = 0;
+    let length = 0;
+    let transpose = (vectorReg >>> 5) & 1;
 
-	switch (N) {
+    switch (N) {
 		case VectorSize.Single: transpose = 0; row = (vectorReg >>> 5) & 3; length = 1; break;
 		case VectorSize.Pair: row = (vectorReg >>> 5) & 2; length = 2; break;
 		case VectorSize.Triple: row = (vectorReg >>> 6) & 1; length = 3; break;
@@ -132,10 +132,10 @@ function getVectorRegs(vectorReg: number, N: VectorSize) {
 		default: debugger;
 	}
 
-	var regs: number[] = new Array(length);
-	for (var i = 0; i < length; i++) {
-		var index = mtx * 4;
-		if (transpose) {
+    const regs: number[] = new Array(length);
+    for (let i = 0; i < length; i++) {
+        let index = mtx * 4;
+        if (transpose) {
 			index += ((row + i) & 3) + col * 32;
 		} else {
 			index += col + ((row + i) & 3) * 32;
@@ -146,26 +146,26 @@ function getVectorRegs(vectorReg: number, N: VectorSize) {
 }
 
 function getMatrixRegs(matrixReg: number, N: MatrixSize) {
-	var mtx = (matrixReg >> 2) & 7;
-	var col = matrixReg & 3;
+    const mtx = (matrixReg >> 2) & 7;
+    const col = matrixReg & 3;
 
-	var row = 0;
-	var side = 0;
+    let row = 0;
+    let side = 0;
 
-	switch (N) {
+    switch (N) {
 		case MatrixSize.M_2x2: row = (matrixReg >> 5) & 2; side = 2; break;
 		case MatrixSize.M_3x3: row = (matrixReg >> 6) & 1; side = 3; break;
 		case MatrixSize.M_4x4: row = (matrixReg >> 5) & 2; side = 4; break;
 		default: debugger;
 	}
 
-	var transpose = (matrixReg >> 5) & 1;
+    const transpose = (matrixReg >> 5) & 1;
 
-	var regs: number[] = new Array(side * side);
-	for (var i = 0; i < side; i++) {
-		for (var j = 0; j < side; j++) {
-			var index = mtx * 4;
-			if (transpose) {
+    const regs: number[] = new Array(side * side);
+    for (let i = 0; i < side; i++) {
+		for (let j = 0; j < side; j++) {
+            let index = mtx * 4;
+            if (transpose) {
 				index += ((row + i) & 3) + ((col + j) & 3) * 32;
 			} else {
 				index += ((col + j) & 3) + ((row + i) & 3) * 32;
@@ -194,10 +194,10 @@ function readMatrix(vectorReg: number, N: MatrixSize) {
 
 function setMemoryVector(offset: ANodeExpr, items: ANodeExpr[]) {
     //return call_stm('state.storeFloats', [offset, ast.array(items)]);
-	var out:ANodeExpr[] = [];
-	for (var n = 0; n < items.length; n++) {
-		var item = items[n];
-		out.push(ast.raw_stm(`memory.swc1(${offset.toJs()} + ${n * 4}, ${item.toJs()});`));
+    const out: ANodeExpr[] = [];
+    for (let n = 0; n < items.length; n++) {
+        const item = items[n];
+        out.push(ast.raw_stm(`memory.swc1(${offset.toJs()} + ${n * 4}, ${item.toJs()});`));
 	}
 	return ast.stms(out);
 }
@@ -228,8 +228,8 @@ function address_RS_IMM14(i: Instruction, offset: number = 0) {
 }
 
 function setMatrix(leftList: number[], generator: (column: number, row: number, index?:number) => ANodeExpr) {
-	var side = Math.sqrt(leftList.length);
-	return call_stm('state.vfpuStore', [
+    const side = Math.sqrt(leftList.length);
+    return call_stm('state.vfpuStore', [
 		ast.array(leftList.map(item => imm32(item))),
 		ast.array(ArrayUtils.range(0, leftList.length).map(index => generator(Math.floor(index % side), Math.floor(index / side), index)))
 	]);
@@ -256,8 +256,8 @@ return ast.Cast<uint>(ast.Binary(ast.GPR_s(RS), "+", Instruction.IMM14 * 4 + Off
 }
 */
 
-
-var VfpuConstants = [
+// @TODO: Convert into enum?
+const VfpuConstants = [
 	{ name: "VFPU_ZERO", value: 0.0 },
 	{ name: "VFPU_HUGE", value: 340282346638528859811704183484516925440 },
 	{ name: "VFPU_SQRT2", value: Math.sqrt(2.0) },
@@ -286,13 +286,13 @@ function getMatrixRegsVD(i: Instruction) {
 
 class VfpuPrefixes {
 	static transformRead(n: number, info: number, values: ANodeExpr[]) {
-		var sourceIndex = (info >> (0 + n * 2)) & 3;
-		var sourceAbsolute = (info >> (8 + n * 1)) & 1;
-		var sourceConstant = (info >> (12 + n * 1)) & 1;
-		var sourceNegate = (info >> (16 + n * 1)) & 1;
+        const sourceIndex = (info >> (0 + n * 2)) & 3;
+        const sourceAbsolute = (info >> (8 + n * 1)) & 1;
+        const sourceConstant = (info >> (12 + n * 1)) & 1;
+        const sourceNegate = (info >> (16 + n * 1)) & 1;
 
-		var value: ANodeExpr;
-		if (sourceConstant) {
+        let value: ANodeExpr;
+        if (sourceConstant) {
 			switch (sourceIndex) {
 				case 0: value = imm_f(sourceAbsolute ? (3) : (0)); break;
 				case 1: value = imm_f(sourceAbsolute ? (1 / 3) : (1)); break;
@@ -310,18 +310,18 @@ class VfpuPrefixes {
 	}
 
 	static transformStore(n: number, info: number, left: ANodeExprLValue, value: ANodeExpr) {
-		var destinationSaturation = (info >> (0 + n * 2)) & 3;
-		var destinationMask = (info >> (8 + n * 1)) & 1;
-		if (destinationMask) {
+        const destinationSaturation = (info >> (0 + n * 2)) & 3;
+        const destinationMask = (info >> (8 + n * 1)) & 1;
+        if (destinationMask) {
 			return ast.stm(); // Masked. No write value.
 		} else {
-			var value = value;
+			let v = value;
 			switch (destinationSaturation) {
-				case 1: value = call('MathFloat.sat0', [value]); break;
-				case 3: value = call('MathFloat.sat1', [value]); break;
+				case 1: v = call('MathFloat.sat0', [v]); break;
+				case 3: v = call('MathFloat.sat1', [v]); break;
 				default: break;
 			}
-			return assign_stm(left, value);
+			return assign_stm(left, v);
 		}
 	}
 }
@@ -392,23 +392,23 @@ export class InstructionAst {
 	lui(i: Instruction) { return assignGpr(i.rt, u_imm32(i.imm16 << 16)); }
 
 	private _vset1(i: Instruction, generate: (index: number) => ANodeExpr, destSize: number = 0, destType = 'float') {
-		var st:ANodeExpr[] = [];
-		this._vset_storeVD(st, i, destType, destSize, (index: number) => generate(index));
+        const st: ANodeExpr[] = [];
+        this._vset_storeVD(st, i, destType, destSize, (index: number) => generate(index));
 		return stms(st);
 	}
 
 	private _vset2(i: Instruction, generate: (index: number, src: ANodeExprLValue[]) => ANodeExpr, destSize: number = 0, srcSize: number = 0, destType = 'float', srcType = 'float') {
-		var st:ANodeExpr[] = [];
-		var src = this._vset_readVS(st, i, srcType, srcSize);
-		this._vset_storeVD(st, i, destType, destSize, (index: number) => generate(index, src));
+        const st: ANodeExpr[] = [];
+        const src = this._vset_readVS(st, i, srcType, srcSize);
+        this._vset_storeVD(st, i, destType, destSize, (index: number) => generate(index, src));
 		return stms(st);
 	}
 
 	private _vset3(i: Instruction, generate: (index: number, src: ANodeExprLValue[], target: ANodeExprLValue[]) => ANodeExpr, destSize = 0, srcSize = 0, targetSize = 0, destType = 'float', srcType = 'float', targetType = 'float') {
-		var st:ANodeExpr[] = [];
-		var src = this._vset_readVS(st, i, srcType, srcSize);
-		var target = this._vset_readVT(st, i, targetType, targetSize);
-		this._vset_storeVD(st, i, destType, destSize, (index: number) => generate(index, src, target));
+        const st: ANodeExpr[] = [];
+        const src = this._vset_readVS(st, i, srcType, srcSize);
+        const target = this._vset_readVT(st, i, targetType, targetSize);
+        this._vset_storeVD(st, i, destType, destSize, (index: number) => generate(index, src, target));
 		return stms(st);
 	}
 
@@ -422,13 +422,13 @@ export class InstructionAst {
 
 	private _vset_readVSVT(st: ANodeStm[], i: Instruction, type: string, size: number, name: string) {
 		if (size <= 0) size = i.ONE_TWO;
-		var regs = readVector_type((name == 'vs') ? i.VS : i.VT, size, type);
-		var prefix = (name == 'vs') ? this._vpfxs : this._vpfxt;
-		if (this.enableStaticPrefixVfpuOptimization && prefix.known) {
-			var out:ANodeExprLValue[] = [];
-			for (var n = 0; n < size; n++) {
-				var vname = ((name == 'vs') ? 's' : 't') + n;
-				out.push(ast.raw(vname));
+        const regs = readVector_type((name == 'vs') ? i.VS : i.VT, size, type);
+        const prefix = (name == 'vs') ? this._vpfxs : this._vpfxt;
+        if (this.enableStaticPrefixVfpuOptimization && prefix.known) {
+            const out: ANodeExprLValue[] = [];
+            for (let n = 0; n < size; n++) {
+                const vname = ((name == 'vs') ? 's' : 't') + n;
+                out.push(ast.raw(vname));
 				st.push(ast.allocVar(vname, VfpuPrefixes.transformRead(n, prefix.value, regs)));
 			}
 			//if (prefix.value != PrefixPrediction.DEFAULT_LOAD_VALUE) st.push(ast.debugger());
@@ -441,11 +441,11 @@ export class InstructionAst {
 
 	private _vset_storeVD(st: ANodeStm[], i: Instruction, type:string, size: number, generate: (index: number) => ANodeExpr) {
 		if (size <= 0) size = i.ONE_TWO;
-		var dest_regs = getVectorRegs(i.VD, size);
-		if (this.enableStaticPrefixVfpuOptimization && this._vpfxd.known) {
-			for (var n = 0; n < size; n++) {
-				var dest_reg = dest_regs[n];
-				st.push(VfpuPrefixes.transformStore(n, this._vpfxd.value, (type == 'float') ? vfpr(dest_reg) : vfpr_i(dest_reg), generate(n)));
+        const dest_regs = getVectorRegs(i.VD, size);
+        if (this.enableStaticPrefixVfpuOptimization && this._vpfxd.known) {
+			for (let n = 0; n < size; n++) {
+                const dest_reg = dest_regs[n];
+                st.push(VfpuPrefixes.transformStore(n, this._vpfxd.value, (type == 'float') ? vfpr(dest_reg) : vfpr_i(dest_reg), generate(n)));
 			}
 		} else {
 			st.push(call_stm((type == 'float') ? 'state.storeVd_prefixed' : 'state.storeVd_prefixed_i', [
@@ -500,8 +500,8 @@ export class InstructionAst {
 	vfim(i: Instruction) { return assign_stm(vfpr(i.VT), imm_f(i.IMM_HF)); }
 	vcst(i: Instruction) { return assign_stm(vfpr(i.VD), imm_f(VfpuConstants[i.IMM5].value)); }
 	vhdp(i: Instruction) {
-		var vectorSize = i.ONE_TWO;
-		return this._vset3(i, (_, src, target) => {
+        const vectorSize = i.ONE_TWO;
+        return this._vset3(i, (_, src, target) => {
 			return this._aggregateV(imm_f(0), vectorSize, (aggregate, index) => {
 				return binop(aggregate, '+', binop(target[index], '*', (index == (vectorSize - 1)) ? <ANodeExpr>imm_f(1.0) : src[index]))
 			});
@@ -513,10 +513,10 @@ export class InstructionAst {
 	vmone(i: Instruction) { return setMatrix(getMatrixRegsVD(i), (c, r) => imm32(1)); }
 
 	_vtfm_x(i: Instruction, vectorSize: number) {
-		var srcMat = readMatrix(i.VS, vectorSize);
+        const srcMat = readMatrix(i.VS, vectorSize);
 
-		var st:ANodeStm[] = [];
-		st.push(call_stm('state.loadVt_prefixed', [ast.array(readVector_f(i.VT, vectorSize))]));
+        const st: ANodeStm[] = [];
+        st.push(call_stm('state.loadVt_prefixed', [ast.array(readVector_f(i.VT, vectorSize))]));
 		st.push(call_stm('state.storeVd_prefixed', [
 			ast.arrayNumbers(getVectorRegs(i.VD, vectorSize)),
 			ast.array(xrange(0, vectorSize).map(n => {
@@ -529,10 +529,9 @@ export class InstructionAst {
 	}
 
 	_vhtfm_x(i: Instruction, vectorSize: number) {
-		var srcMat = readMatrix(i.VS, vectorSize);
-
-		var st:ANodeStm[] = [];
-		st.push(call_stm('state.loadVt_prefixed', [ast.array(readVector_f(i.VT, vectorSize))]));
+        const srcMat = readMatrix(i.VS, vectorSize);
+        const st: ANodeStm[] = [];
+        st.push(call_stm('state.loadVt_prefixed', [ast.array(readVector_f(i.VT, vectorSize))]));
 		st.push(call_stm('state.storeVd_prefixed', [
 			ast.arrayNumbers(getVectorRegs(i.VD, vectorSize)),
 			ast.array(xrange(0, vectorSize).map(n => {
@@ -588,8 +587,8 @@ export class InstructionAst {
 		});
 	}
 	vsocp(i: Instruction) {
-		var vectorSize = i.ONE_TWO;
-		return this._vset2(i, (index, src) => {
+        const vectorSize = i.ONE_TWO;
+        return this._vset2(i, (index, src) => {
 			switch (index) {
 				case 0: return ast.call('MathFloat.sat0', [binop(imm_f(1), '-', src[0])]);
 				case 1: return ast.call('MathFloat.sat0', [src[0]]);
@@ -657,7 +656,7 @@ export class InstructionAst {
 	*/
 
 	_aggregateV(val: ANodeExpr, size: number, generator: (value: ANodeExpr, index: number) => ANodeExpr) {
-		for (var n = 0; n < size; n++) val = generator(val, n);
+		for (let n = 0; n < size; n++) val = generator(val, n);
 		return val;
 	}
 
@@ -666,14 +665,14 @@ export class InstructionAst {
 	vflush(i: Instruction) { return ast.stm(); }
 
 	vfad(i: Instruction) {
-		var vectorSize = i.ONE_TWO;
-		return this._vset2(i, (i, src) => {
+        const vectorSize = i.ONE_TWO;
+        return this._vset2(i, (i, src) => {
 			return this._aggregateV(imm_f(0), vectorSize, (value, index) => binop(value, '+', src[index]));
 		}, 1, vectorSize);
 	}
 	vavg(i: Instruction) {
-		var vectorSize = i.ONE_TWO;
-		return this._vset2(i, (i, src) => {
+        const vectorSize = i.ONE_TWO;
+        return this._vset2(i, (i, src) => {
 			return binop(this._aggregateV(imm_f(0), vectorSize, (value, index) => binop(value, '+', src[index])), '/', imm_f(vectorSize));
 		}, 1, vectorSize);
 	}
@@ -740,9 +739,9 @@ export class InstructionAst {
 	vscmp(i: Instruction) { return this._vset3(i, (i, s, t) => call('MathFloat.sign2', [s[i], t[i]])); }
 
 	private _bvtf(i: Instruction, cond: boolean) {
-		var reg = i.IMM3;
-		var branchExpr = <ANodeExpr>ast.VCC(reg);
-		if (!cond) branchExpr = unop("!", branchExpr);
+        const reg = i.IMM3;
+        let branchExpr = <ANodeExpr>ast.VCC(reg);
+        if (!cond) branchExpr = unop("!", branchExpr);
 		return this._branch(i, branchExpr);
 	}
 	
@@ -768,13 +767,13 @@ export class InstructionAst {
 	}
 
 	private _vcmovtf(i: Instruction, True: boolean) {
-		var result = call_stm('state.vcmovtf', [
-			imm32(i.IMM3),
-			immBool(True),
-			ast.arrayNumbers(getVectorRegs(i.VD, i.ONE_TWO)),
-			ast.arrayNumbers(getVectorRegs(i.VS, i.ONE_TWO))
-		]);
-		this.eatPrefixes();
+        const result = call_stm('state.vcmovtf', [
+            imm32(i.IMM3),
+            immBool(True),
+            ast.arrayNumbers(getVectorRegs(i.VD, i.ONE_TWO)),
+            ast.arrayNumbers(getVectorRegs(i.VS, i.ONE_TWO))
+        ]);
+        this.eatPrefixes();
 		return result;
 	}
 
@@ -790,18 +789,17 @@ export class InstructionAst {
         ]);
 		*/
 
-		var out:ANodeStm[] = [];
-		
-		var vectorSize = ins.ONE_TWO;
+        const out: ANodeStm[] = [];
+        const vectorSize = ins.ONE_TWO;
 
-		//out.push(ast.raw_stm(`debugger;`));
+        //out.push(ast.raw_stm(`debugger;`));
 		this._vset_readVS(out, ins, 'float', vectorSize);
 		this._vset_readVT(out, ins, 'float', vectorSize);
-		var conds:string[] = [];
-		for (var i = 0; i < vectorSize; i++) {
-			var c = false;
-			var cond = '';
-			switch (ins.IMM4) {
+        const conds: string[] = [];
+        for (let i = 0; i < vectorSize; i++) {
+            const c = false;
+            let cond = '';
+            switch (ins.IMM4) {
 				case VCondition.FL: cond = `false`; break;
 				case VCondition.EQ: cond = `s${i} == t${i}`; break;
 				case VCondition.LT: cond = `s${i} < t${i}`; break;
@@ -872,24 +870,23 @@ export class InstructionAst {
 	vsub(i: Instruction) { return this._vset3(i, (i, src, target) => binop(src[i], '-', target[i])); }
 	vscl(i: Instruction) { return this._vset3(i, (i, src, target) => binop(src[i], '*', target[0]), 0, 0, 1); }
 	vdot(i: Instruction) {
-		var vectorSize = i.ONE_TWO;
-		return this._vset3(i, (i, s, t) => {
+        const vectorSize = i.ONE_TWO;
+        return this._vset3(i, (i, s, t) => {
 			return this._aggregateV(imm_f(0), vectorSize, (sum, n) => binop(sum, '+', binop(s[n], '*', t[n])));
 		}, 1, vectorSize, vectorSize);
 	}
 	vrot(i: Instruction) {
-		var vectorSize = i.ONE_TWO;
-		var imm5 = i.IMM5;
-		var cosIndex = BitUtils.extract(imm5, 0, 2);
-		var sinIndex = BitUtils.extract(imm5, 2, 2);
-		var negateSin = BitUtils.extractBool(imm5, 4);
+        const vectorSize = i.ONE_TWO;
+        const imm5 = i.IMM5;
+        const cosIndex = BitUtils.extract(imm5, 0, 2);
+        const sinIndex = BitUtils.extract(imm5, 2, 2);
+        const negateSin = BitUtils.extractBool(imm5, 4);
+        const dest = getVectorRegs(i.VD, i.ONE_TWO);
 
-		var dest = getVectorRegs(i.VD, i.ONE_TWO);
-
-		return this._vset2(i, (i, s) => {
-			var sine = <ANodeExpr>call('MathFloat.sinv1', [s[0]]);
-			var cosine = <ANodeExpr>call('MathFloat.cosv1', [s[0]]);
-			if (negateSin) sine = unop('-', sine);
+        return this._vset2(i, (i, s) => {
+            let sine = <ANodeExpr>call('MathFloat.sinv1', [s[0]]);
+            const cosine = <ANodeExpr>call('MathFloat.cosv1', [s[0]]);
+            if (negateSin) sine = unop('-', sine);
 
 			if (i == cosIndex) return cosine;
 			if (i == sinIndex) return sine;
@@ -897,27 +894,26 @@ export class InstructionAst {
 		}, vectorSize, 1);
 	}
 	vmmov(i: Instruction) {
-		var vectorSize = i.ONE_TWO;
-		var dest = getMatrixRegs(i.VD, vectorSize);
-		var src = readMatrix(i.VS, vectorSize);
-		//var target = readMatrix(i.VT, i.ONE_TWO);
-		var result = setMatrix(dest, (column, row, index) => src[index!]);
-		this.eatPrefixes();
+        const vectorSize = i.ONE_TWO;
+        const dest = getMatrixRegs(i.VD, vectorSize);
+        const src = readMatrix(i.VS, vectorSize);
+        //const target = readMatrix(i.VT, i.ONE_TWO);
+        const result = setMatrix(dest, (column, row, index) => src[index!]);
+        this.eatPrefixes();
 		return result;
 	}
 
 	vmmul(i: Instruction) {
-		var VectorSize = i.ONE_TWO;
-		var dest = getMatrixRegs(i.VD, VectorSize);
-		var src = readMatrix(i.VS, VectorSize);
-		var target = readMatrix(i.VT, VectorSize);
-
-		var st:ANodeStm[] = [];
-		//st.push(ast.debugger());
+        const VectorSize = i.ONE_TWO;
+        const dest = getMatrixRegs(i.VD, VectorSize);
+        const src = readMatrix(i.VS, VectorSize);
+        const target = readMatrix(i.VT, VectorSize);
+        const st: ANodeStm[] = [];
+        //st.push(ast.debugger());
 		st.push(setMatrix(dest, (Column, Row, Index) =>
 		{
-			var sum = <ANodeExpr>imm_f(0);
-			for (var n = 0; n < VectorSize; n++) {
+            let sum = <ANodeExpr>imm_f(0);
+            for (let n = 0; n < VectorSize; n++) {
 				sum = binop(sum, '+', binop(src[Column * VectorSize + n], '*', target[Row * VectorSize + n]));
 			}
 			return sum;
@@ -932,12 +928,12 @@ export class InstructionAst {
 	'vt5650.q'(i: Instruction) { return this._vtXXX_q(i, '_vt5650_step'); }
 
 	_vtXXX_q(i: Instruction, func: string) {
-		var size = i.ONE_TWO;
-		if (size != 4) throw (new Error("Not implemented _vtXXXX_q for VectorSize=" + size));
-		var dest = getVectorRegs(i.VD, 2);
-		var src = readVector_i(i.VS, 4);
-		var result = setVector_i(dest, (index) => ast.call('state.' + func, [src[index * 2 + 0], src[index * 2 + 1]]));
-		this.eatPrefixes();
+        const size = i.ONE_TWO;
+        if (size != 4) throw (new Error("Not implemented _vtXXXX_q for VectorSize=" + size));
+        const dest = getVectorRegs(i.VD, 2);
+        const src = readVector_i(i.VS, 4);
+        const result = setVector_i(dest, (index) => ast.call('state.' + func, [src[index * 2 + 0], src[index * 2 + 1]]));
+        this.eatPrefixes();
 		return result;
 	}
 
@@ -1114,8 +1110,8 @@ export class InstructionAst {
 		]);
 	}
 	jr(i: Instruction) {
-		var statements:ANodeStm[] = [];
-		statements.push(stm(assign(branchflag(), imm32(1))));
+        const statements: ANodeStm[] = [];
+        statements.push(stm(assign(branchflag(), imm32(1))));
 		statements.push(stm(assign(branchpc(), gpr(i.rs))));
 		if (i.rs == 31) {
 			statements.push(this._callstackPop(i));
@@ -1131,18 +1127,18 @@ export class InstructionAst {
 	jalr(i: Instruction) { return stms([this.jr(i), this._callstackPush(i), assignGpr(i.rd, u_imm32(i.PC + 8)),]); }
 
 	_comp(i: Instruction, fc02: number, fc3: number) {
-		var fc_unordererd = ((fc02 & 1) != 0);
-		var fc_equal = ((fc02 & 2) != 0);
-		var fc_less = ((fc02 & 4) != 0);
-		var fc_inv_qnan = (fc3 != 0); // TODO -- Only used for detecting invalid operations?
+        const fc_unordererd = ((fc02 & 1) != 0);
+        const fc_equal = ((fc02 & 2) != 0);
+        const fc_less = ((fc02 & 4) != 0);
+        const fc_inv_qnan = (fc3 != 0); // TODO -- Only used for detecting invalid operations?
 		
         //return stm(call('state._comp_impl', [fpr(i.fs), fpr(i.ft), immBool(fc_unordererd), immBool(fc_equal), immBool(fc_less), immBool(fc_inv_qnan)]));
 
-		var s = fpr(i.fs).toJs();
-		var t = fpr(i.ft).toJs();
-		
-		var parts:string[] = [];
-		if (fc_equal) parts.push(`(${s} == ${t})`);
+        const s = fpr(i.fs).toJs();
+        const t = fpr(i.ft).toJs();
+
+        let parts: string[] = [];
+        if (fc_equal) parts.push(`(${s} == ${t})`);
 		if (fc_less) parts.push(`(${s} < ${t})`);
 		if (parts.length == 0) parts = ['false'];
 		

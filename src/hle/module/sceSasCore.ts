@@ -6,10 +6,10 @@ import {EmulatorContext} from "../../emu/context";
 import {Sample} from "../../core/audio";
 import {VagSoundSource} from "../../format/vag";
 
-var PSP_SAS_VOL_MAX = 0x1000;
-var PSP_SAS_PITCH_MIN = 0x1;
-var PSP_SAS_PITCH_BASE = 0x1000;
-var PSP_SAS_PITCH_MAX = 0x4000;
+const PSP_SAS_VOL_MAX = 0x1000;
+const PSP_SAS_PITCH_MIN = 0x1;
+const PSP_SAS_PITCH_BASE = 0x1000;
+const PSP_SAS_PITCH_MAX = 0x4000;
 
 export class sceSasCore {
 	private static PSP_SAS_VOICES_MAX = 32;
@@ -45,7 +45,7 @@ export class sceSasCore {
 			return SceKernelErrors.ERROR_SAS_INVALID_OUTPUT_MODE;
 		}
 
-		//var SasCore = GetSasCore(SasCorePointer, CreateIfNotExists: true);
+		//const SasCore = GetSasCore(SasCorePointer, CreateIfNotExists: true);
 		this.core.grainSamples = grainSamples;
 		this.core.maxVoices = maxVoices;
 		this.core.outputMode = outputMode;
@@ -74,8 +74,8 @@ export class sceSasCore {
 	@nativeFunction(0x99944089, 150, 'uint', 'int/int/byte[]/int', { originalName: "__sceSasSetVoice" })
 	sceSasSetVoice(sasCorePointer: number, voiceId: number, data: Stream, loop: number) {
 		if (!this.hasSasCoreVoice(sasCorePointer, voiceId)) return SceKernelErrors.ERROR_SAS_INVALID_VOICE;
-		var voice = this.getSasCoreVoice(sasCorePointer, voiceId);
-		if (data == null) {
+        const voice = this.getSasCoreVoice(sasCorePointer, voiceId);
+        if (data == null) {
 			voice.unsetSource();
 			return 0;
 		}
@@ -95,8 +95,8 @@ export class sceSasCore {
 	@nativeFunction(0xE1CD9561, 150, 'uint', 'int/int/byte[]/int', { originalName: "__sceSasSetVoicePCM" })
 	sceSasSetVoicePCM(sasCorePointer: number, voiceId: number, data: Stream, loop: number) {
 		if (!this.hasSasCoreVoice(sasCorePointer, voiceId)) return SceKernelErrors.ERROR_SAS_INVALID_VOICE;
-		var voice = this.getSasCoreVoice(sasCorePointer, voiceId);
-		if (data == null) {
+        const voice = this.getSasCoreVoice(sasCorePointer, voiceId);
+        if (data == null) {
 			voice.unsetSource();
 		} else {
 			voice.setPCM(data, loop);
@@ -150,9 +150,9 @@ export class sceSasCore {
 	@nativeFunction(0x019B25EB, 150, 'uint', 'int/int/int/int/int/int/int', { originalName: "__sceSasSetADSR" })
 	sceSasSetADSR(sasCorePointer: number, voiceId: number, flags: AdsrFlags, attackRate: number, decayRate: number, sustainRate: number, releaseRate: number) {
 		if (!this.hasSasCoreVoice(sasCorePointer, voiceId)) return SceKernelErrors.ERROR_SAS_INVALID_VOICE;
-		var voice = this.getSasCoreVoice(sasCorePointer, voiceId);
+        const voice = this.getSasCoreVoice(sasCorePointer, voiceId);
 
-		if (flags & AdsrFlags.HasAttack) voice.envelope.attackRate = attackRate;
+        if (flags & AdsrFlags.HasAttack) voice.envelope.attackRate = attackRate;
 		if (flags & AdsrFlags.HasDecay) voice.envelope.decayRate = decayRate;
 		if (flags & AdsrFlags.HasSustain) voice.envelope.sustainRate = sustainRate;
 		if (flags & AdsrFlags.HasRelease) voice.envelope.releaseRate = releaseRate;
@@ -169,8 +169,8 @@ export class sceSasCore {
 	@nativeFunction(0xA0CF2FA4, 150, 'uint', 'int/int', {originalName:"__sceSasSetKeyOff"})
 	sceSasSetKeyOff(sasCorePointer: number, voiceId: number) {
 		if (!this.hasSasCoreVoice(sasCorePointer, voiceId)) return SceKernelErrors.ERROR_SAS_INVALID_VOICE;
-		var voice = this.getSasCoreVoice(sasCorePointer, voiceId);
-		if (!voice.paused) return SceKernelErrors.ERROR_SAS_VOICE_PAUSED;
+        const voice = this.getSasCoreVoice(sasCorePointer, voiceId);
+        if (!voice.paused) return SceKernelErrors.ERROR_SAS_VOICE_PAUSED;
 		voice.setOn(false);
 		return 0;
 	}
@@ -178,23 +178,23 @@ export class sceSasCore {
 	@nativeFunction(0x76F01ACA, 150, 'uint', 'int/int', {originalName:"__sceSasSetKeyOn"})
 	sceSasSetKeyOn(sasCorePointer: number, voiceId: number) {
 		if (!this.hasSasCoreVoice(sasCorePointer, voiceId)) return SceKernelErrors.ERROR_SAS_INVALID_VOICE;
-		var voice = this.getSasCoreVoice(sasCorePointer, voiceId);
-		voice.setOn(true);
+        const voice = this.getSasCoreVoice(sasCorePointer, voiceId);
+        voice.setOn(true);
 		return 0;
 	}
 
 	@nativeFunction(0x74AE582A, 150, 'uint', 'int/int', {originalName:"__sceSasGetEnvelopeHeight"})
 	sceSasGetEnvelopeHeight(sasCorePointer: number, voiceId: number) {
 		if (!this.hasSasCoreVoice(sasCorePointer, voiceId)) return SceKernelErrors.ERROR_SAS_INVALID_VOICE;
-		var voice = this.getSasCoreVoice(sasCorePointer, voiceId);
-		return voice.envelope.height;
+        const voice = this.getSasCoreVoice(sasCorePointer, voiceId);
+        return voice.envelope.height;
 	}
 
 	@nativeFunction(0x5F9529F6, 150, 'uint', 'int/int/int', {originalName:"__sceSasSetSL"})
 	sceSasSetSL(sasCorePointer: number, voiceId: number, sustainLevel: number) {
 		if (!this.hasSasCoreVoice(sasCorePointer, voiceId)) return SceKernelErrors.ERROR_SAS_INVALID_VOICE;
-		var voice = this.getSasCoreVoice(sasCorePointer, voiceId);
-		voice.sustainLevel = sustainLevel;
+        const voice = this.getSasCoreVoice(sasCorePointer, voiceId);
+        voice.sustainLevel = sustainLevel;
 		return 0;
 	}
 
@@ -210,8 +210,8 @@ export class sceSasCore {
 
 	@nativeFunction(0x2C8E6AB3, 150, 'uint', 'int',{originalName:"__sceSasGetPauseFlag"})
 	sceSasGetPauseFlag(sasCorePointer: number) {
-		var voiceBits = 0;
-		this.core.voices.forEach((voice) => {
+        let voiceBits = 0;
+        this.core.voices.forEach((voice) => {
 			voiceBits |= (voice.paused ? 1 : 0) << voice.index;
 		});
 		return voiceBits;
@@ -229,15 +229,15 @@ export class sceSasCore {
 	sceSasSetNoise(sasCorePointer: number, voiceId: number, noiseFrequency: number) {
 		if (noiseFrequency < 0 || noiseFrequency >= 64) return SceKernelErrors.ERROR_SAS_INVALID_NOISE_CLOCK;
 		if (!this.hasSasCoreVoice(sasCorePointer, voiceId)) return SceKernelErrors.ERROR_SAS_INVALID_VOICE;
-		var voice = this.getSasCoreVoice(sasCorePointer, voiceId);
-		return 0;
+        const voice = this.getSasCoreVoice(sasCorePointer, voiceId);
+        return 0;
 	}
 
 	@nativeFunction(0x440CA7D8, 150, 'uint', 'int/int/int/int/int/int',{originalName:"__sceSasSetVolume"})
 	sceSasSetVolume(sasCorePointer: number, voiceId: number, leftVolume: number, rightVolume: number, effectLeftVol: number, effectRightVol: number) {
 		if (!this.hasSasCoreVoice(sasCorePointer, voiceId)) return SceKernelErrors.ERROR_SAS_INVALID_VOICE;
-		var voice = this.getSasCoreVoice(sasCorePointer, voiceId);
-		leftVolume = Math.abs(leftVolume);
+        const voice = this.getSasCoreVoice(sasCorePointer, voiceId);
+        leftVolume = Math.abs(leftVolume);
 		rightVolume = Math.abs(rightVolume);
 		effectLeftVol = Math.abs(effectLeftVol);
 		effectRightVol = Math.abs(effectRightVol);
@@ -257,8 +257,8 @@ export class sceSasCore {
 	@nativeFunction(0xAD84D37F, 150, 'uint', 'int/int/int',{originalName:"__sceSasSetPitch"})
 	sceSasSetPitch(sasCorePointer: number, voiceId: number, pitch: number) {
 		if (!this.hasSasCoreVoice(sasCorePointer, voiceId)) return SceKernelErrors.ERROR_SAS_INVALID_VOICE;
-		var voice = this.getSasCoreVoice(sasCorePointer, voiceId);
-		if (pitch < PSP_SAS_PITCH_MIN || pitch > PSP_SAS_PITCH_MAX) return -1;
+        const voice = this.getSasCoreVoice(sasCorePointer, voiceId);
+        if (pitch < PSP_SAS_PITCH_MIN || pitch > PSP_SAS_PITCH_MAX) return -1;
 		voice.pitch = pitch;
 
 		return 0;
@@ -275,8 +275,8 @@ export class sceSasCore {
 	@nativeFunction(0xCBCD4F79, 150, 'uint', 'int/int/int/int',{originalName:"__sceSasSetSimpleADSR"})
 	sceSasSetSimpleADSR(sasCorePointer: number, voiceId: number, env1Bitfield: number, env2Bitfield: number) {
 		if (!this.hasSasCoreVoice(sasCorePointer, voiceId)) return SceKernelErrors.ERROR_SAS_INVALID_VOICE;
-		var voice = this.getSasCoreVoice(sasCorePointer, voiceId);
-		return 0;
+        const voice = this.getSasCoreVoice(sasCorePointer, voiceId);
+        return 0;
 	}
 }
 
@@ -313,12 +313,12 @@ class SasCore {
         let prevPosDiv = -1;
 
 		for (let n = 0; n < this.voices.length; n++) {
-			var voice = this.voices[n];
-			if (!voice.onAndPlaying) continue;
+            const voice = this.voices[n];
+            if (!voice.onAndPlaying) continue;
 
-			//var sampleLeftSum = 0, sampleRightSum = 0;
-			//var sampleLeftMax = 0, sampleRightMax = 0;
-			//var sampleCount = 0;
+			//const sampleLeftSum = 0, sampleRightSum = 0;
+			//const sampleLeftMax = 0, sampleRightMax = 0;
+			//const sampleCount = 0;
 
             let pos = 0;
 			while (true) {

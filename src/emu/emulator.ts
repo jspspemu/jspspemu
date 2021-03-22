@@ -43,7 +43,7 @@ import {IsoVfs} from "../hle/vfs/vfs_iso";
 import {Html5Gamepad} from "../html5/Html5Gamepad";
 import {Html5Keyboard} from "../html5/Html5Keyboard";
 
-var console = logger.named('emulator');
+const console = logger.named('emulator');
 
 export class Emulator {
 	public context: EmulatorContext;

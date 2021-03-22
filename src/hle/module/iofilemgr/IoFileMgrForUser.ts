@@ -9,8 +9,8 @@ import {FileMode, FileOpenFlags, VfsStat} from "../../vfs/vfs";
 import {Thread} from "../../manager/thread";
 import {HleIoDirent, IOFileModes, SceIoStat, ScePspDateTime, SeekAnchor} from "../../structs";
 
-//var console = logger.named('module.IoFileMgrForUser');
-var log = logger.named('module.IoFileMgrForUser');
+//const console = logger.named('module.IoFileMgrForUser');
+const log = logger.named('module.IoFileMgrForUser');
 
 export class IoFileMgrForUser {
 	constructor(private context: EmulatorContext) { }
@@ -33,8 +33,8 @@ export class IoFileMgrForUser {
 	@nativeFunction(0x109F50BC, 150, 'int', 'string/int/int')
 	sceIoOpen(filename: string, flags: FileOpenFlags, mode: FileMode) {
 		return this._sceIoOpenAsync(filename, flags, mode).then(result => {
-			var str = sprintf('IoFileMgrForUser.sceIoOpen("%s", %d(%s), 0%o)', filename, flags, setToString(FileOpenFlags, flags), mode);
-			if (result == SceKernelErrors.ERROR_ERRNO_FILE_NOT_FOUND) {
+            const str = sprintf('IoFileMgrForUser.sceIoOpen("%s", %d(%s), 0%o)', filename, flags, setToString(FileOpenFlags, flags), mode);
+            if (result == SceKernelErrors.ERROR_ERRNO_FILE_NOT_FOUND) {
 				log.error(str, result);
 			} else {
 				log.info(str, result);
@@ -62,8 +62,8 @@ export class IoFileMgrForUser {
 
 		return this._sceIoOpenAsync(filename, flags, mode).then(fileId => {
 			if (!this.hasFileById(fileId)) return SceKernelErrors.ERROR_ERRNO_FILE_NOT_FOUND;
-			var file = this.getFileById(fileId);
-			file.setAsyncOperation(PromiseFast.resolve(Integer64.fromNumber(fileId)));
+            const file = this.getFileById(fileId);
+            file.setAsyncOperation(PromiseFast.resolve(Integer64.fromNumber(fileId)));
 			log.info('-->', fileId);
 			return fileId;
 		});
@@ -75,8 +75,8 @@ export class IoFileMgrForUser {
 		//if (filename == '') return PromiseFast.resolve(0);
 
 		if (!this.hasFileById(fileId)) return SceKernelErrors.ERROR_ERRNO_FILE_NOT_FOUND;
-		var file = this.getFileById(fileId);
-		if (file) file.close();
+        const file = this.getFileById(fileId);
+        if (file) file.close();
 
 		//file.setAsyncOperation(PromiseFast.resolve(Integer64.fromInt(fileId)));
 		file.setAsyncOperation(PromiseFast.resolve(Integer64.fromInt(0)));
@@ -95,8 +95,8 @@ export class IoFileMgrForUser {
 	@nativeFunction(0x810C4BC3, 150, 'int', 'int')
 	sceIoClose(fileId: number) {
 		if (!this.hasFileById(fileId)) return SceKernelErrors.ERROR_ERRNO_FILE_NOT_FOUND;
-		var file = this.getFileById(fileId);
-		if (file) file.close();
+        const file = this.getFileById(fileId);
+        if (file) file.close();
 		this.fileUids.remove(fileId);
 		return 0;
 	}
@@ -105,16 +105,16 @@ export class IoFileMgrForUser {
 	sceIoWrite(fileId: number, input: Stream): any {
 		if (fileId < 3) {
 			// @TODO: Fixme! Create a proper file
-			var str = input.readString(input.length);
-			log.warn('STD[' + fileId + ']', str);
+            const str = input.readString(input.length);
+            log.warn('STD[' + fileId + ']', str);
 			this.context.onStdout.dispatch(str);
 			//return immediateAsync().then(() => 0);
 			return 0;
 		} else {
 			if (!this.hasFileById(fileId)) return SceKernelErrors.ERROR_ERRNO_FILE_NOT_FOUND;
-			var file = this.getFileById(fileId);
+            const file = this.getFileById(fileId);
 
-			return file.entry.writeChunkAsync(file.cursor, input.toArrayBuffer()).then((writtenCount: number) => {
+            return file.entry.writeChunkAsync(file.cursor, input.toArrayBuffer()).then((writtenCount: number) => {
 				log.info('sceIoWrite', 'file.cursor', file.cursor, 'input.length:', input.length, 'writtenCount:', writtenCount);
 				file.cursor += writtenCount;
 				return writtenCount;
@@ -128,9 +128,9 @@ export class IoFileMgrForUser {
 	@nativeFunction(0x6A638D83, 150, 'int', 'int/uint/int')
 	sceIoRead(fileId: number, outputPointer: number, outputLength: number):number | PromiseFast<number> {
 		if (!this.hasFileById(fileId)) return SceKernelErrors.ERROR_ERRNO_FILE_NOT_FOUND;
-		var file = this.getFileById(fileId);
+        const file = this.getFileById(fileId);
 
-		return file.entry.readChunkAsync(file.cursor, outputLength).then(readedData => {
+        return file.entry.readChunkAsync(file.cursor, outputLength).then(readedData => {
 			file.cursor += readedData.byteLength;
 			//log.log(new Uint8Array(readedData));
 			this.context.memory.writeBytes(outputPointer, readedData);
@@ -142,9 +142,9 @@ export class IoFileMgrForUser {
 	@nativeFunction(0xA0B5A7C2, 150, 'int', 'Thread/int/uint/int')
 	sceIoReadAsync(thread:Thread, fileId: number, outputPointer: number, outputLength: number) {
 		if (!this.hasFileById(fileId)) return SceKernelErrors.ERROR_ERRNO_FILE_NOT_FOUND;
-		var file = this.getFileById(fileId);
+        const file = this.getFileById(fileId);
 
-		// SCE_KERNEL_ERROR_ASYNC_BUSY
+        // SCE_KERNEL_ERROR_ASYNC_BUSY
 
 		file.setAsyncOperation(file.entry.readChunkAsync(file.cursor, outputLength).then(readedData => {
 			//log.log('sceIoReadAsync', file, fileId, outputLength, readedData.byteLength, new Uint8Array(readedData));
@@ -166,9 +166,9 @@ export class IoFileMgrForUser {
 		}
 
 		if (!this.hasFileById(fileId)) return SceKernelErrors.ERROR_ERRNO_FILE_NOT_FOUND;
-		var file = this.getFileById(fileId);
+        const file = this.getFileById(fileId);
 
-		if (file.asyncOperation) {
+        if (file.asyncOperation) {
 			if (DebugOnce('_sceIoWaitAsyncCB', 100)) log.info(thread.name, ':_sceIoWaitAsyncCB', fileId, 'completed');
 			return file.asyncOperation.then(result => {
 				//debugger;
@@ -198,9 +198,9 @@ export class IoFileMgrForUser {
 	sceIoPollAsync(thread: Thread, fileId: number, resultPointer: Stream) {
 		//log.info('sceIoPollAsync', fileId);
 		if (!this.hasFileById(fileId)) return SceKernelErrors.ERROR_ERRNO_FILE_NOT_FOUND;
-		var file = this.getFileById(fileId);
+        const file = this.getFileById(fileId);
 
-		if (file.asyncResult) {
+        if (file.asyncResult) {
 			//return this._sceIoWaitAsyncCB(thread, fileId, resultPointer);
 			//if (DebugOnce('sceIoPollAsync', 100)) log.log(thread.name, ':sceIoPollAsync', fileId, 'resolved -> ', file.asyncResult.number);
 			resultPointer.writeInt64(file.asyncResult);
@@ -218,7 +218,7 @@ export class IoFileMgrForUser {
 	[HlePspFunction(NID = 0xA0B5A7C2, FirmwareVersion = 150)]
 	public int sceIoReadAsync(SceUID FileId, byte * OutputPointer, int OutputSize)
 	{
-		var File = HleIoManager.HleIoDrvFileArgPool.Get(FileId);
+		const File = HleIoManager.HleIoDrvFileArgPool.Get(FileId);
 		File.AsyncLastResult = sceIoRead(FileId, OutputPointer, OutputSize);
 
 		_DelayIo(IoDelayType.Read, OutputSize);
@@ -228,8 +228,8 @@ export class IoFileMgrForUser {
 	*/
 
 	_vfsStatToSceIoStat(stat: VfsStat) {
-		var stat2 = new SceIoStat();
-		//stat2.mode = <_structs.SceMode>parseInt('777', 8)
+        const stat2 = new SceIoStat();
+        //stat2.mode = <_structs.SceMode>parseInt('777', 8)
 		stat2.mode = 0;
 		stat2.size = stat.size;
 		stat2.timeCreation = ScePspDateTime.fromDate(stat.timeCreation);
@@ -263,8 +263,8 @@ export class IoFileMgrForUser {
 		try {
 			return this.context.fileManager.getStatAsync(fileName)
 				.then(stat => {
-					var stat2 = this._vfsStatToSceIoStat(stat);
-					log.info(sprintf('IoFileMgrForUser.sceIoGetstat("%s")', fileName), stat2);
+                    const stat2 = this._vfsStatToSceIoStat(stat);
+                    log.info(sprintf('IoFileMgrForUser.sceIoGetstat("%s")', fileName), stat2);
 					if (sceIoStatPointer) {
 						sceIoStatPointer.position = 0;
 						SceIoStat.struct.write(sceIoStatPointer, stat2);
@@ -295,7 +295,7 @@ export class IoFileMgrForUser {
 	[HlePspFunction(NID = 0x71B19E77, FirmwareVersion = 150)]
 	public int sceIoLseekAsync(SceUID FileId, long Offset, SeekAnchor Whence)
 	{
-		var File = HleIoManager.HleIoDrvFileArgPool.Get(FileId);
+		const File = HleIoManager.HleIoDrvFileArgPool.Get(FileId);
 		File.AsyncLastResult = sceIoLseek(FileId, Offset, Whence);
 		_DelayIo(IoDelayType.Seek);
 		return 0;
@@ -304,25 +304,25 @@ export class IoFileMgrForUser {
 
 	@nativeFunction(0x71B19E77, 150, 'int', 'int/long/int')
 	sceIoLseekAsync(fileId: number, offset: Integer64, whence: number) {
-		//var file = this.getFileById(fileId);
+		//const file = this.getFileById(fileId);
 		if (!this.hasFileById(fileId)) return SceKernelErrors.ERROR_ERRNO_FILE_NOT_FOUND;
-		var file = this.getFileById(fileId);
-		var result = this._seek(fileId, offset.getNumber(), whence);
-		file.setAsyncOperationNow(Integer64.fromNumber(result));
+        const file = this.getFileById(fileId);
+        const result = this._seek(fileId, offset.getNumber(), whence);
+        file.setAsyncOperationNow(Integer64.fromNumber(result));
 		return 0;
 	}
 
 	@nativeFunction(0x27EB27B8, 150, 'long', 'int/long/int')
 	sceIoLseek(fileId: number, offset: Integer64, whence: number) {
-		var result = this._seek(fileId, offset.getNumber(), whence);
-		//log.info(sprintf('IoFileMgrForUser.sceIoLseek(%d, %d, %d): %d', fileId, offset, whence, result));
+        const result = this._seek(fileId, offset.getNumber(), whence);
+        //log.info(sprintf('IoFileMgrForUser.sceIoLseek(%d, %d, %d): %d', fileId, offset, whence, result));
 		return Integer64.fromNumber(result);
 	}
 
 	@nativeFunction(0x68963324, 150, 'int', 'int/int/int')
 	sceIoLseek32(fileId: number, offset: number, whence: number) {
-		var result = this._seek(fileId, offset, whence);
-		//log.info(sprintf('IoFileMgrForUser.sceIoLseek32(%d, %d, %d) : %d', fileId, offset, whence, result));
+        const result = this._seek(fileId, offset, whence);
+        //log.info(sprintf('IoFileMgrForUser.sceIoLseek32(%d, %d, %d) : %d', fileId, offset, whence, result));
 		return result;
 	}
 
@@ -374,8 +374,8 @@ export class IoFileMgrForUser {
 
 	_seek(fileId: number, offset: number, whence: number) {
 		if (!this.hasFileById(fileId)) return SceKernelErrors.ERROR_ERRNO_FILE_NOT_FOUND;
-		var file = this.getFileById(fileId);
-		switch (whence) {
+        const file = this.getFileById(fileId);
+        switch (whence) {
 			case SeekAnchor.Set:
 				file.cursor = 0 + offset;
 				break;

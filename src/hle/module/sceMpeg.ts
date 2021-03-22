@@ -9,8 +9,8 @@ import {Int32, Int32_l, Int64, Stringn, StructClass, UInt32, UInt32_l} from "../
 import {MeStream} from "../../global/me";
 import {Integer64} from "../../global/int64";
 
-var ENABLE = false;
-//var ENABLE = true;
+const ENABLE = false;
+//const ENABLE = true;
 
 export class sceMpeg {
 	constructor(private context: EmulatorContext) { }
@@ -58,8 +58,8 @@ export class sceMpeg {
 	@nativeFunction(0xA11C7026, 150, 'uint', 'uint/void*')
 	sceMpegAvcDecodeMode(mpegAddr: number, modeAddr: Stream) {
 		if (!this.isValidMpeg(mpegAddr)) return -1;
-		var mode = SceMpegAvcMode.struct.createProxy(modeAddr);
-		this.mode = mode.mode;
+        const mode = SceMpegAvcMode.struct.createProxy(modeAddr);
+        this.mode = mode.mode;
 		if ((mode.pixelformat >= PixelFormat.RGBA_5650) && (mode.pixelformat <= PixelFormat.RGBA_8888)) {
 			this.pixelformat = mode.pixelformat;
 		} else {
@@ -147,8 +147,8 @@ export class sceMpeg {
 
 	@nativeFunction(0xB5F6DC87, 150, 'uint', 'void*')
 	sceMpegRingbufferAvailableSize(rinbuggerAddr: Stream) {
-		var ringbuffer = RingBuffer.struct.createProxy(rinbuggerAddr);
-		return ringbuffer.packets - ringbuffer.packetsAvail;
+        const ringbuffer = RingBuffer.struct.createProxy(rinbuggerAddr);
+        return ringbuffer.packets - ringbuffer.packetsAvail;
 	}
 
 	@nativeFunction(0xD7A29F46, 150, 'uint', 'int')
@@ -167,8 +167,8 @@ export class sceMpeg {
 				// The PSP's firmware allows some cases here, due to a bug in its validation.
 			}
 		}
-		var buf = RingBuffer.struct.createProxy(ringbufferAddr);
-		buf.packets = numPackets;
+        const buf = RingBuffer.struct.createProxy(ringbufferAddr);
+        buf.packets = numPackets;
 		buf.packetsRead = 0;
 		buf.packetsWritten = 0;
 		buf.packetsAvail = 0;
@@ -197,24 +197,24 @@ export class sceMpeg {
 
 	@nativeFunction(0xB240A59E, 150, 'uint', 'void*/uint/uint')
 	sceMpegRingbufferPut(ringbufferAddr: Stream, numPackets: number, available: number) {
-		var state = this.context.currentState;
-		
-		//console.log('sceMpegRingbufferPut');
+        const state = this.context.currentState;
+
+        //console.log('sceMpegRingbufferPut');
 		this._mpegRingbufferRead();
 		numPackets = Math.min(numPackets, available);
 		if (numPackets <= 0) {
 			debugger;
 			return 0;
 		}
-		
-		var ringbuffer = RingBuffer.struct.createProxy(ringbufferAddr.clone());
 
-		//console.log(this.context.memory.getPointerU8Array(ringbuffer.data, ringbuffer.packetSize));
+        const ringbuffer = RingBuffer.struct.createProxy(ringbufferAddr.clone());
+
+        //console.log(this.context.memory.getPointerU8Array(ringbuffer.data, ringbuffer.packetSize));
 		
 		// Execute callback function as a direct MipsCall, no blocking here so no messing around with wait states etc
 		if (ringbuffer.callback_addr != 0) {
-			var packetsThisRound = Math.min(numPackets, ringbuffer.packets);
-			this.context.interop.execute(state, ringbuffer.callback_addr, [
+            const packetsThisRound = Math.min(numPackets, ringbuffer.packets);
+            this.context.interop.execute(state, ringbuffer.callback_addr, [
 				ringbuffer.data, packetsThisRound, ringbuffer.callback_args
 			]);
 			console.log(state.V0);

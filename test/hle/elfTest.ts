@@ -22,7 +22,7 @@ describe('elf', () => {
 	});
 
     it('load', () => {
-        //var stream = Stream.fromBase64(minifireElfBase64);
+        //const stream = Stream.fromBase64(minifireElfBase64);
         const memory = getMemoryInstance();
         const memoryManager = new MemoryManager();
         const display = new DummyPspDisplay();

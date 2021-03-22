@@ -1,5 +1,5 @@
 
-declare var global: any;
+declare const global: any;
 
 if (typeof global === 'undefined') {
     (window as any).global = window

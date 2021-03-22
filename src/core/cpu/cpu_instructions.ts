@@ -49,7 +49,7 @@ function VM(format: string): ValueMask {
     format.split(':').forEach((item) => {
 		// normal chunk
 		if (/^[01\-]+$/.test(item)) {
-			for (var n = 0; n < item.length; n++) {
+			for (let n = 0; n < item.length; n++) {
 				value <<= 1;
 				mask <<= 1;
 				if (item[n] == '0') { value |= 0; mask |= 1; }
@@ -59,7 +59,7 @@ function VM(format: string): ValueMask {
 		}
 		// special chunk
 		else {
-			var displacement = counts[item];
+			const displacement = counts[item];
 			if (displacement === undefined) throw ("Invalid item '" + item + "'");
 			value <<= displacement;
 			mask <<= displacement;
@@ -102,7 +102,7 @@ export class Instructions {
 	get instructions() { return this.instructionTypeList.slice(0); }
 
 	constructor() {
-		var ID = (name: string, vm: ValueMask, format: string, addressType: number, instructionType: number) => { this.add(name, vm, format, addressType, instructionType); };
+		const ID = (name: string, vm: ValueMask, format: string, addressType: number, instructionType: number) => { this.add(name, vm, format, addressType, instructionType); };
 
 		// Arithmetic operations.
 		ID("add", VM("000000:rs:rt:rd:00000:100000"), "%d, %s, %t", ADDR_TYPE_NONE, 0);
@@ -526,14 +526,14 @@ export class Instructions {
 	}
 
 	add(name: string, vm: ValueMask, format: string, addressType: number, instructionType: number) {
-		var it: InstructionType = new InstructionType(name, vm, format, addressType, instructionType);
-		this.instructionTypeListByName[name] = it;
+        const it: InstructionType = new InstructionType(name, vm, format, addressType, instructionType);
+        this.instructionTypeListByName[name] = it;
 		this.instructionTypeList.push(it);
 	}
 
 	findByName(name: string) {
-		var instructionType = this.instructionTypeListByName[name];
-		if (!instructionType) throw ("Cannot find instruction " + sprintf("%s", name));
+        const instructionType = this.instructionTypeListByName[name];
+        if (!instructionType) throw ("Cannot find instruction " + sprintf("%s", name));
 		return instructionType;
 	}
 
@@ -565,9 +565,9 @@ export class Instructions {
 
 	private slowFindByData(i32: number, pc: number = 0) {
 		//printf("%08X", i32);
-		for (var n = 0; n < this.instructionTypeList.length; n++) {
-			var instructionType = this.instructionTypeList[n];
-			if (instructionType.match(i32)) return instructionType;
+		for (let n = 0; n < this.instructionTypeList.length; n++) {
+            const instructionType = this.instructionTypeList[n];
+            if (instructionType.match(i32)) return instructionType;
 		}
 		throw (sprintf("Cannot find instruction 0x%08X at 0x%08X", i32, pc));
 	}
@@ -583,19 +583,19 @@ export class DecodingTable {
 	}
 
 	static createSwitch(instructions: InstructionType[], gen: (name: string) => string) {
-		var writer = new IndentStringGenerator();
-		var decodingTable = new DecodingTable();
-		decodingTable._createSwitch(writer, instructions, gen);
+        const writer = new IndentStringGenerator();
+        const decodingTable = new DecodingTable();
+        decodingTable._createSwitch(writer, instructions, gen);
 		return writer.output;
 	}
 
 	private _createSwitch(writer: IndentStringGenerator, instructions: InstructionType[], gen: (name: string) => string, baseMask: number = 0xFFFFFFFF, level: number = 0) {
 		if (level >= 10) throw ('ERROR: Recursive detection');
-		var commonMask = this.getCommonMask(instructions, baseMask);
-		var groups: NumberDictionary<InstructionType[]> = {};
-		instructions.forEach((item) => {
-			var commonValue = item.vm.value & commonMask;
-			if (!groups[commonValue]) groups[commonValue] = [];
+        const commonMask = this.getCommonMask(instructions, baseMask);
+        const groups: NumberDictionary<InstructionType[]> = {};
+        instructions.forEach((item) => {
+            const commonValue = item.vm.value & commonMask;
+            if (!groups[commonValue]) groups[commonValue] = [];
 			groups[commonValue].push(item);
 		});
 

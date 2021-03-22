@@ -32,7 +32,7 @@ export class sceUmdUser {
 		return 0;
 		/*
 		return new WaitingThreadInfo('sceUmdWaitDriveStatCB', this, new PromiseFast((resolve, reject) => {
-			var signalCallback = this.signal.add((result) => {
+			const signalCallback = this.signal.add((result) => {
 				this.signal.remove(signalCallback);
 				resolve();
 			});
@@ -54,7 +54,7 @@ export class sceUmdUser {
 		this.signal.dispatch(data);
 
 		this.callbackIds.forEach(callbackId => {
-			//var state = this.context.threadManager.current.state;
+			//const state = this.context.threadManager.current.state;
 			this.context.callbackManager.notify(callbackId, data);
 		});
 	}

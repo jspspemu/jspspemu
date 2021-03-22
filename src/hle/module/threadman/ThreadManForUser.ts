@@ -18,7 +18,7 @@ import {nativeFunction} from "../../utils";
 import {OutOfMemoryError} from "../../manager/memory";
 import {CpuSpecialAddresses} from "../../../core/cpu/cpu_core";
 
-var console = logger.named('module.ThreadManForUser');
+const console = logger.named('module.ThreadManForUser');
 
 export class ThreadManForUser {
 	constructor(private context: EmulatorContext) { }
@@ -46,8 +46,8 @@ export class ThreadManForUser {
 			stackSize = Math.max(stackSize, 0x200); // 512 byte min. (required for interrupts)
 			stackSize = MathUtils.nextAligned(stackSize, 0x100); // Aligned to 256 bytes.
 
-			var newThread = this.context.threadManager.create(name, entryPoint, initPriority, stackSize, attributes);
-			newThread.id = this.threadUids.allocate(newThread);
+            const newThread = this.context.threadManager.create(name, entryPoint, initPriority, stackSize, attributes);
+            newThread.id = this.threadUids.allocate(newThread);
 			newThread.status = ThreadStatus.DORMANT;
 
 			newThread.state.GP = currentThread.state.GP;
@@ -107,24 +107,24 @@ export class ThreadManForUser {
 	@nativeFunction(0xF475845D, 150, 'uint', 'Thread/int/int/int')
 	sceKernelStartThread(currentThread: Thread, threadId: number, userDataLength: number, userDataPointer: number):any {
 		if (!this.hasThreadById(threadId)) return SceKernelErrors.ERROR_KERNEL_NOT_FOUND_THREAD;
-		var newThread = this.getThreadById(threadId);
+        const newThread = this.getThreadById(threadId);
 
-		newThread.exitStatus = SceKernelErrors.ERROR_KERNEL_THREAD_IS_NOT_DORMANT;
+        newThread.exitStatus = SceKernelErrors.ERROR_KERNEL_THREAD_IS_NOT_DORMANT;
 
 		//if (!newThread) debugger;
 
-		var newState = newThread.state;
-		const memory = newState.memory;
-		var currentStack = newThread.stackPartition;
-		newState.setRA(CpuSpecialAddresses.EXIT_THREAD);
+        const newState = newThread.state;
+        const memory = newState.memory;
+        const currentStack = newThread.stackPartition;
+        newState.setRA(CpuSpecialAddresses.EXIT_THREAD);
 
 		if ((newThread.attributes & 0x00100000) == 0) { // PSP_THREAD_ATTR_NO_FILLSTACK
 			memory.memset(currentStack.low, 0xFF, currentStack.size);
 		}
 
-		var copiedDataAddress = ((newThread.stackPartition.high) - ((userDataLength + 0xF) & ~0xF));
+        const copiedDataAddress = ((newThread.stackPartition.high) - ((userDataLength + 0xF) & ~0xF));
 
-		if (userDataPointer != null) {
+        if (userDataPointer != null) {
 			memory.copy(userDataPointer, copiedDataAddress, userDataLength);
 			newState.setGPR(4, userDataLength);
 			newState.setGPR(5, copiedDataAddress);
@@ -153,8 +153,8 @@ export class ThreadManForUser {
 	@nativeFunction(0x71BC9871, 150, 'uint', 'Thread/int/int')
 	sceKernelChangeThreadPriority(currentThread: Thread, threadId: number, priority: number): any {
 		if (!this.hasThreadById(threadId)) return SceKernelErrors.ERROR_KERNEL_NOT_FOUND_THREAD;
-		var thread = this.getThreadById(threadId);
-		thread.priority = priority;
+        const thread = this.getThreadById(threadId);
+        thread.priority = priority;
 		return PromiseFast.resolve(0);
 	}
 
@@ -170,22 +170,22 @@ export class ThreadManForUser {
 	@nativeFunction(0x3B183E26, 150, 'int', 'int')
 	sceKernelGetThreadExitStatus(threadId: number) {
 		if (!this.hasThreadById(threadId)) return SceKernelErrors.ERROR_KERNEL_NOT_FOUND_THREAD;
-		var thread = this.getThreadById(threadId);
-		return thread.exitStatus;
+        const thread = this.getThreadById(threadId);
+        return thread.exitStatus;
 	}
 
 	_sceKernelTerminateThread(threadId: number) {
 		if (!this.hasThreadById(threadId)) return SceKernelErrors.ERROR_KERNEL_NOT_FOUND_THREAD;
-		var newThread = this.getThreadById(threadId);
-		newThread.stop('_sceKernelTerminateThread');
+        const newThread = this.getThreadById(threadId);
+        newThread.stop('_sceKernelTerminateThread');
 		newThread.exitStatus = 0x800201ac;
 		return 0;
 	}
 
 	_sceKernelDeleteThread(threadId: number) {
 		if (!this.hasThreadById(threadId)) return SceKernelErrors.ERROR_KERNEL_NOT_FOUND_THREAD;
-		var newThread = this.getThreadById(threadId);
-		newThread.delete();
+        const newThread = this.getThreadById(threadId);
+        newThread.delete();
 		this.threadUids.remove(threadId);
 		return 0;
 	}
@@ -229,8 +229,8 @@ export class ThreadManForUser {
 	@nativeFunction(0xD59EAD2F, 150, 'uint', 'int')
 	sceKernelWakeupThread(threadId: number) {
 		if (!this.hasThreadById(threadId)) return PromiseFast.resolve(SceKernelErrors.ERROR_KERNEL_NOT_FOUND_THREAD);
-		var thread = this.getThreadById(threadId);
-		return thread.wakeupWakeupAsync();
+        const thread = this.getThreadById(threadId);
+        return thread.wakeupWakeupAsync();
 	}
 
 	_getCurrentMicroseconds() {
@@ -283,11 +283,11 @@ export class ThreadManForUser {
 	@nativeFunction(0x17C1684E, 150, 'int', 'int/void*')
 	sceKernelReferThreadStatus(threadId: number, sceKernelThreadInfoPtr: Stream) {
 		if (!this.hasThreadById(threadId)) return SceKernelErrors.ERROR_KERNEL_NOT_FOUND_THREAD;
-		var thread = this.getThreadById(threadId);
+        const thread = this.getThreadById(threadId);
 
-		var info = new SceKernelThreadInfo();
+        const info = new SceKernelThreadInfo();
 
-		info.size = SceKernelThreadInfo.struct.length;
+        info.size = SceKernelThreadInfo.struct.length;
 
 		info.name = thread.name;
 		info.attributes = thread.attributes;

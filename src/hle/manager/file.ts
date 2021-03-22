@@ -114,14 +114,14 @@ export class FileManager {
 
 	getDevice(name: string) {
 		name = name.replace(/:$/, '');
-		var device = this.devices[name];
-		if (!device) throw(new Error(sprintf("Can't find device '%s'", name)));
+        const device = this.devices[name];
+        if (!device) throw(new Error(sprintf("Can't find device '%s'", name)));
 		return device;
 	}
 
 	openAsync(name: string, flags: FileOpenFlags, mode: FileMode) {
-		var uri = this.cwd.append(new Uri(name));
-		return this.getDevice(uri.device).openAsync(uri, flags, mode).then(entry => new HleFile(entry));
+        const uri = this.cwd.append(new Uri(name));
+        return this.getDevice(uri.device).openAsync(uri, flags, mode).then(entry => new HleFile(entry));
 	}
 
 	devctlAsync(deviceName: string, command: number, input: Stream, output: Stream) {
@@ -129,8 +129,8 @@ export class FileManager {
 	}
 
 	openDirectoryAsync(name: string) {
-		var uri = this.cwd.append(new Uri(name));
-		return this.getDevice(uri.device).openDirectoryAsync(uri).then(entry => {
+        const uri = this.cwd.append(new Uri(name));
+        return this.getDevice(uri.device).openDirectoryAsync(uri).then(entry => {
 			return entry.enumerateAsync().then((items) => {
 				entry.close();
 				return new HleDirectory(items);
@@ -139,8 +139,8 @@ export class FileManager {
 	}
 
 	getStatAsync(name:string) {
-		var uri = this.cwd.append(new Uri(name));
-		return this.getDevice(uri.device).getStatAsync(uri);
+        const uri = this.cwd.append(new Uri(name));
+        return this.getDevice(uri.device).getStatAsync(uri);
 	}
 
 	mount(device: string, vfs: Vfs) {

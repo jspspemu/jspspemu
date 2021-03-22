@@ -251,7 +251,7 @@ describe('pspautotests', function () {
                         emulator.interpreted = false
                         const file_base = `./data/pspautotests/tests/${testGroupName}/${testName}`;
                         const file_prx = file_base + '.prx';
-                        //var file_prx = file_base + '.iso';
+                        //const file_prx = file_base + '.iso';
                         const file_expected = file_base + '.expected';
 
                         if (!groupCollapsed) mlogger.groupEnd();

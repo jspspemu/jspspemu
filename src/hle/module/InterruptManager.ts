@@ -13,10 +13,10 @@ export class InterruptManager {
 
 	@nativeFunction(0xCA04A2B9, 150, 'uint', 'Thread/int/int/uint/uint')
 	sceKernelRegisterSubIntrHandler(thread:Thread, interrupt: PspInterrupts, handlerIndex: number, callbackAddress: number, callbackArgument: number) {
-		var interruptManager = this.context.interruptManager;
-		var interruptHandler: InterruptHandler = interruptManager.get(interrupt).get(handlerIndex);
-		
-		console.info(`sceKernelRegisterSubIntrHandler: ${PspInterrupts[interrupt]}: ${handlerIndex}: ${addressToHex(callbackAddress)}: ${addressToHex(callbackArgument)}`);
+        const interruptManager = this.context.interruptManager;
+        const interruptHandler: InterruptHandler = interruptManager.get(interrupt).get(handlerIndex);
+
+        console.info(`sceKernelRegisterSubIntrHandler: ${PspInterrupts[interrupt]}: ${handlerIndex}: ${addressToHex(callbackAddress)}: ${addressToHex(callbackArgument)}`);
 		interruptHandler.address = callbackAddress;
 		interruptHandler.argument = callbackArgument;
 		interruptHandler.cpuState = thread.state;
@@ -25,9 +25,9 @@ export class InterruptManager {
 
 	@nativeFunction(0xFB8E22EC, 150, 'uint', 'int/int')
 	sceKernelEnableSubIntr(interrupt: PspInterrupts, handlerIndex: number) {
-		var interruptManager = this.context.interruptManager;
+        const interruptManager = this.context.interruptManager;
 
-		if (interrupt >= PspInterrupts.PSP_NUMBER_INTERRUPTS) return -1;
+        if (interrupt >= PspInterrupts.PSP_NUMBER_INTERRUPTS) return -1;
 		if (!interruptManager.get(interrupt).has(handlerIndex)) return -1;
 
 		interruptManager.get(interrupt).get(handlerIndex).enabled = true;
@@ -36,9 +36,9 @@ export class InterruptManager {
 
 	@nativeFunction(0xD61E6961, 150, 'uint', 'int/int')
 	sceKernelReleaseSubIntrHandler(pspInterrupt: PspInterrupts, handlerIndex: number) {
-		var interruptManager = this.context.interruptManager;
+        const interruptManager = this.context.interruptManager;
 
-		if (pspInterrupt >= PspInterrupts.PSP_NUMBER_INTERRUPTS) return -1;
+        if (pspInterrupt >= PspInterrupts.PSP_NUMBER_INTERRUPTS) return -1;
 		if (!interruptManager.get(pspInterrupt).has(handlerIndex)) return -1;
 
 		interruptManager.get(pspInterrupt).get(handlerIndex).enabled = false;

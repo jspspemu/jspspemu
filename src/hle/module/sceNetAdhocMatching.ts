@@ -32,24 +32,24 @@ export class sceNetAdhocMatching {
 	/** Create an Adhoc matching object */
 	@nativeFunction(0xCA5EDA6F, 150, 'int', 'Thread/int/int/int/int/int/int/int/int/uint')
 	sceNetAdhocMatchingCreate(thread: Thread, mode: Mode, maxPeers: number, port: number, bufSize: number, helloDelay: number, pingDelay: number, initCount: number, msgDelay: number, callback: number) {
-		var matching = new Matching(this.context, thread, mode, maxPeers, port, bufSize, helloDelay, pingDelay, initCount, msgDelay, callback);
-		matching.id = this.matchings.allocate(matching);
+        const matching = new Matching(this.context, thread, mode, maxPeers, port, bufSize, helloDelay, pingDelay, initCount, msgDelay, callback);
+        matching.id = this.matchings.allocate(matching);
 		return matching.id;
 	}
 
 	/** Select a matching target */
 	@nativeFunction(0x5E3D4B79, 150, 'int', 'int/void*/int/void*')
 	sceNetAdhocMatchingSelectTarget(matchingId: number, macStream:Stream, dataLength: number, dataPointer: Stream) {
-		var matching = this.matchings.get(matchingId);
-		var mac = macStream.readBytes(6);
-		matching.selectTarget(mac, (dataPointer && dataLength) ? dataPointer.readBytes(dataLength) : null);
+        const matching = this.matchings.get(matchingId);
+        const mac = macStream.readBytes(6);
+        matching.selectTarget(mac, (dataPointer && dataLength) ? dataPointer.readBytes(dataLength) : null);
 		return 0;
 	}
 
 	@nativeFunction(0xEA3C6108, 150, 'int', 'int/void*')
 	sceNetAdhocMatchingCancelTarget(matchingId: number, mac: Stream) {
-		var matching = this.matchings.get(matchingId);
-		matching.cancelTarget(mac.readBytes(6));
+        const matching = this.matchings.get(matchingId);
+        matching.cancelTarget(mac.readBytes(6));
 		return 0;
 	}
 
@@ -64,8 +64,8 @@ export class sceNetAdhocMatching {
 	@nativeFunction(0x93EF3843, 150, 'int', 'int/int/int/int/int/int/void*')
 	sceNetAdhocMatchingStart(matchingId: number, evthPri: number, evthStack: number, inthPri: number, inthStack: number, optLen: number, optData: Stream) {
 		//throw (new Error("sceNetAdhocMatchingStart"));
-		var matching = this.matchings.get(matchingId);
-		matching.hello = optData.readBytes(optLen);
+        const matching = this.matchings.get(matchingId);
+        matching.hello = optData.readBytes(optLen);
 		matching.start();
 		return 0;
 	}
@@ -73,8 +73,8 @@ export class sceNetAdhocMatching {
 	/** Stop a matching object */
 	@nativeFunction(0x32B156B3, 150, 'int', 'int')
 	sceNetAdhocMatchingStop(matchingId:number) {
-		var matching = this.matchings.get(matchingId);
-		matching.stop();
+        const matching = this.matchings.get(matchingId);
+        matching.stop();
 		return 0;
 	}
 }
@@ -131,8 +131,8 @@ export class Matching {
 	}
 
 	selectTarget(mac: Uint8Array, data: Uint8Array | null) {
-		var macstr = mac2string(mac);
-		console.info("net.adhoc: selectTarget", macstr);
+        const macstr = mac2string(mac);
+        console.info("net.adhoc: selectTarget", macstr);
 		// Accept
 		if ((this.state == State.JOIN_WAIT_RESPONSE) && (macstr == this.joinMac)) {
 			this.state = State.JOIN_WAIT_COMPLETE;
@@ -147,8 +147,8 @@ export class Matching {
 
 	cancelTarget(mac: Uint8Array) {
 		// Cancel
-		var macstr = mac2string(mac);
-		console.info("net.adhoc: cancelTarget", macstr);
+        const macstr = mac2string(mac);
+        console.info("net.adhoc: cancelTarget", macstr);
 		this.state = State.START;
 		this.sendMessage(Event.Cancel, mac, null as any);
 	}
@@ -179,12 +179,12 @@ export class Matching {
 				break;
 		}
 
-		var macPartition = this.context.memoryManager.kernelPartition.allocateLow(8, 'Matching.mac');
-		this.context.memory.memset(macPartition.low, 0, macPartition.size);
+        const macPartition = this.context.memoryManager.kernelPartition.allocateLow(8, 'Matching.mac');
+        this.context.memory.memset(macPartition.low, 0, macPartition.size);
 		this.context.memory.writeUint8Array(macPartition.low, frommac);
 
-		var dataPartition = this.context.memoryManager.kernelPartition.allocateLow(Math.max(8, MathUtils.nextAligned(data.length, 8)), 'Matching.data');
-		this.context.memory.memset(dataPartition.low, 0, dataPartition.size);
+        const dataPartition = this.context.memoryManager.kernelPartition.allocateLow(Math.max(8, MathUtils.nextAligned(data.length, 8)), 'Matching.data');
+        this.context.memory.memset(dataPartition.low, 0, dataPartition.size);
 		this.context.memory.writeUint8Array(dataPartition.low, data);
 
 		//// @TODO: Enqueue callback instead of executing now?

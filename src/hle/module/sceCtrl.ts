@@ -11,7 +11,7 @@ export class sceCtrl {
 	@nativeFunction(0x3A622550, 150, 'uint', 'void*/int')
 	sceCtrlPeekBufferPositive(sceCtrlDataPtr: Stream, count: number) {
 		//console.log('sceCtrlPeekBufferPositive');
-		for (var n = 0; n < count; n++) SceCtrlData.struct.write(sceCtrlDataPtr, this.context.controller.data);
+		for (let n = 0; n < count; n++) SceCtrlData.struct.write(sceCtrlDataPtr, this.context.controller.data);
 		//return waitAsync(1).then(v => count);
         return count;
     }
@@ -20,7 +20,7 @@ export class sceCtrl {
 	sceCtrlReadBufferPositive(thread: Thread, sceCtrlDataPtr: Stream, count: number) {
 		//console.log('sceCtrlReadBufferPositive');
 
-		for (var n = 0; n < count; n++) SceCtrlData.struct.write(sceCtrlDataPtr, this.context.controller.data);
+		for (let n = 0; n < count; n++) SceCtrlData.struct.write(sceCtrlDataPtr, this.context.controller.data);
 		//return PromiseFast.resolve(0);
 		return new WaitingThreadInfo('sceCtrlReadBufferPositive', this.context.display, this.context.display.waitVblankStartAsync(thread).then(v => count), AcceptCallbacks.NO);
 		//return 0;
@@ -41,11 +41,11 @@ export class sceCtrl {
 	private lastLatchData = new SceCtrlData();
 
 	_peekLatch(currentLatchPtr: Stream) {
-		var ButtonsNew = this.context.controller.data.buttons;
-		var ButtonsOld = this.lastLatchData.buttons;
-		var ButtonsChanged = ButtonsOld ^ ButtonsNew;
+        const ButtonsNew = this.context.controller.data.buttons;
+        const ButtonsOld = this.lastLatchData.buttons;
+        const ButtonsChanged = ButtonsOld ^ ButtonsNew;
 
-		currentLatchPtr.writeInt32(ButtonsNew & ButtonsChanged); // uiMake
+        currentLatchPtr.writeInt32(ButtonsNew & ButtonsChanged); // uiMake
 		currentLatchPtr.writeInt32(ButtonsOld & ButtonsChanged); // uiBreak
 		currentLatchPtr.writeInt32(ButtonsNew); // uiPress
 		currentLatchPtr.writeInt32((ButtonsOld & ~ButtonsNew) & ButtonsChanged); // uiRelease

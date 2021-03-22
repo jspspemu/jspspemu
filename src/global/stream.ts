@@ -48,19 +48,19 @@ export class BufferedAsyncStream extends ProxyAsyncStream {
 	}
 
 	readChunkAsync(offset: number, count: number):PromiseFast<ArrayBuffer> {
-		var availableFromOffset = this.size - offset;
-		var start = offset;
-		var end = offset + count;
+        const availableFromOffset = this.size - offset;
+        const start = offset;
+        let end = offset + count;
 
-		var cache = this.getCachedEntry(start, end);
+        const cache = this.getCachedEntry(start, end);
 
-		//return this.stream.readChunkAsync(start, count);
+        //return this.stream.readChunkAsync(start, count);
 
 		if (cache) {
 			return PromiseFast.resolve(cache.data.slice(start - cache.start, end - cache.start));
 		} else {
-			var bigCount = Math.max(count, this.bufferSize);
-			bigCount = Math.min(bigCount, availableFromOffset);
+            let bigCount = Math.max(count, this.bufferSize);
+            bigCount = Math.min(bigCount, availableFromOffset);
 
 			end = start + bigCount;
 
@@ -151,8 +151,8 @@ export class FileAsyncStream implements AsyncStream {
 
 	readChunkAsync(offset: number, count: number) {
 		return new PromiseFast<ArrayBuffer>((resolve, reject) => {
-			var fileReader = new FileReader();
-			fileReader.onload = (e) => { resolve((fileReader as any).result); };
+            const fileReader = new FileReader();
+            fileReader.onload = (e) => { resolve((fileReader as any).result); };
 			fileReader.onerror = (e:any) => { reject(e['error']); };
 			fileReader.readAsArrayBuffer(this.file.slice(offset, offset + count));
 		});
@@ -174,10 +174,10 @@ export class Stream {
 	}
 
 	static fromBase64(data: string) {
-		var outstr = atob(data);
-		var out = new ArrayBuffer(outstr.length);
-		var ia = new Uint8Array(out);
-		for (var n = 0; n < outstr.length; n++) ia[n] = outstr.charCodeAt(n);
+        const outstr = atob(data);
+        const out = new ArrayBuffer(outstr.length);
+        const ia = new Uint8Array(out);
+        for (let n = 0; n < outstr.length; n++) ia[n] = outstr.charCodeAt(n);
 		return new Stream(new DataView(out));
 	}
 
@@ -190,26 +190,26 @@ export class Stream {
 	}
 
 	static fromArray(array: any[]) {
-		var buffer = new ArrayBuffer(array.length);
-		var w8 = new Uint8Array(buffer);
-		for (var n = 0; n < array.length; n++) w8[n] = array[n];
+        const buffer = new ArrayBuffer(array.length);
+        const w8 = new Uint8Array(buffer);
+        for (let n = 0; n < array.length; n++) w8[n] = array[n];
 		return new Stream(new DataView(buffer));
 	}
 
 	toImageUrl(): string {
 		try {
-			var urlCreator = (<any>window)['URL'] || (<any>window)['webkitURL'];
-			var blob = new Blob([this.toUInt8Array()], { type: "image/jpeg" });
-			return urlCreator.createObjectURL(blob);
+            const urlCreator = (<any>window)['URL'] || (<any>window)['webkitURL'];
+            const blob = new Blob([this.toUInt8Array()], {type: "image/jpeg"});
+            return urlCreator.createObjectURL(blob);
 		} catch (e) {
 			return 'data:image/png;base64,' + this.toBase64();
 		}
 	}
 
 	toBase64() {
-		var out = '';
-		var array = this.toUInt8Array();
-		for (var n = 0; n < array.length; n++) {
+        let out = '';
+        const array = this.toUInt8Array();
+        for (let n = 0; n < array.length; n++) {
 			out += String.fromCharCode(array[n]);
 		}
 		return btoa(out);
@@ -287,10 +287,10 @@ export class Stream {
 	readInt16(endian: Endian = Endian.LITTLE) { return this.skip(2, this.data.getInt16(this.offset, (endian == Endian.LITTLE))); }
 	readInt32(endian: Endian = Endian.LITTLE) { return this.skip(4, this.data.getInt32(this.offset, (endian == Endian.LITTLE))); }
 	readInt64(endian: Endian = Endian.LITTLE) {
-		var items = [this.readUInt32(endian), this.readUInt32(endian)];
-		var low = items[(endian == Endian.LITTLE) ? 0 : 1];
-		var high = items[(endian == Endian.LITTLE) ? 1 : 0];
-		return Integer64.fromBits(low, high);
+        const items = [this.readUInt32(endian), this.readUInt32(endian)];
+        const low = items[(endian == Endian.LITTLE) ? 0 : 1];
+        const high = items[(endian == Endian.LITTLE) ? 1 : 0];
+        return Integer64.fromBits(low, high);
 	}
 	readFloat32(endian: Endian = Endian.LITTLE) { return this.skip(4, this.data.getFloat32(this.offset, (endian == Endian.LITTLE))); }
 
@@ -307,8 +307,9 @@ export class Stream {
 	}
 
 	writeByteRepeated(value: number, count: number = -1) {
-		if (count < 0) count = this.available;
-		for (var n = 0; n < count; n++) this.data.setInt8(this.offset + n, value);
+		let n;
+        if (count < 0) count = this.available;
+		for (n = 0; n < count; n++) this.data.setInt8(this.offset + n, value);
 		this.skip(n);
 		return this;
 	}
@@ -356,8 +357,8 @@ export class Stream {
 	}
 
 	writeBytes(data: Uint8Array) {
-		var out = new Uint8Array(this.data.buffer, this.data.byteOffset, this.data.byteLength);
-		out.set(data, this.offset);
+        const out = new Uint8Array(this.data.buffer, this.data.byteOffset, this.data.byteLength);
+        out.set(data, this.offset);
 		this.skip(data.length);
 	}
 
@@ -387,8 +388,8 @@ export class Stream {
 
 	readString(count: number) {
 		if (count > 1 * 1024 * 1024) throw(new Error("Trying to read a string larger than 128KB"));
-		var str = '';
-		for (var n = 0; n < count; n++) {
+        let str = '';
+        for (let n = 0; n < count; n++) {
 			str += String.fromCharCode(this.readUInt8());
 		}
 		return str;
@@ -399,11 +400,11 @@ export class Stream {
 	}
 
 	readStringz(maxCount: number = 131072) {
-		var str = '';
-		for (var n = 0; n < maxCount; n++) {
+        let str = '';
+        for (let n = 0; n < maxCount; n++) {
 			if (this.available <= 0) break;
-			var char = this.readUInt8();
-			if (char == 0) break;
+            const char = this.readUInt8();
+            if (char == 0) break;
 			str += String.fromCharCode(char);
 		}
 		return str;

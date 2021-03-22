@@ -12,8 +12,8 @@ export class Battery {
 	}
 	
 	get iconStatus() {
-		var level = this.level;
-		if (level < 0.15) return BatteryStatusEnum.VeryLow;
+        const level = this.level;
+        if (level < 0.15) return BatteryStatusEnum.VeryLow;
 		if (level < 0.30) return BatteryStatusEnum.Low;
 		if (level < 0.80) return BatteryStatusEnum.PartiallyFilled;
 		return BatteryStatusEnum.FullyFilled;

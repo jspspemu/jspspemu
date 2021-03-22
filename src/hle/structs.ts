@@ -31,7 +31,7 @@ export class ScePspDateTime {
 
 	static fromDate(date: Date) {
 		if (!date) date = new Date();
-		var pspdate = new ScePspDateTime();
+        const pspdate = new ScePspDateTime();
 		pspdate.year = date.getFullYear();
 		pspdate.month = date.getMonth();
 		pspdate.day = date.getDay();

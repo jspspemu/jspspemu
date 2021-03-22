@@ -18,19 +18,21 @@ export class Int64Type implements IType<number> {
 	constructor(public endian: Endian) { }
 
 	read(stream: Stream): number {
+	    let low: number
+        let high: number
 		if (this.endian == Endian.LITTLE) {
-			var low = stream.readUInt32(this.endian);
-			var high = stream.readUInt32(this.endian);
+			low = stream.readUInt32(this.endian);
+			high = stream.readUInt32(this.endian);
 		} else {
-			var high = stream.readUInt32(this.endian);
-			var low = stream.readUInt32(this.endian);
+			high = stream.readUInt32(this.endian);
+			low = stream.readUInt32(this.endian);
 		}
 		return high * Math.pow(2, 32) + low;
 	}
 	write(stream: Stream, value: number): void {
-		var low = Math.floor(value % Math.pow(2, 32));
-		var high = Math.floor(value / Math.pow(2, 32));
-		if (this.endian == Endian.LITTLE) {
+        const low = Math.floor(value % Math.pow(2, 32));
+        const high = Math.floor(value / Math.pow(2, 32));
+        if (this.endian == Endian.LITTLE) {
 			stream.writeInt32(low, this.endian);
 			stream.writeInt32(high, this.endian);
 		} else {
@@ -45,19 +47,21 @@ export class Integer64Type implements IType<Integer64> {
 	constructor(public endian: Endian) { }
 
 	read(stream: Stream): Integer64 {
-		if (this.endian == Endian.LITTLE) {
-			var low = stream.readUInt32(this.endian);
-			var high = stream.readUInt32(this.endian);
+		let high;
+        let low;
+        if (this.endian == Endian.LITTLE) {
+			low = stream.readUInt32(this.endian);
+			high = stream.readUInt32(this.endian);
 		} else {
-			var high = stream.readUInt32(this.endian);
-			var low = stream.readUInt32(this.endian);
-		}
+            high = stream.readUInt32(this.endian);
+            low = stream.readUInt32(this.endian);
+        }
 		return new Integer64(low, high);
 	}
 	write(stream: Stream, value: Integer64): void {
-		var low = value.low;
-		var high = value.high;
-		if (this.endian == Endian.LITTLE) {
+        const low = value.low;
+        const high = value.high;
+        if (this.endian == Endian.LITTLE) {
 			stream.writeInt32(low, this.endian);
 			stream.writeInt32(high, this.endian);
 		} else {
@@ -139,7 +143,7 @@ export class StructClass<T> implements IType<T> {
 
 	constructor(private _class: any, private items: StructEntry[]) {
 		this.processedItems = items.map(item => {
-			for (var key in item) return { name: key, type: item[key] };
+			for (const key in item) return { name: key, type: item[key] };
 			throw (new Error("Entry must have one item"));
 		});
 	}
@@ -149,9 +153,9 @@ export class StructClass<T> implements IType<T> {
 	}
 
 	readWrite(stream: Stream, callback: (p: T) => any) {
-		var p = this.read(stream.clone());
-		var result = callback(p);
-		if (PromiseFast.isPromise(result)) {
+        const p = this.read(stream.clone());
+        const result = callback(p);
+        if (PromiseFast.isPromise(result)) {
 			return PromiseFast.ensure(result).then((result: any) => {
 				this.write(stream.clone(), p);
 				return result;
@@ -164,11 +168,10 @@ export class StructClass<T> implements IType<T> {
 
 	createProxy(stream: Stream): T {
 		stream = stream.clone();
-		var objectf:any = function(stream: Stream) {
-		};
-		var object = new objectf(stream);
-		this.processedItems.forEach(item => {
-			var getOffset = () => { return this.offsetOfField(item.name); };
+        const objectf: any = function (stream: Stream) {};
+        const object = new objectf(stream);
+        this.processedItems.forEach(item => {
+			const getOffset = () => { return this.offsetOfField(item.name); };
 			if (item.type instanceof StructClass) {
 				object[item.name] = (<StructClass<any>><any>item.type).createProxy(stream.sliceFrom(getOffset())); 
 			} else {
@@ -184,9 +187,9 @@ export class StructClass<T> implements IType<T> {
 	}
 
 	readWriteAsync<T2>(stream: Stream, callback: (p: T) => PromiseFast<T2>, process?: (p: T, v: T2) => T2) {
-		var p = this.read(stream.clone());
-		var result = callback(p);
-		return PromiseFast.resolve(result).then(v => {
+        const p = this.read(stream.clone());
+        const result = callback(p);
+        return PromiseFast.resolve(result).then(v => {
 			if (process != null) process(p, v);
 			this.write(stream.clone(), p);
 			return v;
@@ -194,11 +197,11 @@ export class StructClass<T> implements IType<T> {
 	}
 
 	read(stream: Stream): T {
-		var _class = this._class;
-		var out: T = new _class();
-		for (var n = 0; n < this.processedItems.length; n++) {
-			var item = this.processedItems[n];
-			(<any>out)[item.name] = item.type.read(stream, out);
+        const _class = this._class;
+        const out: T = new _class();
+        for (let n = 0; n < this.processedItems.length; n++) {
+            const item = this.processedItems[n];
+            (<any>out)[item.name] = item.type.read(stream, out);
 		}
 		return out;
 	}
@@ -209,19 +212,19 @@ export class StructClass<T> implements IType<T> {
 		}
 	}
 	offsetOfField(name: string) {
-		var offset = 0;
-		for (var n = 0; n < this.processedItems.length; n++) {
-			var item = this.processedItems[n];
-			if (item.name == name) return offset;
+        let offset = 0;
+        for (let n = 0; n < this.processedItems.length; n++) {
+            const item = this.processedItems[n];
+            if (item.name == name) return offset;
 			offset += item.type.length;
 		}
 		return -1;
 	}
 	get length() {
-		var sum = 0;
-		for (var n = 0; n < this.processedItems.length; n++) {
-			var item = this.processedItems[n];
-			if (!item) throw ("Invalid item!!");
+        let sum = 0;
+        for (let n = 0; n < this.processedItems.length; n++) {
+            const item = this.processedItems[n];
+            if (!item) throw ("Invalid item!!");
 			if (!item.type) {
 				console.log(item);
 				throw ("Invalid item type!!");
@@ -237,14 +240,14 @@ export class StructArrayClass<T> implements IType<T[]> {
 	}
 
 	read(stream: Stream): T[] {
-		var out: any[] = [];
-		for (var n = 0; n < this.count; n++) {
+        const out: any[] = [];
+        for (let n = 0; n < this.count; n++) {
 			out.push(this.elementType.read(stream, out));
 		}
 		return out;
 	}
 	write(stream: Stream, value: T[]): void {
-		for (var n = 0; n < this.count; n++) this.elementType.write(stream, value[n], value);
+		for (let n = 0; n < this.count; n++) this.elementType.write(stream, value[n], value);
 	}
 	get length() {
 		return this.elementType.length * this.count;
@@ -260,8 +263,8 @@ export class StructStringn {
 	}
 
 	read(stream: Stream): string {
-		var out = '';
-		for (var n = 0; n < this.count; n++) {
+        let out = '';
+        for (let n = 0; n < this.count; n++) {
 			out += String.fromCharCode(stream.readUInt8());
 		}
 		return out;
@@ -282,16 +285,16 @@ export class StructStringz {
 	}
 
 	read(stream: Stream): string {
-		var value = this.stringn.read(stream).split(String.fromCharCode(0))[0];
-		if (this.readTransformer) value = this.readTransformer(value);
+        let value = this.stringn.read(stream).split(String.fromCharCode(0))[0];
+        if (this.readTransformer) value = this.readTransformer(value);
 		return value;
 	}
 	write(stream: Stream, value: string): void {
 		if (this.writeTransformer) value = this.writeTransformer(value);
 		if (!value) value = '';
-		var items = value.split('').map(char => char.charCodeAt(0));
-		while (items.length < this.count) items.push(0);
-		for (var n = 0; n < items.length; n++) stream.writeUInt8(items[n]);
+        const items = value.split('').map(char => char.charCodeAt(0));
+        while (items.length < this.count) items.push(0);
+		for (let n = 0; n < items.length; n++) stream.writeUInt8(items[n]);
 	}
 	get length() {
 		return this.count;
@@ -316,9 +319,9 @@ export class StructStringzVariable {
 
 export class UInt32_2lbStruct implements IType<number> {
 	read(stream: Stream): number {
-		var l = stream.readUInt32(Endian.LITTLE);
-		var b = stream.readUInt32(Endian.BIG);
-		return l;
+        const l = stream.readUInt32(Endian.LITTLE);
+        const b = stream.readUInt32(Endian.BIG);
+        return l;
 	}
 	write(stream: Stream, value: number): void {
 		stream.writeUInt32(value, Endian.LITTLE);
@@ -329,9 +332,9 @@ export class UInt32_2lbStruct implements IType<number> {
 
 export class UInt16_2lbStruct implements IType<number> {
 	read(stream: Stream): number {
-		var l = stream.readUInt16(Endian.LITTLE);
-		var b = stream.readUInt16(Endian.BIG);
-		return l;
+        const l = stream.readUInt16(Endian.LITTLE);
+        const b = stream.readUInt16(Endian.BIG);
+        return l;
 	}
 	write(stream: Stream, value: number): void {
 		stream.writeUInt16(value, Endian.LITTLE);
@@ -355,40 +358,40 @@ export class StructStringWithSize {
 	}
 }
 
-export var Int16 = new Int16Type(Endian.LITTLE);
-export var Int32 = new Int32Type(Endian.LITTLE);
-export var Int64 = new Int64Type(Endian.LITTLE);
-export var Int8 = new Int8Type(Endian.LITTLE);
+export const Int16 = new Int16Type(Endian.LITTLE);
+export const Int32 = new Int32Type(Endian.LITTLE);
+export const Int64 = new Int64Type(Endian.LITTLE);
+export const Int8 = new Int8Type(Endian.LITTLE);
 
-export var Int16_l = new Int16Type(Endian.LITTLE);
-export var Int32_l = new Int32Type(Endian.LITTLE);
-export var Int64_l = new Int64Type(Endian.LITTLE);
-export var Int8_l = new Int8Type(Endian.LITTLE);
+export const Int16_l = new Int16Type(Endian.LITTLE);
+export const Int32_l = new Int32Type(Endian.LITTLE);
+export const Int64_l = new Int64Type(Endian.LITTLE);
+export const Int8_l = new Int8Type(Endian.LITTLE);
 
-export var Int16_b = new Int16Type(Endian.BIG);
-export var Int32_b = new Int32Type(Endian.BIG);
-export var Int64_b = new Int64Type(Endian.BIG);
-export var Int8_b = new Int8Type(Endian.BIG);
+export const Int16_b = new Int16Type(Endian.BIG);
+export const Int32_b = new Int32Type(Endian.BIG);
+export const Int64_b = new Int64Type(Endian.BIG);
+export const Int8_b = new Int8Type(Endian.BIG);
 
-export var UInt8 = new UInt8Type(Endian.LITTLE);
-export var UInt16 = new UInt16Type(Endian.LITTLE);
-export var UInt32 = new UInt32Type(Endian.LITTLE);
-//export var UInt64 = new UInt64Type(Endian.LITTLE);
+export const UInt8 = new UInt8Type(Endian.LITTLE);
+export const UInt16 = new UInt16Type(Endian.LITTLE);
+export const UInt32 = new UInt32Type(Endian.LITTLE);
+//export const UInt64 = new UInt64Type(Endian.LITTLE);
 
-export var UInt16_l = new UInt16Type(Endian.LITTLE);
-export var UInt32_l = new UInt32Type(Endian.LITTLE);
+export const UInt16_l = new UInt16Type(Endian.LITTLE);
+export const UInt32_l = new UInt32Type(Endian.LITTLE);
 
-export var UInt16_b = new UInt16Type(Endian.BIG);
-export var UInt32_b = new UInt32Type(Endian.BIG);
-//export var UInt64_b = new UInt64Type(Endian.BIG);
+export const UInt16_b = new UInt16Type(Endian.BIG);
+export const UInt32_b = new UInt32Type(Endian.BIG);
+//export const UInt64_b = new UInt64Type(Endian.BIG);
 
-export var UInt32_2lb = new UInt32_2lbStruct();
-export var UInt16_2lb = new UInt16_2lbStruct();
+export const UInt32_2lb = new UInt32_2lbStruct();
+export const UInt16_2lb = new UInt16_2lbStruct();
 
-export var Integer64_l = new Integer64Type(Endian.LITTLE);
-export var Integer64_b = new Integer64Type(Endian.BIG);
+export const Integer64_l = new Integer64Type(Endian.LITTLE);
+export const Integer64_b = new Integer64Type(Endian.BIG);
 
-export var StringzVariable = new StructStringzVariable();
+export const StringzVariable = new StructStringzVariable();
 
 export function Stringn(count: number) { return new StructStringn(count); }
 export function Stringz(count: number) { return new StructStringz(count); }
@@ -401,11 +404,11 @@ export class StructPointerStruct<T> implements IType<Pointer<T>> {
 	constructor(private elementType: IType<T>) {
 	}
 	read(stream: Stream, context: any): Pointer<T> {
-		var address = stream.readInt32(Endian.LITTLE);
+        const address = stream.readInt32(Endian.LITTLE);
 		return new Pointer<T>(this.elementType, context['memory'], address);
 	}
 	write(stream: Stream, value: Pointer<T>, context: any): void {
-		var address = value.address;
+        const address = value.address;
 		stream.writeInt32(address, Endian.LITTLE);
 	}
 	get length() {
@@ -429,7 +432,7 @@ export class Pointer<T> {
 	}
 
 	readWrite(callback: (item: T) => void) {
-		var value = this.read();
+        const value = this.read();
 		try {
 			callback(value);
 		} finally {

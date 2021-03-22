@@ -13,8 +13,8 @@
 	}
 
 	write(text: string) {
-		var chunks = text.split('\n');
-		for (var n = 0; n < chunks.length; n++) {
+        const chunks = text.split('\n');
+        for (let n = 0; n < chunks.length; n++) {
 			if (n != 0) this.writeBreakLine();
 			this.writeInline(chunks[n]);
 		}
@@ -24,7 +24,7 @@
 		if (text == null || text.length == 0) return;
 
 		if (this.newLine) {
-			for (var n = 0; n < this.indentation; n++) this.output += '\t';
+			for (let n = 0; n < this.indentation; n++) this.output += '\t';
 			this.newLine = false;
 		}
 		this.output += text;

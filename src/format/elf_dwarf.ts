@@ -7,16 +7,16 @@ import {BitUtils} from "../global/math";
 import {ElfLoader} from "./elf";
 import {ISymbol} from "../emu/context";
 
-var console = logger.named('elf.dwarf');
+const console = logger.named('elf.dwarf');
 
 // https://github.com/soywiz/pspemu/blob/master/src/pspemu/hle/elf/ElfDwarf.d
 
 class Uleb128Class implements IType<number> {
 	read(stream: Stream): number {
-		var val = 0;
-		var b = 0x80;
+        let val = 0;
+        let b = 0x80;
 
-		for (var shift = 0; ((stream.available) > 0 && (b & 0x80)); shift += 7) {
+        for (let shift = 0; ((stream.available) > 0 && (b & 0x80)); shift += 7) {
 			b = stream.readUInt8();
 			val |= (b & 0x7F) << shift;
 		}
@@ -29,7 +29,7 @@ class Uleb128Class implements IType<number> {
 	get length() { return 0; }
 }
 
-var Uleb128 = new Uleb128Class();
+const Uleb128 = new Uleb128Class();
 
 class ElfDwarfHeader {
 	total_length: number;
@@ -221,9 +221,9 @@ export class ElfDwarfLoader {
 
 	getSymbolAt(address: number): ISymbol | null {
 		//console.log('this.symbolEntries: ' + this.symbolEntries.length);
-		for (var n = 0; n < this.symbolEntries.length; n++) {
-			var entry = this.symbolEntries[n];
-			if (entry.contains(address)) return entry;
+		for (let n = 0; n < this.symbolEntries.length; n++) {
+            const entry = this.symbolEntries[n];
+            if (entry.contains(address)) return entry;
 		}
 		/*
 		return this.symbolEntries.binarySearchValue((item) => {

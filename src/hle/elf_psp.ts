@@ -19,7 +19,7 @@ import {Instruction} from "../core/cpu/cpu_instruction";
 import {ModuleKnownFunctionNamesDatabase} from "./pspmodules_database";
 import {ISymbol, ISymbolLookup} from "../emu/context";
 
-var console = logger.named('elf.psp');
+const console = logger.named('elf.psp');
 
 export class ElfPspModuleInfo {
 	moduleAtributes: number;
@@ -164,9 +164,9 @@ export class PspElfLoader implements ISymbolLookup {
 			
 		}
 
-		var lowest = 0xFFFFFFFF;
-		var highest = 0;
-		this.elfLoader.sectionHeaders.filter(section => ((section.flags & ElfSectionHeaderFlags.Allocate) != 0)).forEach(section => {
+        let lowest = 0xFFFFFFFF;
+        let highest = 0;
+        this.elfLoader.sectionHeaders.filter(section => ((section.flags & ElfSectionHeaderFlags.Allocate) != 0)).forEach(section => {
 			lowest = Math.min(lowest, (this.baseAddress + section.address));
 			highest = Math.max(highest, (this.baseAddress + section.address + section.size));
 		});
@@ -176,12 +176,12 @@ export class PspElfLoader implements ISymbolLookup {
 			highest = Math.max(highest, (this.baseAddress + program.virtualAddress + program.memorySize));
 		});
 
-		var memorySegment = this.memoryManager.userPartition.allocateSet(highest - lowest, lowest, 'Elf');
-	}
+        const memorySegment = this.memoryManager.userPartition.allocateSet(highest - lowest, lowest, 'Elf');
+    }
 
 	private relocateFromHeaders() {
-		var RelocProgramIndex = 0;
-		this.elfLoader.programHeaders.forEach((programHeader) => {
+        const RelocProgramIndex = 0;
+        this.elfLoader.programHeaders.forEach((programHeader) => {
 			switch (programHeader.type) {
 				case ElfProgramHeaderType.Reloc1:
 					console.warn("SKIPPING Elf.ProgramHeader.TypeEnum.Reloc1!");
@@ -191,8 +191,8 @@ export class PspElfLoader implements ISymbolLookup {
 			}
 		});
 
-		var RelocSectionIndex = 0;
-		this.elfLoader.sectionHeaders.forEach((sectionHeader) => {
+        const RelocSectionIndex = 0;
+        this.elfLoader.sectionHeaders.forEach((sectionHeader) => {
 			//RelocOutput.WriteLine("Section Header: %d : %s".Sprintf(RelocSectionIndex++, SectionHeader.ToString()));
 			//console.info(sprintf('Section Header: '));
 
@@ -203,8 +203,8 @@ export class PspElfLoader implements ISymbolLookup {
 					break;
 
 				case ElfSectionHeaderType.PrxRelocation:
-					var relocs = StructArray<ElfReloc>(ElfReloc.struct, sectionHeader.stream.length / ElfReloc.struct.length).read(sectionHeader.stream);
-					this.relocateRelocs(relocs);
+                    const relocs = StructArray<ElfReloc>(ElfReloc.struct, sectionHeader.stream.length / ElfReloc.struct.length).read(sectionHeader.stream);
+                    this.relocateRelocs(relocs);
 					break;
 
 				case ElfSectionHeaderType.PrxRelocation_FW5:
@@ -269,10 +269,10 @@ export class PspElfLoader implements ISymbolLookup {
 	}
 
     private writeToMemory() {
-		var needsRelocate = this.elfLoader.needsRelocation;
+        const needsRelocate = this.elfLoader.needsRelocation;
 
-        //var loadAddress = this.elfLoader.programHeaders[0].psysicalAddress;
-        var loadAddress = this.baseAddress;
+        //const loadAddress = this.elfLoader.programHeaders[0].psysicalAddress;
+        const loadAddress = this.baseAddress;
 
         console.info(sprintf("PspElfLoader: needsRelocate=%s, loadAddress=%08X", needsRelocate, loadAddress));
 		//console.log(moduleInfo);
@@ -316,32 +316,32 @@ export class PspElfLoader implements ISymbolLookup {
     }
 
     private updateModuleImports() {
-		var moduleInfo = this.moduleInfo;
-		console.log(moduleInfo);
-        var importsBytesSize = moduleInfo.importsEnd - moduleInfo.importsStart;
-        var importsStream = this.memory.sliceWithBounds(moduleInfo.importsStart, moduleInfo.importsEnd);
-        var importsCount = importsBytesSize / ElfPspModuleImport.struct.length;
-        var imports = StructArray<ElfPspModuleImport>(ElfPspModuleImport.struct, importsCount).read(importsStream);
+        const moduleInfo = this.moduleInfo;
+        console.log(moduleInfo);
+        const importsBytesSize = moduleInfo.importsEnd - moduleInfo.importsStart;
+        const importsStream = this.memory.sliceWithBounds(moduleInfo.importsStart, moduleInfo.importsEnd);
+        const importsCount = importsBytesSize / ElfPspModuleImport.struct.length;
+        const imports = StructArray<ElfPspModuleImport>(ElfPspModuleImport.struct, importsCount).read(importsStream);
         imports.forEach(_import => {
             _import.name = this.memory.readStringz(_import.nameOffset)
-            var imported = this.updateModuleFunctions(_import);
-			this.updateModuleVars(_import);
+            const imported = this.updateModuleFunctions(_import);
+            this.updateModuleVars(_import);
 			console.info('Imported: ', imported.name, imported.registeredNativeFunctions.map(i => i.name));
         });
         //console.log(imports);
     }
 
     private updateModuleFunctions(moduleImport: ElfPspModuleImport) {
-        var _module = this.moduleManager.getByName(moduleImport.name);
-        var nidsStream = this.memory.sliceWithSize(moduleImport.nidAddress, moduleImport.functionCount * 4);
-		var callStream = this.memory.sliceWithSize(moduleImport.callAddress, moduleImport.functionCount * 8);
-		var registeredNativeFunctions = <NativeFunction[]>[];
-		var unknownFunctions:string[] = []
+        const _module = this.moduleManager.getByName(moduleImport.name);
+        const nidsStream = this.memory.sliceWithSize(moduleImport.nidAddress, moduleImport.functionCount * 4);
+        const callStream = this.memory.sliceWithSize(moduleImport.callAddress, moduleImport.functionCount * 8);
+        const registeredNativeFunctions = <NativeFunction[]>[];
+        const unknownFunctions:string[] = []
 
-        var registerN = (nid: number, n: number) => {
+        const registerN = (nid: number, n: number) => {
             var nfunc: NativeFunction;
 			nfunc = _module.getByNid(nid);
-			
+
 			if (!nfunc) {
 			    const nidHex = sprintf("0x%08X", nid)
 				unknownFunctions.push(sprintf("'%s':%s", _module.moduleName, nidHex));
@@ -370,14 +370,13 @@ export class PspElfLoader implements ISymbolLookup {
 
 			registeredNativeFunctions.push(nfunc);
 
-            var syscallId = this.syscallManager.register(nfunc);
             //printf("%s:%08X -> %s", moduleImport.name, nid, syscallId);
-            return syscallId;
+            return this.syscallManager.register(nfunc)
         };
 
-        for (var n = 0; n < moduleImport.functionCount; n++) {
-            var nid = nidsStream.readUInt32();
-            var syscall = registerN(nid, n);
+        for (let n = 0; n < moduleImport.functionCount; n++) {
+            const nid = nidsStream.readUInt32();
+            const syscall = registerN(nid, n);
 
             callStream.writeInt32(this.assembler.assemble(0, sprintf('jr $31'))[0].IDATA);
             callStream.writeInt32(this.assembler.assemble(0, sprintf('syscall %d', syscall))[0].IDATA);

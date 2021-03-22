@@ -2,8 +2,8 @@ import {Stream} from "../global/stream";
 
 export function changeFavicon(src: string) {
     if (typeof document == 'undefined') return;
-    var link = document.createElement('link'),
-        oldLink = document.getElementById('dynamic-favicon');
+    const link = document.createElement('link')
+    const oldLink = document.getElementById('dynamic-favicon');
     link.id = 'dynamic-favicon';
     link.rel = 'shortcut icon';
     link.href = src;

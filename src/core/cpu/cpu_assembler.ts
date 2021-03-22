@@ -23,11 +23,11 @@ export class MipsAssembler {
 	}
 
 	assembleToMemory(memory: Memory, startPC: number, lines: string[]):MipsAssemblerResult {
-		var labels = new Labels();
-		var entryPoint = startPC;
-		for (var n = 0; n < 2; n++) { // hack to get labels working without patching or extra code
-			var PC = startPC;
-			for (let line of lines) {
+        const labels = new Labels();
+        let entryPoint = startPC;
+        for (let n = 0; n < 2; n++) { // hack to get labels working without patching or extra code
+            let PC = startPC;
+            for (let line of lines) {
 				switch (line.substr(0, 1)) {
 					case '.':
 						switch (line) {
@@ -39,8 +39,8 @@ export class MipsAssembler {
 						labels.labels[line.substr(1)] = PC;
 						break;
 					default:
-						var instructions = this.assemble(PC, line, labels);
-						for (let instruction of instructions) {
+                        const instructions = this.assemble(PC, line, labels);
+                        for (let instruction of instructions) {
 							memory.writeInt32(PC, instruction.IDATA);
 							PC += 4;
 						}

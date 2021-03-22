@@ -6,7 +6,7 @@ import {MemoryAnchor, MemoryPartition} from "../manager/memory";
 import {nativeFunction} from "../utils";
 import {Thread} from "../manager/thread";
 
-var console = logger.named('module.SysMemUserForUser');
+const console = logger.named('module.SysMemUserForUser');
 
 export class SysMemUserForUser {
 	constructor(private context: EmulatorContext) { }
@@ -19,9 +19,9 @@ export class SysMemUserForUser {
 		if (name == null) return SceKernelErrors.ERROR_ERROR;
 
 		try {
-			var parentPartition = this.context.memoryManager.memoryPartitionsUid[partitionId];
-			var allocatedPartition = parentPartition.allocate(size, anchor, address, name);
-			console.info(sprintf("SysMemUserForUser.sceKernelAllocPartitionMemory (partitionId:%d, name:'%s', type:%d, size:%d, address:%08X) : %08X-%08X", partitionId, name, anchor, size, address, allocatedPartition.low, allocatedPartition.high));
+            const parentPartition = this.context.memoryManager.memoryPartitionsUid[partitionId];
+            const allocatedPartition = parentPartition.allocate(size, anchor, address, name);
+            console.info(sprintf("SysMemUserForUser.sceKernelAllocPartitionMemory (partitionId:%d, name:'%s', type:%d, size:%d, address:%08X) : %08X-%08X", partitionId, name, anchor, size, address, allocatedPartition.low, allocatedPartition.high));
 			return this.partitionUids.allocate(allocatedPartition);
 		} catch (e) {
 			console.error(e);
@@ -35,13 +35,13 @@ export class SysMemUserForUser {
 		if (type < 0 || type > 1) return SceKernelErrors.ERROR_KERNEL_ILLEGAL_MEMBLOCK_ALLOC_TYPE;
 		if (size == 0) return SceKernelErrors.ERROR_KERNEL_FAILED_ALLOC_MEMBLOCK;
 		if (paramsAddrPtr) {
-			var size = paramsAddrPtr.readInt32();
-			var unk = paramsAddrPtr.readInt32();
+			const size = paramsAddrPtr.readInt32();
+            const unk = paramsAddrPtr.readInt32();
 			if (size != 4) return SceKernelErrors.ERROR_KERNEL_ILLEGAL_ARGUMENT;
 		}
-		var parentPartition = this.context.memoryManager.userPartition;
+        const parentPartition = this.context.memoryManager.userPartition;
 		try {
-			var block = parentPartition.allocate(size, type, 0, name);
+            const block = parentPartition.allocate(size, type, 0, name);
 			return this.blockUids.allocate(block);
 		} catch (e) {
 			console.error(e);
@@ -52,8 +52,8 @@ export class SysMemUserForUser {
 	@nativeFunction(0xDB83A952, 150, 'int', 'int')
 	GetMemoryBlockAddr(blockId: number) {
 		if (!this.blockUids.has(blockId)) return 0;
-		var block = this.blockUids.get(blockId);
-		return block.low;
+        const block = this.blockUids.get(blockId);
+        return block.low;
 	}
 
 	@nativeFunction(0x50F61D8A, 150, 'int', 'int')
@@ -66,8 +66,8 @@ export class SysMemUserForUser {
 	@nativeFunction(0xB6D61D02, 150, 'int', 'int')
 	sceKernelFreePartitionMemory(partitionId: number) {
 		if (!this.partitionUids.has(partitionId)) return SceKernelErrors.ERROR_KERNEL_ILLEGAL_MEMBLOCK;
-		var partition = this.partitionUids.get(partitionId);
-		partition.deallocate();
+        const partition = this.partitionUids.get(partitionId);
+        partition.deallocate();
 		this.partitionUids.remove(partitionId);
 		return 0;
 	}
@@ -80,8 +80,8 @@ export class SysMemUserForUser {
 	@nativeFunction(0x9D9A5BA1, 150, 'uint', 'int')
 	sceKernelGetBlockHeadAddr(partitionId: number) {
 		if (!this.partitionUids.has(partitionId)) return SceKernelErrors.ERROR_KERNEL_ILLEGAL_MEMBLOCK;
-		var block = this.partitionUids.get(partitionId)
-		return block.low;
+        const block = this.partitionUids.get(partitionId);
+        return block.low;
 	}
 
 	/**
@@ -109,18 +109,18 @@ export class SysMemUserForUser {
 
 	@nativeFunction(0x3FC9AE6A, 150, 'int', 'uint')
 	sceKernelDevkitVersion(version: number) {
-		//var Version = HleConfig.FirmwareVersion;
+		//const Version = HleConfig.FirmwareVersion;
 		//return (Version.Major << 24) | (Version.Minor << 16) | (Version.Revision << 8) | 0x10;
 		return 0x02070110;
 	}
 
 	@nativeFunction(0x13A5ABEF, 150, 'void', 'Thread/string')
 	sceKernelPrintf(thread: Thread, format: string) {
-		var gprIndex = 5;
-		var memory = this.context.memory;
-		let state = thread.state;
+        let gprIndex = 5;
+        const memory = this.context.memory;
+        let state = thread.state;
 
-		var readParam = (type:string) => {
+		const readParam = (type:string) => {
 			switch (type) {
 				case '%s': return memory.readStringz(state.getGPR(gprIndex++));
 				case '%d': return String(state.getGPR(gprIndex++));

@@ -31,16 +31,16 @@ export class sceAtrac3plus {
 	@nativeFunction(0x0E2A73AB, 150, 'uint', 'int/byte[]')
 	sceAtracSetData(id:number, data: Stream) {
 		if (!this.hasById(id)) return SceKernelErrors.ATRAC_ERROR_NO_ATRACID;
-		var atrac3 = this.getById(id);
-		atrac3.setDataStream(data);
+        const atrac3 = this.getById(id);
+        atrac3.setDataStream(data);
 		return 0;
 	}
 
 	@nativeFunction(0x83E85EA0, 150, 'uint', 'int/void*/void*')
 	sceAtracGetSecondBufferInfo(id: number, puiPosition: Stream, puiDataByte: Stream) {
 		if (!this.hasById(id)) return SceKernelErrors.ATRAC_ERROR_NO_ATRACID;
-		var atrac3 = this.getById(id);
-		puiPosition.writeInt32(0);
+        const atrac3 = this.getById(id);
+        puiPosition.writeInt32(0);
 		puiDataByte.writeInt32(0);
 		return SceKernelErrors.ERROR_ATRAC_SECOND_BUFFER_NOT_NEEDED;
 	}
@@ -53,8 +53,8 @@ export class sceAtrac3plus {
 
 	@nativeFunction(0x61EB33F5, 150, 'uint', 'int')
 	sceAtracReleaseAtracID(id: number) {
-		var atrac3 = this.getById(id);
-		atrac3.free();
+        const atrac3 = this.getById(id);
+        atrac3.free();
 		this._atrac3Ids.remove(id);
 		return 0;
 	}
@@ -62,13 +62,13 @@ export class sceAtrac3plus {
 	@nativeFunction(0x6A8C3CD5, 150, 'uint', 'int/void*/void*/void*/void*')
 	sceAtracDecodeData(id: number, samplesOutPtr: Stream, decodedSamplesCountPtr: Stream, reachedEndPtr: Stream, remainingFramesToDecodePtr: Stream) {
 		if (!this.hasById(id)) return PromiseFast.resolve(SceKernelErrors.ATRAC_ERROR_NO_ATRACID);
-		var atrac3 = this.getById(id);
-		
-		var reachedEnd = new UIntReference(reachedEndPtr);
-		var decodedSamplesCount = new UIntReference(decodedSamplesCountPtr);
-		var remainingFramesToDecode = new UIntReference(remainingFramesToDecodePtr);
+        const atrac3 = this.getById(id);
 
-		//console.log(`${atrac3.decodingReachedEnd}, ${atrac3.currentFrame}-${atrac3.totalFrames} ${atrac3.remainingFrames}. ${atrac3.getNumberOfSamplesInNextFrame()}, ${atrac3.packet ? atrac3.packet.pos : -1}/${atrac3.stream.length}`);		
+        const reachedEnd = new UIntReference(reachedEndPtr);
+        const decodedSamplesCount = new UIntReference(decodedSamplesCountPtr);
+        const remainingFramesToDecode = new UIntReference(remainingFramesToDecodePtr);
+
+        //console.log(`${atrac3.decodingReachedEnd}, ${atrac3.currentFrame}-${atrac3.totalFrames} ${atrac3.remainingFrames}. ${atrac3.getNumberOfSamplesInNextFrame()}, ${atrac3.packet ? atrac3.packet.pos : -1}/${atrac3.stream.length}`);
 		return atrac3.decodeAsync(samplesOutPtr).then((decodedSamples) => {
 			reachedEnd.value = 0;
 			remainingFramesToDecode.value = atrac3.remainingFrames;
@@ -103,41 +103,41 @@ export class sceAtrac3plus {
 	@nativeFunction(0x9AE849A7, 150, 'uint', 'int/void*')
 	sceAtracGetRemainFrame(id: number, remainFramePtr: Stream) {
 		if (!this.hasById(id)) return SceKernelErrors.ATRAC_ERROR_NO_ATRACID;
-		var atrac3 = this.getById(id);
-		if (remainFramePtr) remainFramePtr.writeInt32(atrac3.remainingFrames);
+        const atrac3 = this.getById(id);
+        if (remainFramePtr) remainFramePtr.writeInt32(atrac3.remainingFrames);
 		return 0;
 	}
 
 	@nativeFunction(0xA554A158, 150, 'uint', 'int/void*')
 	sceAtracGetBitrate(id: number, bitratePtr: Stream) {
 		if (!this.hasById(id)) return SceKernelErrors.ATRAC_ERROR_NO_ATRACID;
-		var atrac3 = this.getById(id);
-		bitratePtr.writeInt32(atrac3.bitrate);
+        const atrac3 = this.getById(id);
+        bitratePtr.writeInt32(atrac3.bitrate);
 		return 0;
 	}
 
 	@nativeFunction(0x31668baa, 150, 'uint', 'int/void*')
 	sceAtracGetChannel(id: number, channelsPtr: Stream) {
 		if (!this.hasById(id)) return SceKernelErrors.ATRAC_ERROR_NO_ATRACID;
-		var atrac3 = this.getById(id);
-		channelsPtr.writeInt32(atrac3.format.atracChannels);
+        const atrac3 = this.getById(id);
+        channelsPtr.writeInt32(atrac3.format.atracChannels);
 		return 0;
 	}
 
 	@nativeFunction(0xD6A5F2F7, 150, 'uint', 'int/void*')
 	sceAtracGetMaxSample(id: number, maxNumberOfSamplesPtr: Stream) {
 		if (!this.hasById(id)) return SceKernelErrors.ATRAC_ERROR_NO_ATRACID;
-		var atrac3 = this.getById(id);
-		maxNumberOfSamplesPtr.writeInt32(atrac3.maximumSamples);
+        const atrac3 = this.getById(id);
+        maxNumberOfSamplesPtr.writeInt32(atrac3.maximumSamples);
 		return 0;
 	}
 
 	@nativeFunction(0x36FAABFB, 150, 'uint', 'int/void*')
 	sceAtracGetNextSample(id: number, numberOfSamplesInNextFramePtr: Stream) {
 		if (!this.hasById(id)) return SceKernelErrors.ATRAC_ERROR_NO_ATRACID;
-		var atrac3 = this.getById(id);
+        const atrac3 = this.getById(id);
 
-		numberOfSamplesInNextFramePtr.writeInt32(atrac3.getNumberOfSamplesInNextFrame());
+        numberOfSamplesInNextFramePtr.writeInt32(atrac3.getNumberOfSamplesInNextFrame());
 		return 0;
 	}
 
@@ -159,8 +159,8 @@ export class sceAtrac3plus {
 	@nativeFunction(0x7DB31251, 150, 'uint', 'int/int')
 	sceAtracAddStreamData(id: number, bytesToAdd: number) {
 		if (!this.hasById(id)) return SceKernelErrors.ATRAC_ERROR_NO_ATRACID;
-		var atrac3 = this.getById(id);
-		//console.warn("Not implemented sceAtracAddStreamData", id, bytesToAdd, atrac3);
+        const atrac3 = this.getById(id);
+        //console.warn("Not implemented sceAtracAddStreamData", id, bytesToAdd, atrac3);
 		//throw (new Error("Not implemented sceAtracAddStreamData"));
 		//return -1;
 		return 0;
@@ -169,8 +169,8 @@ export class sceAtrac3plus {
 	@nativeFunction(0x5D268707, 150, 'uint', 'int/void*/void*/void*')
 	sceAtracGetStreamDataInfo(id: number, writePointerPointer: Stream, availableBytesPtr: Stream, readOffsetPtr: Stream) {
 		if (!this.hasById(id)) return SceKernelErrors.ATRAC_ERROR_NO_ATRACID;
-		var atrac3 = this.getById(id);
-		writePointerPointer.writeInt32(0);
+        const atrac3 = this.getById(id);
+        writePointerPointer.writeInt32(0);
 		availableBytesPtr.writeInt32(0);
 		readOffsetPtr.writeInt32(0);
 		//WritePointerPointer = Atrac.PrimaryBuffer.Low; // @FIXME!!
@@ -186,8 +186,8 @@ export class sceAtrac3plus {
 	@nativeFunction(0xE23E3A35, 150, 'uint', 'int/void*')
 	sceAtracGetNextDecodePosition(id: number, samplePositionPtr: Stream) {
 		if (!this.hasById(id)) return SceKernelErrors.ATRAC_ERROR_NO_ATRACID;
-		var atrac3 = this.getById(id);
-		if (atrac3.decodingReachedEnd) return SceKernelErrors.ERROR_ATRAC_ALL_DATA_DECODED;
+        const atrac3 = this.getById(id);
+        if (atrac3.decodingReachedEnd) return SceKernelErrors.ERROR_ATRAC_ALL_DATA_DECODED;
 		if (samplePositionPtr) samplePositionPtr.writeInt32(atrac3.currentFrame);
 		return 0;
 	}
@@ -195,9 +195,9 @@ export class sceAtrac3plus {
 	@nativeFunction(0xA2BBA8BE, 150, 'uint', 'int/void*/void*/void*')
 	sceAtracGetSoundSample(id: number, endSamplePtr: Stream, loopStartSamplePtr: Stream, loopEndSamplePtr: Stream) {
 		if (!this.hasById(id)) return SceKernelErrors.ATRAC_ERROR_NO_ATRACID;
-		var atrac3 = this.getById(id);
-		var hasLoops = (atrac3.loopInfoList != null) && (atrac3.loopInfoList.length > 0);
-		if (endSamplePtr) endSamplePtr.writeInt32(atrac3.fact.endSample)
+        const atrac3 = this.getById(id);
+        const hasLoops = (atrac3.loopInfoList != null) && (atrac3.loopInfoList.length > 0);
+        if (endSamplePtr) endSamplePtr.writeInt32(atrac3.fact.endSample)
 		//if (loopStartSamplePtr) loopStartSamplePtr.writeInt32(hasLoops ? atrac3.LoopInfoList[0].StartSample : -1);
 		if (loopStartSamplePtr) loopStartSamplePtr.writeInt32(-1);
 		//if (loopEndSamplePtr) *LoopEndSamplePointer = hasLoops ? atrac3.LoopInfoList[0].EndSample : -1;
@@ -208,8 +208,8 @@ export class sceAtrac3plus {
 	@nativeFunction(0x868120B5, 150, 'uint', 'int/int')
 	sceAtracSetLoopNum(id: number, numberOfLoops: number) {
 		if (!this.hasById(id)) return SceKernelErrors.ATRAC_ERROR_NO_ATRACID;
-		var atrac3 = this.getById(id);
-		atrac3.numberOfLoops = numberOfLoops;
+        const atrac3 = this.getById(id);
+        atrac3.numberOfLoops = numberOfLoops;
 		return 0;
 	}
 
@@ -231,10 +231,10 @@ export class sceAtrac3plus {
 	@nativeFunction(0xB3B5D042, 150, 'uint', 'int/void*')
 	sceAtracGetOutputChannel(id: number, outputChannelPtr: Stream) {
 		if (!this.hasById(id)) return SceKernelErrors.ATRAC_ERROR_NO_ATRACID;
-		var atrac3 = this.getById(id);
-		var sceAudioChReserve = this.context.moduleManager.getByName('sceAudio').getByName('sceAudioChReserve').nativeCall;
-		var channel = sceAudioChReserve(-1, atrac3.maximumSamples, 0);
-		outputChannelPtr.writeInt32(channel);
+        const atrac3 = this.getById(id);
+        const sceAudioChReserve = this.context.moduleManager.getByName('sceAudio').getByName('sceAudioChReserve').nativeCall;
+        const channel = sceAudioChReserve(-1, atrac3.maximumSamples, 0);
+        outputChannelPtr.writeInt32(channel);
 		return 0;
 	}
 }
@@ -262,9 +262,9 @@ class Atrac3 {
 	}
 
 	setDataStream(data: Stream) {
-		var dataBytes = data.clone().readAllBytes();		
-		
-		Riff.fromStreamWithHandlers(data, {
+        const dataBytes = data.clone().readAllBytes();
+
+        Riff.fromStreamWithHandlers(data, {
 			'fmt ': (stream: Stream) => { this.format = At3FormatStruct.struct.read(stream); },
 			'fact': (stream: Stream) => { this.fact = FactStruct.struct.read(stream); },
 			'smpl': (stream: Stream) => {
@@ -283,8 +283,8 @@ class Atrac3 {
 	}
 
 	get bitrate() {
-		var _atracBitrate = Math.floor((this.format.bytesPerFrame * 352800) / 1000);
-		if (this.codecType == CodecType.PSP_MODE_AT_3_PLUS) {
+        const _atracBitrate = Math.floor((this.format.bytesPerFrame * 352800) / 1000);
+        if (this.codecType == CodecType.PSP_MODE_AT_3_PLUS) {
 			return ((_atracBitrate >> 11) + 8) & 0xFFFFFFF0;
 		}
 		else {
@@ -335,8 +335,8 @@ class Atrac3 {
 		// @TODO: Fix seek times! We could detect timestamps while decoding to do a faster seek
 		// later on loops.
 		while (this.currentFrame < frame) {
-			var data = this.decodeOne();
-			if (data == null) return;
+            const data = this.decodeOne();
+            if (data == null) return;
 		}
 	}
 	
@@ -350,6 +350,7 @@ class Atrac3 {
 	
 	private decodeOne() {
 		this.currentFrame++;
+		let data: Int16Array
 		do {
 			if (this.packet == null) {
 				this.packet = this.stream!.readPacket();
@@ -358,7 +359,7 @@ class Atrac3 {
 					return null;
 				}
 			}
-			var data = this.packet.decodeAudio(this.format.atracChannels, 44100);
+			data = this.packet.decodeAudio(this.format.atracChannels, 44100);
 			//console.log('decodeAudio', data != null);
 			if (data == null) {
 				this.packet.free();
@@ -370,14 +371,14 @@ class Atrac3 {
 
 	decodeAsync(samplesOutPtr: Stream) {
 		if (this.totalFrames <= 0) return PromiseFast.resolve(0);
-		//var blockData = this.dataStream.readBytes(this.format.blockSize);
+		//const blockData = this.dataStream.readBytes(this.format.blockSize);
 		try {
 			
 			//console.log(data);
-			var data = this.decodeOne();
-			if (data == null) return PromiseFast.resolve(0);
+            const data = this.decodeOne();
+            if (data == null) return PromiseFast.resolve(0);
 
-			for (var n = 0; n < data.length; n++) samplesOutPtr.writeInt16(data[n]);
+			for (let n = 0; n < data.length; n++) samplesOutPtr.writeInt16(data[n]);
 			return PromiseFast.resolve(data.length);
 		} catch (e) {
 			console.error(e.stack || e);
@@ -472,7 +473,7 @@ class MyMemoryCustomStream extends MediaEngine.CustomStream {
 	get length() { return this.data.length; }
 	
 	public read(buf:Uint8Array):number {
-		var readlen = Math.min(buf.length, this.available);
+		const readlen = Math.min(buf.length, this.available);
 		console.log('read', this.position, buf.length, readlen);
 		buf.subarray(0, readlen).set(this.data.subarray(this.position, this.position + readlen));
 		return readlen;

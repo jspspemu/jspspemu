@@ -24,24 +24,24 @@ export class sceUtility {
 	@nativeFunction(0x50C4CD57, 150, 'uint', 'void*')
 	sceUtilitySavedataInitStart(paramsPtr: Stream) {
 		return PromiseFast.resolve(this._sceUtilitySavedataInitStart(paramsPtr.clone())).then(result => {
-			var params = SceUtilitySavedataParam.struct.read(paramsPtr.clone());
-			params.base.result = result;
+            const params = SceUtilitySavedataParam.struct.read(paramsPtr.clone());
+            params.base.result = result;
 			return 0;
 		});
 	}
 
 	_sceUtilitySavedataInitStart(paramsPtr: Stream): PromiseFast<number> {
 		console.error('sceUtilitySavedataInitStart');
-		var params = SceUtilitySavedataParam.struct.createProxy(paramsPtr);
+        const params = SceUtilitySavedataParam.struct.createProxy(paramsPtr);
 
-		return PromiseFast.resolve(0).then(() => {
-			var fileManager = this.context.fileManager;
-			var savePathFolder = "ms0:/PSP/SAVEDATA/" + params.gameName + params.saveName;
-			var saveDataBin = savePathFolder + "/DATA.BIN";
-			var saveIcon0 = savePathFolder + "/ICON0.PNG";
-			var savePic1 = savePathFolder + "/PIC1.PNG";
+        return PromiseFast.resolve(0).then(() => {
+            const fileManager = this.context.fileManager;
+            const savePathFolder = "ms0:/PSP/SAVEDATA/" + params.gameName + params.saveName;
+            const saveDataBin = savePathFolder + "/DATA.BIN";
+            const saveIcon0 = savePathFolder + "/ICON0.PNG";
+            const savePic1 = savePathFolder + "/PIC1.PNG";
 
-			this.currentStep = DialogStepEnum.SUCCESS;
+            this.currentStep = DialogStepEnum.SUCCESS;
 
 			//debugger;
 			console.info('mode:', PspUtilitySavedataMode[params.mode]);
@@ -61,9 +61,9 @@ export class sceUtility {
 				case PspUtilitySavedataMode.Autosave:
 				case PspUtilitySavedataMode.Save:
 				case PspUtilitySavedataMode.ListSave:
-					var data = this.context.memory.readArrayBuffer(params.dataBufPointer, params.dataSize);
+                    const data = this.context.memory.readArrayBuffer(params.dataBufPointer, params.dataSize);
 
-					return fileManager
+                    return fileManager
 						.openAsync(saveDataBin, FileOpenFlags.Create | FileOpenFlags.Truncate | FileOpenFlags.Write, parseIntFormat('0777'))
 						.then(file => file.entry.writeAllAsync(data))
 						.then(written => {
@@ -216,15 +216,15 @@ export class sceUtility {
 	@nativeFunction(0xA5DA2406, 150, 'uint', 'int/void*')
 	sceUtilityGetSystemParamInt(id: PSP_SYSTEMPARAM_ID, valuePtr: Stream) {
 		//console.warn("Not implemented sceUtilityGetSystemParamInt", id, PSP_SYSTEMPARAM_ID[id]);
-		var value = parseInt(this._getKey(id));
-		if (valuePtr) valuePtr.writeInt32(value);
+        const value = parseInt(this._getKey(id));
+        if (valuePtr) valuePtr.writeInt32(value);
 		return 0;
 	}
 
 	@nativeFunction(0x34B78343, 150, 'uint', 'int/void*/int')
 	sceUtilityGetSystemParamString(id: PSP_SYSTEMPARAM_ID, strPtr: Stream, len: number) {
-		var value = String(this._getKey(id));
-		value = value.substr(0, Math.min(value.length, len - 1));
+        let value = String(this._getKey(id));
+        value = value.substr(0, Math.min(value.length, len - 1));
 		if (strPtr) strPtr.writeStringz(value);
 		return 0;
 	}

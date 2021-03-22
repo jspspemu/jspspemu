@@ -32,8 +32,8 @@ describe('utils', () => {
 
 		/*
         it('should read simple struct', () => {
-            var stream = Stream.fromArray([0x01, 0x02, 0x03, 0x04]);
-            var MyStruct = Struct.create([
+            const stream = Stream.fromArray([0x01, 0x02, 0x03, 0x04]);
+            const MyStruct = Struct.create([
 				{ item1: Int16 },
 				{ item2: Int16 }
             ]);

@@ -2,7 +2,7 @@
 
 import {
     addressToHex,
-    CpuBreakException,
+    CpuBreakException, InterruptBreakException,
     logger,
     NumberDictionary, ProgramExitException,
     sprintf,
@@ -83,8 +83,8 @@ export class SyscallManager {
     }
 
 	getName(id: number) {
-		var c = this.calls[id];
-		if (c) return c.name;
+        const c = this.calls[id];
+        if (c) return c.name;
 		return 'syscall_' + id;
 	}
 	
@@ -93,7 +93,7 @@ export class SyscallManager {
 	}
 
 	call(state: CpuState, id: number) {
-        var nativeFunction: NativeFunction = this.calls[id];
+        const nativeFunction: NativeFunction = this.calls[id];
         if (!nativeFunction) throw `Can't call syscall ${this.getName(id)}: ${addressToHex(id)}"`;
 		if (DEBUG_NATIVEFUNC) {
 			console.log(`calling syscall ${addressToHex(id)}, ${id}, ${nativeFunction.name} with cpustate:${state.id}`);
@@ -119,10 +119,10 @@ class VfpuPrefixRead extends VfpuPrefixBase {
 			for (let n = 0; n < input.length; n++) output[n] = input[n];
 		} else {
 			for (let n = 0; n < input.length; n++) {
-				//var sourceIndex = this.getSourceIndex(n);
-				//var sourceAbsolute = this.getSourceAbsolute(n);
-				//var sourceConstant = this.getSourceConstant(n);
-				//var sourceNegate = this.getSourceNegate(n);
+				//const sourceIndex = this.getSourceIndex(n);
+				//const sourceAbsolute = this.getSourceAbsolute(n);
+				//const sourceConstant = this.getSourceConstant(n);
+				//const sourceNegate = this.getSourceNegate(n);
 
 				const sourceIndex = (info >> (0 + n * 2)) & 3;
 				const sourceAbsolute = (info >> (8 + n * 1)) & 1;
@@ -166,8 +166,8 @@ class VfpuPrefixWrite extends VfpuPrefixBase {
 		} else {
 			//debugger;
 			for (let n = 0; n < indices.length; n++) {
-				//var destinationSaturation = this.getDestinationSaturation(n);
-				//var destinationMask = this.getDestinationMask(n);
+				//const destinationSaturation = this.getDestinationSaturation(n);
+				//const destinationMask = this.getDestinationMask(n);
 				const destinationSaturation = (info >> (0 + n * 2)) & 3;
 				const destinationMask = (info >> (8 + n * 1)) & 1;
 				if (destinationMask) {
@@ -224,7 +224,11 @@ export class CpuState extends Instruction {
 		return that;
 	}
 
-    throwCpuBreakException() {
+	throwInterruptBreakException(): never {
+	    throw new InterruptBreakException()
+    }
+
+    throwCpuBreakException(): never {
         this.thread.stop('CpuSpecialAddresses.EXIT_THREAD');
         throw new CpuBreakException()
     }
@@ -258,8 +262,8 @@ export class CpuState extends Instruction {
 
 	vrnds() { }
 	vrndi() {
-		var v = 0;
-		for (var n = 0; n < 4; n++) {
+        let v = 0;
+        for (let n = 0; n < 4; n++) {
 			v <<= 8;
 			v |= (Math.round(Math.random() * 255) & 0xFF);
 		}
@@ -298,7 +302,7 @@ export class CpuState extends Instruction {
 	}
 
     storeFloats(address: number, values: number[]) {
-        for (var n = 0; n < values.length; n++) {
+        for (let n = 0; n < values.length; n++) {
             this.memory.writeFloat32(address + n * 4, values[n]);
         }
     }
@@ -331,9 +335,9 @@ export class CpuState extends Instruction {
 	}
 
 	getVfpumatrix(index: number) {
-		var values: number[] = [];
-		for (var r = 0; r < 4; r++) {
-			for (var c = 0; c < 4; c++) {
+        const values: number[] = [];
+        for (let r = 0; r < 4; r++) {
+			for (let c = 0; c < 4; c++) {
 				values.push(this.vfpr[r * 32 + index * 4 + c]);
 			}
 		}
@@ -341,7 +345,7 @@ export class CpuState extends Instruction {
 	}
 
 	loadVdRegs(regs: number[]) {
-		for (var n = 0; n < regs.length; n++) {
+		for (let n = 0; n < regs.length; n++) {
 			this.vector_vd[n] = this.vfpr[regs[n]];
 		}
 	}
@@ -359,7 +363,7 @@ export class CpuState extends Instruction {
 	}
 
 	storeVdRegs(regs: number[]) {
-		for (var n = 0; n < regs.length; n++) this.vfpr[regs[n]] = this.vector_vd[n];
+		for (let n = 0; n < regs.length; n++) this.vfpr[regs[n]] = this.vector_vd[n];
 	}
 
 	loadVs_prefixed(values: number[]) {
@@ -399,8 +403,8 @@ export class CpuState extends Instruction {
     vh2f() { debugger; return 0; }
 
 	_vt4444_step(i0: number, i1: number) {
-		var o = 0;
-		o |= ((i0 >> 4) & 15) << 0;
+        let o = 0;
+        o |= ((i0 >> 4) & 15) << 0;
 		o |= ((i0 >> 12) & 15) << 4;
 		o |= ((i0 >> 20) & 15) << 8;
 		o |= ((i0 >> 28) & 15) << 12;
@@ -412,8 +416,8 @@ export class CpuState extends Instruction {
 	}
 
 	_vt5551_step(i0: number, i1: number) {
-		var o = 0;
-		o |= ((i0 >> 3) & 31) << 0;
+        let o = 0;
+        o |= ((i0 >> 3) & 31) << 0;
 		o |= ((i0 >> 11) & 31) << 5;
 		o |= ((i0 >> 19) & 31) << 10;
 		o |= ((i0 >> 31) & 1) << 15;
@@ -425,8 +429,8 @@ export class CpuState extends Instruction {
 	}
 
 	_vt5650_step(i0: number, i1: number) {
-		var o = 0;
-		o |= ((i0 >> 3) & 31) << 0;
+        let o = 0;
+        o |= ((i0 >> 3) & 31) << 0;
 		o |= ((i0 >> 10) & 63) << 5;
 		o |= ((i0 >> 19) & 31) << 11;
 		o |= ((i1 >> 3) & 31) << 16;
@@ -436,29 +440,29 @@ export class CpuState extends Instruction {
 	}
 
 	svl_q(address: number, r: number[]) {
-		var k = (3 - ((address >>> 2) & 3));
-		address &= ~0xF;
-		for (var n = k; n < 4; n++ , address += 4) this.memory.sw(address, this.vfpr_i[r[n]]);
+        const k = (3 - ((address >>> 2) & 3));
+        address &= ~0xF;
+		for (let n = k; n < 4; n++, address += 4) this.memory.sw(address, this.vfpr_i[r[n]]);
 	}
 
 	svr_q(address: number, r: number[]) {
-		var k = (4 - ((address >>> 2) & 3));
-		for (var n = 0; n < k; n++ , address += 4) this.memory.sw(address, this.vfpr_i[r[n]]);
+        const k = (4 - ((address >>> 2) & 3));
+        for (let n = 0; n < k; n++, address += 4) this.memory.sw(address, this.vfpr_i[r[n]]);
 	}
 
 	lvl_q(address: number, r: number[]) {
-		var k = (3 - ((address >>> 2) & 3));
-		address &= ~0xF;
-		for (var n = k; n < 4; n++ , address += 4) this.vfpr_i[r[n]] = this.memory.lw(address);
+        const k = (3 - ((address >>> 2) & 3));
+        address &= ~0xF;
+		for (let n = k; n < 4; n++, address += 4) this.vfpr_i[r[n]] = this.memory.lw(address);
 	}
 
 	lvr_q(address: number, r: number[]) {
-		var k = (4 - ((address >>> 2) & 3));
-		for (var n = 0; n < k; n++ , address += 4) this.vfpr_i[r[n]] = this.memory.lw(address);
+        const k = (4 - ((address >>> 2) & 3));
+        for (let n = 0; n < k; n++, address += 4) this.vfpr_i[r[n]] = this.memory.lw(address);
 	}
 
-	vfpuStore(indices: number[], values: number[]) { for (var n = 0; n < indices.length; n++) this.vfpr[indices[n]] = values[n]; }
-	vfpuStore_i(indices: number[], values: number[]) { for (var n = 0; n < indices.length; n++) this.vfpr_i[indices[n]] = values[n]; }
+	vfpuStore(indices: number[], values: number[]) { for (let n = 0; n < indices.length; n++) this.vfpr[indices[n]] = values[n]; }
+	vfpuStore_i(indices: number[], values: number[]) { for (let n = 0; n < indices.length; n++) this.vfpr_i[indices[n]] = values[n]; }
 
 	vfpuSetMatrix(m: number, values: number[]) {
 		// @TODO
@@ -467,19 +471,19 @@ export class CpuState extends Instruction {
 	}
 	
     vcmp(cond: VCondition, vsValues: number[], vtValues: number[]) {
-        var vectorSize = vsValues.length;
+        const vectorSize = vsValues.length;
         this.loadVs_prefixed(vsValues);
         this.loadVt_prefixed(vtValues);
-        var s = this.vector_vs;
-        var t = this.vector_vt;
+        const s = this.vector_vs;
+        const t = this.vector_vt;
 
-        var cc = 0;
-        var or_val = 0;
-        var and_val = 1;
-        var affected_bits = (1 << 4) | (1 << 5);  // 4 and 5
+        let cc = 0;
+        let or_val = 0;
+        let and_val = 1;
+        let affected_bits = (1 << 4) | (1 << 5);  // 4 and 5
 
-        for (var i = 0; i < vectorSize; i++) {
-            var c = false;
+        for (let i = 0; i < vectorSize; i++) {
+            let c = false;
             switch (cond) {
                 case VCondition.FL: c = false; break;
                 case VCondition.EQ: c = s[i] == t[i]; break;
@@ -501,7 +505,7 @@ export class CpuState extends Instruction {
                 case VCondition.NI: c = !MathFloat.isinf(s[i]); break;
                 case VCondition.NS: c = !(MathFloat.isnanorinf(s[i])); break;   // How about t[i] ?    
             }
-            var c_i = (c ? 1 : 0);
+            const c_i = (c ? 1 : 0);
             cc |= (c_i << i);
             or_val |= c_i;
             and_val &= c_i;
@@ -766,8 +770,8 @@ export class CpuState extends Instruction {
 
 	printCallstack(symbolLookup: any = null) {
 		this.getCallstack().forEach((PC) => {
-			var line = addressToHex(PC);
-			if (symbolLookup) {
+            let line = addressToHex(PC);
+            if (symbolLookup) {
 				line += ` : ${symbolLookup.getSymbolAt(PC)}`;
 			}
 			console.log(line);
@@ -791,8 +795,8 @@ export class CpuState extends Instruction {
 	}
 
 	get fcr31() {
-		var value = 0;
-		value = BitUtils.insert(value, 0, 2, this.fcr31_rm);
+        let value = 0;
+        value = BitUtils.insert(value, 0, 2, this.fcr31_rm);
 		value = BitUtils.insert(value, 2, 21, this.fcr31_2_21);
 		value = BitUtils.insert(value, 23, 1, this.fcr31_cc ? 1 : 0);
 		value = BitUtils.insert(value, 24, 1, this.fcr31_fs ? 1 : 0);
@@ -899,32 +903,32 @@ export class CpuState extends Instruction {
 	}
 
 	msub(rs: number, rt: number) {
-		var a64 = Integer64.fromInt(rs);
-		var b64 = Integer64.fromInt(rt);
-		var result = Integer64.fromBits(this.LO, this.HI).sub(a64.multiply(b64));
-		this.HI = result.high;
+        const a64 = Integer64.fromInt(rs);
+        const b64 = Integer64.fromInt(rt);
+        const result = Integer64.fromBits(this.LO, this.HI).sub(a64.multiply(b64));
+        this.HI = result.high;
 		this.LO = result.low;
 	}
 
 	multu(rs: number, rt: number) {
-		var info = Math.umul32_64(rs, rt, CpuState._mult_temp);
-		this.LO = info[0];
+        const info = Math.umul32_64(rs, rt, CpuState._mult_temp);
+        this.LO = info[0];
 		this.HI = info[1];
 	}
 
 	maddu(rs: number, rt: number) {
-		var a64 = Integer64.fromUnsignedInt(rs);
-		var b64 = Integer64.fromUnsignedInt(rt);
-		var result = Integer64.fromBits(this.LO, this.HI).add(a64.multiply(b64));
-		this.HI = result.high;
+        const a64 = Integer64.fromUnsignedInt(rs);
+        const b64 = Integer64.fromUnsignedInt(rt);
+        const result = Integer64.fromBits(this.LO, this.HI).add(a64.multiply(b64));
+        this.HI = result.high;
 		this.LO = result.low;
 	}
 
 	msubu(rs: number, rt: number) {
-		var a64 = Integer64.fromUnsignedInt(rs);
-		var b64 = Integer64.fromUnsignedInt(rt);
-		var result = Integer64.fromBits(this.LO, this.HI).sub(a64.multiply(b64));
-		this.HI = result.high;
+        const a64 = Integer64.fromUnsignedInt(rs);
+        const b64 = Integer64.fromUnsignedInt(rt);
+        const result = Integer64.fromBits(this.LO, this.HI).sub(a64.multiply(b64));
+        this.HI = result.high;
 		this.LO = result.low;
 	}
 
@@ -1204,7 +1208,7 @@ export class CpuState extends Instruction {
     }
 }
 
-var ast = new MipsAstBuilder();
+const ast = new MipsAstBuilder();
 
 export interface InstructionUsage {
 	name: string;
@@ -1264,17 +1268,17 @@ export class InstructionCache {
 	}
 
 	invalidateAll() {
-		for (var pc in this.examinedAddress) {
+		for (let pc in this.examinedAddress) {
 			delete this.examinedAddress[pc];
 		}
-		for (var pc in this.cache) {
+		for (let pc in this.cache) {
 			this.cache[pc].invalidate();
 			delete this.functions[pc];
 		}
 	}
 
 	invalidateRange(from: number, to: number) {
-		for (var pc = from; pc < to; pc += 4) {
+		for (let pc = from; pc < to; pc += 4) {
 			if (this.cache[pc]) this.cache[pc].invalidate();
 			delete this.examinedAddress[pc];
 			delete this.functions[pc];
@@ -1285,7 +1289,7 @@ export class InstructionCache {
 		this.examinedAddress[address] = true;
 		// @TODO: check if we have a function in this range already range already!
         const info = this.functionGenerator.getFunctionInfo(address, level);
-        //var func = this.functions[info.min];
+        //let func = this.functions[info.min];
         let func = this.functions[info.start];
         if (func === undefined) {
 			//console.log(`Creating function ${addressToHex(address)}`);
@@ -1339,19 +1343,19 @@ export class FunctionGenerator {
 	}
 
 	getInstructionUsageCount(): InstructionUsage[] {
-		var items: InstructionUsage[] = [];
-		for (var key in this.instructionUsageCount) {
-			var value = this.instructionUsageCount[key];
-			items.push({ name: key, count: value });
+        const items: InstructionUsage[] = [];
+        for (const key in this.instructionUsageCount) {
+            const value = this.instructionUsageCount[key];
+            items.push({ name: key, count: value });
 		}
 		items.sort((a, b) => compareNumbers(a.count, b.count)).reverse();
 		return items;
 	}
 
 	private decodeInstruction(address: number) {
-		var instruction = Instruction.fromMemoryAndPC(this.memory, address);
-		var instructionType = this.getInstructionType(instruction);
-		return new DecodedInstruction(instruction, instructionType);
+        const instruction = Instruction.fromMemoryAndPC(this.memory, address);
+        const instructionType = this.getInstructionType(instruction);
+        return new DecodedInstruction(instruction, instructionType);
 	}
 
 	private getInstructionType(i: Instruction) {
@@ -1363,10 +1367,10 @@ export class FunctionGenerator {
 	}
 
 	private generateInstructionAstNode(di: DecodedInstruction): ANodeStm {
-		var instruction = di.instruction;
-		var instructionType = di.type;
-		var func: Function = (<any>this.instructionAst)[instructionType.name];
-		if (func === undefined) throw (sprintf("Not implemented '%s' at 0x%08X", instructionType, di.instruction.PC));
+        const instruction = di.instruction;
+        const instructionType = di.type;
+        const func: Function = (<any>this.instructionAst)[instructionType.name];
+        if (func === undefined) throw (sprintf("Not implemented '%s' at 0x%08X", instructionType, di.instruction.PC));
 		return func.call(this.instructionAst, instruction, di);
 	}
 
@@ -1375,16 +1379,16 @@ export class FunctionGenerator {
 	}
 
 	getFunction(info: FunctionInfo, level:number): FunctionGeneratorResult {
-		var start = performance.now();
-		var code = this.getFunctionCode(info, level);
-		try {
-			//var func = <ICpuFunction>(new Function('state', 'args', '"use strict";' + code.code));
-			var startHex = addressToHex(info.start);
-			var func = <ICpuFunction>(new Function('args', `return function func_${startHex}(state) { "use strict"; ${code.code} }`)(code.args));
-			var result = new FunctionGeneratorResult(func, code, info, new CpuFunctionWithArgs(func, code.args));
-			var end = performance.now();
-			var elapsed = end - start;
-			if (elapsed >= 20) console.warn(`generated function ${startHex} in ${end - start} ms. ${addressToHex(info.min)}-${addressToHex(info.max)} : ${addressToHex(info.start)} : instructions:${(info.max - info.start) / 4}`);
+        const start = performance.now();
+        const code = this.getFunctionCode(info, level);
+        try {
+			//const func = <ICpuFunction>(new Function('state', 'args', '"use strict";' + code.code));
+            const startHex = addressToHex(info.start);
+            const func: ICpuFunction = <ICpuFunction>(new Function('args', `return function func_${startHex}(state) { "use strict"; ${code.code} }`)(code.args));
+            const result = new FunctionGeneratorResult(func, code, info, new CpuFunctionWithArgs(func, code.args));
+            const end = performance.now();
+            const elapsed = end - start;
+            if (elapsed >= 20) console.warn(`generated function ${startHex} in ${end - start} ms. ${addressToHex(info.min)}-${addressToHex(info.max)} : ${addressToHex(info.start)} : instructions:${(info.max - info.start) / 4}`);
 			return result;
 		} catch (e) {
 			console.info('code:\n', code.code);
@@ -1394,8 +1398,9 @@ export class FunctionGenerator {
 		}
 	}
 	
-	getFunctionInfo(address: number, level:number): FunctionInfo {
+	getFunctionInfo(address: number, level: number): FunctionInfo {
 		if (address == CpuSpecialAddresses.EXIT_THREAD) return { start: address, min: address, max: address + 4, labels: {} };
+        if (address == CpuSpecialAddresses.EXIT_INTERRUPT) return { start: address, min: address, max: address + 4, labels: {} };
 		if (address == 0x00000000) throw new ProgramExitException("Trying to execute 0x00000000");
 
 		const explored: NumberDictionary<Boolean> = {};
@@ -1403,9 +1408,9 @@ export class FunctionGenerator {
 		const info: FunctionInfo = { start: address, min: address, max: address, labels: {} };
 		const MAX_EXPLORE = 20000;
         //const MAX_EXPLORE = 50000;
-		var exploredCount = 0;
+        let exploredCount = 0;
 
-		function addToExplore(pc: number) {
+        function addToExplore(pc: number) {
 			if (explored[pc]) return;
 			explored[pc] = true;
 			explore.push(pc);
@@ -1456,10 +1461,10 @@ export class FunctionGenerator {
 		return info;
 	}
 	
-	private detectSyscallCall(pc:number):number {
-		var di = this.decodeInstruction(pc);
-		var di2 = this.decodeInstruction(pc + 4);
-		if (di.type.name == 'jr' && di2.type.name == 'syscall') {
+	private detectSyscallCall(pc: number): number {
+        const di = this.decodeInstruction(pc);
+        const di2 = this.decodeInstruction(pc + 4);
+        if (di.type.name == 'jr' && di2.type.name == 'syscall') {
 			return di2.instruction.vsyscall;
 		} else {
 			return -1;
@@ -1467,38 +1472,27 @@ export class FunctionGenerator {
 	}
 
 	getFunctionCode(info: FunctionInfo, level:number): FunctionCode {
-		var args: any = {};
-		if (info.start == CpuSpecialAddresses.EXIT_THREAD) return new FunctionCode("state.throwCpuBreakException();", args);
+        const args: any = {};
+        if (info.start == CpuSpecialAddresses.EXIT_THREAD) return new FunctionCode("state.throwCpuBreakException();", args);
+        if (info.start == CpuSpecialAddresses.EXIT_INTERRUPT) return new FunctionCode("state.throwInterruptBreakException();", args);
 
-		var func = ast.func(
-			info.start,
-			ast.raw_stm('var label = 0, BRANCHPC = 0, BRANCHFLAG = false, expectedRA = 0, memory = state.memory, gpr = state.gpr, gpr_f = state.gpr_f;'),
-			ast.raw_stm('state.jumpCall = null; return;'),
-			[]
-		);
-		
-		var labels: NumberDictionary<ANodeStmLabel> = {};
-		for (let labelPC in info.labels) labels[labelPC] = ast.label(<number><any>labelPC);
+        const func = ast.func(
+            info.start,
+            ast.raw_stm('let label = 0, BRANCHPC = 0, BRANCHFLAG = false, expectedRA = 0; const memory = state.memory, gpr = state.gpr, gpr_f = state.gpr_f;'),
+            ast.raw_stm('state.jumpCall = null; return;'),
+            []
+        );
 
-		/*
-		if (info.start == 0x08806280) {
-			func.add(ast.raw(`console.log('**************************************************************************');`));
-			func.add(ast.raw(`console.log('**************************************************************************');`));
-			func.add(ast.raw(`console.log('**************************************************************************');`));
-			func.add(ast.raw(`console.log('**************************************************************************');`));
-			func.add(ast.raw(`console.log('**************************************************************************');`));
-			func.add(ast.raw(`console.log(args.code);`));
-		}
-		*/
-		//func.add(ast.raw(sprintf(`console.log('MIN:%08X, PC:%08X');`, info.min, info.start)));
-		//func.add(ast.djump(ast.raw(`${info.start}`)));
+        const labels: NumberDictionary<ANodeStmLabel> = {};
+        for (let labelPC in info.labels) labels[labelPC] = ast.label(<number><any>labelPC);
+
 		if (info.min != info.start) {
 			func.add(ast.sjump(ast.raw('true'), info.start));
 		}
 
 		if ((info.max - info.min) == 4) {
-			var syscallId = this.detectSyscallCall(info.min);
-			if (syscallId >= 0) {
+            const syscallId = this.detectSyscallCall(info.min);
+            if (syscallId >= 0) {
 				return new FunctionCode(
 					`
 					/* ${this.syscallManager.getName(syscallId)} at ${addressToHex(info.start)} */
@@ -1520,12 +1514,12 @@ export class FunctionGenerator {
 		}
 			
 		for (let PC = info.min; PC <= info.max; PC += 4) {
-			var di = this.decodeInstruction(PC);
-			var type = di.type;
-			var ins = this.generatePspInstruction(di);
-			var delayedSlotInstruction: PspInstructionStm;
+            const di = this.decodeInstruction(PC);
+            const type = di.type;
+            const ins = this.generatePspInstruction(di);
+            let delayedSlotInstruction: PspInstructionStm;
 
-			// @TODO: we should check the cycles per instruction			
+            // @TODO: we should check the cycles per instruction
 			cycles++;
 			
 			if (labels[PC]) func.add(labels[PC]);
@@ -1536,58 +1530,43 @@ export class FunctionGenerator {
 			if (!type.hasDelayedBranch) {
 				func.add(ins);
 			} else {
-				var di2 = this.decodeInstruction(PC + 4);
-				var delayedSlotInstruction = this.generatePspInstruction(di2);
-				let isLikely = di.type.isLikely;
-				var delayedCode = ast.stm(di.type.isLikely ? ast._if(ast.branchflag(), delayedSlotInstruction) : delayedSlotInstruction);
+                const di2 = this.decodeInstruction(PC + 4);
+                delayedSlotInstruction = this.generatePspInstruction(di2);
+                let isLikely = di.type.isLikely;
+                const delayedCode = ast.stm(di.type.isLikely ? ast._if(ast.branchflag(), delayedSlotInstruction) : delayedSlotInstruction);
 
-				var targetAddress = di.targetAddress & Memory.MASK;
-				var nextAddress = (PC + 8) & Memory.MASK;
-				var targetAddressHex = addressToHex(targetAddress);
-				var nextAddressHex = addressToHex(nextAddress);
+                const targetAddress = di.targetAddress & Memory.MASK;
+                const nextAddress = (PC + 8) & Memory.MASK;
+                const targetAddressHex = addressToHex(targetAddress);
+                const nextAddressHex = addressToHex(nextAddress);
 
-				if (type.name == 'jal' || type.name == 'j') {
-					/*
-					var syscallId = this.detectSyscallCall(targetAddress);
-					if (type.name == 'jal' && syscallId >= 0) {
-						//var cachefuncName = `syscall_${syscallId}`;
-						//args[cachefuncName] = this.instructionCache.getFunction(targetAddress);
-						//func.add(ast.raw(`debugger;`));
-						func.add(delayedCode);
-						func.add(ast.raw(`state.RA = state.PC = ${nextAddressHex};`));
-						args['syscallContext'] = this.syscallManager.context; 
-						args[`syscall_${syscallId}`] = this.syscallManager.getNativeFunction(syscallId);
-						func.add(ast.raw(`args.syscall_${syscallId}.call(args.syscallContext, state);`));
-					} else
-					*/
-					{
-						var cachefuncName = `cache_${addressToHex(targetAddress)}`;
-						args[cachefuncName] = this.instructionCache.getFunction(targetAddress, level + 1);
-						func.add(ast.raw(`state.PC = ${targetAddressHex};`));
-						if (type.name == 'j') {
-							func.add(delayedCode);
-							if (labels[targetAddress]) {
-								func.add(ast.sjump(ast.raw('true'), targetAddress));
-							} else {
-								func.add(ast.raw(`state.jumpCall = args.${cachefuncName};`));
-								func.add(ast.raw(`return;`));
-							}
-						} else {
-							func.add(ast.raw(`expectedRA = state.RA = ${nextAddressHex};`));
-							func.add(delayedCode);
-							func.add(ast.raw(`args.${cachefuncName}.execute(state);`));
-							func.add(ast.raw(`
-								if (state.PC != expectedRA) {
-									while ((state.PC != expectedRA) && (state.jumpCall != null)) state.jumpCall.execute(state);
-									state.jumpCall = null;
-									return;
-								}`
-							));
-						}
-					}
+                if (type.name == 'jal' || type.name == 'j') {
+                    const cachefuncName = `cache_${addressToHex(targetAddress)}`;
+                    args[cachefuncName] = this.instructionCache.getFunction(targetAddress, level + 1);
+                    func.add(ast.raw(`state.PC = ${targetAddressHex};`));
+                    if (type.name == 'j') {
+                        func.add(delayedCode);
+                        if (labels[targetAddress]) {
+                            func.add(ast.sjump(ast.raw('true'), targetAddress));
+                        } else {
+                            func.add(ast.raw(`state.jumpCall = args.${cachefuncName};`));
+                            func.add(ast.raw(`return;`));
+                        }
+                    } else {
+                        func.add(ast.raw(`expectedRA = state.RA = ${nextAddressHex};`));
+                        func.add(delayedCode);
+                        func.add(ast.raw(`args.${cachefuncName}.execute(state);`));
+                        func.add(ast.raw(`
+                            if (state.PC != expectedRA) {
+                                while ((state.PC != expectedRA) && (state.jumpCall != null)) state.jumpCall.execute(state);
+                                state.jumpCall = null;
+                                return;
+                            }`
+                        ));
+                    }
 				} else if (type.isJal) { // jalr, bgezal...
-					var cachefuncName = `cachefunc_${addressToHex(PC)}`; args[cachefuncName] = null;
-					var cacheaddrName = `cacheaddr_${addressToHex(PC)}`; args[cacheaddrName] = -1;
+					const cachefuncName = `cachefunc_${addressToHex(PC)}`; args[cachefuncName] = null;
+                    const cacheaddrName = `cacheaddr_${addressToHex(PC)}`; args[cacheaddrName] = -1;
 					func.add(ins);
 					func.add(delayedCode);
 					func.add(ast.raw('if (BRANCHFLAG) {'));
@@ -1648,8 +1627,8 @@ export class FunctionGenerator {
 				PC += 4;
 			}
 		}
-		var code = func.toJs();
-		args.code = code;
+        const code = func.toJs();
+        args.code = code;
 		return new FunctionCode(code, args);
 	}
 }
@@ -1672,18 +1651,18 @@ export function createNativeFunction(
     name?:string
 ) {
 	options = options || {};
-	//var console = logger.named('createNativeFunction');
-    var code = '';
-	//var code = 'debugger;';
+	//const console = logger.named('createNativeFunction');
+    let code = '';
+    //let code = 'debugger;';
 
 	let V0 = CpuState.GPR_access('state', 2);
 	let V1 = CpuState.GPR_access('state', 3);
 
-	var args:string[] = [];
-	var maxGprIndex = 12;
-	var gprindex = 4;
-	var fprindex = 0;
-	//var fprindex = 2;
+    const args: string[] = [];
+    const maxGprIndex = 12;
+    let gprindex = 4;
+    let fprindex = 0;
+    //let fprindex = 2;
 
 	function _readGpr32() {
 		if (gprindex >= maxGprIndex) {
@@ -1702,14 +1681,14 @@ export function createNativeFunction(
 
 	function readGpr64() {
 		gprindex = MathUtils.nextAligned(gprindex, 2);
-		var gprLow = readGpr32_S();
-		var gprHigh = readGpr32_S();
-		return `Integer64.fromBits(${gprLow}, ${gprHigh})`;
+        const gprLow = readGpr32_S();
+        const gprHigh = readGpr32_S();
+        return `Integer64.fromBits(${gprLow}, ${gprHigh})`;
 	}
 
-	var argTypes = argTypesString.split('/').filter(item => item.length > 0);
+    const argTypes = argTypesString.split('/').filter(item => item.length > 0);
 
-	if (argTypes.length != internalFunc.length) throw(new Error("Function arity mismatch '" + argTypesString + "' != " + String(internalFunc)));
+    if (argTypes.length != internalFunc.length) throw(new Error("Function arity mismatch '" + argTypesString + "' != " + String(internalFunc)));
 
 	argTypes.forEach(item => {
         switch (item) {
@@ -1748,8 +1727,8 @@ export function createNativeFunction(
 	code += 'let result = internalFunc(' + args.join(', ') + ');\n';
 
 	/*
-	var debugSyscalls = false;
-	//var debugSyscalls = true;
+	let debugSyscalls = false;
+	//let debugSyscalls = true;
 
 	if (debugSyscalls) {
 		code += "var info = 'calling:' + state.thread.name + ':RA=' + state.RA.toString(16) + ':' + nativeFunction.name;\n";

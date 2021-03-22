@@ -4,7 +4,7 @@ import {Int16, Int32, Int8, Stringn, StructArray, StructClass, UInt16, UInt32} f
 import {Stream} from "../global/stream";
 import {Memory} from "../core/memory";
 
-var console = logger.named('elf');
+const console = logger.named('elf');
 
 export class ElfHeader {
 	magic: string;
@@ -258,8 +258,8 @@ export class ElfLoader {
 
 	private readAndCheckHeaders(stream: Stream) {
 		this.stream = stream;
-		var header = this.header = ElfHeader.struct.read(stream);
-		if (!header.hasValidMagic) throw ('Not an ELF file');
+        const header = this.header = ElfHeader.struct.read(stream);
+        if (!header.hasValidMagic) throw ('Not an ELF file');
 		if (!header.hasValidMachine) throw ('Not a PSP ELF file');
 		if (!header.hasValidType) throw ('Not a executable or a Prx but has type ' + header.type);
 	}
@@ -280,8 +280,8 @@ export class ElfLoader {
 	}
 
 	static fromStream(stream: Stream) {
-		var elf = new ElfLoader();
-		elf.load(stream);
+        const elf = new ElfLoader();
+        elf.load(stream);
 		return elf;
 	}
 

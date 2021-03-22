@@ -8,51 +8,51 @@ code.google.com/p/crypto-js/wiki/License
 */
 
 // Lookup tables
-var SBOX = new Uint8Array(256);
-var INV_SBOX = new Uint8Array(256);
-var SUB_MIX_0 = new Uint32Array(256);
-var SUB_MIX_1 = new Uint32Array(256);
-var SUB_MIX_2 = new Uint32Array(256);
-var SUB_MIX_3 = new Uint32Array(256);
-var INV_SUB_MIX_0 = new Uint32Array(256);
-var INV_SUB_MIX_1 = new Uint32Array(256);
-var INV_SUB_MIX_2 = new Uint32Array(256);
-var INV_SUB_MIX_3 = new Uint32Array(256);
+const SBOX = new Uint8Array(256);
+const INV_SBOX = new Uint8Array(256);
+const SUB_MIX_0 = new Uint32Array(256);
+const SUB_MIX_1 = new Uint32Array(256);
+const SUB_MIX_2 = new Uint32Array(256);
+const SUB_MIX_3 = new Uint32Array(256);
+const INV_SUB_MIX_0 = new Uint32Array(256);
+const INV_SUB_MIX_1 = new Uint32Array(256);
+const INV_SUB_MIX_2 = new Uint32Array(256);
+const INV_SUB_MIX_3 = new Uint32Array(256);
 
 // Compute lookup tables
 (function () {
 	// Compute double table
-	var d:number[] = [];
-	for (var i = 0; i < 256; i++) {
+    const d: number[] = [];
+    for (let i = 0; i < 256; i++) {
 		d[i] = (i << 1);
 		if (i >= 128) d[i] ^= 0x11b;
 	}
 
 	// Walk GF(2^8)
-	var x = 0;
-	var xi = 0;
-	for (var i = 0; i < 256; i++) {
+    let x = 0;
+    let xi = 0;
+    for (let i = 0; i < 256; i++) {
 		// Compute sbox
-		var sx = xi ^ (xi << 1) ^ (xi << 2) ^ (xi << 3) ^ (xi << 4);
-		sx = (sx >>> 8) ^ (sx & 0xff) ^ 0x63;
+        let sx = xi ^ (xi << 1) ^ (xi << 2) ^ (xi << 3) ^ (xi << 4);
+        sx = (sx >>> 8) ^ (sx & 0xff) ^ 0x63;
 		SBOX[x] = sx;
 		INV_SBOX[sx] = x;
 
 		// Compute multiplication
-		var x2 = d[x];
-		var x4 = d[x2];
-		var x8 = d[x4];
+        const x2 = d[x];
+        const x4 = d[x2];
+        const x8 = d[x4];
 
-		// Compute sub bytes, mix columns tables
-		var t = (d[sx] * 0x101) ^ (sx * 0x1010100);
-		SUB_MIX_0[x] = (t << 24) | (t >>> 8);
+        // Compute sub bytes, mix columns tables
+        let t = (d[sx] * 0x101) ^ (sx * 0x1010100);
+        SUB_MIX_0[x] = (t << 24) | (t >>> 8);
 		SUB_MIX_1[x] = (t << 16) | (t >>> 16);
 		SUB_MIX_2[x] = (t << 8) | (t >>> 24);
 		SUB_MIX_3[x] = (t << 0);
 
 		// Compute inv sub bytes, inv mix columns tables
-		var t = (x8 * 0x1010101) ^ (x4 * 0x10001) ^ (x2 * 0x101) ^ (x * 0x1010100);
-		INV_SUB_MIX_0[sx] = (t << 24) | (t >>> 8);
+        t = (x8 * 0x1010101) ^ (x4 * 0x10001) ^ (x2 * 0x101) ^ (x * 0x1010100);
+        INV_SUB_MIX_0[sx] = (t << 24) | (t >>> 8);
 		INV_SUB_MIX_1[sx] = (t << 16) | (t >>> 16);
 		INV_SUB_MIX_2[sx] = (t << 8) | (t >>> 24);
 		INV_SUB_MIX_3[sx] = (t << 0);
@@ -68,7 +68,7 @@ var INV_SUB_MIX_3 = new Uint32Array(256);
 } ());
 
 // Precomputed Rcon lookup
-var RCON = [0x00, 0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80, 0x1b, 0x36];
+const RCON = [0x00, 0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80, 0x1b, 0x36];
 
 /**
  * AES block cipher algorithm.
@@ -87,19 +87,19 @@ export class AES {
 
 	reset() {
 		// Shortcuts
-		var key = this._key;
-		var keyWords = key;
-		var keySize = key.length; // number of words
+        const key = this._key;
+        const keyWords = key;
+        const keySize = key.length; // number of words
 
-		var nRounds = this._nRounds = keySize + 6; // Compute number of rounds
-		var ksRows = (nRounds + 1) * 4; // Compute number of key schedule rows
-		var keySchedule:number[] = this._keySchedule = []; // Compute key schedule
+        const nRounds = this._nRounds = keySize + 6; // Compute number of rounds
+        const ksRows = (nRounds + 1) * 4; // Compute number of key schedule rows
+        const keySchedule: number[] = this._keySchedule = []; // Compute key schedule
 
-		for (var ksRow = 0; ksRow < ksRows; ksRow++) {
+		for (let ksRow = 0; ksRow < ksRows; ksRow++) {
 			if (ksRow < keySize) {
 				keySchedule[ksRow] = keyWords[ksRow];
 			} else {
-				var t = keySchedule[ksRow - 1];
+				let t = keySchedule[ksRow - 1];
 
 				if (!(ksRow % keySize)) {
 					t = (t << 8) | (t >>> 24); // Rot word
@@ -114,14 +114,15 @@ export class AES {
 		}
 
 		// Compute inv key schedule
-		var invKeySchedule:number[] = this._invKeySchedule = [];
-		for (var invKsRow = 0; invKsRow < ksRows; invKsRow++) {
-			var ksRow = ksRows - invKsRow;
+        const invKeySchedule: number[] = this._invKeySchedule = [];
+        for (let invKsRow = 0; invKsRow < ksRows; invKsRow++) {
+            const ksRow = ksRows - invKsRow;
+            let t
 
-			if (invKsRow % 4) {
-				var t = keySchedule[ksRow];
+            if (invKsRow % 4) {
+				t = keySchedule[ksRow];
 			} else {
-				var t = keySchedule[ksRow - 4];
+				t = keySchedule[ksRow - 4];
 			}
 
 			if (invKsRow < 4 || ksRow <= 4) {
@@ -139,36 +140,40 @@ export class AES {
 
 	decryptBlock(M:Uint32Array, offset: number) {
 		// Swap 2nd and 4th rows
-		var t = M[offset + 1];
-		M[offset + 1] = M[offset + 3];
-		M[offset + 3] = t;
+        {
+            let t = M[offset + 1];
+            M[offset + 1] = M[offset + 3];
+            M[offset + 3] = t;
+        }
 
 		this._doCryptBlock(M, offset, this._invKeySchedule, INV_SUB_MIX_0, INV_SUB_MIX_1, INV_SUB_MIX_2, INV_SUB_MIX_3, INV_SBOX);
 
 		// Inv swap 2nd and 4th rows
-		var t = M[offset + 1];
-		M[offset + 1] = M[offset + 3];
-		M[offset + 3] = t;
+        {
+            let t = M[offset + 1];
+            M[offset + 1] = M[offset + 3];
+            M[offset + 3] = t;
+        }
 	}
 
 	private _doCryptBlock(M:Uint32Array|Uint8Array, offset:number, keySchedule:number[], SUB_MIX_0:Uint32Array, SUB_MIX_1:Uint32Array, SUB_MIX_2:Uint32Array, SUB_MIX_3:Uint32Array, SBOX:Uint32Array|Uint8Array) {
-		var nRounds = this._nRounds;
+        const nRounds = this._nRounds;
 
-		var s0 = M[offset + 0] ^ keySchedule[0];
-		var s1 = M[offset + 1] ^ keySchedule[1];
-		var s2 = M[offset + 2] ^ keySchedule[2];
-		var s3 = M[offset + 3] ^ keySchedule[3];
+        let s0 = M[offset + 0] ^ keySchedule[0];
+        let s1 = M[offset + 1] ^ keySchedule[1];
+        let s2 = M[offset + 2] ^ keySchedule[2];
+        let s3 = M[offset + 3] ^ keySchedule[3];
 
-		// Key schedule row counter
-		var ksRow = 4;
+        // Key schedule row counter
+        let ksRow = 4;
 
-		// Rounds
-		for (var round = 1; round < nRounds; round++) {
+        // Rounds
+		for (let round = 1; round < nRounds; round++) {
 			// Shift rows, sub bytes, mix columns, add round key
-			var t0 = SUB_MIX_0[s0 >>> 24] ^ SUB_MIX_1[(s1 >>> 16) & 0xff] ^ SUB_MIX_2[(s2 >>> 8) & 0xff] ^ SUB_MIX_3[(s3 >>> 0) & 0xff] ^ keySchedule[ksRow++];
-			var t1 = SUB_MIX_0[s1 >>> 24] ^ SUB_MIX_1[(s2 >>> 16) & 0xff] ^ SUB_MIX_2[(s3 >>> 8) & 0xff] ^ SUB_MIX_3[(s0 >>> 0) & 0xff] ^ keySchedule[ksRow++];
-			var t2 = SUB_MIX_0[s2 >>> 24] ^ SUB_MIX_1[(s3 >>> 16) & 0xff] ^ SUB_MIX_2[(s0 >>> 8) & 0xff] ^ SUB_MIX_3[(s1 >>> 0) & 0xff] ^ keySchedule[ksRow++];
-			var t3 = SUB_MIX_0[s3 >>> 24] ^ SUB_MIX_1[(s0 >>> 16) & 0xff] ^ SUB_MIX_2[(s1 >>> 8) & 0xff] ^ SUB_MIX_3[(s2 >>> 0) & 0xff] ^ keySchedule[ksRow++];
+			const t0 = SUB_MIX_0[s0 >>> 24] ^ SUB_MIX_1[(s1 >>> 16) & 0xff] ^ SUB_MIX_2[(s2 >>> 8) & 0xff] ^ SUB_MIX_3[(s3 >>> 0) & 0xff] ^ keySchedule[ksRow++];
+            const t1 = SUB_MIX_0[s1 >>> 24] ^ SUB_MIX_1[(s2 >>> 16) & 0xff] ^ SUB_MIX_2[(s3 >>> 8) & 0xff] ^ SUB_MIX_3[(s0 >>> 0) & 0xff] ^ keySchedule[ksRow++];
+            const t2 = SUB_MIX_0[s2 >>> 24] ^ SUB_MIX_1[(s3 >>> 16) & 0xff] ^ SUB_MIX_2[(s0 >>> 8) & 0xff] ^ SUB_MIX_3[(s1 >>> 0) & 0xff] ^ keySchedule[ksRow++];
+            const t3 = SUB_MIX_0[s3 >>> 24] ^ SUB_MIX_1[(s0 >>> 16) & 0xff] ^ SUB_MIX_2[(s1 >>> 8) & 0xff] ^ SUB_MIX_3[(s2 >>> 0) & 0xff] ^ keySchedule[ksRow++];
 
 			// Update state
 			s0 = t0;
@@ -177,17 +182,19 @@ export class AES {
 			s3 = t3;
 		}
 
-		// Shift rows, sub bytes, add round key
-		var t0 = ((SBOX[s0 >>> 24] << 24) | (SBOX[(s1 >>> 16) & 0xff] << 16) | (SBOX[(s2 >>> 8) & 0xff] << 8) | SBOX[(s3 >>> 0) & 0xff]) ^ keySchedule[ksRow++];
-		var t1 = ((SBOX[s1 >>> 24] << 24) | (SBOX[(s2 >>> 16) & 0xff] << 16) | (SBOX[(s3 >>> 8) & 0xff] << 8) | SBOX[(s0 >>> 0) & 0xff]) ^ keySchedule[ksRow++];
-		var t2 = ((SBOX[s2 >>> 24] << 24) | (SBOX[(s3 >>> 16) & 0xff] << 16) | (SBOX[(s0 >>> 8) & 0xff] << 8) | SBOX[(s1 >>> 0) & 0xff]) ^ keySchedule[ksRow++];
-		var t3 = ((SBOX[s3 >>> 24] << 24) | (SBOX[(s0 >>> 16) & 0xff] << 16) | (SBOX[(s1 >>> 8) & 0xff] << 8) | SBOX[(s2 >>> 0) & 0xff]) ^ keySchedule[ksRow++];
+        {
+            // Shift rows, sub bytes, add round key
+            const t0 = ((SBOX[s0 >>> 24] << 24) | (SBOX[(s1 >>> 16) & 0xff] << 16) | (SBOX[(s2 >>> 8) & 0xff] << 8) | SBOX[(s3 >>> 0) & 0xff]) ^ keySchedule[ksRow++];
+            const t1 = ((SBOX[s1 >>> 24] << 24) | (SBOX[(s2 >>> 16) & 0xff] << 16) | (SBOX[(s3 >>> 8) & 0xff] << 8) | SBOX[(s0 >>> 0) & 0xff]) ^ keySchedule[ksRow++];
+            const t2 = ((SBOX[s2 >>> 24] << 24) | (SBOX[(s3 >>> 16) & 0xff] << 16) | (SBOX[(s0 >>> 8) & 0xff] << 8) | SBOX[(s1 >>> 0) & 0xff]) ^ keySchedule[ksRow++];
+            const t3 = ((SBOX[s3 >>> 24] << 24) | (SBOX[(s0 >>> 16) & 0xff] << 16) | (SBOX[(s1 >>> 8) & 0xff] << 8) | SBOX[(s2 >>> 0) & 0xff]) ^ keySchedule[ksRow++];
 
-		// Set output
-		M[offset + 0] = t0;
-		M[offset + 1] = t1;
-		M[offset + 2] = t2;
-		M[offset + 3] = t3;
+            // Set output
+            M[offset + 0] = t0;
+            M[offset + 1] = t1;
+            M[offset + 2] = t2;
+            M[offset + 3] = t3;
+        }
 	}
 }
 
@@ -196,28 +203,28 @@ function swap32(v:number) {
 }
 
 function uint8array_to_words(key: Uint8Array):Uint32Array {
-	var temp = new Uint32Array(key.buffer, key.byteOffset, key.length / 4);
-	var words = new Uint32Array(key.length / 4);
-	for (var n = 0; n < words.length; n++) words[n] = swap32(temp[n]);
+    const temp = new Uint32Array(key.buffer, key.byteOffset, key.length / 4);
+    const words = new Uint32Array(key.length / 4);
+    for (let n = 0; n < words.length; n++) words[n] = swap32(temp[n]);
 	return words;
 }
 
 function words_to_uint8array(words: Uint32Array) {
-	var out = new Uint8Array(words.length * 4);
-	var out2 = new Uint32Array(out.buffer);
-	for (var n = 0; n < words.length; n++) out2[n] = swap32(words[n]);
+    const out = new Uint8Array(words.length * 4);
+    const out2 = new Uint32Array(out.buffer);
+    for (let n = 0; n < words.length; n++) out2[n] = swap32(words[n]);
 	return out;
 }
 
 export function decrypt_aes128_cbc(data: Uint8Array, key: Uint8Array) {
-	var aes = new AES(key);
-	var words = uint8array_to_words(data);
-	var wordsLength = words.length;
+    const aes = new AES(key);
+    const words = uint8array_to_words(data);
+    const wordsLength = words.length;
 
-	var t0 = 0, t1 = 0, t2 = 0, t3 = 0;
-	var s0 = 0, s1 = 0, s2 = 0, s3 = 0;
+    let t0 = 0, t1 = 0, t2 = 0, t3 = 0;
+    let s0 = 0, s1 = 0, s2 = 0, s3 = 0;
 
-	for (var n = 0; n < wordsLength; n += 4) {
+    for (let n = 0; n < wordsLength; n += 4) {
 		t0 = words[n + 0];
 		t1 = words[n + 1];
 		t2 = words[n + 2];

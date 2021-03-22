@@ -42,8 +42,8 @@ export class InterruptManager {
 	queue = <InterruptHandler[]>[];
 
 	suspend() {
-		var currentFlags = this.flags;
-		this.flags = 0;
+        const currentFlags = this.flags;
+        this.flags = 0;
 		this.enabled = false;
 		return currentFlags;
 	}
@@ -59,11 +59,11 @@ export class InterruptManager {
 	}
 
 	interrupt(pspInterrupt: PspInterrupts) {
-		var interrupt = this.get(pspInterrupt);
-		var handlers = interrupt.handlers;
-		for (var n in handlers) {
-			var handler = handlers[n];
-			if (handler.enabled) {
+        const interrupt = this.get(pspInterrupt);
+        const handlers = interrupt.handlers;
+        for (let n in handlers) {
+            const handler = handlers[n];
+            if (handler.enabled) {
 				//debugger;
 				this.queue.push(handler);
 				this.execute(null);
@@ -83,7 +83,7 @@ export class InterruptManager {
 				state.setPC(item.address);
 				state.startThreadStep();
                 CpuExecutor.executeAtPC(state)
-				//var RA = state.RA;
+				//let RA = state.RA;
 				//// @FIXME! @TODO: this is probably wrong, since the CpuBreakException means that a promise was yielded and we should not continue until it has been resolved!!!
 				//while (state.PC != RA) {
 				//	try {

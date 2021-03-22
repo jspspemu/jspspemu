@@ -17,8 +17,8 @@ export interface CpuExecutor {
 	execute(state: CpuState, address: number, gprArray: number[]): void;
 }
 
-var optimizedDrawBuffer = new OptimizedDrawBuffer();
-var singleCallTest = false;
+const optimizedDrawBuffer = new OptimizedDrawBuffer();
+const singleCallTest = false;
 
 const enum PrimDrawType {
 	SINGLE_DRAW = 0,
@@ -26,14 +26,14 @@ const enum PrimDrawType {
 	BATCH_DRAW_DEGENERATE = 2,
 }
 
-var DRAW_TYPE_CONV = [
-	PrimDrawType.BATCH_DRAW, // Points = 0
-	PrimDrawType.BATCH_DRAW, // Lines = 1,
-	PrimDrawType.BATCH_DRAW_DEGENERATE, // LineStrip = 2,
-	PrimDrawType.BATCH_DRAW, // Triangles = 3,
-	PrimDrawType.BATCH_DRAW_DEGENERATE, // TriangleStrip = 4,
-	PrimDrawType.SINGLE_DRAW, // TriangleFan = 5,
-	PrimDrawType.BATCH_DRAW, // Sprites = 6,
+const DRAW_TYPE_CONV = [
+    PrimDrawType.BATCH_DRAW, // Points = 0
+    PrimDrawType.BATCH_DRAW, // Lines = 1,
+    PrimDrawType.BATCH_DRAW_DEGENERATE, // LineStrip = 2,
+    PrimDrawType.BATCH_DRAW, // Triangles = 3,
+    PrimDrawType.BATCH_DRAW_DEGENERATE, // TriangleStrip = 4,
+    PrimDrawType.SINGLE_DRAW, // TriangleFan = 5,
+    PrimDrawType.BATCH_DRAW, // Sprites = 6,
 ];
 
 function bool1(p: number) { return p != 0; }
@@ -48,8 +48,8 @@ function param16(p: number, offset: number) { return (p >> offset) & 0xFFFF; }
 function param24(p: number) { return p & 0xFFFFFF; }
 function float1(p: number) { return MathFloat.reinterpretIntAsFloat(p << 8); }
 
-var dumpFrameCommands = false;
-var dumpFrameCommandsList: string[] = [];
+let dumpFrameCommands = false;
+const dumpFrameCommandsList: string[] = [];
 
 class PspGpuList {
     current4: number;
@@ -80,8 +80,8 @@ class PspGpuList {
 	finishPrimBatch() {
 		if (optimizedDrawBuffer.hasElements) {
 			this.batchPrimCount = 0;
-			var batch = optimizedDrawBuffer.createBatch(this.state, this.primBatchPrimitiveType, this.vertexInfo);
-			this.gpu.queueBatch(batch);
+            const batch = optimizedDrawBuffer.createBatch(this.state, this.primBatchPrimitiveType, this.vertexInfo);
+            this.gpu.queueBatch(batch);
 			if (dumpFrameCommands) dumpFrameCommandsList.push(`<BATCH:${batch.indexCount}>`);
 			this.primBatchPrimitiveType = -1;
 			this.stats.batchCount++;
@@ -141,9 +141,9 @@ class PspGpuList {
 
 			switch (op) {
 				case Op.PRIM: {
-					var rprimCount = 0;
+                    const rprimCount = 0;
 
-					this.current4 = current4;
+                    this.current4 = current4;
 					localPrimCount++;
 					let primitiveType = <PrimitiveType>param3(p, 16);
 					if (this.primBatchPrimitiveType != primitiveType) this.finishPrimBatch();
@@ -253,10 +253,10 @@ class PspGpuList {
 			default: stats.otherPrimCount++; break;
 		}
 
-		var vertexInput: Uint8Array = this.memory.getPointerU8Array(vertexAddress);
-		var drawType = DRAW_TYPE_CONV[primitiveType];
-		var optimized = (vertexInfo.realMorphingVertexCount == 1);
-		//var optimized = (vertexInfo.index == IndexEnum.Void) && (primitiveType != PrimitiveType.Sprites) && (vertexInfo.realMorphingVertexCount == 1);
+        const vertexInput: Uint8Array = this.memory.getPointerU8Array(vertexAddress);
+        const drawType = DRAW_TYPE_CONV[primitiveType];
+        const optimized = (vertexInfo.realMorphingVertexCount == 1);
+        //const optimized = (vertexInfo.index == IndexEnum.Void) && (primitiveType != PrimitiveType.Sprites) && (vertexInfo.realMorphingVertexCount == 1);
 		
 		if (vertexInfo.realMorphingVertexCount != 1) {
 			throw new Error('@TODO: Morphing not implemented!');
@@ -271,9 +271,9 @@ class PspGpuList {
 				if (primitiveType == PrimitiveType.Sprites) {
 					throw new Error('@TODO: Sprites with indices not implemented!');
 				}
-				
-				var totalVertices = 0; 
-				if (vertexInfo.index == IndexEnum.Byte) {
+
+                let totalVertices = 0;
+                if (vertexInfo.index == IndexEnum.Byte) {
 					totalVertices = optimizedDrawBuffer.addVerticesIndicesList(this.memory.getPointerU8Array(indicesAddress, vertexCount));
 				} else {
 					totalVertices = optimizedDrawBuffer.addVerticesIndicesList(this.memory.getPointerU16Array(indicesAddress, vertexCount * 2));
@@ -286,15 +286,15 @@ class PspGpuList {
 	}
 
 	private primOptimizedNoIndex(primitiveType: PrimitiveType, drawTypeDegenerated: boolean, vertexSize:number, vertexInfo:VertexInfo, vertexInput: Uint8Array) {
-		var current4 = (this.current4 - 1) | 0; 
-		var batchPrimCount = this.batchPrimCount | 0;
-		var _optimizedDrawBuffer = optimizedDrawBuffer;
-		var p2 = 0;
-		var vertex2Count = 0;
-		var memory = this.memory;
-		var totalVertexCount = 0;
-		var isSprite = (primitiveType == PrimitiveType.Sprites);
-		primitiveType |= 0;
+        let current4 = (this.current4 - 1) | 0;
+        let batchPrimCount = this.batchPrimCount | 0;
+        const _optimizedDrawBuffer = optimizedDrawBuffer;
+        let p2 = 0;
+        let vertex2Count = 0;
+        const memory = this.memory;
+        let totalVertexCount = 0;
+        const isSprite = (primitiveType == PrimitiveType.Sprites);
+        primitiveType |= 0;
 		vertexSize |= 0;
 		while (true) {
 			p2 = memory.lw_2(current4) | 0;
@@ -420,8 +420,8 @@ class PspGpuListRunner {
 	private state = new GpuState();
 
 	constructor(private memory: Memory, private stats: GpuStats, private gpu: PspGpu, private callbackManager: CpuExecutor) {
-        for (var n = 0; n < 32; n++) {
-			var list = new PspGpuList(n, stats, memory, this, gpu, callbackManager, this.state);
+        for (let n = 0; n < 32; n++) {
+            const list = new PspGpuList(n, stats, memory, this, gpu, callbackManager, this.state);
             this.lists.push(list);
             this.freeLists.push(list);
         }
@@ -429,7 +429,7 @@ class PspGpuListRunner {
 	
     allocate() {
         if (!this.freeLists.length) throw new Error('Out of gpu free lists');
-        var list = this.freeLists.pop()!
+        const list = this.freeLists.pop()!;
         this.runningLists.push(list)
         return list;
     }
@@ -444,15 +444,15 @@ class PspGpuListRunner {
 	}
 
 	peek() {
-		var _peek = (() => {
-			for (var n = 0; n < this.runningLists.length; n++) {
-				var list = this.runningLists[n];
-				if (list.status != DisplayListStatus.Completed) return list.status;
-			}
-			return DisplayListStatus.Completed;
-		});
-		var result = _peek();
-		//result = Math.floor(Math.random() * 4);
+        const _peek = (() => {
+            for (var n = 0; n < this.runningLists.length; n++) {
+                var list = this.runningLists[n];
+                if (list.status != DisplayListStatus.Completed) return list.status;
+            }
+            return DisplayListStatus.Completed;
+        });
+        const result = _peek();
+        //result = Math.floor(Math.random() * 4);
 		console.warn('not implemented gpu list peeking -> ' + result);
 		return result;
 	}
@@ -537,8 +537,9 @@ export class PspGpu implements Component {
 		if (!dumpFrameCommands || dumpFrameCommandsList.length == 0) return;
 		console.info('-----------------------------------------------');
 		dumpFrameCommands = false;
-		var list:string[] = [];
-		function flushBuffer() {
+        const list: string[] = [];
+
+        function flushBuffer() {
 			if (list.length == 0) return;
 			console.log(list.join(', '));
 			list.length = 0;
@@ -572,8 +573,8 @@ export class PspGpu implements Component {
 		return this.listRunner.waitAsync().then(() => {
 			this.flushCommands()
 			try {
-				var end = performance.now();
-				this.stats.timePerFrame = MathUtils.interpolate(this.stats.timePerFrame, end - this.lastTime, 0.5); 
+                const end = performance.now();
+                this.stats.timePerFrame = MathUtils.interpolate(this.stats.timePerFrame, end - this.lastTime, 0.5);
 				this.lastTime = end;
 				//this.stats.batchCount = this.batches.length;
 				this.stats.updateAndReset();

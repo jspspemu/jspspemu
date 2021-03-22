@@ -51,16 +51,16 @@ interface MochaDone {
 }
 
 // noinspection JSUnusedGlobalSymbols
-declare var mocha: Mocha;
+declare const mocha: Mocha;
 
-declare var describe : {
+declare const describe : {
     (description: string, spec: () => void): void;
     only(description: string, spec: () => void): void;
     skip(description: string, spec: () => void): void;
     timeout(ms: number): void;
 }
 
-declare var it: {
+declare const it: {
     (expectation: string, assertion?: () => void): void;
     (expectation: string, assertion?: (done: MochaDone) => void): void;
     only(expectation: string, assertion?: () => void): void;

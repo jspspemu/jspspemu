@@ -58,8 +58,8 @@ class OverlaySlider implements OverlaySection {
             this.element.max = `1000`;
             this.element.value = `${initialRatio * 1000}`;
             //this.element.innerHTML = text;
-            var lastReportedValue = NaN;
-            var report = (e: any) => {
+            let lastReportedValue = NaN;
+            const report = (e: any) => {
                 if (this.ratio == lastReportedValue) return;
                 lastReportedValue = this.ratio;
                 action(this.ratio);
@@ -202,7 +202,7 @@ export class DebugOverlay {
             this.gpuFreezing.dispatch(this.freezing.value);
         });
 
-        var dumpFrameCommandsList: string[] = [];
+        const dumpFrameCommandsList: string[] = [];
         overlay.createIntent('dump frame commands', () => {
             this.gpuDumpCommands.dispatch();
         });

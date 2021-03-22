@@ -8,7 +8,7 @@ class SimpleBlock {
 	public selfref:SimpleBlockReference;
 	public selfrefs:SimpleBlockReference[] = [];
 	public conditionalBranches:RelooperBranch[] = [];
-	public next:SimpleBlockReference = null;
+	public next:SimpleBlockReference|null = null;
 	public unconditionalReferences:SimpleBlockReference[] = [];
 	public conditionalReferences:SimpleBlockReference[] = [];
 	
@@ -30,24 +30,24 @@ class SimpleBlock {
 	}
 	
 	static combine(a:SimpleBlock, b:SimpleBlock) {
-		var that = new SimpleBlock(a.code + b.code);
-		that.conditionalBranches
+        const that = new SimpleBlock(a.code + b.code);
+        that.conditionalBranches
 		return that;
 	}
 }
 
 class RelooperBranch {
-	constructor(public to:SimpleBlockReference, public cond:string, public onjumpCode:string) {
+	constructor(public to:SimpleBlockReference, public cond?:string, public onjumpCode?:string) {
 	}
 }
 
 // block doesn't have conditional branches
 // block next node just have a single unconditional reference, the block
 function tryCombineBlockWithNext(block:SimpleBlock) {
-	let next = block.next.block;
+	let next = block.next!.block;
 	if (next && !block.hasConditionalBranches && next.hasJustThisUnconditionalReference(block)) {
-		var created = SimpleBlock.combine(block, next);
-		block.replaceWith(created);
+        const created = SimpleBlock.combine(block, next);
+        block.replaceWith(created);
 		next.replaceWith(created);
 		return created;
 	} else {
@@ -69,8 +69,8 @@ class IndentWriter {
 			this.chunks.push(this.i);
 			this.startline = false;
 		}
-		var parts = chunk.split('\n').join();
-		var jumpIndex = chunk.indexOf('\n');
+		const parts = chunk.split('\n').join();
+		const jumpIndex = chunk.indexOf('\n');
 		if (jumpIndex >= 0) {
 			this.chunks.push(chunk.substr(0, jumpIndex));
 			this.chunks.push('\n');
@@ -88,15 +88,15 @@ class IndentWriter {
 
 export class SimpleRelooper {
 	private lastId:number = 0;
-	private first:SimpleBlock = null;
+	private first:SimpleBlock|null = null;
 	private blocks:any[]
 	
 	static process(callback: (sr:SimpleRelooper) => void):string {
-		var sr = new SimpleRelooper();
+        const sr = new SimpleRelooper();
 		sr.init();
 		try {
 			callback(sr);
-			return sr.render(sr.first);
+			return sr.render(sr.first!);
 		} finally {
 			sr.cleanup();
 		}
@@ -110,14 +110,14 @@ export class SimpleRelooper {
 	}
 	
 	addBlock(code:string):SimpleBlock {
-		var block = new SimpleBlock(code, this.lastId++);
-		if (this.first == null) this.first = block;
+        const block = new SimpleBlock(code, this.lastId++);
+        if (this.first == null) this.first = block;
 		return block;
 	}
 	
 	addBranch(from:SimpleBlock, to:SimpleBlock, cond?:string, onjumpcode?:string):void {
-		var branch = new RelooperBranch(to.selfref, cond, onjumpcode);
-		if (cond) {
+        const branch = new RelooperBranch(to.selfref, cond, onjumpcode);
+        if (cond) {
 			from.conditionalBranches.push(branch);
 			to.conditionalReferences.push(from.selfref);
 		} else {
@@ -126,9 +126,9 @@ export class SimpleRelooper {
 	}
 	
 	private render(first:SimpleBlock):string {
-		var writer = new IndentWriter();
-		
-		writer.write('label = 0; loop_label: while (true) switch (label) { case 0:\n');
+        const writer = new IndentWriter();
+
+        writer.write('label = 0; loop_label: while (true) switch (label) { case 0:\n');
 		writer.indent();
 		for (let block of this.blocks) {
 			let nblock = this.blocks[block.index + 1];

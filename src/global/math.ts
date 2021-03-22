@@ -13,7 +13,7 @@
     }
 }
 
-export var MAT4_3_IDX = new Uint32Array([
+export const MAT4_3_IDX = new Uint32Array([
 	0, 1, 2,
 	4, 5, 6,
 	8, 9, 10,
@@ -45,7 +45,7 @@ export class mat4 {
 		]);
 	}
 	static from4x3(out:Float32Array, mat4x3:Float32Array) {
-		for (var n = 0; n < 12; n++) out[MAT4_3_IDX[n]] = mat4x3[n];
+		for (let n = 0; n < 12; n++) out[MAT4_3_IDX[n]] = mat4x3[n];
 		out[3] = 0.0;
 		out[7] = 0.0;
 		out[11] = 0.0;
@@ -62,7 +62,7 @@ export class mat4 {
 		data[12] = 0; data[13] = 0; data[14] = 0; data[15] = 1;
 	}
 	static ortho(out:Float32Array, left:number, right:number, bottom:number, top:number, near:number, far:number) {
-		var lr = 1 / (left - right),
+        const lr = 1 / (left - right),
 			bt = 1 / (bottom - top),
 			nf = 1 / (near - far);
 		out[0] = -2 * lr;
@@ -84,13 +84,13 @@ export class mat4 {
 		return out;
 	}
 	static multiply(out:Float32Array, a:Float32Array, b:Float32Array) {
-		var a00 = a[0], a01 = a[1], a02 = a[2], a03 = a[3],
+        const a00 = a[0], a01 = a[1], a02 = a[2], a03 = a[3],
 			a10 = a[4], a11 = a[5], a12 = a[6], a13 = a[7],
 			a20 = a[8], a21 = a[9], a22 = a[10], a23 = a[11],
 			a30 = a[12], a31 = a[13], a32 = a[14], a33 = a[15];
 
 		// Cache only the current line of the second matrix
-		var b0  = b[0], b1 = b[1], b2 = b[2], b3 = b[3];
+        let b0  = b[0], b1 = b[1], b2 = b[2], b3 = b[3];
 		out[0] = b0*a00 + b1*a10 + b2*a20 + b3*a30;
 		out[1] = b0*a01 + b1*a11 + b2*a21 + b3*a31;
 		out[2] = b0*a02 + b1*a12 + b2*a22 + b3*a32;
@@ -116,9 +116,9 @@ export class mat4 {
 		return out;
 	}
 	static scale(out:Float32Array, a:Float32Array, v:Float32Array) {
-		var x = v[0], y = v[1], z = v[2];
+        const x = v[0], y = v[1], z = v[2];
 
-		out[0] = a[0] * x;
+        out[0] = a[0] * x;
 		out[1] = a[1] * x;
 		out[2] = a[2] * x;
 		out[3] = a[3] * x;
@@ -137,7 +137,7 @@ export class mat4 {
 		return out;
 	}
 	static translate(out:Float32Array, a:Float32Array, v:Float32Array) {
-		var x = v[0], y = v[1], z = v[2],
+		let x = v[0], y = v[1], z = v[2],
 			a00:number, a01:number, a02:number, a03:number,
 			a10:number, a11:number, a12:number, a13:number,
 			a20:number, a21:number, a22:number, a23:number;
@@ -166,7 +166,7 @@ export class mat4 {
 	}
 }
 
-//declare var global:any;
+//declare const global:any;
 //if (typeof self == 'undefined') window = self = global;
 
 const _self = window as any
@@ -195,8 +195,8 @@ if (!Math['sign']) {
 _self['polyfills']['rint'] = !Math['rint'];
 if (!Math['rint']) {
 	Math['rint'] = (value: number) => {
-		var twoToThe52 = Math.pow(2, 52); // 2^52
-		var sign = Math.sign(value); // preserve sign info
+        const twoToThe52 = Math.pow(2, 52); // 2^52
+        const sign = Math.sign(value); // preserve sign info
 		value = Math.abs(value);
 		if (value < twoToThe52) value = ((twoToThe52 + value) - twoToThe52);
 		return sign * value; // restore original sign
@@ -208,8 +208,8 @@ if (!Math['clz32']) {
 	Math['clz32'] = (x: number) => {
 		x >>>= 0;
 		if (x == 0) return 32;
-		var result = 0;
-		// Binary search.
+        let result = 0;
+        // Binary search.
 		if ((x & 0xFFFF0000) === 0) { x <<= 16; result += 16; }
 		if ((x & 0xFF000000) === 0) { x <<= 8; result += 8; }
 		if ((x & 0xF0000000) === 0) { x <<= 4; result += 4; }
@@ -233,19 +233,19 @@ if (!Math['trunc']) {
 _self['polyfills']['imul'] = !Math['imul'];
 if (!Math['imul']) {
 	Math['imul'] = function (a: number, b: number) {
-		var ah = (a >>> 16) & 0xffff;
-		var al = a & 0xffff;
-		var bh = (b >>> 16) & 0xffff;
-		var bl = b & 0xffff;
-		// the shift by 0 fixes the sign on the high part
+        const ah = (a >>> 16) & 0xffff;
+        const al = a & 0xffff;
+        const bh = (b >>> 16) & 0xffff;
+        const bl = b & 0xffff;
+        // the shift by 0 fixes the sign on the high part
 		// the final |0 converts the unsigned value into a signed value
 		return ((al * bl) + (((ah * bl + al * bh) << 16) >>> 0) | 0);
 	}
 }
 
 //function testMultiply64_Base(a: number, b: number) {
-//	var result = Integer64.fromInt(a).multiply(Integer64.fromInt(b));
-//	var result2 = Math.imul32_64(a, b, [1, 1]);
+//	const result = Integer64.fromInt(a).multiply(Integer64.fromInt(b));
+//	const result2 = Math.imul32_64(a, b, [1, 1]);
 //	return {
 //		int64: result,
 //		fast: result2,
@@ -254,8 +254,8 @@ if (!Math['imul']) {
 //}
 //
 //function testMultiply64_Base_u(a: number, b: number) {
-//	var result = Integer64.fromUnsignedInt(a).multiply(Integer64.fromUnsignedInt(b));
-//	var result2 = Math.umul32_64(a, b, [1, 1]);
+//	const result = Integer64.fromUnsignedInt(a).multiply(Integer64.fromUnsignedInt(b));
+//	const result2 = Math.umul32_64(a, b, [1, 1]);
 //	return {
 //		int64: result,
 //		fast: result2,
@@ -264,13 +264,13 @@ if (!Math['imul']) {
 //}
 //
 //function testMultiply64() {
-//	var values = [0, -1, -2147483648, 2147483647, 777, 1234567, -999999, 99999, 65536, -65536, 65535, -65535, -32768, 32768, -32767, 32767];
+//	const values = [0, -1, -2147483648, 2147483647, 777, 1234567, -999999, 99999, 65536, -65536, 65535, -65535, -32768, 32768, -32767, 32767];
 //	values.forEach((v1) => {
 //		values.forEach((v2) => {
-//			var result = testMultiply64_Base(v1, v2);
+//			const result = testMultiply64_Base(v1, v2);
 //			if (!result.compare) console.log('signed', v1, v2, [result.int64.low, result.int64.high], result.fast);
 //
-//			var result = testMultiply64_Base_u(v1, v2);
+//			const result = testMultiply64_Base_u(v1, v2);
 //			if (!result.compare) console.log('unsigned', v1, v2, [result.int64.low, result.int64.high], result.fast);
 //		});
 //	});
@@ -290,17 +290,16 @@ if (!Math.umul32_64) {
 			return result;
 		}
 
+        const a00 = a & 0xFFFF, a16 = a >>> 16;
+        const b00 = b & 0xFFFF, b16 = b >>> 16;
 
-		var a00 = a & 0xFFFF, a16 = a >>> 16;
-		var b00 = b & 0xFFFF, b16 = b >>> 16;
-
-		var c00 = a00 * b00;
-		var c16 = (c00 >>> 16) + (a16 * b00);
-		var c32 = c16 >>> 16;
-		c16 = (c16 & 0xFFFF) + (a00 * b16);
+        const c00 = a00 * b00;
+        let c16 = (c00 >>> 16) + (a16 * b00);
+        let c32 = c16 >>> 16;
+        c16 = (c16 & 0xFFFF) + (a00 * b16);
 		c32 += c16 >>> 16;
-		var c48 = c32 >>> 16;
-		c32 = (c32 & 0xFFFF) + (a16 * b16);
+        let c48 = c32 >>> 16;
+        c32 = (c32 & 0xFFFF) + (a16 * b16);
 		c48 += c32 >>> 16;
 
 		result[0] = ((c16 & 0xFFFF) << 16) | (c00 & 0xFFFF);
@@ -332,9 +331,9 @@ if (!Math.imul32_64) {
 			return result;
 		}
 
-		var doNegate = <any>(a < 0) ^ <any>(b < 0);
+        const doNegate = <any>(a < 0) ^ <any>(b < 0);
 
-		Math.umul32_64(Math.abs(a), Math.abs(b), result);
+        Math.umul32_64(Math.abs(a), Math.abs(b), result);
 
 		if (doNegate) {
 			result[0] = ~result[0];
@@ -350,8 +349,8 @@ if (!Math.imul32_64) {
 _self['polyfills']['fround'] = !Math['fround'];
 if (!Math['fround']) {
 	Math['fround'] = function (x: number) {
-		var f32 = new Float32Array(1);
-		f32[0] = x;
+        const f32 = new Float32Array(1);
+        f32[0] = x;
 		return f32[0];
 	}
 }
@@ -402,8 +401,8 @@ export class BitUtils {
 	}
 
 	static extractScale1f(data: number, offset: number, length: number) {
-		var mask = (1 << length) - 1;
-		return (((data >>> offset) & mask) / mask)
+        const mask = (1 << length) - 1;
+        return (((data >>> offset) & mask) / mask)
 	}
 
 	static extractScalef(data: number, offset: number, length: number, scale: number) {
@@ -570,7 +569,9 @@ export class MathFloat {
 	static log2(value: number) { return Math.log2(value); }
 	static sign(value: number) { return Math.sign(value); }
 
-	static sign2(left: number, right: number) { var a = left - right; return (((0.0 < a) ? 1 : 0) - ((a < 0.0) ? 1 : 0)); }
+	static sign2(left: number, right: number) {
+        const a = left - right;
+        return (((0.0 < a) ? 1 : 0) - ((a < 0.0) ? 1 : 0)); }
 
 	static vslt(a: number, b: number) { if (isNaN(a) || isNaN(b)) return 0; return (a < b) ? 1 : 0; }
 	static vsle(a: number, b: number) { if (isNaN(a) || isNaN(b)) return 0; return (a <= b) ? 1 : 0; }
@@ -699,14 +700,14 @@ export class ArrayUtils {
 	}
 
 	static range(start: number, end: number) {
-		var array:number[] = [];
-		for (var n = start; n < end; n++) array.push(n);
+        const array: number[] = [];
+        for (let n = start; n < end; n++) array.push(n);
 		return array;
 	}
 	
 	static keys(object:any):string[] {
-		var keys:string[] = [];
-		for (let key in object) keys.push(key);
+        const keys: string[] = [];
+        for (let key in object) keys.push(key);
 		return keys;
 	}
 }

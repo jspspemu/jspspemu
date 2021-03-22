@@ -24,8 +24,8 @@ export class ThreadManForUser {
 		if ((attributes & 0x100) != 0 || attributes >= 0x300) return SceKernelErrors.ERROR_KERNEL_ILLEGAL_ATTR;
 
 		//console.warn(sprintf('Not implemented ThreadManForUser.sceKernelCreateEventFlag("%s", %d, %08X)', name, attributes, bitPattern));
-		var eventFlag = new EventFlag();
-		eventFlag.name = name;
+        const eventFlag = new EventFlag();
+        eventFlag.name = name;
 		eventFlag.attributes = attributes;
 		eventFlag.initialPattern = bitPattern;
 		eventFlag.currentPattern = bitPattern;
@@ -41,13 +41,13 @@ export class ThreadManForUser {
 
 	private _sceKernelWaitEventFlagCB(id: number, bits: number, waitType: EventFlagWaitTypeSet, outBits: Stream, timeout: Stream, acceptCallbacks: AcceptCallbacks): any {
 		if (!this.eventFlagUids.has(id)) return SceKernelErrors.ERROR_KERNEL_NOT_FOUND_EVENT_FLAG;
-		var eventFlag = this.eventFlagUids.get(id);
+        const eventFlag = this.eventFlagUids.get(id);
 
-		if ((waitType & ~(EventFlagWaitTypeSet.MaskValidBits)) != 0) return SceKernelErrors.ERROR_KERNEL_ILLEGAL_MODE;
+        if ((waitType & ~(EventFlagWaitTypeSet.MaskValidBits)) != 0) return SceKernelErrors.ERROR_KERNEL_ILLEGAL_MODE;
 		if (bits == 0) return SceKernelErrors.ERROR_KERNEL_EVENT_FLAG_ILLEGAL_WAIT_PATTERN;
-		var timedOut = false;
-		var previousPattern = eventFlag.currentPattern;
-		return new WaitingThreadInfo('_sceKernelWaitEventFlagCB', eventFlag, eventFlag.waitAsync(bits, waitType, outBits, timeout, acceptCallbacks).then(() => {
+        const timedOut = false;
+        const previousPattern = eventFlag.currentPattern;
+        return new WaitingThreadInfo('_sceKernelWaitEventFlagCB', eventFlag, eventFlag.waitAsync(bits, waitType, outBits, timeout, acceptCallbacks).then(() => {
 			if (outBits != null) outBits.writeUInt32(previousPattern);
 			return 0;
 		}), acceptCallbacks);
@@ -73,9 +73,9 @@ export class ThreadManForUser {
 		if (bits == 0) return SceKernelErrors.ERROR_KERNEL_EVENT_FLAG_ILLEGAL_WAIT_PATTERN;
 		if (EventFlag == null) return SceKernelErrors.ERROR_KERNEL_NOT_FOUND_EVENT_FLAG;
 
-		var matched = this.eventFlagUids.get(id).poll(bits, waitType, outBits);
+        const matched = this.eventFlagUids.get(id).poll(bits, waitType, outBits);
 
-		return matched ? 0 : SceKernelErrors.ERROR_KERNEL_EVENT_FLAG_POLL_FAILED;
+        return matched ? 0 : SceKernelErrors.ERROR_KERNEL_EVENT_FLAG_POLL_FAILED;
 	}
 
 	@nativeFunction(0xEF9E4C70, 150, 'uint', 'int')
@@ -101,14 +101,14 @@ export class ThreadManForUser {
 
 	@nativeFunction(0xA66B0120, 150, 'uint', 'int/void*')
 	sceKernelReferEventFlagStatus(id: number, infoPtr: Stream) {
-		var size = infoPtr.readUInt32();
-		if (size == 0) return 0;
+        const size = infoPtr.readUInt32();
+        if (size == 0) return 0;
 
 		infoPtr.position = 0;
 		if (!this.eventFlagUids.has(id)) return SceKernelErrors.ERROR_KERNEL_NOT_FOUND_EVENT_FLAG;
-		var eventFlag = this.eventFlagUids.get(id);
-		var info = new EventFlagInfo();
-		info.size = EventFlagInfo.struct.length;
+        const eventFlag = this.eventFlagUids.get(id);
+        const info = new EventFlagInfo();
+        info.size = EventFlagInfo.struct.length;
 		info.name = eventFlag.name;
 		info.currentPattern = eventFlag.currentPattern;
 		info.initialPattern = eventFlag.initialPattern;
@@ -135,7 +135,7 @@ class EventFlag {
 
 	waitAsync(bits: number, waitType: EventFlagWaitTypeSet, outBits: Stream, timeout: Stream, callbacks: AcceptCallbacks) {
 		return new PromiseFast((resolve, reject) => {
-			var waitingSemaphoreThread = new EventFlagWaitingThread(bits, waitType, outBits, this, () => {
+			const waitingSemaphoreThread = new EventFlagWaitingThread(bits, waitType, outBits, this, () => {
 				this.waitingThreads.delete(waitingSemaphoreThread);
 				resolve();
 				throwEndCycles();

@@ -3,7 +3,7 @@ import {EmulatorContext} from "../../emu/context";
 import {nativeFunction} from "../utils";
 import {Thread} from "../manager/thread";
 
-var console = logger.named('module.LoadExecForUser');
+const console = logger.named('module.LoadExecForUser');
 
 export class LoadExecForUser {
     constructor(private context: EmulatorContext) { }

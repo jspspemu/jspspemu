@@ -90,18 +90,18 @@ export class Integer64 {
 	}
 
 	add(other: Integer64): Integer64 {
-		var a48 = this._high >>> 16;
-		var a32 = this._high & 0xFFFF;
-		var a16 = this._low >>> 16;
-		var a00 = this._low & 0xFFFF;
+        const a48 = this._high >>> 16;
+        const a32 = this._high & 0xFFFF;
+        const a16 = this._low >>> 16;
+        const a00 = this._low & 0xFFFF;
 
-		var b48 = other._high >>> 16;
-		var b32 = other._high & 0xFFFF;
-		var b16 = other._low >>> 16;
-		var b00 = other._low & 0xFFFF;
+        const b48 = other._high >>> 16;
+        const b32 = other._high & 0xFFFF;
+        const b16 = other._low >>> 16;
+        const b00 = other._low & 0xFFFF;
 
-		var c48 = 0, c32 = 0, c16 = 0, c00 = 0;
-		c00 += a00 + b00;
+        let c48 = 0, c32 = 0, c16 = 0, c00 = 0;
+        c00 += a00 + b00;
 		c16 += c00 >>> 16;
 		c00 &= 0xFFFF;
 		c16 += a16 + b16;
@@ -124,9 +124,9 @@ export class Integer64 {
 			return 0;
 		}
 
-		var thisNeg = this.isNegative();
-		var otherNeg = other.isNegative();
-		if (thisNeg && !otherNeg) {
+        const thisNeg = this.isNegative();
+        const otherNeg = other.isNegative();
+        if (thisNeg && !otherNeg) {
 			return -1;
 		}
 		if (!thisNeg && otherNeg) {
@@ -164,18 +164,18 @@ export class Integer64 {
 		}
 		if (other.isNegative()) return this.multiply(other.negate()).negate();
 
-		var a48 = this._high >>> 16;
-		var a32 = this._high & 0xFFFF;
-		var a16 = this._low >>> 16;
-		var a00 = this._low & 0xFFFF;
+        const a48 = this._high >>> 16;
+        const a32 = this._high & 0xFFFF;
+        const a16 = this._low >>> 16;
+        const a00 = this._low & 0xFFFF;
 
-		var b48 = other._high >>> 16;
-		var b32 = other._high & 0xFFFF;
-		var b16 = other._low >>> 16;
-		var b00 = other._low & 0xFFFF;
+        const b48 = other._high >>> 16;
+        const b32 = other._high & 0xFFFF;
+        const b16 = other._low >>> 16;
+        const b00 = other._low & 0xFFFF;
 
-		var c48 = 0, c32 = 0, c16 = 0, c00 = 0;
-		c00 += a00 * b00;
+        let c48 = 0, c32 = 0, c16 = 0, c00 = 0;
+        c00 += a00 * b00;
 		c16 += c00 >>> 16;
 		c00 &= 0xFFFF;
 		c16 += a16 * b00;
