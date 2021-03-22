@@ -33,28 +33,43 @@ export class sceAtrac3plus {
 
     private atracIDs = ArrayUtils.create(6, i => new AtracID(i))
 
-    @nativeFunction(0x7A20E7AF, 150, 'uint', 'byte[]')
-	sceAtracSetDataAndGetID(data: Stream) {
+    @nativeFunction(0x7A20E7AF, 150, 'uint', 'int/int')
+	sceAtracSetDataAndGetID(dataPtr: number, bufferSize: number) {
         const id = this.atracIDs.first(it => !it.inUse)
         if (!id) return SceKernelErrors.ERROR_ATRAC_NO_ID
+        this.sceAtracSetData(id.id, dataPtr, bufferSize)
+        return id.id
+	}
+
+    @nativeFunction(0x0E2A73AB, 150, 'uint', 'int/int/int')
+    sceAtracSetData(atID: number, dataPtr: number, bufferSize: number) {
+        if (!this.hasById(atID)) return SceKernelErrors.ATRAC_ERROR_NO_ATRACID;
+        const id = this.getAtrac(atID)
         const info = id.info
-        log.trace("sceAtracSetDataAndGetID Partially implemented")
-        const res = Atrac3PlusUtil.analyzeRiffFile(data.clone(), 0, data.length, id.info)
+        const mem = this.context.memory
+        const dataStream = mem.getPointerStream(dataPtr, bufferSize)!
+        //const fileData = dataStream.clone().readAllBytes()
+        log.trace("sceAtracSetData Partially implemented")
+
+        const res = Atrac3PlusUtil.analyzeRiffFile(dataStream.clone(), 0, bufferSize, id.info)
         if (res < 0) {
             console.error("Invalid atrac data")
             return res
         }
         const outputChannels = 2
-        id.inputBuffer = data.clone()
+        //id.inputBuffer = fileData
         const startSkippedSamples = this.getStartSkippedSamples(Atrac3plusConstants.PSP_CODEC_AT3PLUS)
         const maxSamples = this.getMaxSamples(Atrac3plusConstants.PSP_CODEC_AT3PLUS)
         const skippedSamples = startSkippedSamples + info.atracSampleOffset
         const skippedFrames = Math.ceil(skippedSamples / maxSamples)
-        id.readAddr = data.position + id.info.inputFileDataOffset + (skippedFrames * info.atracBytesPerFrame)
+        //id.startAddr = dataPtr + id.info.inputFileDataOffset + (skippedFrames * info.atracBytesPerFrame)
+        id.startAddr = dataPtr + id.info.inputFileDataOffset
+        id.readAddr = id.startAddr
+        id.endAddr = id.startAddr + id.info.inputDataSize
         id.decoder.init(id.info.atracBytesPerFrame, id.info.atracChannels, outputChannels, 0)
         console.error(`Decoder initialized with ${id.info.atracBytesPerFrame}, ${id.info.atracChannels}, ${outputChannels}, 0`)
-        return id.id
-	}
+        return 0;
+    }
 
     getAtrac(id: Int) { return this.atracIDs[id] }
 
@@ -139,7 +154,7 @@ export class sceAtrac3plus {
         }
 
         //val result = id.decoder.decode(emulator.imem, samplesAddr.addr, outEndAddr)
-        const result = id.decoder.decode(this.context.memory, id.readAddr, id.info.atracBytesPerFrame, samplesAddr.clone())
+        const result = id.decoder.decode(this.context.memory, id.readAddr, id.info.atracBytesPerFrame, samplesAddr)
         if (result < 0) {
             samplesNbrAddr.writeInt32(0)
             return result
@@ -156,14 +171,6 @@ export class sceAtrac3plus {
 
         return result
     }
-
-	@nativeFunction(0x0E2A73AB, 150, 'uint', 'int/byte[]')
-	sceAtracSetData(id:number, data: Stream) {
-		if (!this.hasById(id)) return SceKernelErrors.ATRAC_ERROR_NO_ATRACID;
-        const atrac3 = this.getAtrac(id);
-        atrac3.inputBuffer = data
-		return 0;
-	}
 
 	@nativeFunction(0x61EB33F5, 150, 'uint', 'int')
 	sceAtracReleaseAtracID(atID: number) {
@@ -201,7 +208,7 @@ export class sceAtrac3plus {
 		if (!this.hasById(id)) return SceKernelErrors.ATRAC_ERROR_NO_ATRACID;
         const atrac3 = this.getAtrac(id);
 
-        numberOfSamplesInNextFramePtr.writeInt32(Math.min(this.getMaxSamples(Atrac3plusConstants.PSP_CODEC_AT3PLUS), atrac3.inputBuffer.available));
+        numberOfSamplesInNextFramePtr.writeInt32(Math.min(this.getMaxSamples(Atrac3plusConstants.PSP_CODEC_AT3PLUS), atrac3.byteAvailable));
 		return 0;
 	}
 
@@ -532,7 +539,7 @@ class AtracID {
     }
 
     decoder = new Atrac3plusDecoder()
-    inputBuffer = Stream.fromSize(0)
+    //inputBuffer = new Uint8Array()
     inUse = false
     isSecondBufferNeeded = false
     isSecondBufferSet = false
@@ -541,11 +548,19 @@ class AtracID {
     get atracEndSample(): Int { return this.info.atracEndSample }
     secondBufferReadPosition: Int = 0
     secondBufferSize: Int = 0
+    startAddr: Int = 0
     readAddr: Int = 0
+    endAddr: Int = 0
     currentFrame = 0
-    get remainFrames(): Int { return 0 } // @TODO
+
+    get byteLength(): Int { return this.endAddr - this.startAddr }
+    get byteOffset(): Int { return this.readAddr - this.startAddr }
+    get byteAvailable(): Int { return this.byteLength - this.byteOffset }
+    get remainFrames(): Int {
+        return Math.floor(this.byteAvailable / this.info.atracBytesPerFrame)
+    }
 
     get decodingReachedEnd() {
-        return this.inputBuffer.available <= 0
+        return this.remainFrames <= 0
     }
 }

@@ -783,17 +783,18 @@ export class VLC {
 
     /**
      * Parse a vlc code.
-     * @param bits is the number of bits which will be read at once, must be
+     * @param br is the number of bits which will be read at once, must be
      * identical to nb_bits in init_vlc()
      * @param maxDepth is the number of times bits bits must be read to completely
      * read the longest vlc code
      * = (max_vlc_length + bits - 1) / bits
      */
     getVLC2(br: IBitReader, maxDepth: Int = 1): Int {
-        var nbBits: Int
-        var index = br.peek(this.bits)
-        var code = this.table!![index][0]
-        var n = this.table!![index][1]
+        let nbBits: Int;
+        let index = br.peek(this.bits);
+        if (index < 0) throw new Error(`Invalid index ${index}`)
+        let code = this.table!![index][0];
+        let n = this.table!![index][1];
 
         if (maxDepth > 1 && n < 0) {
             br.skip(this.bits)
