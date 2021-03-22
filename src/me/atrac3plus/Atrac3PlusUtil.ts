@@ -4,53 +4,26 @@
 import {logger, sprintf} from "../../global/utils";
 import {ArrayUtils} from "../../global/math";
 import {Stream} from "../../global/stream";
+import {Atrac3plusConstants} from "./Atrac3plusConstants";
 
 type Int = number
-
-const AT3_MAGIC = 0x0270 // "AT3"
-const AT3_PLUS_MAGIC = 0xFFFE // "AT3PLUS"
-const RIFF_MAGIC = 0x46464952 // "RIFF"
-const WAVE_MAGIC = 0x45564157 // "WAVE"
-const FMT_CHUNK_MAGIC = 0x20746D66 // "FMT "
-const FACT_CHUNK_MAGIC = 0x74636166 // "FACT"
-const SMPL_CHUNK_MAGIC = 0x6C706D73 // "SMPL"
-const DATA_CHUNK_MAGIC = 0x61746164 // "DATA"
-
-const ATRAC3_CONTEXT_READ_SIZE_OFFSET = 160
-const ATRAC3_CONTEXT_REQUIRED_SIZE_OFFSET = 164
-const ATRAC3_CONTEXT_DECODE_RESULT_OFFSET = 188
-
-const PSP_ATRAC_ALLDATA_IS_ON_MEMORY = -1
-const PSP_ATRAC_NONLOOP_STREAM_DATA_IS_ON_MEMORY = -2
-const PSP_ATRAC_LOOP_STREAM_DATA_IS_ON_MEMORY = -3
-
-const PSP_ATRAC_STATUS_NONLOOP_STREAM_DATA = 0
-const PSP_ATRAC_STATUS_LOOP_STREAM_DATA = 1
-
-const ATRAC_HEADER_HASH_LENGTH = 512
-const ERROR_ATRAC_UNKNOWN_FORMAT = -0x7f9cfffa
-const ERROR_ATRAC_INVALID_SIZE = -0x7f9cffef
-
-const PSP_CODEC_AT3PLUS = 0x00001000
-const PSP_CODEC_AT3 = 0x00001001
-const PSP_CODEC_MP3 = 0x00001002
-const PSP_CODEC_AAC = 0x00001003
 
 const log = logger.named("Atrac3PlusUtil")
 
 // noinspection JSMethodCanBeStatic
 export class Atrac3PlusUtil {
-    private readUnaligned32(mem: Stream, addr: Int): Int {
+
+    private static readUnaligned32(mem: Stream, addr: Int): Int {
 		mem.position = addr
 		return mem.readInt32LE()
 	}
 
-	private read8(mem: Stream, addr: Int): Int {
+	private static read8(mem: Stream, addr: Int): Int {
 		mem.position = addr
 		return mem.readUInt8LE()
 	}
 
-	private read16(mem: Stream, addr: Int): Int {
+	private static read16(mem: Stream, addr: Int): Int {
 		mem.position = addr
 		return mem.readUInt16LE()
 	}
@@ -58,8 +31,8 @@ export class Atrac3PlusUtil {
 	/**
 	 * From JPCSP
 	 */
-	analyzeRiffFile(mem: Stream, addr: Int, length: Int, info: AtracFileInfo): Int {
-        let result = ERROR_ATRAC_UNKNOWN_FORMAT;
+	static analyzeRiffFile(mem: Stream, addr: Int, length: Int, info: AtracFileInfo): Int {
+        let result = Atrac3plusConstants.ERROR_ATRAC_UNKNOWN_FORMAT;
 
         let currentAddr = addr;
         let bufferSize = length;
@@ -69,7 +42,7 @@ export class Atrac3PlusUtil {
 
 		if (bufferSize < 12) {
 			log.error("Atrac buffer too small %d".format(bufferSize))
-			return ERROR_ATRAC_INVALID_SIZE
+			return Atrac3plusConstants.ERROR_ATRAC_INVALID_SIZE
 		}
 
 		// RIFF file format:
@@ -78,10 +51,10 @@ export class Atrac3PlusUtil {
 		// Offset 8: 'WAVE'
 		const magic = this.readUnaligned32(mem, currentAddr)
 		const WAVEMagic = this.readUnaligned32(mem, currentAddr + 8)
-		if (magic != RIFF_MAGIC || WAVEMagic != WAVE_MAGIC) {
+		if (magic != Atrac3plusConstants.RIFF_MAGIC || WAVEMagic != Atrac3plusConstants.WAVE_MAGIC) {
 			//log.error(String_format("Not a RIFF/WAVE format! %s", Utilities.getMemoryDump(currentAddr, 16)))
             log.error("Not a RIFF/WAVE format!")
-			return ERROR_ATRAC_UNKNOWN_FORMAT
+			return Atrac3plusConstants.ERROR_ATRAC_UNKNOWN_FORMAT
 		}
 
 		info.inputFileSize = this.readUnaligned32(mem, currentAddr + 4) + 8
@@ -92,15 +65,15 @@ export class Atrac3PlusUtil {
 		currentAddr += 12
 		bufferSize -= 12
 
-		var foundData = false
-		while (bufferSize >= 8 && !foundData) {
+        let foundData = false;
+        while (bufferSize >= 8 && !foundData) {
 			const chunkMagic = this.readUnaligned32(mem, currentAddr)
 			const chunkSize = this.readUnaligned32(mem, currentAddr + 4)
 			currentAddr += 8
 			bufferSize -= 8
 
 			switch (chunkMagic) {
-                case DATA_CHUNK_MAGIC: {
+                case Atrac3plusConstants.DATA_CHUNK_MAGIC: {
 					foundData = true
 					// Offset of the data chunk in the input file
 					info.inputFileDataOffset = currentAddr - addr
@@ -110,7 +83,7 @@ export class Atrac3PlusUtil {
                     }
 					break;
 				}
-				case FMT_CHUNK_MAGIC: {
+				case Atrac3plusConstants.FMT_CHUNK_MAGIC: {
 					if (chunkSize >= 16) {
 						const compressionCode = this.read16(mem, currentAddr)
 						info.atracChannels = this.read16(mem, currentAddr + 2)
@@ -135,17 +108,17 @@ export class Atrac3PlusUtil {
 							}
 						}
 
-						if (compressionCode == AT3_MAGIC) {
-							result = PSP_CODEC_AT3
-						} else if (compressionCode == AT3_PLUS_MAGIC) {
-							result = PSP_CODEC_AT3PLUS
+						if (compressionCode == Atrac3plusConstants.AT3_MAGIC) {
+							result = Atrac3plusConstants.PSP_CODEC_AT3
+						} else if (compressionCode == Atrac3plusConstants.AT3_PLUS_MAGIC) {
+							result = Atrac3plusConstants.PSP_CODEC_AT3PLUS
 						} else {
-							return ERROR_ATRAC_UNKNOWN_FORMAT
+							return Atrac3plusConstants.ERROR_ATRAC_UNKNOWN_FORMAT
 						}
 					}
 					break;
 				}
-				case FACT_CHUNK_MAGIC: {
+				case Atrac3plusConstants.FACT_CHUNK_MAGIC: {
 					if (chunkSize >= 8) {
 						info.atracEndSample = this.readUnaligned32(mem, currentAddr)
 						if (info.atracEndSample > 0) {
@@ -163,7 +136,7 @@ export class Atrac3PlusUtil {
 					}
 					break;
 				}
-                case SMPL_CHUNK_MAGIC: {
+                case Atrac3plusConstants.SMPL_CHUNK_MAGIC: {
 					if (chunkSize >= 36) {
 						const checkNumLoops = this.readUnaligned32(mem, currentAddr + 28)
 						if (chunkSize >= 36 + checkNumLoops * 24) {
@@ -209,7 +182,7 @@ export class Atrac3PlusUtil {
 		return result
 	}
 
-	private getStringFromInt32(chunkMagic: Int): String {
+	private static getStringFromInt32(chunkMagic: Int): String {
 	    return String.fromCharCode(chunkMagic.extract8(0), chunkMagic.extract8(8), chunkMagic.extract8(16), chunkMagic.extract8(24))
     }
 }
@@ -227,7 +200,7 @@ class LoopInfo {
     }
 }
 
-class AtracFileInfo {
+export class AtracFileInfo {
     constructor(
         public atracBitrate: Int = 64,
         public atracChannels: Int = 2,

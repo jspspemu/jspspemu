@@ -19,6 +19,7 @@
     "src/app.ts",
     "src/headless.ts",
     "src/docgen.ts",
+    "src/at3decoder.ts",
     "test/_alltests.ts",
   ]
 }

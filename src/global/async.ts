@@ -1,4 +1,5 @@
-﻿import {Microtask, PromiseFast} from "./utils";
+﻿import "./window"
+import {Microtask, PromiseFast} from "./utils";
 
 export interface StatInfo {
 	size: number;

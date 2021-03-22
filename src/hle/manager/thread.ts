@@ -448,4 +448,7 @@ export class ThreadManager implements Component {
 	waitExitGameAsync(): PromiseFast<number> {
 		return this.exitPromise;
 	}
+
+    delayThread(microseconds: number) {
+    }
 }

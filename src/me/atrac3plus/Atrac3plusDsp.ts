@@ -1,12 +1,6 @@
 import {ChannelUnitContext, IPQFChannelContext, WaveEnvelope, WavesData, WaveSynthParams} from "./Atrac3PlusDtos";
-import {
-    ATRAC3P_FRAME_SAMPLES,
-    ATRAC3P_POWER_COMP_OFF, ATRAC3P_PQF_FIR_LEN,
-    ATRAC3P_SUBBAND_SAMPLES,
-    ATRAC3P_SUBBANDS,
-    CH_UNIT_STEREO
-} from "./Atrac3plusDecoder";
 import {FFT, FloatDSP, SineWin} from "../MeUtils";
+import {Atrac3plusConstants} from "./Atrac3plusConstants";
 
 function intArrayOf(...values: number[]) { return new Int32Array(values) }
 function floatArrayOf(...values: number[]) { return new Float32Array(values) }
@@ -32,19 +26,19 @@ export class Atrac3plusDsp {
 
 	powerCompensation(ctx: ChannelUnitContext, chIndex: Int, sp: Float32Array, _rngIndex: Int, sb: Int) {
 		let rngIndex = _rngIndex
-		const pwcsp = new Float32Array(ATRAC3P_SUBBAND_SAMPLES)
+		const pwcsp = new Float32Array(Atrac3plusConstants.ATRAC3P_SUBBAND_SAMPLES)
         let gcv = 0
-        const swapCh = (ctx.unitType == CH_UNIT_STEREO && ctx.swapChannels[sb]) ? 1 : 0
+        const swapCh = (ctx.unitType == Atrac3plusConstants.CH_UNIT_STEREO && ctx.swapChannels[sb]) ? 1 : 0
 
         const channel1 = ctx.channels[chIndex ^ swapCh]!!
-		if (channel1!!.powerLevs[Atrac3plusDsp.subband_to_powgrp[sb]] == ATRAC3P_POWER_COMP_OFF) {
+		if (channel1!!.powerLevs[Atrac3plusDsp.subband_to_powgrp[sb]] == Atrac3plusConstants.ATRAC3P_POWER_COMP_OFF) {
 			return
 		}
 
 		// generate initial noise spectrum
 		{
 			let i = 0
-			while (i < ATRAC3P_SUBBAND_SAMPLES) {
+			while (i < Atrac3plusConstants.ATRAC3P_SUBBAND_SAMPLES) {
 				pwcsp[i] = Atrac3plusDsp.noise_tab[rngIndex & 0x3FF]
 				i++
 				rngIndex++
@@ -87,10 +81,10 @@ export class Atrac3plusDsp {
 
 	imdct(mdctCtx: FFT,_in: Float32Array, inOffset: Int, out: Float32Array, outOffset: Int, windId: Int, sb: Int) {
 		if ((sb & 1) != 0) {
-			for (let i = 0; i < ATRAC3P_SUBBAND_SAMPLES / 2; i++) {
+			for (let i = 0; i < Atrac3plusConstants.ATRAC3P_SUBBAND_SAMPLES / 2; i++) {
 				const tmp =_in[inOffset + i]
-				_in[inOffset + i] =_in[inOffset + ATRAC3P_SUBBAND_SAMPLES - 1 - i]
-				_in[inOffset + ATRAC3P_SUBBAND_SAMPLES - 1 - i] = tmp
+				_in[inOffset + i] =_in[inOffset + Atrac3plusConstants.ATRAC3P_SUBBAND_SAMPLES - 1 - i]
+				_in[inOffset + Atrac3plusConstants.ATRAC3P_SUBBAND_SAMPLES - 1 - i] = tmp
 			}
 		}
 
@@ -120,12 +114,12 @@ export class Atrac3plusDsp {
 	/**
 	 * Synthesize sine waves according to given parameters.
 	 *
-	 * @param[in]    synthParam   common synthesis parameters
-	 * @param[in]    wavesInfo    parameters for each sine wave
-	 * @param[in]    envelope     envelope data for all waves in a group
-	 * @param[in]    phaseShift   flag indicates 180 degrees phase shift
-	 * @param[in]    regOffset    region offset for trimming envelope data
-	 * @param[out]   out          receives synthesized data
+	 * @param  synthParams   common synthesis parameters
+	 * @param  wavesInfo    parameters for each sine wave
+	 * @param  envelope     envelope data for all waves in a group
+	 * @param  phaseShift   flag indicates 180 degrees phase shift
+	 * @param  regOffset    region offset for trimming envelope data
+	 * @param  out          receives synthesized data
 	 */
 	private wavesSynth(synthParams: WaveSynthParams, wavesInfo: WavesData, envelope: WaveEnvelope, phaseShift: Boolean, regOffset: Int, out: Float32Array) {
 		var waveParam = wavesInfo.startIndex
@@ -246,15 +240,15 @@ export class Atrac3plusDsp {
 	}
 
 	ipqf(dctCtx: FFT, hist: IPQFChannelContext, _in: Float32Array, out: Float32Array) {
-		const idctIn = new Float32Array(ATRAC3P_SUBBANDS)
-		const idctOut = new Float32Array(ATRAC3P_SUBBANDS)
+		const idctIn = new Float32Array(Atrac3plusConstants.ATRAC3P_SUBBANDS)
+		const idctOut = new Float32Array(Atrac3plusConstants.ATRAC3P_SUBBANDS)
 
-		out.fill(0, 0, ATRAC3P_FRAME_SAMPLES)
+		out.fill(0, 0, Atrac3plusConstants.ATRAC3P_FRAME_SAMPLES)
 
-        for (let s = 0; s < ATRAC3P_SUBBAND_SAMPLES; s++) {
+        for (let s = 0; s < Atrac3plusConstants.ATRAC3P_SUBBAND_SAMPLES; s++) {
 			// pack up one sample from each subband
-            for (let sb = 0; sb < ATRAC3P_SUBBANDS; sb++) {
-				idctIn[sb] =_in[sb * ATRAC3P_SUBBAND_SAMPLES + s]
+            for (let sb = 0; sb < Atrac3plusConstants.ATRAC3P_SUBBANDS; sb++) {
+				idctIn[sb] =_in[sb * Atrac3plusConstants.ATRAC3P_SUBBAND_SAMPLES + s]
 			}
 
 			// Calculate the sine and cosine part of the PQF using IDCT-IV
@@ -269,7 +263,7 @@ export class Atrac3plusDsp {
             let posNow = hist.pos;
             let posNext = Atrac3plusDsp.mod23_lut[posNow + 2]; // posNext = (posNow + 1) % 23
 
-			for (let t = 0; t < ATRAC3P_PQF_FIR_LEN; t++) {
+			for (let t = 0; t < Atrac3plusConstants.ATRAC3P_PQF_FIR_LEN; t++) {
 				for (let i = 0; i <= 7; i++) {
 					out[s * 16 + i + 0] += hist.buf1[posNow][i] * Atrac3plusDsp.ipqf_coeffs1[t][i] + hist.buf2[posNext][i] * Atrac3plusDsp.ipqf_coeffs2[t][i]
 					out[s * 16 + i + 8] += hist.buf1[posNow][7 - i] * Atrac3plusDsp.ipqf_coeffs1[t][i + 8] + hist.buf2[posNext][7 - i] * Atrac3plusDsp.ipqf_coeffs2[t][i + 8]
@@ -283,7 +277,7 @@ export class Atrac3plusDsp {
 		}
 	}
 
-    private static ATRAC3P_MDCT_SIZE = ATRAC3P_SUBBAND_SAMPLES * 2
+    private static ATRAC3P_MDCT_SIZE = Atrac3plusConstants.ATRAC3P_SUBBAND_SAMPLES * 2
     private static sine_table = new Float32Array(2048) ///< wave table
     private static hann_window = new Float32Array(256) ///< Hann windowing function
     private static amp_sf_tab = new Float32Array(64)   ///< scalefactors for quantized amplitudes

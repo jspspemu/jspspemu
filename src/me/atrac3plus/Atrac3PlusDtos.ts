@@ -1,14 +1,9 @@
 import {ArrayUtils} from "../../global/math";
-import {
-    ATRAC3P_FRAME_SAMPLES,
-    ATRAC3P_PQF_FIR_LEN,
-    ATRAC3P_SUBBAND_SAMPLES,
-    ATRAC3P_SUBBANDS
-} from "./Atrac3plusDecoder";
 import {Atrac} from "./Atrac";
 import {Atrac3plusDsp} from "./Atrac3plusDsp";
 import {BitReader, FFT} from "../MeUtils";
 import {ChannelUnit} from "./ChannelUnit";
+import {Atrac3plusConstants} from "./Atrac3plusConstants";
 
 type Int = number
 function BooleanArray(size: number) { return ArrayUtils.create(size, _ => false) }
@@ -76,18 +71,18 @@ export class Channel {
     powerLevs = new Int32Array(5)   ///< power compensation levels
 
     // imdct window shape history (2 frames) for overlapping.
-    wndShapeHist = ArrayUtils.create(2, _ => ArrayUtils.create(ATRAC3P_SUBBANDS, _ => false)) ///< IMDCT window shape, 0=sine/1=steep
+    wndShapeHist = ArrayUtils.create(2, _ => ArrayUtils.create(Atrac3plusConstants.ATRAC3P_SUBBANDS, _ => false)) ///< IMDCT window shape, 0=sine/1=steep
     wndShape = this.wndShapeHist[0]             ///< IMDCT window shape for current frame
     wndShapePrev = this.wndShapeHist[1]         ///< IMDCT window shape for previous frame
 
     // gain control data history (2 frames) for overlapping.
-    gainDataHist = ArrayUtils.create(2, _ => ArrayUtils.create(ATRAC3P_SUBBANDS, _ => new AtracGainInfo()))      ///< gain control data for all subbands
+    gainDataHist = ArrayUtils.create(2, _ => ArrayUtils.create(Atrac3plusConstants.ATRAC3P_SUBBANDS, _ => new AtracGainInfo()))      ///< gain control data for all subbands
     gainData = this.gainDataHist[0]              ///< gain control data for next frame
     gainDataPrev = this.gainDataHist[1]          ///< gain control data for previous frame
     numGainSubbands: Int = 0            ///< number of subbands with gain control data
 
     // tones data history (2 frames) for overlapping.
-    tonesInfoHist = ArrayUtils.create(2, _ => ArrayUtils.create(ATRAC3P_SUBBANDS, _ => new WavesData()))
+    tonesInfoHist = ArrayUtils.create(2, _ => ArrayUtils.create(Atrac3plusConstants.ATRAC3P_SUBBANDS, _ => new WavesData()))
     tonesInfo = this.tonesInfoHist[0]
     tonesInfoPrev = this.tonesInfoHist[1]
 }
@@ -133,9 +128,9 @@ export class WaveSynthParams {
     tonesPresent: Boolean = false                                  ///< 1 - tones info present
     amplitudeMode: Int = 0                                     ///< 1 - low range, 0 - high range
     numToneBands: Int = 0                                      ///< number of PQF bands with tones
-    toneSharing = BooleanArray(ATRAC3P_SUBBANDS) ///< 1 - subband-wise tone sharing flags
-    toneMaster = BooleanArray(ATRAC3P_SUBBANDS)  ///< 1 - subband-wise tone channel swapping
-    phaseShift = BooleanArray(ATRAC3P_SUBBANDS)  ///< 1 - subband-wise 180 degrees phase shifting
+    toneSharing = BooleanArray(Atrac3plusConstants.ATRAC3P_SUBBANDS) ///< 1 - subband-wise tone sharing flags
+    toneMaster = BooleanArray(Atrac3plusConstants.ATRAC3P_SUBBANDS)  ///< 1 - subband-wise tone channel swapping
+    phaseShift = BooleanArray(Atrac3plusConstants.ATRAC3P_SUBBANDS)  ///< 1 - subband-wise 180 degrees phase shifting
     tonesIndex: Int = 0                                        ///< total sum of tones in this unit
     waves = ArrayUtils.create(48, _ => new WaveParam())
 }
@@ -152,10 +147,10 @@ export class Context {
     mdctCtx?: FFT = undefined
     ipqfDctCtx?: FFT = undefined ///< IDCT context used by IPQF
 
-    samples = ArrayUtils.create(2, _ => new Float32Array(ATRAC3P_FRAME_SAMPLES)) ///< quantized MDCT sprectrum
-    mdctBuf = ArrayUtils.create(2, _ => new Float32Array(ATRAC3P_FRAME_SAMPLES + ATRAC3P_SUBBAND_SAMPLES)) ///< output of the IMDCT
-    timeBuf = ArrayUtils.create(2, _ => new Float32Array(ATRAC3P_FRAME_SAMPLES)) ///< output of the gain compensation
-    outpBuf = ArrayUtils.create(2, _ => new Float32Array(ATRAC3P_FRAME_SAMPLES))
+    samples = ArrayUtils.create(2, _ => new Float32Array(Atrac3plusConstants.ATRAC3P_FRAME_SAMPLES)) ///< quantized MDCT sprectrum
+    mdctBuf = ArrayUtils.create(2, _ => new Float32Array(Atrac3plusConstants.ATRAC3P_FRAME_SAMPLES + Atrac3plusConstants.ATRAC3P_SUBBAND_SAMPLES)) ///< output of the IMDCT
+    timeBuf = ArrayUtils.create(2, _ => new Float32Array(Atrac3plusConstants.ATRAC3P_FRAME_SAMPLES)) ///< output of the gain compensation
+    outpBuf = ArrayUtils.create(2, _ => new Float32Array(Atrac3plusConstants.ATRAC3P_FRAME_SAMPLES))
 }
 
 /** Channel unit parameters  */
@@ -171,8 +166,8 @@ export class ChannelUnitContext {
     noisePresent: Boolean = false                             ///< 1 - global noise info present
     noiseLevelIndex: Int = 0                              ///< global noise level index
     noiseTableIndex: Int = 0                              ///< global noise RNG table index
-    swapChannels = BooleanArray(ATRAC3P_SUBBANDS) ///< 1 - perform subband-wise channel swapping
-    negateCoeffs = BooleanArray(ATRAC3P_SUBBANDS) ///< 1 - subband-wise IMDCT coefficients negation
+    swapChannels = BooleanArray(Atrac3plusConstants.ATRAC3P_SUBBANDS) ///< 1 - perform subband-wise channel swapping
+    negateCoeffs = BooleanArray(Atrac3plusConstants.ATRAC3P_SUBBANDS) ///< 1 - subband-wise IMDCT coefficients negation
     channels = arrayOf(new Channel(0), new Channel(1))
 
     // Variables related to GHA tones
@@ -181,12 +176,12 @@ export class ChannelUnitContext {
     wavesInfoPrev: WaveSynthParams = this.waveSynthHist[1]
 
     ipqfCtx = arrayOf(new IPQFChannelContext(), new IPQFChannelContext())
-    prevBuf = ArrayUtils.create(2, _ => FloatArray(ATRAC3P_FRAME_SAMPLES)) ///< overlapping buffer
+    prevBuf = ArrayUtils.create(2, _ => FloatArray(Atrac3plusConstants.ATRAC3P_FRAME_SAMPLES)) ///< overlapping buffer
 }
 
 export class IPQFChannelContext {
-    buf1 = ArrayUtils.create(ATRAC3P_PQF_FIR_LEN * 2, _ => FloatArray(8))
-    buf2 = ArrayUtils.create(ATRAC3P_PQF_FIR_LEN * 2, _ => FloatArray(8))
+    buf1 = ArrayUtils.create(Atrac3plusConstants.ATRAC3P_PQF_FIR_LEN * 2, _ => FloatArray(8))
+    buf2 = ArrayUtils.create(Atrac3plusConstants.ATRAC3P_PQF_FIR_LEN * 2, _ => FloatArray(8))
     pos: Int = 0
 }
 

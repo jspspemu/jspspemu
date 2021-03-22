@@ -31,7 +31,11 @@ const SWR_MASK = new Uint32Array([0x00000000, 0x000000FF, 0x0000FFFF, 0x00FFFFFF
 const SWR_SHIFT = new Uint32Array([0, 8, 16, 24]);
 
 export abstract class Memory {
-	lwl(address: number, value: number) {
+    read8(addr: number): number {
+        return this.lb(addr)
+    }
+
+    lwl(address: number, value: number) {
         const align = address & 3;
         const oldvalue = this.lw(address & ~3);
         return ((oldvalue << LWL_SHIFT[align]) | (value & LWL_MASK[align]));

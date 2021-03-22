@@ -196,7 +196,7 @@ export class Emulator {
                 const zipFs = new ZipVfs(zip, this.storageVfs);
                 const mountableVfs = this.ms0Vfs;
                 mountableVfs.mountVfs('/PSP/GAME/virtual', zipFs);
-                const availableElf = ['/EBOOT.ELF', '/BOOT.ELF', '/EBOOT.PBP'].first(item => zip.has(item));
+                const availableElf = ['/EBOOT.ELF', '/BOOT.ELF', '/EBOOT.PBP'].first(item => zip.has(item))!;
                 console.log('elf: ' + availableElf);
                 const node = await zipFs.openAsync(availableElf, FileOpenFlags.Read, parseInt('0777', 8))
                 const data = await node.readAllAsync()

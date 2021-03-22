@@ -4,9 +4,8 @@ import { Memory } from '../../core/memory';
 import { PixelFormat } from '../../core/pixelformat';
 import { SceKernelErrors } from '../SceKernelErrors';
 import {Stream} from "../../global/stream";
-import {addressToHex} from "../../global/utils";
+import {addressToHex, ProgramExitException} from "../../global/utils";
 import {Int32, Int32_l, Int64, Stringn, StructClass, UInt32, UInt32_l} from "../../global/struct";
-import {MeStream} from "../../global/me";
 import {Integer64} from "../../global/int64";
 
 const ENABLE = false;
@@ -239,6 +238,12 @@ enum StreamType {
 	Pcm = 2,
 	Data = 3,
 	Audio = 15,
+}
+
+class MeStream {
+    static openData(data: Uint8Array): MeStream {
+        throw new ProgramExitException("Unimplemented MeStream")
+    }
 }
 
 class Mpeg {

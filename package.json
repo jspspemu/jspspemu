@@ -8,6 +8,7 @@
     "docgen": "npx tsc && node output/src/docgen.js",
     "benchmark": "npx tsc && node --enable-source-maps output/src/headless.js data/benchmark/benchmark.prx",
     "benchmark_interpreted": "npx tsc && node --enable-source-maps output/src/headless.js -interpreted data/benchmark/benchmark.prx",
+    "at3decoder": "npx tsc && node --enable-source-maps output/src/at3decoder.js",
     "headless": "npx tsc && node --enable-source-maps output/src/headless.js"
   },
   "name": "jspspemu",

@@ -1,17 +1,12 @@
 import {BitReader, CodecUtils, MemoryUtils, VLC} from "../MeUtils";
 import {Atrac3plusDsp} from "./Atrac3plusDsp";
 import {AtracGainInfo, Channel, ChannelUnitContext, Context, WavesData} from "./Atrac3PlusDtos";
-import {
-    AT3P_ERROR,
-    ATRAC3P_FRAME_SAMPLES,
-    ATRAC3P_POWER_COMP_OFF, ATRAC3P_SUBBAND_SAMPLES,
-    ATRAC3P_SUBBANDS,
-    CH_UNIT_STEREO
-} from "./Atrac3plusDecoder";
 import {logger} from "../../global/utils";
 import {Atrac3plusData1, Atrac3pSpecCodeTab} from "./Atrac3plusData1";
 import {ArrayUtils} from "../../global/math";
 import {Atrac3plusData2} from "./Atrac3plusData2";
+import {Atrac3plusDecoder} from "./Atrac3plusDecoder";
+import {Atrac3plusConstants} from "./Atrac3plusConstants";
 
 function intArrayOf(...values: number[]) { return new Int32Array(values) }
 function floatArrayOf(...values: number[]) { return new Float32Array(values) }
@@ -47,7 +42,7 @@ export class ChannelUnit {
         const numCodedVals = this.br.read(5)
         if (numCodedVals > this.ctx.usedQuantUnits) {
             log.error("Invalid number of code table indexes: %d".format(numCodedVals))
-            return AT3P_ERROR
+            return Atrac3plusConstants.AT3P_ERROR
         }
         return numCodedVals
     }
@@ -70,7 +65,7 @@ export class ChannelUnit {
         this.ctx.numQuantUnits = this.br.read(5) + 1
 		if (this.ctx.numQuantUnits > 28 && this.ctx.numQuantUnits < 32) {
 			log.error("Invalid number of quantization units: %d".format(this.ctx.numQuantUnits))
-			return AT3P_ERROR
+			return Atrac3plusConstants.AT3P_ERROR
 		}
 
         this.ctx.muteFlag = this.br.readBool()
@@ -132,7 +127,7 @@ export class ChannelUnit {
 			chan.numCodedVals = this.br.read(5)
 			if (chan.numCodedVals > this.ctx.numQuantUnits) {
 				log.error("Invalid number of transmitted units")
-				return AT3P_ERROR
+				return Atrac3plusConstants.AT3P_ERROR
 			}
 
 			if (chan.fillMode == 3) {
@@ -185,7 +180,7 @@ export class ChannelUnit {
 			chan.quWordlen[i] += weigthsTab[i]
 			if (chan.quWordlen[i] < 0 || chan.quWordlen[i] > 7) {
 				log.error("WL index out of range pos=%d, val=%d".format(i, chan.quWordlen[i]))
-				return AT3P_ERROR
+				return Atrac3plusConstants.AT3P_ERROR
 			}
 		}
 
@@ -240,7 +235,7 @@ export class ChannelUnit {
                         const pos = this.br.read(5)
                         if (pos > chan.numCodedVals) {
                             log.error("WL mode 1: invalid position %d".format(pos))
-                            return AT3P_ERROR
+                            return Atrac3plusConstants.AT3P_ERROR
                         }
 
                         const deltaBits = this.br.read(2)
@@ -343,8 +338,8 @@ export class ChannelUnit {
 	/**
 	 * Subtract weighting coefficients from decoded scalefactors.
 	 *
-	 * @param[in,out] chan          ptr to the channel parameters
-	 * @param[in]     wtab_idx      index of table of weights
+	 * @param chan          ptr to the channel parameters
+	 * @param wtabIdx      index of table of weights
 	 * @return result code: 0 = OK, otherwise - error code
 	 */
 	private substractSfWeights(chan: Channel, wtabIdx: Int): Int {
@@ -354,7 +349,7 @@ export class ChannelUnit {
 			chan.quSfIdx[i] -= weigthsTab[i]
 			if (chan.quSfIdx[i] < 0 || chan.quSfIdx[i] > 63) {
 				log.error("SF index out of range pos=%d, val=%d".format(i, chan.quSfIdx[i]))
-				return AT3P_ERROR
+				return Atrac3plusConstants.AT3P_ERROR
 			}
 		}
 
@@ -413,7 +408,7 @@ export class ChannelUnit {
                         const minVal = this.br.read(6)
                         if (numLongVals > this.ctx.usedQuantUnits || deltaBits == 7) {
                             log.error("SF mode 1: invalid parameters".format())
-                            return AT3P_ERROR
+                            return Atrac3plusConstants.AT3P_ERROR
                         }
     
                         // Read full-precision SF indexes
@@ -702,7 +697,7 @@ export class ChannelUnit {
 
 			chan.spectrum.fill(0)
 
-			chan.powerLevs.fill(ATRAC3P_POWER_COMP_OFF)
+			chan.powerLevs.fill(Atrac3plusConstants.ATRAC3P_POWER_COMP_OFF)
 
             for (let qu = 0; qu < this.ctx.usedQuantUnits; qu++) {
 				const numSpecs = Atrac3plusDsp.ff_atrac3p_qu_to_spec_pos[qu + 1] - Atrac3plusDsp.ff_atrac3p_qu_to_spec_pos[qu]
@@ -818,7 +813,7 @@ export class ChannelUnit {
                     for (let i = 0; i < codedSubbands; i++) {
                         chan.gainData[i].numPoints = minVal + this.getDelta(deltaBits)
                         if (chan.gainData[i].numPoints > 7) {
-                            return AT3P_ERROR
+                            return Atrac3plusConstants.AT3P_ERROR
                         }
                     }
                 }
@@ -933,7 +928,7 @@ export class ChannelUnit {
                         for (let i = 0; i < chan.gainData[sb].numPoints; i++) {
                             chan.gainData[sb].levCode[i] = minVal + this.getDelta(deltaBits)
                             if (chan.gainData[sb].levCode[i] > 15) {
-                                return AT3P_ERROR
+                                return Atrac3plusConstants.AT3P_ERROR
                             }
                         }
                     }
@@ -1130,7 +1125,7 @@ export class ChannelUnit {
 			for (let i = 0; i < chan.gainData[sb].numPoints; i++) {
 				if (dst.locCode[i] < 0 || dst.locCode[i] > 31 || i > 0 && dst.locCode[i] <= dst.locCode[i - 1]) {
 					log.error("Invalid gain location: ch=%d, sb=%d, pos=%d, val=%d".format(chNum, sb, i, dst.locCode[i]))
-					return AT3P_ERROR
+					return Atrac3plusConstants.AT3P_ERROR
 				}
 			}
 		}
@@ -1147,7 +1142,7 @@ export class ChannelUnit {
 		var ret: Int
 
 		for (let chNum = 0; chNum < this.numChannels; chNum++) {
-			for (let i = 0; i < ATRAC3P_SUBBANDS; i++) {
+			for (let i = 0; i < Atrac3plusConstants.ATRAC3P_SUBBANDS; i++) {
                 this.ctx.channels[chNum].gainData[i].clear()
 			}
 
@@ -1272,7 +1267,7 @@ export class ChannelUnit {
 			if (bandHasTones[sb]) {
 				if (this.ctx.wavesInfo.tonesIndex + dst[sb].numWavs > 48) {
 					log.error("Too many tones: %d (max. 48)".format(this.ctx.wavesInfo.tonesIndex + dst[sb].numWavs))
-					return AT3P_ERROR
+					return Atrac3plusConstants.AT3P_ERROR
 				}
 				dst[sb].startIndex = this.ctx.wavesInfo.tonesIndex
                 this.ctx.wavesInfo.tonesIndex += dst[sb].numWavs
@@ -1466,7 +1461,7 @@ export class ChannelUnit {
 	 */
 	private decodeTonesInfo(): Int {
 		for (let chNum = 0; chNum < this.numChannels; chNum++) {
-			for (let i = 0; i < ATRAC3P_SUBBANDS; i++) {
+			for (let i = 0; i < Atrac3plusConstants.ATRAC3P_SUBBANDS; i++) {
                 this.ctx.channels[chNum].tonesInfo[i].clear()
 			}
 		}
@@ -1483,7 +1478,7 @@ export class ChannelUnit {
         this.ctx.wavesInfo.amplitudeMode = this.br.read1()
 		if (this.ctx.wavesInfo.amplitudeMode == 0) {
 			log.error("GHA amplitude mode 0")
-			return AT3P_ERROR
+			return Atrac3plusConstants.AT3P_ERROR
 		}
 
         this.ctx.wavesInfo.numToneBands = ChannelUnit.tone_vlc_tabs[0].getVLC2(this.br) + 1
@@ -1535,7 +1530,7 @@ export class ChannelUnit {
 	}
 
 	decodeResidualSpectrum(out: Float32Array[]) {
-		const sbRNGindex = new Int32Array(ATRAC3P_SUBBANDS)
+		const sbRNGindex = new Int32Array(Atrac3plusConstants.ATRAC3P_SUBBANDS)
 
 		if (this.ctx.muteFlag) {
             for (let ch = 0; ch < this.numChannels; ch++) {
@@ -1561,7 +1556,7 @@ export class ChannelUnit {
 		// inverse quant and power compensation
         for (let ch = 0; ch < this.numChannels; ch++) {
 			// clear channel's residual spectrum
-			out[ch].fill(0, 0, ATRAC3P_FRAME_SAMPLES)
+			out[ch].fill(0, 0, Atrac3plusConstants.ATRAC3P_FRAME_SAMPLES)
 
             for (let qu = 0; qu < this.ctx.usedQuantUnits; qu++) {
 				const src = Atrac3plusDsp.ff_atrac3p_qu_to_spec_pos[qu]
@@ -1581,20 +1576,20 @@ export class ChannelUnit {
 			}
 		}
 
-		if (this.ctx.unitType == CH_UNIT_STEREO) {
-			const tmp = new Float32Array(ATRAC3P_SUBBAND_SAMPLES)
+		if (this.ctx.unitType == Atrac3plusConstants.CH_UNIT_STEREO) {
+			const tmp = new Float32Array(Atrac3plusConstants.ATRAC3P_SUBBAND_SAMPLES)
             for (let sb = 0; sb < this.ctx.numCodedSubbands; sb++) {
 				if (this.ctx.swapChannels[sb]) {
 					// Swap both channels
-					MemoryUtils.arraycopyF(out[0], sb * ATRAC3P_SUBBAND_SAMPLES, tmp, 0, ATRAC3P_SUBBAND_SAMPLES)
-					MemoryUtils.arraycopyF(out[1], sb * ATRAC3P_SUBBAND_SAMPLES, out[0], sb * ATRAC3P_SUBBAND_SAMPLES, ATRAC3P_SUBBAND_SAMPLES)
-					MemoryUtils.arraycopyF(tmp, 0, out[1], sb * ATRAC3P_SUBBAND_SAMPLES, ATRAC3P_SUBBAND_SAMPLES)
+					MemoryUtils.arraycopyF(out[0], sb * Atrac3plusConstants.ATRAC3P_SUBBAND_SAMPLES, tmp, 0, Atrac3plusConstants.ATRAC3P_SUBBAND_SAMPLES)
+					MemoryUtils.arraycopyF(out[1], sb * Atrac3plusConstants.ATRAC3P_SUBBAND_SAMPLES, out[0], sb * Atrac3plusConstants.ATRAC3P_SUBBAND_SAMPLES, Atrac3plusConstants.ATRAC3P_SUBBAND_SAMPLES)
+					MemoryUtils.arraycopyF(tmp, 0, out[1], sb * Atrac3plusConstants.ATRAC3P_SUBBAND_SAMPLES, Atrac3plusConstants.ATRAC3P_SUBBAND_SAMPLES)
 				}
 
 				// flip coefficients' sign if requested
 				if (this.ctx.negateCoeffs[sb]) {
-					for (let i = 0; i < ATRAC3P_SUBBAND_SAMPLES; i++) {
-						out[1][sb * ATRAC3P_SUBBAND_SAMPLES + i] = -out[1][sb * ATRAC3P_SUBBAND_SAMPLES + i]
+					for (let i = 0; i < Atrac3plusConstants.ATRAC3P_SUBBAND_SAMPLES; i++) {
+						out[1][sb * Atrac3plusConstants.ATRAC3P_SUBBAND_SAMPLES + i] = -out[1][sb * Atrac3plusConstants.ATRAC3P_SUBBAND_SAMPLES + i]
 					}
 				}
 			}
@@ -1605,15 +1600,15 @@ export class ChannelUnit {
         for (let ch = 0; ch < this.numChannels; ch++) {
             for (let sb = 0; sb < this.ctx.numSubbands; sb++) {
 				// inverse transform and windowing
-				this.dsp!!.imdct(at3pContext.mdctCtx!!, at3pContext.samples[ch], sb * ATRAC3P_SUBBAND_SAMPLES, at3pContext.mdctBuf[ch], sb * ATRAC3P_SUBBAND_SAMPLES, ((this.ctx.channels[ch].wndShapePrev[sb]) ? 2 : 0) + ((this.ctx.channels[ch].wndShape[sb]) ? 1 : 0), sb)
+				this.dsp!!.imdct(at3pContext.mdctCtx!!, at3pContext.samples[ch], sb * Atrac3plusConstants.ATRAC3P_SUBBAND_SAMPLES, at3pContext.mdctBuf[ch], sb * Atrac3plusConstants.ATRAC3P_SUBBAND_SAMPLES, ((this.ctx.channels[ch].wndShapePrev[sb]) ? 2 : 0) + ((this.ctx.channels[ch].wndShape[sb]) ? 1 : 0), sb)
 
 				// gain compensation and overlapping
-				at3pContext.gaincCtx!!.gainCompensation(at3pContext.mdctBuf[ch], sb * ATRAC3P_SUBBAND_SAMPLES, this.ctx.prevBuf[ch], sb * ATRAC3P_SUBBAND_SAMPLES, this.ctx.channels[ch].gainDataPrev[sb], this.ctx.channels[ch].gainData[sb], ATRAC3P_SUBBAND_SAMPLES, at3pContext.timeBuf[ch], sb * ATRAC3P_SUBBAND_SAMPLES)
+				at3pContext.gaincCtx!!.gainCompensation(at3pContext.mdctBuf[ch], sb * Atrac3plusConstants.ATRAC3P_SUBBAND_SAMPLES, this.ctx.prevBuf[ch], sb * Atrac3plusConstants.ATRAC3P_SUBBAND_SAMPLES, this.ctx.channels[ch].gainDataPrev[sb], this.ctx.channels[ch].gainData[sb], Atrac3plusConstants.ATRAC3P_SUBBAND_SAMPLES, at3pContext.timeBuf[ch], sb * Atrac3plusConstants.ATRAC3P_SUBBAND_SAMPLES)
 			}
 
 			// zero unused subbands in both output and overlapping buffers
-            this.ctx.prevBuf[ch].fill(0, this.ctx.numSubbands * ATRAC3P_SUBBAND_SAMPLES, this.ctx.prevBuf[ch].length)
-			at3pContext.timeBuf[ch].fill(0, this.ctx.numSubbands * ATRAC3P_SUBBAND_SAMPLES, at3pContext.timeBuf[ch].length)
+            this.ctx.prevBuf[ch].fill(0, this.ctx.numSubbands * Atrac3plusConstants.ATRAC3P_SUBBAND_SAMPLES, this.ctx.prevBuf[ch].length)
+			at3pContext.timeBuf[ch].fill(0, this.ctx.numSubbands * Atrac3plusConstants.ATRAC3P_SUBBAND_SAMPLES, at3pContext.timeBuf[ch].length)
 
 			// resynthesize and add tonal signal
 			if (this.ctx.wavesInfo.tonesPresent || this.ctx.wavesInfoPrev.tonesPresent) {

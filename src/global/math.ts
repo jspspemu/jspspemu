@@ -1,4 +1,6 @@
-﻿declare global {
+﻿import "./window"
+
+declare global {
     interface Math {
         clz32(value: number): number;
         trunc(value: number): number;

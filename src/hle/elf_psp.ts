@@ -158,7 +158,7 @@ export class PspElfLoader implements ISymbolLookup {
 		this.baseAddress = 0;
 
 		if (this.elfLoader.needsRelocation) {
-			this.baseAddress = this.memoryManager.userPartition.childPartitions.sortBy(partition => partition.size).reverse().first().low;
+			this.baseAddress = this.memoryManager.userPartition.childPartitions.sortBy(partition => partition.size).reverse().first()!.low;
 			this.baseAddress = MathUtils.nextAligned(this.baseAddress, 0x1000);
 			//this.baseAddress = 0x08800000 + 0x4000;
 			

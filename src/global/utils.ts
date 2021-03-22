@@ -1,3 +1,4 @@
+import "./window"
 import "./array"
 import "./math"
 import {BitUtils, MathFloat, MathUtils} from "./math";

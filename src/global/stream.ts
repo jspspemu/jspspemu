@@ -1,4 +1,5 @@
-﻿import "./utils"
+﻿import "./window"
+import "./utils"
 import {Endian, PromiseFast, Utf8} from "./utils";
 import {IType} from "./struct";
 import {downloadFileAsync, downloadFileChunkAsync, statFileAsync, StatInfo} from "./async";
@@ -162,7 +163,7 @@ export class FileAsyncStream implements AsyncStream {
 export class Stream {
 	static INVALID = Stream.fromArray([]);
 
-	constructor(private data: DataView, private offset: number = 0) {
+	constructor(protected data: DataView, protected offset: number = 0) {
 	}
 
 	static fromArrayBuffer(data: ArrayBuffer) {
@@ -352,15 +353,15 @@ export class Stream {
     writeUInt32BE(value: number) { return this.writeUInt32(value, Endian.BIG) }
     writeUInt64BE(value: Integer64) { return this.writeUInt64(value, Endian.BIG) }
 
-	writeInt8(value: number, endian: Endian = Endian.LITTLE) { this.data.setInt8(this.offset, value); return this.skip(1, this); }
-	writeInt16(value: number, endian: Endian = Endian.LITTLE) { this.data.setInt16(this.offset, value, (endian == Endian.LITTLE)); return this.skip(2, this); }
-	writeInt32(value: number, endian: Endian = Endian.LITTLE) { this.data.setInt32(this.offset, value, (endian == Endian.LITTLE)); return this.skip(4, this); }
-	writeInt64(value: Integer64, endian: Endian = Endian.LITTLE) { return this._writeUInt64(value, endian); }
-	writeFloat32(value: number, endian: Endian = Endian.LITTLE) { this.data.setFloat32(this.offset, value, (endian == Endian.LITTLE)); return this.skip(4, this); }
-	writeUInt8(value: number, endian: Endian = Endian.LITTLE) { this.data.setUint8(this.offset, value); return this.skip(1, this); }
-	writeUInt16(value: number, endian: Endian = Endian.LITTLE) { this.data.setUint16(this.offset, value, (endian == Endian.LITTLE)); return this.skip(2, this); }
-	writeUInt32(value: number, endian: Endian = Endian.LITTLE) { this.data.setUint32(this.offset, value, (endian == Endian.LITTLE)); return this.skip(4, this); }
-	writeUInt64(value: Integer64, endian: Endian = Endian.LITTLE) { return this._writeUInt64(value, endian); }
+	writeInt8(value: number, endian: Endian = Endian.LITTLE) { this.ensure(1); this.data.setInt8(this.offset, value); return this.skip(1, this); }
+	writeInt16(value: number, endian: Endian = Endian.LITTLE) { this.ensure(2); this.data.setInt16(this.offset, value, (endian == Endian.LITTLE)); return this.skip(2, this); }
+	writeInt32(value: number, endian: Endian = Endian.LITTLE) { this.ensure(4); this.data.setInt32(this.offset, value, (endian == Endian.LITTLE)); return this.skip(4, this); }
+	writeInt64(value: Integer64, endian: Endian = Endian.LITTLE) { this.ensure(8); return this._writeUInt64(value, endian); }
+	writeFloat32(value: number, endian: Endian = Endian.LITTLE) { this.ensure(4); this.data.setFloat32(this.offset, value, (endian == Endian.LITTLE)); return this.skip(4, this); }
+	writeUInt8(value: number, endian: Endian = Endian.LITTLE) { this.ensure(1); this.data.setUint8(this.offset, value); return this.skip(1, this); }
+	writeUInt16(value: number, endian: Endian = Endian.LITTLE) { this.ensure(2); this.data.setUint16(this.offset, value, (endian == Endian.LITTLE)); return this.skip(2, this); }
+	writeUInt32(value: number, endian: Endian = Endian.LITTLE) { this.ensure(4); this.data.setUint32(this.offset, value, (endian == Endian.LITTLE)); return this.skip(4, this); }
+	writeUInt64(value: Integer64, endian: Endian = Endian.LITTLE) { this.ensure(8); return this._writeUInt64(value, endian); }
 
 	private _writeUInt64(value: Integer64, endian: Endian = Endian.LITTLE) {
 		this.writeUInt32((endian == Endian.LITTLE) ? value.low : value.high, endian);
@@ -394,7 +395,14 @@ export class Stream {
 		return this.writeString(str + String.fromCharCode(0));
 	}
 
+    ensure(count: number) {
+	    if (count > this.available) {
+	        throw new Error("Trying to write outside")
+        }
+    }
+
 	writeBytes(data: Uint8Array) {
+	    this.ensure(data.length)
         const out = new Uint8Array(this.data.buffer, this.data.byteOffset, this.data.byteLength);
         out.set(data, this.offset);
 		this.skip(data.length);
@@ -447,4 +455,23 @@ export class Stream {
 		}
 		return str;
 	}
+}
+
+export class GrowableStream extends Stream {
+    constructor(data: DataView = new DataView(new ArrayBuffer(7)), offset: number = 0) {
+        super(data, offset);
+    }
+
+    ensure(count: number) {
+        if (count > this.available) {
+            const newBuffer = new ArrayBuffer((this.length + 7) * 2)
+            const newData = new DataView(newBuffer, this.data.byteOffset, newBuffer.byteLength - this.data.byteOffset)
+            new Uint8Array(newBuffer).set(new Uint8Array(this.data.buffer, this.data.byteOffset))
+            this.data = newData
+        }
+    }
+
+    toByteArray() {
+        return new Uint8Array(this.data.buffer, this.data.byteOffset, this.position)
+    }
 }

@@ -1,4 +1,5 @@
-﻿import "./utils"
+﻿import "./window"
+import "./utils"
 import "./stream"
 import {Endian, PromiseFast, Utf8} from "./utils";
 import {Stream} from "./stream";

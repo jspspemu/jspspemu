@@ -1,5 +1,6 @@
 ﻿///<reference path="./math.ts" />
 
+import "./window"
 import {compare} from "./math";
 
 export function identity<T>(a: T) { return a; }
@@ -12,7 +13,7 @@ declare global {
         any(filter?: (item: T) => boolean): T;
         count(filter?: (item: T) => boolean): number;
         cast<T2>(): T2[];
-        first(filter?: (item: T) => boolean): T;
+        first(filter?: (item: T) => boolean): T | undefined;
         sum<Q>(selector?: (item: T) => Q):number;
         min<Q>(selector?: (item: T) => Q):T;
         max<Q>(selector?: (item: T) => Q):T;

@@ -34,7 +34,7 @@ export class sceAudio {
 	sceAudioChReserve(channelId: number, sampleCount: number, format: AudioFormat) {
 		if (channelId >= this.channels.length) return -1;
 		if (channelId < 0) {
-			channelId = this.channels.first(channel => !channel.allocated).id;
+			channelId = this.channels.first(channel => !channel.allocated)!.id;
 			if (channelId === undefined) {
 				console.warn('Not implemented sceAudio.sceAudioChReserve');
 				return -2;

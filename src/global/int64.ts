@@ -1,5 +1,6 @@
 ﻿// Code from: http://docs.closure-library.googlecode.com/git/local_closure_goog_math_long.js.source.html
 import {BitUtils} from "./math";
+import "./window"
 
 export class Integer64 {
 	private _low: number;
