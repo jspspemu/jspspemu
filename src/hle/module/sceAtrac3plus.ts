@@ -7,6 +7,7 @@ import {Atrac3PlusUtil, AtracFileInfo} from "../../me/atrac3plus/Atrac3PlusUtil"
 import {Atrac3plusDecoder} from "../../me/atrac3plus/Atrac3plusDecoder";
 import {ArrayUtils} from "../../global/math";
 import {Atrac3plusConstants, CodecType} from "../../me/atrac3plus/Atrac3plusConstants";
+import {IMemory} from "../../me/MeUtils";
 
 type Int = number
 
@@ -63,11 +64,13 @@ export class sceAtrac3plus {
         const skippedSamples = startSkippedSamples + info.atracSampleOffset
         const skippedFrames = Math.ceil(skippedSamples / maxSamples)
         //id.startAddr = dataPtr + id.info.inputFileDataOffset + (skippedFrames * info.atracBytesPerFrame)
-        id.startAddr = dataPtr + id.info.inputFileDataOffset
+        id.data = dataStream.clone().skipThis(id.info.inputFileDataOffset).readBytesCloned(id.info.inputDataSize)
+        id.dataMem = new Uint8ArrayMem(id.data)
+        id.startAddr = 0
         id.readAddr = id.startAddr
         id.endAddr = id.startAddr + id.info.inputDataSize
         id.decoder.init(id.info.atracBytesPerFrame, id.info.atracChannels, outputChannels, 0)
-        console.error(`Decoder initialized with ${id.info.atracBytesPerFrame}, ${id.info.atracChannels}, ${outputChannels}, 0`)
+        //console.error(`Decoder initialized with ${id.info.atracBytesPerFrame}, ${id.info.atracChannels}, ${outputChannels}, 0`)
         return 0;
     }
 
@@ -153,8 +156,7 @@ export class sceAtrac3plus {
             return SceKernelErrors.ERROR_ATRAC_SECOND_BUFFER_NEEDED
         }
 
-        //val result = id.decoder.decode(emulator.imem, samplesAddr.addr, outEndAddr)
-        const result = id.decoder.decode(this.context.memory, id.readAddr, id.info.atracBytesPerFrame, samplesAddr)
+        const result = id.decoder.decode(id.dataMem, id.readAddr, info.atracBytesPerFrame, samplesAddr)
         if (result < 0) {
             samplesNbrAddr.writeInt32(0)
             return result
@@ -533,9 +535,17 @@ class MyMemoryCustomStream extends MediaEngine.CustomStream {
 }
 */
 
+class Uint8ArrayMem implements IMemory {
+    constructor(public data: Uint8Array) {
+    }
+
+    read8(addr: Int): Int {
+        return this.data[addr]
+    }
+}
+
 class AtracID {
     constructor(public id: Int) {
-
     }
 
     decoder = new Atrac3plusDecoder()
@@ -548,6 +558,8 @@ class AtracID {
     get atracEndSample(): Int { return this.info.atracEndSample }
     secondBufferReadPosition: Int = 0
     secondBufferSize: Int = 0
+    data = new Uint8Array(0)
+    dataMem: IMemory
     startAddr: Int = 0
     readAddr: Int = 0
     endAddr: Int = 0

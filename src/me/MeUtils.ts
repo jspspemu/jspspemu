@@ -14,10 +14,10 @@ export interface IMemory {
 
 export class MemoryUtils {
     static arraycopyI(src: Int32Array, srcPos: Int, dst: Int32Array, dstPos: Int, length: Int) {
-        src.set(dst.subarray(dstPos, dstPos + length), srcPos)
+        dst.set(src.subarray(srcPos, srcPos + length), dstPos)
     }
     static arraycopyF(src: Float32Array, srcPos: Int, dst: Float32Array, dstPos: Int, length: Int) {
-        src.set(dst.subarray(dstPos, dstPos + length), srcPos)
+        dst.set(src.subarray(srcPos, srcPos + length), dstPos)
     }
     static arraycopyA<T>(src: T[], srcPos: Int, dst: T[], dstPos: Int, length: Int) {
         const overlapping = (src === dst && dstPos > srcPos)
@@ -30,7 +30,6 @@ export class MemoryUtils {
             }
         }
     }
-
 }
 
 export class CodecUtils {
@@ -192,8 +191,7 @@ export class BitReader implements IBitReader {
         return bit
     }
 
-    read(_n: Int): Int {
-        let n = _n;
+    read(n: Int): Int {
         let read: Int;
         if (n <= this.bits) {
             read = this.value >> (8 - n)

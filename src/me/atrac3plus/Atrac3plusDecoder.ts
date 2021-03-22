@@ -28,22 +28,22 @@ export class Atrac3plusDecoder {
         this.ctx = ctx
         ctx.outputChannels = outputChannels
         ctx.dsp = new Atrac3plusDsp()
-        for (let i = 0; i < ctx!!.numChannelBlocks; i++) {
-            ctx!!.channelUnits[i] = new ChannelUnit()
-            ctx!!.channelUnits[i]!!.setDsp(ctx!!.dsp!!)
+        for (let i = 0; i < ctx.numChannelBlocks; i++) {
+            ctx.channelUnits[i] = new ChannelUnit()
+            ctx.channelUnits[i].setDsp(ctx!!.dsp!!)
         }
 
         // initialize IPQF
-        ctx!!.ipqfDctCtx = new FFT()
-        ctx!!.ipqfDctCtx!!.mdctInit(5, true, 31.0 / 32768.9)
+        ctx.ipqfDctCtx = new FFT()
+        ctx.ipqfDctCtx.mdctInit(5, true, 31.0 / 32768.9)
 
-        ctx!!.mdctCtx = new FFT()
-        ctx!!.dsp!!.initImdct(ctx!!.mdctCtx!!)
+        ctx.mdctCtx = new FFT()
+        ctx.dsp.initImdct(ctx!!.mdctCtx!!)
 
         Atrac3plusDsp.initWaveSynth()
 
-        ctx!!.gaincCtx = new Atrac()
-        ctx!!.gaincCtx!!.initGainCompensation(6, 2)
+        ctx.gaincCtx = new Atrac()
+        ctx.gaincCtx.initGainCompensation(6, 2)
 
         return 0
     }

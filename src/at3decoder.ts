@@ -18,7 +18,8 @@ console.info(info)
 
 const out = new GrowableStream()
 const decoder = new Atrac3plusDecoder()
-const nchannels = 1
+const nchannels = 2
+console.log(`decoder.init(${info.atracBytesPerFrame}, ${info.atracChannels}, ${nchannels}, 0)`)
 decoder.init(info.atracBytesPerFrame, info.atracChannels, nchannels, 0)
 
 class MyMemory implements IMemory {
@@ -35,8 +36,10 @@ const mem = new MyMemory(s);
 let ipos = info.inputFileDataOffset
 while (true) {
     const res = decoder.decode(mem, ipos, s.length, out)
-    console.log(`res: ${res}`)
-    if (res <= 10) break
+    if (res <= 10) {
+        console.log(`res: ${res}`)
+        break
+    }
     ipos += info.atracBytesPerFrame
 }
 fs.writeFileSync("c:/temp/jspspemu.atrac3plus.raw", out.toByteArray())

@@ -270,6 +270,11 @@ export class Stream {
 		return this.offset;
 	}
 
+    skipThis(count: number) {
+        this.offset += count;
+        return this
+    }
+
 	skip<T>(count: number, pass?: T): T {
 		this.offset += count;
 		return pass as T
@@ -411,6 +416,13 @@ export class Stream {
 	readBytes(count: number):Uint8Array {
 		return this.skip(count, new Uint8Array(this.data.buffer, this.data.byteOffset + this.offset, count));
 	}
+
+    readBytesCloned(count: number):Uint8Array {
+	    const inp = this.readBytes(count)
+        const out = new Uint8Array(inp.length)
+        out.set(inp)
+        return out
+    }
 
 	readAllBytes():Uint8Array {
 		return this.readBytes(this.available);
