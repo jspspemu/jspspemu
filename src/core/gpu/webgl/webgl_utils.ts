@@ -2,7 +2,7 @@
 import {StringDictionary} from "../../../global/utils";
 import {mat4} from "../../../global/math";
 
-var mat4x3 = mat4.create();
+const mat4x3 = mat4.create();
 
 export class WrappedWebGLUniform {
 	private location: WebGLUniformLocation;
@@ -47,8 +47,8 @@ export class WrappedWebGLAttrib {
 	setFloats(rsize: number, arr: Float32Array) {
 		if (this.location < 0) return;
 
-		var gl = this.gl;
-		if (!this.buffer) this.buffer = this.gl.createBuffer()!
+        const gl = this.gl;
+        if (!this.buffer) this.buffer = this.gl.createBuffer()!
 		gl.bindBuffer(gl.ARRAY_BUFFER, this.buffer);
 		(<any>gl.bufferData)(gl.ARRAY_BUFFER, arr, gl.DYNAMIC_DRAW);
 		this.enable();
@@ -81,14 +81,14 @@ export class WrappedWebGLProgram {
 	}
 
 	getUniform(name: string):WrappedWebGLUniform {
-		var uniform = this.uniforms[name];
-		if (!uniform) uniform = this.uniforms[name] = new WrappedWebGLUniform(this.gl, this.program, name);
+        let uniform = this.uniforms[name];
+        if (!uniform) uniform = this.uniforms[name] = new WrappedWebGLUniform(this.gl, this.program, name);
 		return uniform;
 	}
 
 	getAttrib(name: string):WrappedWebGLAttrib {
-		var attrib = this.attribs[name];
-		if (!attrib) attrib = this.attribs[name] = new WrappedWebGLAttrib(this.gl, this.program, name);
+        let attrib = this.attribs[name];
+        if (!attrib) attrib = this.attribs[name] = new WrappedWebGLAttrib(this.gl, this.program, name);
 		return attrib;
 	}
 }

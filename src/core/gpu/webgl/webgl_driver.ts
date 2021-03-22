@@ -44,19 +44,19 @@ export class WebGlPspDrawDriver {
 
 	private createCanvas(glAntialiasing:boolean) {
 		this.glAntialiasing = glAntialiasing;
-		var webglOptions = {
-			alpha: false,
-			depth: true,
-			stencil: true,
-			antialias: glAntialiasing,
-			//premultipliedAlpha: false,
-			preserveDrawingBuffer: false,
-			//preserveDrawingBuffer: false,
-			//preferLowPowerToHighPerformance: false,
-			//failIfMajorPerformanceCaveat: false,
-		};
+        const webglOptions = {
+            alpha: false,
+            depth: true,
+            stencil: true,
+            antialias: glAntialiasing,
+            //premultipliedAlpha: false,
+            preserveDrawingBuffer: false,
+            //preserveDrawingBuffer: false,
+            //preferLowPowerToHighPerformance: false,
+            //failIfMajorPerformanceCaveat: false,
+        };
 
-		this.gl = <WebGLRenderingContext>this.canvas.getContext('webgl', webglOptions);
+        this.gl = <WebGLRenderingContext>this.canvas.getContext('webgl', webglOptions);
 		if (!this.gl) this.gl = <WebGLRenderingContext>this.canvas.getContext('experimental-webgl', webglOptions);
 
 		if (!this.gl) {
@@ -127,10 +127,10 @@ export class WebGlPspDrawDriver {
 	private testConvertTable: number[] = [GL.NEVER, GL.ALWAYS, GL.EQUAL, GL.NOTEQUAL, GL.LESS, GL.LEQUAL, GL.GREATER, GL.GEQUAL];
 	private testConvertTable_inv: number[] = [GL.NEVER, GL.ALWAYS, GL.EQUAL, GL.NOTEQUAL, GL.GREATER, GL.GEQUAL, GL.LESS, GL.LEQUAL];
 	private updateNormalState(program: WrappedWebGLProgram, vertexInfo: VertexInfo, primitiveType: PrimitiveType) {
-		var state = this.state;
-		var gl = this.gl;
+        const state = this.state;
+        const gl = this.gl;
 
-		if (this.enableDisable(gl.CULL_FACE, state.culling.enabled && (primitiveType != PrimitiveType.Sprites))) {
+        if (this.enableDisable(gl.CULL_FACE, state.culling.enabled && (primitiveType != PrimitiveType.Sprites))) {
 			gl.cullFace((state.culling.direction == CullingDirection.ClockWise) ? gl.FRONT : gl.BACK);
 		}
 
@@ -175,12 +175,12 @@ export class WebGlPspDrawDriver {
 				case GuBlendingEquation.ReverseSubstract: gl.blendEquation(gl.FUNC_REVERSE_SUBTRACT); break;
 			}
 
-			var blendColor = blending.fixColorDestination;
-			gl.blendColor(blendColor.r, blendColor.g, blendColor.b, blendColor.a);
+            const blendColor = blending.fixColorDestination;
+            gl.blendColor(blendColor.r, blendColor.g, blendColor.b, blendColor.a);
 		}
 
-		var stencil = state.stencil;
-		if (this.enableDisable(gl.STENCIL_TEST, stencil.enabled)) {
+        const stencil = state.stencil;
+        if (this.enableDisable(gl.STENCIL_TEST, stencil.enabled)) {
 			gl.stencilFunc(this.testConvertTable[stencil.func], stencil.funcRef, stencil.funcMask);
 			gl.stencilOp(this.opsConvertTable[stencil.fail], this.opsConvertTable[stencil.zfail], this.opsConvertTable[stencil.zpass]);
 		}
@@ -192,8 +192,8 @@ export class WebGlPspDrawDriver {
 			gl.depthFunc(this.testConvertTable_inv[state.depthTest.func]);
 		}
 
-		var alphaTest = state.alphaTest;
-		if (alphaTest.enabled) {
+        const alphaTest = state.alphaTest;
+        if (alphaTest.enabled) {
 			program.getUniform('alphaTestFunc').set1i(alphaTest.func);
 			program.getUniform('alphaTestReference').set1i(alphaTest.value);
 			program.getUniform('alphaTestMask').set1i(alphaTest.mask);
@@ -203,16 +203,16 @@ export class WebGlPspDrawDriver {
 	}
 
 	private updateClearStateEnd(program: WrappedWebGLProgram, vertexInfo: VertexInfo, primitiveType: PrimitiveType) {
-		var gl = this.gl;
-		gl.colorMask(true, true, true, true);
+        const gl = this.gl;
+        gl.colorMask(true, true, true, true);
 	}
 
 	private updateClearStateStart(program: WrappedWebGLProgram, vertexInfo: VertexInfo, primitiveType: PrimitiveType) {
-		var state = this.state;
-		var gl = this.gl;
-		var ccolorMask = false, calphaMask = false;
-		var clearingFlags = this.clearingFlags;
-		//gl.disable(gl.TEXTURE_2D);
+        const state = this.state;
+        const gl = this.gl;
+        let ccolorMask = false, calphaMask = false;
+        const clearingFlags = this.clearingFlags;
+        //gl.disable(gl.TEXTURE_2D);
 		gl.disable(gl.SCISSOR_TEST);
 		gl.disable(gl.BLEND);
 		gl.disable(gl.DEPTH_TEST);
@@ -244,18 +244,18 @@ export class WebGlPspDrawDriver {
 	}
 
 	private updateCommonState(program: WrappedWebGLProgram, vertexInfo: VertexInfo, primitiveType: PrimitiveType) {
-		var viewport = this.state.viewport;
-		//var region = this.state.region;
+        const viewport = this.state.viewport;
+        //const region = this.state.region;
 
-		var x = 2048 - viewport.x;
-		var y = 2048 - viewport.y;
-		var width = Math.abs(viewport.width * 2);
-		var height = Math.abs(-viewport.height * 2);
+        const x = 2048 - viewport.x;
+        const y = 2048 - viewport.y;
+        const width = Math.abs(viewport.width * 2);
+        const height = Math.abs(-viewport.height * 2);
 
-		//debugger;
+        //debugger;
 
-		var ratio = this.getScaleRatio();
-		this.gl.viewport(x * ratio, y * ratio, width * ratio, height * ratio);
+        const ratio = this.getScaleRatio();
+        this.gl.viewport(x * ratio, y * ratio, width * ratio, height * ratio);
 		//this.gl.viewport(0, 0, 1440, 816);
 	}
 
@@ -286,9 +286,9 @@ export class WebGlPspDrawDriver {
 	
 	private setAttribute(databuffer:WebGLBuffer, attribPosition:WrappedWebGLAttrib, componentCount:number, componentType:number, vertexSize:number, offset:number) {
 		if (attribPosition.location < 0) return;
-		var gl = this.gl;
+        const gl = this.gl;
 
-		gl.bindBuffer(gl.ARRAY_BUFFER, databuffer);
+        gl.bindBuffer(gl.ARRAY_BUFFER, databuffer);
 		gl.enableVertexAttribArray(attribPosition.location);
 		// vertexAttribPointer(this.texCoordLocation2, 2, gl.FLOAT, false, 0, 0);
 		gl.vertexAttribPointer(attribPosition.location, componentCount, componentType, false, vertexSize, offset);
@@ -326,10 +326,10 @@ export class WebGlPspDrawDriver {
 	
 	drawBatchesTransfer(transfer: BatchesTransfer) {
 		this.lastTransfer = transfer;
-		var buffer = transfer.buffer;
-		var verticesData = new Uint8Array(buffer, transfer.data.data, transfer.data.datasize);
-		var indicesData = new Uint16Array(buffer, transfer.data.indices, transfer.data.indicesCount);
-		let gl = this.gl;
+        const buffer = transfer.buffer;
+        const verticesData = new Uint8Array(buffer, transfer.data.data, transfer.data.datasize);
+        const indicesData = new Uint16Array(buffer, transfer.data.indices, transfer.data.indicesCount);
+        let gl = this.gl;
 		if (!this.optimizedDataBuffer) this.optimizedDataBuffer = gl.createBuffer();
 		if (!this.optimizedIndexBuffer) this.optimizedIndexBuffer = gl.createBuffer();
 		let databuffer = this.optimizedDataBuffer;
@@ -350,8 +350,8 @@ export class WebGlPspDrawDriver {
 	drawOptimized(data: ArrayBuffer, batch: OptimizedBatchTransfer): void {
 		this.state.writeData(new Uint32Array(data, batch.stateOffset, 512));
 		this.beforeDraw(this.state);
-		var state = this.state;
-		let gl = this.gl;
+        const state = this.state;
+        let gl = this.gl;
 		
 		
 		if (!this.optimizedDataBuffer) this.optimizedDataBuffer = gl.createBuffer();
@@ -362,11 +362,12 @@ export class WebGlPspDrawDriver {
 		vs.setState(this.state);
 		let primType = batch.primType;
 
-		var globalVertexOffset = batch.dataLow; let indexStart = batch.indexLow * 2; 
+        const globalVertexOffset = batch.dataLow;
+        let indexStart = batch.indexLow * 2;
 		
 		gl.bindBuffer(gl.ARRAY_BUFFER, databuffer);
-		var program = this.cache.getProgram(vs, state, true);
-		program.use();
+        const program = this.cache.getProgram(vs, state, true);
+        program.use();
 		program.getUniform('time').set1f(performance.now() / 1000.0);
 		program.getUniform('u_modelViewProjMatrix').setMat4(vs.transform2D ? this.transformMatrix2d : this.transformMatrix);
 		if (vs.hasPosition) {
@@ -393,14 +394,14 @@ export class WebGlPspDrawDriver {
 			if (vs.realWeightCount > 4) {
 				this.setAttribute(databuffer, program.vertexWeight2, Math.min(4, vs.realWeightCount - 4), convertVertexNumericEnum[vs.weight], vs.size, vs.oneWeightOffset(4) + globalVertexOffset);
 			}
-			for (var n = 0; n < vs.realWeightCount; n++) {
+			for (let n = 0; n < vs.realWeightCount; n++) {
 				program.getUniform("matrixBone" + n).setMat4x3(this.state.skinning.boneMatrices[n]);
 			}
 		}
 
 		if (!vs.hasColor) {
-			var ac = this.state.ambientModelColor;
-			//console.log(ac.r, ac.g, ac.b, ac.a);
+            const ac = this.state.ambientModelColor;
+            //console.log(ac.r, ac.g, ac.b, ac.a);
 			program.getUniform('uniformColor').set4f(ac.r, ac.g, ac.b, ac.a);
 		}
 		//console.log(vs.hasPosition, vs.hasColor, vs.hasTexture, vs.hasNormal, vs.hasWeight, vs.position, vs.color, vs.texture);
@@ -464,11 +465,11 @@ export class WebGlPspDrawDriver {
 	}
 
 	private calcTexMatrix(vertexInfo: VertexInfo) {
-		var texture = this.state.texture;
-		var mipmap = texture.mipmaps[0];
-		mat4.identity(this.texMat);
-		var t = this.tempVec;
-		if (vertexInfo.transform2D) {
+        const texture = this.state.texture;
+        const mipmap = texture.mipmaps[0];
+        mat4.identity(this.texMat);
+        const t = this.tempVec;
+        if (vertexInfo.transform2D) {
 			t[0] = 1.0 / (mipmap.bufferWidth); t[1] = 1.0 / (mipmap.textureHeight); t[2] = 1.0; mat4.scale(this.texMat, this.texMat, t);
 		} else {
 			switch (texture.textureMapMode) {
@@ -507,7 +508,7 @@ export class WebGlPspDrawDriver {
 			if (vertexInfo.realWeightCount > 4) {
 				program.getAttrib('vertexWeight2').setFloats(4, this.vertexWeightData2.slice());
 			}
-			for (var n = 0; n < vertexInfo.realWeightCount; n++) {
+			for (let n = 0; n < vertexInfo.realWeightCount; n++) {
 				program.getUniform("matrixBone" + n).setMat4x3(this.state.skinning.boneMatrices[n]);
 				//program.getUniform("matrixBone" + n).setMat4x3(this.state.skinning.linear, 12 * n);
 			}
@@ -516,8 +517,8 @@ export class WebGlPspDrawDriver {
 		if (vertexInfo.hasColor) {
 			program.getAttrib("vColor").setFloats(4, this.colorData.slice());
 		} else {
-			var ac = this.state.ambientModelColor;
-			//console.log(ac.r, ac.g, ac.b, ac.a);
+            const ac = this.state.ambientModelColor;
+            //console.log(ac.r, ac.g, ac.b, ac.a);
 			program.getUniform('uniformColor').set4f(ac.r, ac.g, ac.b, ac.a);
 		}
 
@@ -537,6 +538,6 @@ export class WebGlPspDrawDriver {
 	}
 }
 
-var convertPrimitiveType = new Int32Array([GL.POINTS, GL.LINES, GL.LINE_STRIP, GL.TRIANGLES, GL.TRIANGLE_STRIP, GL.TRIANGLE_FAN, GL.TRIANGLES /*sprites*/]);
-var convertVertexNumericEnum = new Int32Array([0, GL.BYTE, GL.SHORT, GL.FLOAT]);
-var convertVertexNumericUnsignedEnum = new Int32Array([0, GL.UNSIGNED_BYTE, GL.UNSIGNED_SHORT, GL.FLOAT]);
+const convertPrimitiveType = new Int32Array([GL.POINTS, GL.LINES, GL.LINE_STRIP, GL.TRIANGLES, GL.TRIANGLE_STRIP, GL.TRIANGLE_FAN, GL.TRIANGLES /*sprites*/]);
+const convertVertexNumericEnum = new Int32Array([0, GL.BYTE, GL.SHORT, GL.FLOAT]);
+const convertVertexNumericUnsignedEnum = new Int32Array([0, GL.UNSIGNED_BYTE, GL.UNSIGNED_SHORT, GL.FLOAT]);

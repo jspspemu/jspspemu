@@ -445,8 +445,8 @@ class PspGpuListRunner {
 
 	peek() {
         const _peek = (() => {
-            for (var n = 0; n < this.runningLists.length; n++) {
-                var list = this.runningLists[n];
+            for (let n = 0; n < this.runningLists.length; n++) {
+                const list = this.runningLists[n];
                 if (list.status != DisplayListStatus.Completed) return list.status;
             }
             return DisplayListStatus.Completed;

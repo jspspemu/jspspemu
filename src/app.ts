@@ -26,15 +26,15 @@ interface Rect {
 
 
 /*
-var touch_overlay = document.getElementById('touch_overlay');
+const touch_overlay = document.getElementById('touch_overlay');
 
 class ControllerPlugin {
 	static use() {
-		var rects: Rect[] = [];
+		const rects: Rect[] = [];
 
-		var generateRects = (() => {
-			var overlay_pos = { top: touch_overlay.offsetTop, left: touch_overlay.offsetLeft };
-			var overlay_width = touch_overlay.offsetWidth, overlay_height = touch_overlay.offsetHeight;
+		const generateRects = (() => {
+			const overlay_pos = { top: touch_overlay.offsetTop, left: touch_overlay.offsetLeft };
+			const overlay_width = touch_overlay.offsetWidth, overlay_height = touch_overlay.offsetHeight;
 			[
 				{ query: 'button_menu', button: 0 },
 				{ query: 'button_select', button: PspCtrlButtons.select },
@@ -50,14 +50,14 @@ class ControllerPlugin {
 				{ query: 'button_square', button: PspCtrlButtons.square },
 				{ query: 'button_triangle', button: PspCtrlButtons.triangle },
 			].forEach(button => {
-				var query = document.getElementById(button.query);
-				var item_pos = { top: query.offsetTop, left: query.offsetLeft };
-				var query_width = query.offsetWidth, query_height = query.offsetHeight;
+				const query = document.getElementById(button.query);
+				const item_pos = { top: query.offsetTop, left: query.offsetLeft };
+				const query_width = query.offsetWidth, query_height = query.offsetHeight;
 
-				var item_left = (item_pos.left - overlay_pos.left) / overlay_width;
-				var item_right = (item_pos.left - overlay_pos.left + query_width) / overlay_width;
-				var item_top = (item_pos.top - overlay_pos.top) / overlay_height;
-				var item_bottom = (item_pos.top - overlay_pos.top + query_height) / overlay_height;
+				const item_left = (item_pos.left - overlay_pos.left) / overlay_width;
+				const item_right = (item_pos.left - overlay_pos.left + query_width) / overlay_width;
+				const item_top = (item_pos.top - overlay_pos.top) / overlay_height;
+				const item_bottom = (item_pos.top - overlay_pos.top + query_height) / overlay_height;
 
 				rects.push({
 					left: item_left,
@@ -72,12 +72,12 @@ class ControllerPlugin {
 
 		generateRects();
 
-		var locateRect = ((screenX: number, screenY: number) => {
-			var overlay_pos = { top: touch_overlay.offsetTop, left: touch_overlay.offsetLeft };
-			var overlay_width = touch_overlay.offsetWidth, overlay_height = touch_overlay.offsetHeight;
+		const locateRect = ((screenX: number, screenY: number) => {
+			const overlay_pos = { top: touch_overlay.offsetTop, left: touch_overlay.offsetLeft };
+			const overlay_width = touch_overlay.offsetWidth, overlay_height = touch_overlay.offsetHeight;
 
-			var x = (screenX - overlay_pos.left) / overlay_width;
-			var y = (screenY - overlay_pos.top) / overlay_height;
+			const x = (screenX - overlay_pos.left) / overlay_width;
+			const y = (screenY - overlay_pos.top) / overlay_height;
 
 			for (let rect of rects) {
 				if (((x >= rect.left) && (x < rect.right)) && ((y >= rect.top && y < rect.bottom))) {
@@ -87,7 +87,7 @@ class ControllerPlugin {
 			return null;
 		});
 
-		var touchesState: {
+		const touchesState: {
 			[key: number]: { rect: Rect }
 		} = {};
 
@@ -100,14 +100,14 @@ class ControllerPlugin {
 		}
 
 		function touchStart(touches: Touch[]) {
-			for (var touch of touches) touchesState[touch.identifier] = { rect: null };
+			for (const touch of touches) touchesState[touch.identifier] = { rect: null };
 			touchMove(touches);
 		}
 
 		function touchMove(touches: Touch[]) {
-			for (var touch of touches) {
-				var rect = locateRect(touch.clientX, touch.clientY);
-				var touchState = touchesState[touch.identifier];
+			for (const touch of touches) {
+				const rect = locateRect(touch.clientX, touch.clientY);
+				const touchState = touchesState[touch.identifier];
 
 				if (touchState.rect) {
 					DomHelp.fromId(touchState.rect.name).removeClass('pressed');
@@ -124,8 +124,8 @@ class ControllerPlugin {
 		}
 
 		function touchEnd(touches: Touch[]) {
-			for (var touch of touches) {
-				var touchState = touchesState[touch.identifier];
+			for (const touch of touches) {
+				const touchState = touchesState[touch.identifier];
 
 				if (touchState && touchState.rect) {
 					DomHelp.fromId(touchState.rect.name).removeClass('pressed');
@@ -152,7 +152,7 @@ class ControllerPlugin {
 		});
 
 		//$('#touch_overlay').mouseover((e) => { updatePos(e.clientX, e.clientY); });
-		var pressing = false;
+		let pressing = false;
 
 		function generateTouchEvent(x: number, y: number) { return { clientX: x, clientY: y, identifier: 0 }; }
 
@@ -173,7 +173,7 @@ class ControllerPlugin {
 }
 */
 
-var demos = [
+const demos = [
     "-CPU",
 	"data/benchmark/benchmark.prx",
     "compilerPerf.elf",
@@ -258,7 +258,7 @@ demos.forEach(function(fileName) {
 		$('#files').append($('<option disabled style="background:#eee;">' + fileName.substr(1) + '</option>'));
 		$('#demo_list').append($('<li><label class="control-label">' + fileName.substr(1) + '</label></li>'));
 	} else {
-		var path = (fileName.indexOf('/') >= 0) ? fileName : ('samples/' + fileName);
+		const path = (fileName.indexOf('/') >= 0) ? fileName : ('samples/' + fileName);
 
 		//<li class="active"><a href="#">Home</a></li>
 		//<li><a href="#">Profile</a></li>
@@ -266,7 +266,7 @@ demos.forEach(function(fileName) {
 
 		$('#demo_list').append($('<li class="' + ((selectedItem == path) ? 'active' : '') + '"><a href="javascript:void(0)" onclick="selectFile(\'' + path + '\')">' + fileName + '</a></li>'));
 
-		var item = $('<option value="' + path + '">' + fileName + '</option>');
+		const item = $('<option value="' + path + '">' + fileName + '</option>');
 		if (selectedItem == path) item.attr('selected', 'selected')
 		$('#files').append(item);
 	}
@@ -285,8 +285,8 @@ demos.forEach(function(fileName) {
 class FillScreenPlugin {
 	static use() {
 		function updateScaleWith(scale: number) {
-			var width = 480 * scale, height = 272 * scale;
-			//console.info(sprintf('updateScale: %f, %dx%d', scale, width, height));
+            const width = 480 * scale, height = 272 * scale;
+            //console.info(sprintf('updateScale: %f, %dx%d', scale, width, height));
 			DomHelp.fromId('body').width = width;
 			DomHelp.fromId('canvas').css('width', width + 'px').css('height', height + 'px');
 			DomHelp.fromId('webgl_canvas').css('width', width + 'px').css('height', height + 'px');
@@ -297,26 +297,26 @@ class FillScreenPlugin {
 		}
 
 		function onResize() {
-			var position = DomHelp.fromId('canvas_container').position;
-			var windowSize = new DomHelp(window).size;
-			//var availableHeight = $(window).height() - position.top * 2;
-			var availableHeight = windowSize.height - position.top;
-			var availableWidth = windowSize.width;
+            const position = DomHelp.fromId('canvas_container').position;
+            const windowSize = new DomHelp(window).size;
+            //const availableHeight = $(window).height() - position.top * 2;
+            const availableHeight = windowSize.height - position.top;
+            const availableWidth = windowSize.width;
 
-			var scale1 = availableHeight / 272;
-			var scale2 = availableWidth / 480;
-			var steps = 0.5;
-			var scale = Math.min(scale1, scale2);
-			//scale = Math.floor(scale * (1 / steps)) / (1 / steps);
+            const scale1 = availableHeight / 272;
+            const scale2 = availableWidth / 480;
+            const steps = 0.5;
+            let scale = Math.min(scale1, scale2);
+            //scale = Math.floor(scale * (1 / steps)) / (1 / steps);
 
 			if (scale < steps) scale = steps;
 
 			updateScaleWith(scale);
 
-			var _document: any = document;
-			var isFullScreen = (_document.webkitIsFullScreen || _document.mozIsFullScreen) || ((screen.availHeight || screen.height - 30) <= window.innerHeight);
+            const _document: any = document;
+            let isFullScreen = (_document.webkitIsFullScreen || _document.mozIsFullScreen) || ((screen.availHeight || screen.height - 30) <= window.innerHeight);
 
-			if (window.innerHeight > window.innerWidth) isFullScreen = false;
+            if (window.innerHeight > window.innerWidth) isFullScreen = false;
 
 			new DomHelp(document.body).toggleClass('fullscreen', isFullScreen);
 
@@ -334,8 +334,8 @@ class FillScreenPlugin {
 }
 
 function requestFullScreen() {
-	var _document: any = document;
-	if (_document.body['requestFullScreen']) {
+    const _document: any = document;
+    if (_document.body['requestFullScreen']) {
 		_document.body['requestFullScreen']();
 	} else if (_document.body['webkitRequestFullScreen']) {
 		_document.body['webkitRequestFullScreen']();
@@ -352,10 +352,10 @@ interface Window {
 
 
 window.addEventListener('load', () => {
-	var _window: any = window;
-	var sampleDemo: string | undefined = undefined;
+    const _window: any = window;
+    let sampleDemo: string | undefined = undefined;
 
-	if (document.location.hash) {
+    if (document.location.hash) {
 		sampleDemo = document.location.hash.substr(1);
 	}
 
@@ -364,9 +364,9 @@ window.addEventListener('load', () => {
 		EmulatorController.executeUrl(sampleDemo);
 	}
 
-	var selectedItem = document.location.hash.substr(1);
-	
-	function selectFile(file: any) {
+    const selectedItem = document.location.hash.substr(1);
+
+    function selectFile(file: any) {
 		console.clear();
 		document.location.hash = file;
 		document.location.reload();
@@ -397,8 +397,8 @@ window.addEventListener('load', () => {
 	FillScreenPlugin.use();
 
 	DomHelp.fromId('load_file').on('change', (e) => {
-		var target: any = e.target;
-		if (target.files && target.files.length > 0) {
+        const target: any = e.target;
+        if (target.files && target.files.length > 0) {
 			console.clear();
 			EmulatorController.executeFile(target.files[0]);
 		}

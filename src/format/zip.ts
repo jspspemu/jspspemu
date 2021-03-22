@@ -19,23 +19,23 @@ export class ZipEntry {
 	}
 
 	getChildList() {
-		var list:ZipEntry[] = [];
-		for (var key in this.children) list.push(this.children[key]);
+        const list: ZipEntry[] = [];
+        for (const key in this.children) list.push(this.children[key]);
 		return list;
 	}
 
 	get date() {
-		var dosDate = this.zipDirEntry.dosDate;
-		var dosTime = this.zipDirEntry.dosTime;
+        const dosDate = this.zipDirEntry.dosDate;
+        const dosTime = this.zipDirEntry.dosTime;
 
-		var seconds = BitUtils.extract(dosTime, 0, 5) * 2;
-		var minutes = BitUtils.extract(dosTime, 5, 6);
-		var hours = BitUtils.extract(dosTime, 11, 6);
-		var day = BitUtils.extract(dosDate, 0, 5);
-		var month = BitUtils.extract(dosDate, 5, 4);
-		var year = BitUtils.extract(dosDate, 9, 7) + 1980;
+        const seconds = BitUtils.extract(dosTime, 0, 5) * 2;
+        const minutes = BitUtils.extract(dosTime, 5, 6);
+        const hours = BitUtils.extract(dosTime, 11, 6);
+        const day = BitUtils.extract(dosDate, 0, 5);
+        const month = BitUtils.extract(dosDate, 5, 4);
+        const year = BitUtils.extract(dosDate, 9, 7) + 1980;
 
-		return new Date(year, month - 1, day, hours, minutes, seconds);
+        return new Date(year, month - 1, day, hours, minutes, seconds);
 	}
 
 	get compressedSize() {
@@ -61,9 +61,9 @@ export class ZipEntry {
 	readRawCompressedAsync():PromiseFast<Uint8Array> {
 		if (this.compressedData) return PromiseFast.resolve(this.compressedData);
 		return this.zip.zipStream.readChunkAsync(this.zipDirEntry.headerOffset, this.zipDirEntry.compressedSize + 1024).then((data) => {
-			var stream = Stream.fromArrayBuffer(data);
-			var zipFileRecord = ZipFileRecord.struct.read(stream);
-			return this.compressedData = stream.readBytes(zipFileRecord.compressedSize);
+            const stream = Stream.fromArrayBuffer(data);
+            const zipFileRecord = ZipFileRecord.struct.read(stream);
+            return this.compressedData = stream.readBytes(zipFileRecord.compressedSize);
 		});
 	}
 
@@ -118,8 +118,8 @@ export class Zip {
 
 	constructor(public zipStream: AsyncStream, private zipDirEntries: ZipDirEntry[]) {
 		zipDirEntries.forEach((zipDirEntry) => {
-			var item = this.root.access(zipDirEntry.fileName, true);
-			item.isDirectory = (zipDirEntry.fileName.substr(-1, 1) == '/');
+            const item = this.root.access(zipDirEntry.fileName, true);
+            item.isDirectory = (zipDirEntry.fileName.substr(-1, 1) == '/');
 			item.zipDirEntry = zipDirEntry;
 		});
 		//console.log(this.root);
@@ -142,14 +142,14 @@ export class Zip {
 		//console.info('zipStream', zipStream);
 
 		return zipStream.readChunkAsync(zipStream.size - ZipEndLocator.struct.length, ZipEndLocator.struct.length).then((data) => {
-			var zipEndLocator = ZipEndLocator.struct.read(Stream.fromArrayBuffer(data));
+            const zipEndLocator = ZipEndLocator.struct.read(Stream.fromArrayBuffer(data));
 
-			//console.log('zipEndLocator', zipEndLocator);
+            //console.log('zipEndLocator', zipEndLocator);
 
 			return zipStream.readChunkAsync(zipEndLocator.directoryOffset, zipEndLocator.directorySize).then((data) => {
-				var dirEntries = StructArray<ZipDirEntry>(ZipDirEntry.struct, zipEndLocator.entriesInDirectory).read(Stream.fromArrayBuffer(data));
+                const dirEntries = StructArray<ZipDirEntry>(ZipDirEntry.struct, zipEndLocator.entriesInDirectory).read(Stream.fromArrayBuffer(data));
 
-				return new Zip(zipStream, dirEntries);
+                return new Zip(zipStream, dirEntries);
 			});
 		});
 	}

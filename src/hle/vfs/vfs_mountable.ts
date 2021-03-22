@@ -25,7 +25,7 @@ export class MountableVfs extends Vfs {
             const mount = this.mounts[n];
             //console.log(mount.path + ' -- ' + path);
 			if (path.startsWith(mount.path)) {
-				var part = path.substr(mount.path.length);
+                const part = path.substr(mount.path.length);
 				return { mount: mount, part: part };
 			}
 		}
@@ -80,12 +80,12 @@ class MountableEntry {
 
 //export class IndexedDbVfs extends Vfs {
 //	initAsync() {
-//		var request = indexedDB.open("mydatabase");
+//		const request = indexedDB.open("mydatabase");
 //
 //		request.onsuccess = (e) => {
-//			var db = <IDBDatabase>request.result;
-//			
-//			var trans = db.transaction(["objectstore1", "objectstore2", READ_WRITE);
+//			const db = <IDBDatabase>request.result;
+//
+//			const trans = db.transaction(["objectstore1", "objectstore2", READ_WRITE);
 //			trans.objectStore("objectstore1").put(myblob, "somekey");
 //			trans.objectStore("objectstore2").put(myblob, "otherkey");
 //		};

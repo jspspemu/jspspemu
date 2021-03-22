@@ -17,8 +17,8 @@ export class ShaderCache {
 	}
 
 	getProgram(vertex: VertexInfo, state: GpuState, optimized:boolean) {
-		var hash = vertex.hash;
-		hash += Math.pow(2, 32) * (state.alphaTest.enabled ? 1 : 0);
+        let hash = vertex.hash;
+        hash += Math.pow(2, 32) * (state.alphaTest.enabled ? 1 : 0);
 		hash += Math.pow(2, 33) * (state.clearing ? 1 : 0);
 		hash += Math.pow(2, 34) * (optimized ? 1 : 0);
 		if (this.programs[hash]) return this.programs[hash];
@@ -26,8 +26,8 @@ export class ShaderCache {
 	}
 
 	createProgram(vertex: VertexInfo, state: GpuState, optimized:boolean) {
-		var defines:string[] = [];
-		if (optimized) defines.push('OPTIMIZED 1');
+        const defines: string[] = [];
+        if (optimized) defines.push('OPTIMIZED 1');
 		if (vertex.transform2D) defines.push('TRANSFORM_2D 1');
 		if (vertex.hasPosition) defines.push('VERTEX_POSITION ' + vertex.position);
 		if (vertex.hasColor) defines.push('VERTEX_COLOR ' + vertex.color);
@@ -46,9 +46,9 @@ export class ShaderCache {
 
 		defines.push('VERTEX_SKINNING ' + vertex.realWeightCount);
 
-		var preppend = defines.map(item => '#define ' + item + '').join("\n");
+        const preppend = defines.map(item => '#define ' + item + '').join("\n");
 
-		return ShaderCache.shaderProgram(
+        return ShaderCache.shaderProgram(
 			this.gl,
 			preppend + "\n" + this.shaderVertString,
 			preppend + "\n" + this.shaderFragString

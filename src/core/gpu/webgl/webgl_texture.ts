@@ -47,10 +47,10 @@ export class Texture {
 		const clutState = state.texture.clut;
 		const mipmap = textureState.mipmaps[0];
 
-		var h = mipmap.textureHeight, w = mipmap.textureWidth, w2 = mipmap.bufferWidth;
+        const h = mipmap.textureHeight, w = mipmap.textureWidth, w2 = mipmap.bufferWidth;
 
-		var data = new Uint8Array(PixelConverter.getSizeInBytes(state.texture.pixelFormat, w2 * h));
-		data.set(textureData);
+        const data = new Uint8Array(PixelConverter.getSizeInBytes(state.texture.pixelFormat, w2 * h));
+        data.set(textureData);
 		//data.set(new Uint8Array(this.memory.buffer, mipmap.address, data.length));
 
 		if (state.texture.swizzled) PixelConverter.unswizzleInline(state.texture.pixelFormat, data, w2, h);
@@ -74,9 +74,9 @@ export class Texture {
 	}
 
 	private _create(callbackTex2D: () => void) {
-		var gl = this.gl;
+        const gl = this.gl;
 
-		gl.bindTexture(gl.TEXTURE_2D, this.texture);
+        gl.bindTexture(gl.TEXTURE_2D, this.texture);
 		callbackTex2D();
 		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
 		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
@@ -84,8 +84,8 @@ export class Texture {
 	}
 
 	fromBytesRGBA(data: Uint32Array, width: number, height: number) {
-		var gl = this.gl;
-		this._width = width;
+        const gl = this.gl;
+        this._width = width;
 		this._height = height;
 		this._create(() => {
 			(<any>gl).texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, width, height, 0, gl.RGBA, gl.UNSIGNED_BYTE, ArrayBufferUtils.uint32ToUint8(data));
@@ -93,9 +93,9 @@ export class Texture {
 	}
 
 	fromCanvas(canvas: HTMLCanvasElement) {
-		var gl = this.gl;
+        const gl = this.gl;
 
-		this._width = canvas.width;
+        this._width = canvas.width;
 		this._height = canvas.height;
 		this._create(() => {
 			gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, <any>canvas);
@@ -104,9 +104,9 @@ export class Texture {
 	}
 
 	bind(textureUnit: number, min: number, mag: number, wraps: number, wrapt: number) {
-		var gl = this.gl;
+        const gl = this.gl;
 
-		gl.activeTexture(gl.TEXTURE0 + textureUnit);
+        gl.activeTexture(gl.TEXTURE0 + textureUnit);
 		gl.bindTexture(gl.TEXTURE_2D, this.texture);
 		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, min);
 		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, mag);
@@ -119,21 +119,21 @@ export class Texture {
 
 	static createCanvas() {
 		/*
-		var canvas:HTMLCanvasElement = document.createElement('canvas');
+		const canvas:HTMLCanvasElement = document.createElement('canvas');
 		canvas.style.border = '1px solid white';
 		canvas.width = w2;
 		canvas.height = h;
-		var ctx = <CanvasRenderingContext2D>canvas.getContext('2d');
-		var imageData = ctx.createImageData(w2, h);
-		var u8 = imageData.data;
+		const ctx = <CanvasRenderingContext2D>canvas.getContext('2d');
+		const imageData = ctx.createImageData(w2, h);
+		const u8 = imageData.data;
 
 		ctx.clearRect(0, 0, w, h);
-		for (var n = 0; n < w2 * h * 4; n++) u8[n] = data2[n];
+		for (let n = 0; n < w2 * h * 4; n++) u8[n] = data2[n];
 		ctx.putImageData(imageData, 0, 0);
 
 		console.error('generated texture!' + texture.toString());
-		var div = document.createElement('div');
-		var textdiv = document.createElement('div');
+		const div = document.createElement('div');
+		const textdiv = document.createElement('div');
 		textdiv.innerText = texture.toString() + 'w=' + w + ',w2=' + w2 + ',' + h; 
 		div.appendChild(canvas);
 		div.appendChild(textdiv);
@@ -184,16 +184,16 @@ export class TextureHandler {
 	}
 
 	bindTexture(prog: WrappedWebGLProgram, state: GpuState, enableBilinear:boolean, buffer:ArrayBuffer, batch: OptimizedBatchTransfer) {
-		var gl = this.gl;
-		
-		var textureId = batch.textureLow + batch.clutLow * Math.pow(2, 24);
-		
-		var textureData = (batch.textureLow > 0) ? new Uint8Array(buffer, batch.textureLow, batch.textureHigh - batch.textureLow) : null;
-		var clutData = (batch.clutLow > 0) ? new Uint8Array(buffer, batch.clutLow, batch.clutHigh - batch.clutLow) : null;
+        const gl = this.gl;
 
-		var mipmap = state.texture.mipmaps[0];
+        const textureId = batch.textureLow + batch.clutLow * Math.pow(2, 24);
 
-		if (mipmap.bufferWidth == 0) return;
+        const textureData = (batch.textureLow > 0) ? new Uint8Array(buffer, batch.textureLow, batch.textureHigh - batch.textureLow) : null;
+        const clutData = (batch.clutLow > 0) ? new Uint8Array(buffer, batch.clutLow, batch.clutHigh - batch.clutLow) : null;
+
+        const mipmap = state.texture.mipmaps[0];
+
+        if (mipmap.bufferWidth == 0) return;
 		if (mipmap.textureWidth == 0) return;
 		if (mipmap.textureHeight == 0) return;
 
@@ -203,10 +203,10 @@ export class TextureHandler {
 		let clutAddress = hasClut ? clutState.address : 0;
 
 		let texture: Texture;
-		
-		var fastHash = mipmap.address + clutAddress * Math.pow(2, 24) + textureState.colorComponent * Math.pow(2, 18);
-		
-		if (!this.texturesByAddress.get(fastHash)) {
+
+        const fastHash = mipmap.address + clutAddress * Math.pow(2, 24) + textureState.colorComponent * Math.pow(2, 18);
+
+        if (!this.texturesByAddress.get(fastHash)) {
 			texture = new Texture(gl);
 			this.texturesByAddress.set(fastHash, texture);
 			this.textures.push(texture);
@@ -251,18 +251,18 @@ export class TextureHandler {
 	}
 	
 	unbindTexture(program: WrappedWebGLProgram, state: GpuState) {
-		var gl = this.gl;
-		//gl.activeTexture(gl.TEXTURE1);
+        const gl = this.gl;
+        //gl.activeTexture(gl.TEXTURE1);
 		//gl.bindTexture(gl.TEXTURE_2D, null);
 		gl.activeTexture(gl.TEXTURE0);
 		gl.bindTexture(gl.TEXTURE_2D, null);
 	}
 }
 
-var convertWrapMode = [GL.REPEAT, GL.CLAMP_TO_EDGE];
+const convertWrapMode = [GL.REPEAT, GL.CLAMP_TO_EDGE];
 
-//var convertTextureFilter = [GL.NEAREST, GL.LINEAR, GL.NEAREST, GL.LINEAR];
-//var convertTextureMimapFilter = [GL.NEAREST, GL.LINEAR, GL.NEAREST, GL.LINEAR, GL.NEAREST, GL.LINEAR, GL.NEAREST, GL.LINEAR];
+//const convertTextureFilter = [GL.NEAREST, GL.LINEAR, GL.NEAREST, GL.LINEAR];
+//const convertTextureMimapFilter = [GL.NEAREST, GL.LINEAR, GL.NEAREST, GL.LINEAR, GL.NEAREST, GL.LINEAR, GL.NEAREST, GL.LINEAR];
 /*
 export const enum TextureFilter {
 	Nearest = 0,

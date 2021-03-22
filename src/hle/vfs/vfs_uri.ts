@@ -18,9 +18,9 @@ export class UriVfs extends Vfs {
 			return PromiseFast.resolve(new MemoryVfsEntry(path, new ArrayBuffer(0)));
 		}
 
-		var url = this.getAbsoluteUrl(path);
+        const url = this.getAbsoluteUrl(path);
 
-		return UrlAsyncStream.fromUrlAsync(url).then(stream => new VfsEntryStream(stream));
+        return UrlAsyncStream.fromUrlAsync(url).then(stream => new VfsEntryStream(stream));
 	}
 
 	openDirectoryAsync(path: string) {
@@ -28,8 +28,8 @@ export class UriVfs extends Vfs {
 	}
 
 	getStatAsync(path: string): PromiseFast<VfsStat> {
-		var url = this.getAbsoluteUrl(path);
-		return statUrlAsync(url);
+        const url = this.getAbsoluteUrl(path);
+        return statUrlAsync(url);
 	}
 }
 

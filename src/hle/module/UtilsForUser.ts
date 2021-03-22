@@ -18,8 +18,8 @@ export class UtilsForUser {
 		//console.warn('Not implemented UtilsForUser.sceKernelLibcTime');
 		if (pointer == Stream.INVALID) return 0;
 
-		var result = (this.context.rtc.getCurrentUnixSeconds()) | 0;
-		if (pointer) pointer.writeInt32(result);
+        const result = (this.context.rtc.getCurrentUnixSeconds()) | 0;
+        if (pointer) pointer.writeInt32(result);
 		return result;
 	}
 

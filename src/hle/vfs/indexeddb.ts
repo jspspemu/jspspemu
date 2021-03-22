@@ -2,7 +2,7 @@
 
 const console = logger.named('indexeddb');
 
-//declare var indexedDB: any;
+//declare const indexedDB: any;
 declare const IDBKeyRange: IDBKeyRange;
 
 export interface MyStorage {

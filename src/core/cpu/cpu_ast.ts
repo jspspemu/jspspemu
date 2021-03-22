@@ -291,15 +291,15 @@ export class MipsAstBuilder extends AstBuilder {
 		return new ANodeExprLValueVar('gpr_f[' + index + ']');
 	}
 
-	tempr(index: number): ANodeExprLValueVar { return new ANodeExprLValueVar('state.temp[' + index + ']'); }
-	vector_vs(index: number): ANodeExprLValueVar { return new ANodeExprLValueVar('state.vector_vs[' + index + ']'); }
-	vector_vt(index: number): ANodeExprLValueVar { return new ANodeExprLValueVar('state.vector_vt[' + index + ']'); }
-	vfpr(index: number): ANodeExprLValueVar { return new ANodeExprLValueVar('state.vfpr[' + index + ']'); }
-	vfprc(index: number): ANodeExprLValueVar { return new ANodeExprLValueVar('state.vfprc[' + index + ']'); }
+	tempr(index: number): ANodeExprLValueVar { return new ANodeExprLValueVar(`state.temp[${index}]`); }
+	vector_vs(index: number): ANodeExprLValueVar { return new ANodeExprLValueVar(`state.vector_vs[${index}]`); }
+	vector_vt(index: number): ANodeExprLValueVar { return new ANodeExprLValueVar(`state.vector_vt[${index}]`); }
+	vfpr(index: number): ANodeExprLValueVar { return new ANodeExprLValueVar(`state.vfpr[${index}]`); }
+	vfprc(index: number): ANodeExprLValueVar { return new ANodeExprLValueVar(`state.vfprc[${index}]`); }
 
-	vfpr_i(index: number): ANodeExprLValueVar { return new ANodeExprLValueVar('state.vfpr_i[' + index + ']'); }
-	fpr(index: number): ANodeExprLValueVar { return new ANodeExprLValueVar('state.fpr[' + index + ']'); }
-	fpr_i(index: number): ANodeExprLValueVar { return new ANodeExprLValueVar('state.fpr_i[' + index + ']'); }
+	vfpr_i(index: number): ANodeExprLValueVar { return new ANodeExprLValueVar(`state.vfpr_i[${index}]`); }
+	fpr(index: number): ANodeExprLValueVar { return new ANodeExprLValueVar(`state.fpr[${index}]`); }
+	fpr_i(index: number): ANodeExprLValueVar { return new ANodeExprLValueVar(`state.fpr_i[${index}]`); }
 	fcr31_cc() { return new ANodeExprLValueVar('state.fcr31_cc'); }
 	lo() { return new ANodeExprLValueVar('state.LO'); }
 	hi() { return new ANodeExprLValueVar('state.HI'); }

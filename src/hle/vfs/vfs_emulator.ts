@@ -19,7 +19,7 @@ export class EmulatorVfs extends Vfs {
 				//output.writeInt32(1);
 				break;
 			case EmulatorDevclEnum.SendOutput:
-				var str = input.readString(input.length);
+                const str = input.readString(input.length);
 				this.output += str;
 				this.context.onStdout.dispatch(str);
 				return immediateAsync().then(_ => 0);

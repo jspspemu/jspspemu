@@ -19,9 +19,9 @@ export class MemoryVfs extends Vfs {
 		if (flags & FileOpenFlags.Truncate) {
 			this.addFile(path, new ArrayBuffer(0));
 		}
-		var file = this.files[path];
+        const file = this.files[path];
 		if (!file) {
-			var error:any = new Error(`MemoryVfs: Can't find '${path}'`);
+            const error:any = new Error(`MemoryVfs: Can't find '${path}'`);
 			console.warn(error);
 			console.warn(error['stack']);
 			return PromiseFast.reject(error);
@@ -43,8 +43,8 @@ export class MemoryVfsEntry extends VfsEntry {
 	}
 
 	writeChunkAsync(offset: number, data: ArrayBuffer): PromiseFast<number> {
-		var newData = new ArrayBuffer(Math.max(this.data.byteLength, offset + data.byteLength));
-		var newDataArray = new Uint8Array(newData);
+        const newData = new ArrayBuffer(Math.max(this.data.byteLength, offset + data.byteLength));
+        const newDataArray = new Uint8Array(newData);
 		newDataArray.set(new Uint8Array(this.data), 0);
 		newDataArray.set(new Uint8Array(data), offset);
 		this.data = newData;

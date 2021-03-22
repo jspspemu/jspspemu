@@ -2,6 +2,8 @@ import "./array"
 import "./math"
 import {MathFloat, MathUtils} from "./math";
 
+const _self: any = (typeof window != 'undefined') ? window : self;
+
 export function sprintf(...args: any[]): string {
 	//  discuss at: http://phpjs.org/functions/sprintf/
 	// original by: Ash Searle (http://hexmen.com/blog/)
@@ -25,25 +27,24 @@ export function sprintf(...args: any[]): string {
 	//   example 5: sprintf('%-03s', 'E');
 	//   returns 5: 'E00'
 
-	var regex = /%%|%(\d+\$)?([-+\'#0 ]*)(\*\d+\$|\*|\d+)?(\.(\*\d+\$|\*|\d+))?([scboxXuideEfFgG])/g;
-	var a = arguments;
-	var i = 0;
-	var format = a[i++];
+    const regex = /%%|%(\d+\$)?([-+\'#0 ]*)(\*\d+\$|\*|\d+)?(\.(\*\d+\$|\*|\d+))?([scboxXuideEfFgG])/g;
+    const a = arguments;
+    let i = 0;
+    const format = a[i++];
 
-	// pad()
-	var pad = function(str: string, len: number, chr: string|undefined, leftJustify: boolean) {
+    // pad()
+	const pad = function(str: string, len: number, chr: string|undefined, leftJustify: boolean) {
 		if (!chr) {
 			chr = ' ';
 		}
-		var padding = (str.length >= len) ? '' : new Array(1 + len - str.length >>> 0)
-			.join(chr);
-		return leftJustify ? str + padding : padding + str;
+        const padding = (str.length >= len) ? '' : new Array(1 + len - str.length >>> 0).join(chr);
+        return leftJustify ? str + padding : padding + str;
 	};
 
 	// justify()
-	var justify = function(value: string, prefix: string, leftJustify: boolean, minWidth: number, zeroPad: boolean, customPadChar: string|undefined = undefined) {
-		var diff = minWidth - value.length;
-		if (diff > 0) {
+	const justify = function(value: string, prefix: string, leftJustify: boolean, minWidth: number, zeroPad: boolean, customPadChar: string|undefined = undefined) {
+        const diff = minWidth - value.length;
+        if (diff > 0) {
 			if (leftJustify || !zeroPad) {
 				value = pad(value, minWidth, customPadChar, leftJustify);
 			} else {
@@ -54,20 +55,20 @@ export function sprintf(...args: any[]): string {
 	};
 
 	// formatBaseX()
-	var formatBaseX = function(value: number, base: number, prefix: any, leftJustify: boolean, minWidth: number, precision: number, zeroPad: boolean) {
+	const formatBaseX = function(value: number, base: number, prefix: any, leftJustify: boolean, minWidth: number, precision: number, zeroPad: boolean) {
 		// Note: casts negative numbers to positive ones
-		var number = value >>> 0;
+		const number = value >>> 0;
 		prefix = prefix && number && (<any>{
 			'2': '0b',
 			'8': '0',
 			'16': '0x'
 		})[base] || '';
-		var valueStr = prefix + pad(number.toString(base), precision || 0, '0', false);
+		const valueStr = prefix + pad(number.toString(base), precision || 0, '0', false);
 		return justify(valueStr, prefix, leftJustify, minWidth, zeroPad);
 	};
 
 	// formatString()
-	var formatString = function(value: any, leftJustify: any, minWidth: any, precision: any, zeroPad: any, customPadChar: any = undefined) {
+	const formatString = function(value: any, leftJustify: any, minWidth: any, precision: any, zeroPad: any, customPadChar: any = undefined) {
 		if (precision != null) {
 			value = value.slice(0, precision);
 		}
@@ -75,21 +76,21 @@ export function sprintf(...args: any[]): string {
 	};
 
 	// doFormat()
-	var doFormat = function(substring: any, valueIndex: any, flags: any, minWidth: any, _: any, precision: any, type: any) {
-		var number: any, prefix: any, method: any, textTransform: any, value: any;
+	const doFormat = function(substring: any, valueIndex: any, flags: any, minWidth: any, _: any, precision: any, type: any) {
+		let number: any, prefix: any, method: any, textTransform: any, value: any;
 
 		if (substring === '%%') {
 			return '%';
 		}
 
 		// parse flags
-		var leftJustify = false;
-		var positivePrefix = '';
-		var zeroPad = false;
-		var prefixBaseX = false;
-		var customPadChar = ' ';
-		var flagsl = flags.length;
-		for (var j = 0; flags && j < flagsl; j++) {
+        let leftJustify = false;
+        let positivePrefix = '';
+        let zeroPad = false;
+        let prefixBaseX = false;
+        let customPadChar = ' ';
+        const flagsl = flags.length;
+        for (let j = 0; flags && j < flagsl; j++) {
 			switch (flags.charAt(j)) {
 				case ' ':
 					positivePrefix = ' ';
@@ -225,10 +226,10 @@ export class AsyncCache<T> {
 	}
 
 	private get items() {
-		var items = <AsyncEntry<T>[]>[];
-		for (var key in this.itemsMap) {
-			var item = this.itemsMap[key];
-			if (item instanceof AsyncEntry) items.push(item);
+        const items = <AsyncEntry<T>[]>[];
+        for (let key in this.itemsMap) {
+            const item = this.itemsMap[key];
+            if (item instanceof AsyncEntry) items.push(item);
 		}
 		return items;
 	}
@@ -246,20 +247,20 @@ export class AsyncCache<T> {
 		//console.log('count => ', size, this.availableSize, this.usedSize, this.maxSize, this.items.length);
 
 		while (this.availableSize < size) {
-			var itemToDelete = this.items.min(item => item.lastUsedTime);
-			delete this.itemsMap[itemToDelete.id];
+            const itemToDelete = this.items.min(item => item.lastUsedTime);
+            delete this.itemsMap[itemToDelete.id];
 		}
 	}
 
 	getOrGenerateAsync(id: string, generator: () => PromiseFast<T>): PromiseFast<T> {
-		var item = this.itemsMap[id];
-		if (item) {
+        const item = this.itemsMap[id];
+        if (item) {
 			item.lastUsedTime = Date.now();
 			return PromiseFast.resolve(item.value);
 		} else {
 			return generator().then(value => {
-				var size = this.measure!(value);
-				this.freeUntilAvailable(size);
+                const size = this.measure!(value);
+                this.freeUntilAvailable(size);
 				this.itemsMap[id] = new AsyncEntry(id, size, 1, value, Date.now());
 				return value;
 			});
@@ -309,7 +310,7 @@ export class UidCollection<T>
     }
 
     allocate(item: T):number {
-        var id = this.lastId++;
+        const id = this.lastId++;
         this.items[id] = item;
         return id;
     }
@@ -323,8 +324,8 @@ export class UidCollection<T>
 	}
 
 	list():T[] {
-		var out = <T[]>[];
-		for (var key in this.items) out.push(this.items[key]);
+        const out = <T[]>[];
+        for (let key in this.items) out.push(this.items[key]);
 		return out;
 	}
 
@@ -348,23 +349,23 @@ declare global {
 }
 
 String.prototype.startsWith = function(value: string) {
-	var string = <string>this;
-	return string.substr(0, value.length) == value;
+    const string = <string>this;
+    return string.substr(0, value.length) == value;
 };
 
 String.prototype.endsWith = function(value: string) {
-	var string = <string>this;
-	return string.substr(-value.length) == value;
+    const string = <string>this;
+    return string.substr(-value.length) == value;
 };
 
 String.prototype.rstrip = function() {
-    var string = <string>this;
+    const string = <string>this;
     return string.replace(/\s+$/, '');
 };
 
 String.prototype.contains = function(value: string) {
-	var string = <string>this;
-	return string.indexOf(value) >= 0;
+    const string = <string>this;
+    return string.indexOf(value) >= 0;
 };
 
 interface MicrotaskCallback {
@@ -398,7 +399,6 @@ export class Microtask {
 	}
 }
 
-var _self: any = self;
 _self['polyfills'] = _self['polyfills'] || {};
 _self['polyfills']['ArrayBuffer_slice'] = !ArrayBuffer.prototype.slice;
 _self['polyfills']['performance'] = !self.performance;
@@ -438,11 +438,11 @@ declare global {
 
 if (!ArrayBuffer.prototype.slice) {
     ArrayBuffer.prototype.slice = function(begin: number, end?: number): ArrayBuffer {
-        var that = new Uint8Array(this);
+        const that = new Uint8Array(this);
         if (end == undefined) end = that.length;
-        var result = new ArrayBuffer(end - begin);
-        var resultArray = new Uint8Array(result);
-        for (var i = 0; i < resultArray.length; i++) resultArray[i] = that[i + begin];
+        const result = new ArrayBuffer(end - begin);
+        const resultArray = new Uint8Array(result);
+        for (let i = 0; i < resultArray.length; i++) resultArray[i] = that[i + begin];
         return result;
     };
 }
@@ -454,7 +454,6 @@ interface AudioContext {
 	createScriptProcessor(bufferSize: number, numInputChannels: number, numOutputChannels: number): ScriptProcessorNode;
 }
 
-var _self: any = (typeof window != 'undefined') ? window : self;
 _self['AudioContext'] = _self['AudioContext'] || _self['webkitAudioContext'];
 
 _self.navigator['getGamepads'] = _self.navigator['getGamepads'] || _self.navigator['webkitGetGamepads'];
@@ -470,14 +469,14 @@ if (!_self.requestAnimationFrame) {
 
 export class ArrayBufferUtils {
 	static copyUint8ToArrayBuffer(input:Uint8Array):ArrayBuffer {
-		var out = new ArrayBuffer(input.length);
-		new Uint8Array(out).set(input);
+        const out = new ArrayBuffer(input.length);
+        new Uint8Array(out).set(input);
 		return out;
 	}
 	
 	static hashWordCount(data:Uint32Array) {
 		let count = data.length, result = 0;
-		for (var n = 0; n < count; n++) result = (result + data[n] ^ n) | 0;
+		for (let n = 0; n < count; n++) result = (result + data[n] ^ n) | 0;
 		return result;
 	}
 	
@@ -486,16 +485,15 @@ export class ArrayBufferUtils {
 	}
 
 	static hash(data:Uint8Array) {
-		var result = 0;
-		var address = 0;
-		var count = data.length;
-		
-		
-		while (((address + data.byteOffset) & 3) != 0) { result += data[address++]; count--; }
+        let result = 0;
+        let address = 0;
+        let count = data.length;
 
-		var count2 = MathUtils.prevAligned(count, 4);
+        while (((address + data.byteOffset) & 3) != 0) { result += data[address++]; count--; }
 
-		result += this.hashWordCount(new Uint32Array(data.buffer, data.byteOffset + address, count2 / 4));
+        const count2 = MathUtils.prevAligned(count, 4);
+
+        result += this.hashWordCount(new Uint32Array(data.buffer, data.byteOffset + address, count2 / 4));
 
 		address += count2;
 		count -= count2;
@@ -536,30 +534,30 @@ export class ArrayBufferUtils {
 	static copy(input: Uint8Array, inputPosition: number, output: Uint8Array, outputPosition: number, length: number) {
 		//new Uint8Array(output.buffer, output.byteOffset + outputPosition, length).set(new Uint8Array(input.buffer, input.byteOffset + inputPosition, length));
 		output.subarray(outputPosition, outputPosition + length).set(input.subarray(inputPosition, inputPosition + length));
-		//for (var n = 0; n < length; n++) output[outputPosition + n] = input[inputPosition + n];
+		//for (let n = 0; n < length; n++) output[outputPosition + n] = input[inputPosition + n];
 	}
 	
 	static copyUint8ToUint32(from: Uint8Array) {
-		var to = new Uint32Array(from.length);
-		for (var n = 0; n < to.length; n++) to[n] = from[n];
+        const to = new Uint32Array(from.length);
+        for (let n = 0; n < to.length; n++) to[n] = from[n];
 		return to;
 	}
 	
 	static copyUint8ToUint32_rep(from: Uint8Array) {
-		var to = new Uint32Array(from.length);
-		for (var n = 0; n < to.length; n++) to[n] = from[n] | (from[n] << 8) | (from[n] << 16) | (from[n] << 24);
+        const to = new Uint32Array(from.length);
+        for (let n = 0; n < to.length; n++) to[n] = from[n] | (from[n] << 8) | (from[n] << 16) | (from[n] << 24);
 		return to;
 	}
 
-	static cloneUint8Array(input: Uint8Array) { var out = new Uint8Array(input.length); out.set(input); return out; }
-	static cloneUint16Array(input: Uint16Array) { var out = new Uint16Array(input.length); out.set(input); return out; }
-	static cloneInt16Array(input: Int16Array) { var out = new Int16Array(input.length); out.set(input); return out; }
-	static cloneUint32Array(input: Uint32Array) { var out = new Uint32Array(input.length); out.set(input); return out; }
+	static cloneUint8Array(input: Uint8Array) { const out = new Uint8Array(input.length); out.set(input); return out; }
+	static cloneUint16Array(input: Uint16Array) { const out = new Uint16Array(input.length); out.set(input); return out; }
+	static cloneInt16Array(input: Int16Array) { const out = new Int16Array(input.length); out.set(input); return out; }
+	static cloneUint32Array(input: Uint32Array) { const out = new Uint32Array(input.length); out.set(input); return out; }
 	
 	static concatU8(chunks: Uint8Array[]):Uint8Array {
-		var out = new Uint8Array(chunks.sum(chunk => chunk.length));
-		var offset = 0;
-		chunks.forEach(chunk => {
+        const out = new Uint8Array(chunks.sum(chunk => chunk.length));
+        let offset = 0;
+        chunks.forEach(chunk => {
 			out.set(chunk, offset);
 			offset += chunk.length;
 		});
@@ -567,9 +565,9 @@ export class ArrayBufferUtils {
 	}
 
 	static concatI16(chunks: Int16Array[]): Int16Array {
-		var out = new Int16Array(chunks.sum(chunk => chunk.length));
-		var offset = 0;
-		chunks.forEach(chunk => {
+        const out = new Int16Array(chunks.sum(chunk => chunk.length));
+        let offset = 0;
+        chunks.forEach(chunk => {
 			out.set(chunk, offset);
 			offset += chunk.length;
 		});
@@ -611,8 +609,8 @@ export class PromiseUtils {
 _self['requestFileSystem'] = _self['requestFileSystem'] || _self['webkitRequestFileSystem'];
 
 export function setToString(Enum: any, value: number) {
-	var items: string[] = [];
-	for (var key in Enum) {
+    const items: string[] = [];
+    for (const key in Enum) {
 		if (Enum[key] & value && (Enum[key] & value) == Enum[key]) {
 			items.push(key);
 		}
@@ -630,7 +628,7 @@ export class WaitingThreadInfo<T> {
 
 (<any>window).WaitingThreadInfo = WaitingThreadInfo;
 
-export var DebugOnceArray: { [key: string]: number; } = {};
+export const DebugOnceArray: { [key: string]: number; } = {};
 export function DebugOnce(name: string, times: number = 1) {
 	if (DebugOnceArray[name] >= times) return false;
 	if (DebugOnceArray[name]) {
@@ -647,10 +645,10 @@ export function isTouchDevice() {
 
 export class HalfFloat {
 	static fromFloat(Float: number) {
-		var i = MathFloat.reinterpretFloatAsInt(Float);
-		var s = ((i >> 16) & 0x00008000);              // sign
-		var e = ((i >> 23) & 0x000000ff) - (127 - 15); // exponent
-		var f = ((i >> 0) & 0x007fffff);              // fraction
+        const i = MathFloat.reinterpretFloatAsInt(Float);
+        const s = ((i >> 16) & 0x00008000);              // sign
+        const e = ((i >> 23) & 0x000000ff) - (127 - 15); // exponent
+        let f = ((i >> 0) & 0x007fffff);              // fraction
 
 		// need to handle NaNs and Inf?
 		if (e <= 0) {
@@ -681,9 +679,9 @@ export class HalfFloat {
 	}
 
 	static toFloat(imm16: number) {
-		var s = (imm16 >> 15) & 0x00000001; // Sign
-		var e = (imm16 >> 10) & 0x0000001f; // Exponent
-		var f = (imm16 >> 0) & 0x000003ff;  // Fraction
+        const s = (imm16 >> 15) & 0x00000001; // Sign
+        let e = (imm16 >> 10) & 0x0000001f; // Exponent
+        let f = (imm16 >> 0) & 0x000003ff;  // Fraction
 
 		// Need to handle 0x7C00 INF and 0xFC00 -INF?
 		if (e == 0) {
@@ -733,8 +731,8 @@ export function mac2string(mac: Uint8Array) {
 }
 
 export function string2mac(string: string) {
-	var array = String(string).split(':').map(item => parseInt(item, 16));
-	while (array.length < 6) array.push(0);
+    const array = String(string).split(':').map(item => parseInt(item, 16));
+    while (array.length < 6) array.push(0);
 	return new Uint8Array(array);
 }
 
@@ -810,18 +808,18 @@ export class Signal0 {
 	}
 
 	remove(callback: () => void) {
-		var index = this.callbacks.indexOf(callback);
-		if (index >= 0) {
+        const index = this.callbacks.indexOf(callback);
+        if (index >= 0) {
 			this.callbacks.splice(index, 1);
 		}
 	}
 
 	once(callback: () => void) {
-		var once = () => {
-			this.remove(once);
-			callback();
-		};
-		this.add(once);
+        const once = () => {
+            this.remove(once);
+            callback();
+        };
+        this.add(once);
 		return new Signal0Cancelable(this, once);
 	}
 
@@ -848,18 +846,18 @@ export class Signal1<T1> {
 	}
 
 	remove(callback: (v1: T1) => void) {
-		var index = this.callbacks.indexOf(callback);
-		if (index >= 0) {
+        const index = this.callbacks.indexOf(callback);
+        if (index >= 0) {
 			this.callbacks.splice(index, 1);
 		}
 	}
 
 	once(callback: (v1: T1) => void): Signal1Cancelable<T1> {
-		var once = (v1: T1) => {
-			this.remove(once);
-			callback(v1);
-		};
-		this.add(once);
+        const once = (v1: T1) => {
+            this.remove(once);
+            callback(v1);
+        };
+        this.add(once);
 		return new Signal1Cancelable(this, once);
 	}
 
@@ -886,18 +884,18 @@ export class Signal2<T1, T2> {
 	}
 
 	remove(callback: (v1: T1, v2: T2) => void) {
-		var index = this.callbacks.indexOf(callback);
-		if (index >= 0) {
+        const index = this.callbacks.indexOf(callback);
+        if (index >= 0) {
 			this.callbacks.splice(index, 1);
 		}
 	}
 
 	once(callback: (v1: T1, v2: T2) => void): Signal2Cancelable<T1, T2> {
-		var once = (v1: T1, v2: T2) => {
-			this.remove(once);
-			callback(v1, v2);
-		};
-		this.add(once);
+        const once = (v1: T1, v2: T2) => {
+            this.remove(once);
+            callback(v1, v2);
+        };
+        this.add(once);
 		return new Signal2Cancelable(this, once);
 	}
 
@@ -982,25 +980,25 @@ export class LoggerPolicies {
 	}
 }
 
-export var loggerPolicies = new LoggerPolicies();
-export var logger = new Logger(loggerPolicies, console, '');
+export const loggerPolicies = new LoggerPolicies();
+export const logger = new Logger(loggerPolicies, console, '');
 (window as any).loggerPolicies = loggerPolicies;
 (window as any).logger = logger;
 
 /*
-declare var executeCommandAsync: (code: string, args: ArrayBuffer[]) => PromiseFast<ArrayBuffer[]>;
+declare const executeCommandAsync: (code: string, args: ArrayBuffer[]) => PromiseFast<ArrayBuffer[]>;
 
 if (typeof window.document != 'undefined') {
-	var workers: Worker[] = [];
-	var workersJobs: number[] = [];
-	var lastRequestId: number = 0;
-	var resolvers: any = {};
+	const workers: Worker[] = [];
+	const workersJobs: number[] = [];
+	const lastRequestId: number = 0;
+	const resolvers: any = {};
 	[0, 1].forEach((index: number) => {
-		var ww = workers[index] = new Worker('jspspemu.js');
+		const ww = workers[index] = new Worker('jspspemu.js');
 		workersJobs[index] = 0;
 		console.log('created worker!');
 		ww.onmessage = function(event: any) {
-			var requestId = event.data.requestId;
+			const requestId = event.data.requestId;
 			workersJobs[index]--;
 			resolvers[requestId](event.data.args);
 			delete resolvers[requestId];
@@ -1009,7 +1007,7 @@ if (typeof window.document != 'undefined') {
 
 	executeCommandAsync = (code: string, args: ArrayBuffer[]) => {
 		return new PromiseFast<ArrayBuffer[]>((resolve, reject) => {
-			var requestId = lastRequestId++;
+			const requestId = lastRequestId++;
 			resolvers[requestId] = resolve;
 			if (workersJobs[0] <= workersJobs[1]) {
 				//console.log('sent to worker0');
@@ -1025,8 +1023,8 @@ if (typeof window.document != 'undefined') {
 } else {
 	//console.log('inside worker!');
 	this.onmessage = function(event: any) {
-		var requestId = event.data.requestId;
-		var args = event.data.args;
+		const requestId = event.data.requestId;
+		const args = event.data.args;
 		try {
 			eval(event.data.code);
 		} catch (e) {
@@ -1055,7 +1053,7 @@ function inflateRawArrayBufferAsync(data: ArrayBuffer): PromiseFast<ArrayBuffer>
 
 function inflateRawAsync(data: Uint8Array): PromiseFast<Uint8Array> {
 	return executeCommandAsync(`
-		var zlib = require("src/format/zlib");
+		const zlib = require("src/format/zlib");
 		args[0] = ArrayBufferUtils.fromUInt8Array(zlib.inflate_raw(new Uint8Array(args[0])));
 	`, [ArrayBufferUtils.fromUInt8Array(data)]).then(function(args: ArrayBuffer[]) {
 		if (args.length == 0) throw new Error("Can't decode");
@@ -1200,11 +1198,11 @@ export class PromiseFast<T> implements Thenable<T>, PromiseLike<T> {
 	then<Q>(resolved: (value: T) => PromiseFast<Q>, rejected?: (error: Error) => void): PromiseFast<Q>;
 	then<Q>(resolved: (value: T) => Q, rejected?: (error: Error) => void): PromiseFast<Q>;
 	then<Q>(resolved: (value: T) => PromiseFast<Q>, rejected?: (value: Error) => any): PromiseFast<Q> {
-		var promise = new PromiseFast<any>((resolve, reject) => {
+        const promise = new PromiseFast<any>((resolve, reject) => {
 			if (resolved) {
 				this._resolvedCallbacks.push((a: any) => {
 					try {
-						var result = resolved(a);
+                        const result = resolved(a);
 						if (result instanceof PromiseFast) {
 							result.then(resolve, reject);
 						} else {
@@ -1221,7 +1219,7 @@ export class PromiseFast<T> implements Thenable<T>, PromiseLike<T> {
 			if (rejected) {
 				this._rejectedCallbacks.push((a: any) => {
 					try {
-						var result = rejected(a);
+                        const result = rejected(a);
 						if (result instanceof PromiseFast) {
 							result.then(resolve, reject);
 						} else {
@@ -1365,8 +1363,8 @@ export function throwEndCycles() {
 }
 
 export function throwWaitPromise<T>(promise:PromiseFast<T>) {
-	var error:any = new Error('WaitPromise');
-	//var error:any = new Error('WaitPromise');
+    const error:any = new Error('WaitPromise');
+	//const error:any = new Error('WaitPromise');
 	error.promise = promise;
 	return error;
 }

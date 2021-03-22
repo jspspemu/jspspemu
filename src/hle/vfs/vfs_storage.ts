@@ -2,7 +2,7 @@
 import {FileMode, FileOpenFlags, Vfs, VfsEntry, VfsStat} from "./vfs";
 import {MyStorage, indexedDbOpenAsync} from "./indexeddb";
 
-var console = logger.named('vfs.storage');
+const console = logger.named('vfs.storage');
 
 export class StorageVfs extends Vfs {
 	private db: MyStorage;
@@ -100,9 +100,9 @@ class StorageVfsEntry extends VfsEntry {
 	}
 
 	writeChunkAsync(offset: number, data: ArrayBuffer): PromiseFast<number> {
-		var newContent = new ArrayBuffer(Math.max(this.file.content.byteLength, offset + data.byteLength));
-		var newContentArray = new Uint8Array(newContent);
-		newContentArray.set(new Uint8Array(this.file.content), 0);
+        const newContent = new ArrayBuffer(Math.max(this.file.content.byteLength, offset + data.byteLength));
+        const newContentArray = new Uint8Array(newContent);
+        newContentArray.set(new Uint8Array(this.file.content), 0);
 		newContentArray.set(new Uint8Array(data), offset);
 		this.file.content = newContentArray;
 		return this._writeAllAsync(newContent).then(() => data.byteLength);

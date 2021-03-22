@@ -339,8 +339,8 @@ export class PspElfLoader implements ISymbolLookup {
         const unknownFunctions:string[] = []
 
         const registerN = (nid: number, n: number) => {
-            var nfunc: NativeFunction;
-			nfunc = _module.getByNid(nid);
+            let nfunc: NativeFunction;
+            nfunc = _module.getByNid(nid);
 
 			if (!nfunc) {
 			    const nidHex = sprintf("0x%08X", nid)

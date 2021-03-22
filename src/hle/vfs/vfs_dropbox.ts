@@ -1,7 +1,7 @@
 ﻿import {PromiseFast, StringDictionary} from "../../global/utils";
 import {FileMode, FileOpenFlags, Vfs, VfsEntry, VfsStat} from "./vfs";
 
-declare var Dropbox: any;
+declare const Dropbox: any;
 
 export interface Info {
 	contentHash: any;
@@ -27,7 +27,7 @@ export class AsyncClient {
 	constructor(private key:string) {
 	}
 
-	private initPromise: PromiseFast<any>;
+	private initPromise: PromiseFast<any> | null = null;
 
 	initOnceAsync() {
 		if (!this.initPromise) {
@@ -36,7 +36,7 @@ export class AsyncClient {
 			if (this.client.isAuthenticated()) {
 				//DropboxLogged();
 				// Client is authenticated. Display UI.
-				var dropboxhtml = document.getElementById('dropbox');
+                const dropboxhtml = document.getElementById('dropbox');
 				if (dropboxhtml) dropboxhtml.innerHTML = 'logged';
 			}
 
@@ -59,13 +59,13 @@ export class AsyncClient {
 	}
 
 	writeFileAsync(fullpath: string, content: ArrayBuffer) {
-		var directory = getDirectoryPath(fullpath);
-		var basename = getBaseName(fullpath);
+        const directory = getDirectoryPath(fullpath);
+        const basename = getBaseName(fullpath);
 		if (this.statCacheValue[basename]) {
 			this.statCacheValue[basename].size = content.byteLength;
 		}
 		if (this.readdirCacheValue[directory]) {
-			var entriesInDirectory = this.readdirCacheValue[directory];
+			const entriesInDirectory = this.readdirCacheValue[directory];
 			if (!entriesInDirectory.contains(basename)) {
 				entriesInDirectory.push(basename);
 			}
@@ -98,7 +98,7 @@ export class AsyncClient {
 		});
 	}
 
-	readFileAsync(name: string, offset: number = 0, length: number = undefined):PromiseFast<ArrayBuffer> {
+	readFileAsync(name: string, offset: number = 0, length: number | undefined = undefined):PromiseFast<ArrayBuffer> {
 		return this.initOnceAsync().then(() => {
 			return new PromiseFast<any>((resolve, reject) => {
 				this.client.readFile(name, { arrayBuffer: true, start: offset, length: length }, (e:Error, data:any) => {
@@ -118,7 +118,7 @@ export class AsyncClient {
 		return this.initOnceAsync().then(() => {
 			if (!this.statCachePromise[fullpath]) {
 				this.statCachePromise[fullpath] = this.readdirAsync(getDirectoryPath(fullpath)).then((files) => {
-					var basename = getBaseName(fullpath);
+                    const basename = getBaseName(fullpath);
 					if (!files.contains(basename)) throw(new Error("folder not contains file"));
 					return new PromiseFast<any>((resolve, reject) => {
 						this.client.stat(fullpath, {}, (e:Error, data:any) => {
@@ -161,13 +161,13 @@ function getDirectoryPath(fullpath: string) {
 	return fullpath.split('/').slice(0, -1).join('/');
 }
 
-function getBaseName(fullpath: string) {
-	return fullpath.split('/').pop();
+function getBaseName(fullpath: string): string {
+	return fullpath.split('/').pop()!
 }
 
 function normalizePath(fullpath: string) {
-	var out:string[] = [];
-	var parts:string[] = fullpath.replace(/\\/g, '/').split('/');
+    const out:string[] = [];
+    const parts:string[] = fullpath.replace(/\\/g, '/').split('/');
 	parts.forEach(part => {
 		switch (part) {
 			case '.': break;
@@ -178,7 +178,7 @@ function normalizePath(fullpath: string) {
 	return out.join('/');
 }
 
-var client = new AsyncClient('4mdwp62ogo4tna1');
+const client = new AsyncClient('4mdwp62ogo4tna1');
 
 /*
 client.mkdirAsync('PSP').then(() => {
@@ -225,7 +225,7 @@ export class DropboxVfsEntry extends VfsEntry {
 		function readedErrorAsync(e: Error) {
 			if (flags & FileOpenFlags.Create) {
 				//console.log('creating file!');
-				var entry = new DropboxVfsEntry(path, path.split('/').pop(), 0, true, new Date());
+                const entry = new DropboxVfsEntry(path, path.split('/').pop(), 0, true, new Date());
 				return client.writeFileAsync(path, new ArrayBuffer(0)).then(() => {
 					//console.log('created file!');
 					return entry;
@@ -278,8 +278,8 @@ export class DropboxVfsEntry extends VfsEntry {
 	writeChunkAsync(offset: number, dataToWrite: ArrayBuffer): PromiseFast<number> {
 		return this.readChunkAsync(0, this._size).then(base => {
 			//console.log('dropbox: write chunk!', this.path, offset, dataToWrite.byteLength);
-			var newContent = new ArrayBuffer(Math.max(base.byteLength, offset + dataToWrite.byteLength));
-			var newContentArray = new Uint8Array(newContent);
+            const newContent = new ArrayBuffer(Math.max(base.byteLength, offset + dataToWrite.byteLength));
+            const newContentArray = new Uint8Array(newContent);
 			newContentArray.set(new Uint8Array(base), 0);
 			newContentArray.set(new Uint8Array(dataToWrite), offset);
 			this._size = newContent.byteLength;
@@ -311,7 +311,7 @@ export class DropboxVfsEntry extends VfsEntry {
 }
 
 /*
-var dvfs = new DropboxVfs();
+const dvfs = new DropboxVfs();
 
 dvfs.openAsync('/test', FileOpenFlags.Create | FileOpenFlags.Write | FileOpenFlags.Truncate, <FileMode>parseIntFormat('0777')).then(value => {
 	console.info('dvfs result:', value);

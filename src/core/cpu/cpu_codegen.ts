@@ -825,10 +825,14 @@ export class InstructionAst {
 		let mask = (1 << vectorSize) - 1;
 		let inv_affected_bits = ~(mask | (1 << 4) | (1 << 5));
 		//out.push(ast.raw_stm(`debugger;`));
-		out.push(ast.raw_stm(`var cc = ${conds.join(' | ')};`));
-		out.push(ast.raw_stm(`cc |= ((cc & ${mask}) != 0) << 4;`));
-		out.push(ast.raw_stm(`cc |= ((cc & ${mask}) == ${mask}) << 5;`));
-		out.push(ast.raw_stm(`state.vfprc[${VFPU_CTRL.CC}] = (state.vfprc[${VFPU_CTRL.CC}] & ${inv_affected_bits}) | cc;`));
+		out.push(ast.raw_stm(`
+		{
+		    let cc = ${conds.join(' | ')};
+		    cc |= ((cc & ${mask}) != 0) << 4;
+		    cc |= ((cc & ${mask}) == ${mask}) << 5;
+		    state.vfprc[${VFPU_CTRL.CC}] = (state.vfprc[${VFPU_CTRL.CC}] & ${inv_affected_bits}) | cc;
+        }
+        `));
 		this.eatPrefixes();
 
 		return ast.stms(out);

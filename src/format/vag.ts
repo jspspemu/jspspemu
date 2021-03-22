@@ -49,7 +49,7 @@ class VagDecoder {
 		this.blockStream.position = this.currentState.blockIndex * 16;
 		this.currentState.blockIndex++;
 
-		//var block = VagBlock.struct.read(this.blockStream);
+		//const block = VagBlock.struct.read(this.blockStream);
         const block = this.blockStream.readBytes(16);
 
         switch (block[1]) {

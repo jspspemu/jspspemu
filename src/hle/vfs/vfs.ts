@@ -41,8 +41,8 @@ export class ProxyVfs extends Vfs {
 	constructor(public parentVfsList: Vfs[]) { super(); }
 
 	private _callChainWhenError<T>(callback: (vfs:Vfs, e: Error) => void) {
-		var promise = PromiseFast.reject(new Error());
-		this.parentVfsList.forEach(parentVfs => {
+        let promise = PromiseFast.reject(new Error());
+        this.parentVfsList.forEach(parentVfs => {
 			promise = promise.catch((e) => {
 				return callback(parentVfs, e);
 			});

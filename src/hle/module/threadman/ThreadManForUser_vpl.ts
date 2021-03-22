@@ -12,20 +12,20 @@ export class ThreadManForUser {
 
 	@nativeFunction(0x56C039B5, 150, 'int', 'string/int/int/int/void*')
 	sceKernelCreateVpl(name: string, partitionId: number, attribute: VplAttributeFlags, size: number, optionsPtr: Stream) {
-		var partition = this.context.memoryManager.memoryPartitionsUid[partitionId];
-		var allocatedPartition = partition.allocate(size, (attribute & VplAttributeFlags.PSP_VPL_ATTR_ADDR_HIGH) ? MemoryAnchor.High : MemoryAnchor.Low);
+        const partition = this.context.memoryManager.memoryPartitionsUid[partitionId];
+        const allocatedPartition = partition.allocate(size, (attribute & VplAttributeFlags.PSP_VPL_ATTR_ADDR_HIGH) ? MemoryAnchor.High : MemoryAnchor.Low);
 
-		var vpl = new Vpl(name, allocatedPartition);
-		return this.vplUid.allocate(vpl);
+        const vpl = new Vpl(name, allocatedPartition);
+        return this.vplUid.allocate(vpl);
 	}
 
 	@nativeFunction(0xAF36D708, 150, 'int', 'int/int/void*')
 	sceKernelTryAllocateVpl(vplId:number, size: number, addressPtr: Stream) {
-		var vpl = this.vplUid.get(vplId)
-		//console.log('sceKernelTryAllocateVpl', vplId, size, addressPtr);
+        const vpl = this.vplUid.get(vplId);
+        //console.log('sceKernelTryAllocateVpl', vplId, size, addressPtr);
 		try {
-			var item = vpl.partition.allocateLow(size);
-			console.log('-->', item.low);
+            const item = vpl.partition.allocateLow(size);
+            console.log('-->', item.low);
 			if (addressPtr) addressPtr.writeInt32(item.low);
 			return 0;
 		} catch (e) {
