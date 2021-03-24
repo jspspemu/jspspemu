@@ -1,0 +1,3 @@
+[submodule "data/pspautotests"]
+	path = data/pspautotests
+	url = https://github.com/jspspemu/jspspemu-autotests.git
