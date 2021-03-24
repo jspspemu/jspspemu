@@ -4,6 +4,7 @@ import { WebGlPspDrawDriver } from '../core/gpu/webgl/webgl_driver';
 import { GpuStats } from '../core/gpu/gpu_stats';
 import { Emulator } from './emulator';
 import {numberToFileSize, numberToSeparator, Signal0, Signal1, WatchValue} from "../global/utils";
+import {dropboxClient} from "../hle/vfs/vfs_dropbox";
 
 interface OverlaySection {
     element: HTMLElement;
@@ -210,6 +211,10 @@ export class DebugOverlay {
         const dumpFrameCommandsList: string[] = [];
         overlay.createIntent('dump frame commands', () => {
             this.gpuDumpCommands.dispatch();
+        });
+
+        overlay.createIntent('dropbox login', () => {
+            dropboxClient.initOnceAsync()
         });
 
         overlay.createIntent('x1', () => {

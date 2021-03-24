@@ -1,25 +1,78 @@
 ﻿import {PromiseFast, StringDictionary} from "../../global/utils";
 import {FileMode, FileOpenFlags, Vfs, VfsEntry, VfsStat} from "./vfs";
+import {importScript} from "../../global/importScript";
+import {downloadFileChunkAsync} from "../../global/async";
+import {PathInfo} from "./pathinfo";
+import {FileNotFoundError} from "./errors";
 
 declare const Dropbox: any;
 
-export interface Info {
-	contentHash: any;
-	hasThumbnail: boolean;
-	humanSize: string;
-	inAppFolder: boolean;
-	isFile: boolean;
-	isFolder: boolean;
-	isRemoved: boolean;
-	mimeType: string;
-	clientModifiedAt: Date;
-	modifiedAt: Date;
-	name: string;
-	path: string;
-	size: number;
-	typeIcon: string;
-	versionTag: string;
+const DROPBOX_APP_KEY = '4mdwp62ogo4tna1'
+
+interface FileInfo {
+    ".tag": "folder" | "file" | "none"
+    id: string
+    name: string
+
+    // For files
+    client_modified?: string
+    content_hash?: string
+    rev?: string
+    server_modified?: string
+    size?: number
+
+    isRemoved?: boolean
 }
+
+class DirectoryInfo {
+    entriesByName = new Map<string, FileInfo>()
+
+    constructor(public entries: FileInfo[]) {
+        for (const entry of entries) {
+            this.entriesByName.set(entry.name, entry)
+        }
+    }
+
+    add(entry: FileInfo) {
+        this.entries.push(entry)
+        this.entriesByName.set(entry.name, entry)
+    }
+}
+
+function getCanonicalPath(name: string) {
+    const canonicalPath = '/' + name.replace(/^\/+/, '').replace(/\/+$/, '')
+    return canonicalPath == '/' ? '' : canonicalPath
+}
+
+export function dropboxTryStoreCodeAndRefresh() {
+    const params = new URLSearchParams('?' + document.location.hash.substr(1))
+    const access_token = params.get('access_token') // 938ZZZZasDVCczUAAAAAAAAAAeoICnAsSE21321321cV441GeeeeeeQQ-YQZX55542135NGtz
+    const token_type = params.get('token_type') // bearer
+    const account_id = params.get('account_id') // dbid%1212131243564577asdasdasdassaddsadsadsasdzzxassasqwq13
+    const scope = params.get('scope') // account_info.read+files.content.read+files.content.write+files.metadata.read+files.metadata.write
+
+    if (access_token) {
+        localStorage.setItem('DROPBOX_TOKEN', access_token)
+        document.location.href = '/'
+    }
+}
+
+export function getDropboxCodeOrRedirect() {
+    const token = localStorage.getItem('DROPBOX_TOKEN')
+    if (!token) {
+        document.location.href = generateDropboxAuthorizeUrl()
+    }
+    return token
+}
+
+export function generateDropboxAuthorizeUrl() {
+    return `https://www.dropbox.com/oauth2/authorize?client_id=${DROPBOX_APP_KEY}&redirect_uri=${document.location.protocol}//${document.location.host}&response_type=token`
+}
+
+export function referenceDropbox() {
+}
+
+dropboxTryStoreCodeAndRefresh()
 
 export class AsyncClient {
 	client: any;
@@ -27,180 +80,103 @@ export class AsyncClient {
 	constructor(private key:string) {
 	}
 
-	private initPromise: PromiseFast<any> | null = null;
+	private initPromise: Promise<any> | null = null;
 
-	initOnceAsync() {
+	async initOnceAsync() {
 		if (!this.initPromise) {
-			this.client = new Dropbox.Client({ key: this.key });
-
-			if (this.client.isAuthenticated()) {
-				//DropboxLogged();
-				// Client is authenticated. Display UI.
-                const dropboxhtml = document.getElementById('dropbox');
-				if (dropboxhtml) dropboxhtml.innerHTML = 'logged';
-			}
-
-			this.client.authDriver(new Dropbox.AuthDriver.Redirect({
-				redirectUrl: (document.location.host == '127.0.0.1') ? 'http://127.0.0.1/oauth_receive.html' : "https://" + document.location.host + '/oauth_receive.html'
-			}));
-
-			this.initPromise = new PromiseFast((resolve, reject) => {
-				this.client.authenticate({ interactive: true }, (e:Error) => {
-					if (e) {
-						this.initPromise = null;
-						reject(e);
-					} else {
-						resolve();
-					}
-				});
-			});
+            this.initPromise = (async () => {
+                await importScript('https://cdnjs.cloudflare.com/ajax/libs/dropbox.js/9.2.0/Dropbox-sdk.min.js')
+                const accessToken = getDropboxCodeOrRedirect()
+                this.client = new Dropbox.Dropbox({ accessToken: accessToken })
+                console.warn("Dropbox client initialized")
+            })()
 		}
-		return this.initPromise;
+		return await this.initPromise;
 	}
 
-	writeFileAsync(fullpath: string, content: ArrayBuffer) {
-        const directory = getDirectoryPath(fullpath);
-        const basename = getBaseName(fullpath);
-		if (this.statCacheValue[basename]) {
-			this.statCacheValue[basename].size = content.byteLength;
-		}
-		if (this.readdirCacheValue[directory]) {
-			const entriesInDirectory = this.readdirCacheValue[directory];
-			if (!entriesInDirectory.contains(basename)) {
-				entriesInDirectory.push(basename);
-			}
-		}
+	async writeFileAsync(fullpath: string, content: ArrayBuffer) {
+        await this.initOnceAsync()
+        const canonicalPath = getCanonicalPath(fullpath)
+	    const path = new PathInfo(canonicalPath)
+        const folderPath = path.parent!.fullPath!
+        const baseName = path.baseName
+        const statsInfo = await this.readdirInfoAsync(folderPath)
+        const entry = statsInfo.entriesByName.get(baseName)
+        if (entry) {
+            entry.size = content.byteLength
+        } else {
+            this.readdirInfoCachePromise.delete(folderPath)
+        }
 
-		return this.initOnceAsync().then(() => {
-			return new PromiseFast((resolve, reject) => {
-				this.client.writeFile(fullpath, content, (e:Error, data:any) => {
-					if (e) {
-						reject(e);
-					} else {
-						resolve(data);
-					}
-				});
-			});
-		});
+        await this.client.filesUpload({ path: canonicalPath, contents: content, mode: 'overwrite', autorename: false })
 	}
 
-	mkdirAsync(path: string) {
-		return this.initOnceAsync().then(() => {
-			return new PromiseFast((resolve, reject) => {
-				this.client.mkdir(path, (e:Error, data:any) => {
-					if (e) {
-						reject(e);
-					} else {
-						resolve(data);
-					}
-				});
-			});
-		});
-	}
-
-	readFileAsync(name: string, offset: number = 0, length: number | undefined = undefined):PromiseFast<ArrayBuffer> {
-		return this.initOnceAsync().then(() => {
-			return new PromiseFast<any>((resolve, reject) => {
-				this.client.readFile(name, { arrayBuffer: true, start: offset, length: length }, (e:Error, data:any) => {
-					if (e) {
-						reject(e);
-					} else {
-						resolve(data);
-					}
-				});
-			});
-		});
-	}
-
-	statCacheValue: StringDictionary<Info> = {};
-	statCachePromise: StringDictionary<PromiseFast<Info>> = {};
-	statAsync(fullpath: string): PromiseFast<Info> {
-		return this.initOnceAsync().then(() => {
-			if (!this.statCachePromise[fullpath]) {
-				this.statCachePromise[fullpath] = this.readdirAsync(getDirectoryPath(fullpath)).then((files) => {
-                    const basename = getBaseName(fullpath);
-					if (!files.contains(basename)) throw(new Error("folder not contains file"));
-					return this._statAsync(fullpath)
-				});
-			}
-            return this.statCachePromise[fullpath]!
-		});
-	}
-
-	private _statAsync(fullpath: string): PromiseFast<Info> {
-        return new PromiseFast<Info>((resolve, reject) => {
-            this.client.stat(fullpath, {}, (e:Error, data:any) => {
+	async mkdirAsync(path: string) {
+        await this.initOnceAsync()
+        return await new Promise((resolve, reject) => {
+            this.client.mkdir(path, (e:Error, data:any) => {
                 if (e) {
                     reject(e);
                 } else {
-                    this.statCacheValue[fullpath] = data;
                     resolve(data);
                 }
             });
         });
-    }
-
-	readdirCacheValue: StringDictionary<string[]> = {};
-	readdirCachePromise: StringDictionary<PromiseFast<string[]>> = {};
-	readdirAsync(name: string): PromiseFast<string[]> {
-		return this.initOnceAsync().then(() => {
-			if (!this.readdirCachePromise[name]) {
-				this.readdirCachePromise[name] = new PromiseFast<any>((resolve, reject) => {
-					this.client.readdir(name, {}, (e:Error, data:any) => {
-						if (e) {
-							reject(e);
-						} else {
-							this.readdirCacheValue[name] = data;
-							resolve(data);
-						}
-					});
-				});
-			}
-			return this.readdirCachePromise[name];
-		});
 	}
+
+	_cacheFileLinks = new Map<string, string>()
+
+	async readFileAsync(name: string, offset: number = 0, length: number | undefined = undefined): Promise<ArrayBuffer> {
+        await this.initOnceAsync()
+        const canonicalPath = getCanonicalPath(name)
+        if (offset === 0 && length === undefined) {
+            const result = await this.client.filesDownload({path: canonicalPath})
+            return (result.result.fileBlob as Blob).arrayBuffer()
+        }
+        if (!this._cacheFileLinks.has(canonicalPath)) {
+            const result = await this.client.filesGetTemporaryLink({path: canonicalPath})
+            this._cacheFileLinks.set(canonicalPath, result.result.link)
+        }
+        const link = this._cacheFileLinks.get(canonicalPath)!
+        return await downloadFileChunkAsync(link, offset, length)
+	}
+
+	statCachePromise: StringDictionary<Promise<FileInfo>> = {};
+	async statAsync(fullpath: string): Promise<FileInfo> {
+        const canonicalPath = getCanonicalPath(fullpath)
+        const path = new PathInfo(canonicalPath)
+        if (path.parent == null) throw new Error("Invalid path")
+        const folderInfo = await this.readdirInfoAsync(path.parent.fullPath)
+        const baseName = path.baseName
+        const info = folderInfo.entriesByName.get(baseName)
+        if (!info) {
+            return {".tag": "none", "name": baseName, id: "-"}
+            //throw new FileNotFoundError(`File '${fullpath}' not found`)
+        }
+        return info
+	}
+
+	async readdirAsync(name: string): Promise<string[]> {
+        return (await this.readdirInfoAsync(name)).entries.map(it => it.name)
+	}
+
+    readdirInfoCachePromise = new Map<string, Promise<DirectoryInfo>>()
+    async readdirInfoAsync(name: string): Promise<DirectoryInfo> {
+        const canonicalPath = getCanonicalPath(name)
+        await this.initOnceAsync()
+        if (!this.readdirInfoCachePromise.has(canonicalPath)) {
+            this.readdirInfoCachePromise.set(canonicalPath, (async () => {
+                const result = await this.client.filesListFolder({ path: canonicalPath })
+                return new DirectoryInfo(result.result.entries)
+            })())
+        }
+        return await this.readdirInfoCachePromise.get(canonicalPath)!
+    }
 }
 
-function getDirectoryPath(fullpath: string) {
-	return fullpath.split('/').slice(0, -1).join('/');
-}
+const client = new AsyncClient(DROPBOX_APP_KEY);
 
-function getBaseName(fullpath: string): string {
-	return fullpath.split('/').pop()!
-}
-
-function normalizePath(fullpath: string) {
-    const out:string[] = [];
-    const parts:string[] = fullpath.replace(/\\/g, '/').split('/');
-	parts.forEach(part => {
-		switch (part) {
-			case '.': break;
-			case '..': out.pop(); break;
-			default: out.push(part);
-		}
-	});
-	return out.join('/');
-}
-
-const client = new AsyncClient('4mdwp62ogo4tna1');
-
-/*
-client.mkdirAsync('PSP').then(() => {
-	console.log('resilt');
-}).catch(e => {
-	console.error(e);
-});
-*/
-//client.mkdirAsync('PSP/GAME');
-//client.mkdirAsync('PSP/GAME/virtual');
-
-/*
-client.writeFileAsync('/PSP/GAME/virtual/lsdlmidi.bin', new Uint8Array([1, 2, 3, 4]).buffer).then((result) => {
-	console.log(result);
-}).catch((error) => {
-	console.error(error);
-});
-*/
+export const dropboxClient = client
 
 export class DropboxVfs extends Vfs {
 	enabled = true;
@@ -214,9 +190,9 @@ export class DropboxVfs extends Vfs {
 	}
 
 	openAsync(path: string, flags: FileOpenFlags, mode: FileMode): PromiseFast<VfsEntry> {
-		path = normalizePath(path);
+		path = getCanonicalPath(path);
 		if (!this.enabled) return PromiseFast.reject(new Error("Not using dropbox"));
-		return DropboxVfsEntry.fromPathAsync(path, flags, mode);
+		return PromiseFast.ensure(DropboxVfsEntry.fromPathAsync(path, flags, mode))
 	}
 }
 
@@ -225,77 +201,89 @@ export class DropboxVfsEntry extends VfsEntry {
 		super();
 	}
 
-	static fromPathAsync(path: string, flags: FileOpenFlags, mode: FileMode): PromiseFast<DropboxVfsEntry> {
-		function readedErrorAsync(e: Error) {
+	static async fromPathAsync(path: string, flags: FileOpenFlags, mode: FileMode): Promise<DropboxVfsEntry> {
+		async function readedErrorAsync(e: Error) {
 			if (flags & FileOpenFlags.Create) {
 				//console.log('creating file!');
                 const entry = new DropboxVfsEntry(path, path.split('/').pop()!, 0, true, new Date());
-				return client.writeFileAsync(path, new ArrayBuffer(0)).then(() => {
-					//console.log('created file!');
-					return entry;
-				}).catch((e) => {
-					console.error(e);
-					throw(e);
-				});
+                try {
+                    await client.writeFileAsync(path, new ArrayBuffer(0))
+                    return entry
+                } catch (e) {
+                    console.error(e);
+                    throw(e);
+                }
 			} else {
 				throw (e);
 			}
 		}
 
-		return client.statAsync(path)
-			.then((info):any => {
-				if (info.isRemoved) {
-					return readedErrorAsync(new Error("file not exists"));
-				} else {
-					//console.log(info);
-					return new DropboxVfsEntry(path, info.name, info.size, info.isFile, info.modifiedAt);
-				}
-			})
-			.catch(e => {
-				return readedErrorAsync(e);
-			})
-		;
+		try {
+            const info = await client.statAsync(path)
+
+            if (info.isRemoved) {
+                return await readedErrorAsync(new Error("file not exists"));
+            } else {
+                //console.log(info);
+                return new DropboxVfsEntry(path, info.name, info.size!, info[".tag"] == 'file', new Date(info.server_modified || ""));
+            }
+        } catch (e) {
+            return await readedErrorAsync(e);
+        }
 	}
 
 	enumerateAsync(): PromiseFast<VfsStat[]> {
 		throw (new Error("Must implement DropboxVfsEntry.enumerateAsync"));
 	}
 
-	private cachedContent: ArrayBuffer;
+	// @ts-ignore
+    private cachedContent: ArrayBuffer;
 	private writeTimer = -1;
 
 	readChunkAsync(offset: number, length: number): PromiseFast<ArrayBuffer> {
 		//console.log('dropbox: read chunk!', this.path, offset, length);
 
-		if (this._size < 128 * 1024 * 1024) {
+        if (this._size < 128 * 1024 * 1024) {
 			if (this.cachedContent) return PromiseFast.resolve(this.cachedContent.slice(offset, offset + length));
-			return client.readFileAsync(this.path).then(data => {
+			return PromiseFast.ensure(client.readFileAsync(this.path).then(data => {
 				this.cachedContent = data;
 				return this.cachedContent.slice(offset, offset + length);
-			});
+			}))
 		} else {
 			//console.log('read dropbox file ' + this.path);
-			return client.readFileAsync(this.path, offset, offset + length);
+			return PromiseFast.ensure(client.readFileAsync(this.path, offset, (length !== undefined) ? offset + length : undefined))
 		}
 	}
 
-	writeChunkAsync(offset: number, dataToWrite: ArrayBuffer): PromiseFast<number> {
-		return this.readChunkAsync(0, this._size).then(base => {
-			//console.log('dropbox: write chunk!', this.path, offset, dataToWrite.byteLength);
-            const newContent = new ArrayBuffer(Math.max(base.byteLength, offset + dataToWrite.byteLength));
-            const newContentArray = new Uint8Array(newContent);
-			newContentArray.set(new Uint8Array(base), 0);
-			newContentArray.set(new Uint8Array(dataToWrite), offset);
-			this._size = newContent.byteLength;
-			this.cachedContent = newContent;
-			//return client.writeFileAsync(this.path, newContent).then(() => data.byteLength);
-			//console.log(newContentArray);
-			clearTimeout(this.writeTimer);
-			this.writeTimer = setTimeout(() => {
-				client.writeFileAsync(this.path, newContent);
-			}, 500) as any;
-			return dataToWrite.byteLength;
-		})
+    initialContentPromise?: Promise<Uint8Array> = undefined
+	writeCache?: Uint8Array = undefined
+
+	writeChunkAsync(offset: number, dataToWrite: ArrayBuffer, truncate?: boolean): PromiseFast<number> {
+	    return PromiseFast.ensure((async () => {
+            if (!truncate) {
+                if (!this.initialContentPromise) {
+                    this.initialContentPromise = (async () => {
+                        return new Uint8Array(await this.readAllAsync())
+                    })()
+                }
+                await this.initialContentPromise!
+                if (!this.writeCache) {
+                    this.writeCache = await this.initialContentPromise!
+                }
+            }
+            const newContent = new Uint8Array(Math.max(this.writeCache?.length ?? 0, offset + dataToWrite.byteLength));
+            if (!truncate) {
+                newContent.set(this.writeCache!)
+            }
+            newContent.set(new Uint8Array(dataToWrite), offset)
+            this.writeCache! = newContent.slice()
+
+            clearTimeout(this.writeTimer);
+            this.writeTimer = setTimeout(() => {
+                client.writeFileAsync(this.path, newContent);
+            }, 500) as any;
+            return dataToWrite.byteLength
+        })())
 	}
 
 	stat(): VfsStat {
@@ -313,6 +301,16 @@ export class DropboxVfsEntry extends VfsEntry {
 	close() {
 	}
 }
+
+
+
+(async () => {
+    //const vfs = new DropboxVfs()
+    //const file = await vfs.openAsync("/log.txt", FileOpenFlags.Read, 0o777)
+    //const file2 = (await vfs.openAsync("/demo.txt", FileOpenFlags.Write, 0o777))
+    //file2.writeAllAsync(new Uint8Array([1,2,3,4]))
+})()
+
 
 /*
 const dvfs = new DropboxVfs();

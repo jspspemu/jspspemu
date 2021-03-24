@@ -84,11 +84,11 @@ export class VfsEntry {
 	get size(): number { return this.stat().size; }
 
 	readAllAsync() { return this.readChunkAsync(0, this.size); }
-	writeAllAsync(data: ArrayBuffer) { return this.writeChunkAsync(0, data); }
+	writeAllAsync(data: ArrayBuffer) { return this.writeChunkAsync(0, data, true); }
 
 	enumerateAsync(): PromiseFast<VfsStat[]> { throw (new Error("Must override enumerateAsync : " + this)); }
 	readChunkAsync(offset: number, length: number): PromiseFast<ArrayBuffer> { throw (new Error("Must override readChunkAsync : " + this)); }
-	writeChunkAsync(offset: number, data: ArrayBuffer): PromiseFast<number> { throw (new Error("Must override writeChunkAsync : " + this)); }
+	writeChunkAsync(offset: number, data: ArrayBuffer, truncate?: boolean): PromiseFast<number> { throw (new Error("Must override writeChunkAsync : " + this)); }
 	stat(): VfsStat { throw (new Error("Must override stat")); }
 	close() { }
 }

@@ -2,6 +2,7 @@
 import { EmulatorController } from './emu/emulator_controller';
 import {DomHelp, isTouchDevice} from "./global/utils";
 import {globalReferenced} from "./emu/global";
+import { referenceDropbox } from "./hle/vfs/vfs_dropbox";
 
 globalReferenced()
 
@@ -406,3 +407,5 @@ window.addEventListener('load', () => {
 	
 	DomHelp.fromId('body').removeClass('unready'); 
 });
+
+referenceDropbox()

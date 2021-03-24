@@ -74,10 +74,17 @@ export function downloadFileAsync(url: string, headers?: any):PromiseFast<ArrayB
 	}
 }
 
-export function downloadFileChunkAsync(url: string, from: number, count: number) {
-    const to = (from + count) - 1;
+export function downloadFileChunkAsync(url: string, from: number, count?: number) {
+    let rangeString: string
+
+    if (count !== undefined) {
+        const to = (from + count) - 1;
+        rangeString = `bytes=${from}-${to}`
+    } else {
+        rangeString = `bytes=${from}-`
+    }
     return downloadFileAsync(url, {
-		'Range': 'bytes=' + from + '-' + to
+		'Range': rangeString
 	});
 }
 
