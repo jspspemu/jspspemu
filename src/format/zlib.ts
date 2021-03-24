@@ -1,321 +1,304 @@
 /** license zlib.js 2012 - imaya [ https://github.com/imaya/zlib.js ] The MIT License */
 'use strict';
 
-const exported: any = {};
-const l = exported;
-
-function p(b: string, e: any) {
-    let a = b.split(".");
-    let c = l;
-    !(a[0] in c) && c.execScript && c.execScript("let " + a[0]);
-    for (let d: string; a.length && (d = a.shift()!);) !a.length && void 0 !== e ? c[d] = e : c = c[d] ? c[d] : c[d] = {}
-}
-
-function t(b: Uint32Array | Uint8Array) {
-    let e = b.length,
-        a = 0,
-        c = Number.POSITIVE_INFINITY,
-        d: number, f: Uint32Array, g: number, h: number, k: number, m: number, r: number, n: number, s: number, J: number;
-    for (n = 0; n < e; ++n) b[n] > a && (a = b[n]), b[n] < c && (c = b[n]);
-    d = 1 << a;
-    f = new Uint32Array(d);
-    g = 1;
-    h = 0;
-    for (k = 2; g <= a;) {
-        for (n = 0; n < e; ++n)
-            if (b[n] === g) {
-                m = 0;
-                r = h;
-                for (s = 0; s < g; ++s) m = m << 1 | r & 1, r >>= 1;
-                J = g << 16 | n;
-                for (s = m; s < d; s += k) f[s] = J;
-                ++h
-            } ++g;
-        h <<= 1;
-        k <<= 1
+class Huffman {
+    constructor(public data: Uint32Array, public max: number, public min: number) {
     }
-    return [f, a, c]
-};
 
-interface u {
-    h: number;
-    k: number;
-    g: any[]
-    l: number;
-    q: boolean;
-}
+    static buildHuffmanTable(lengths: Uint8Array): Huffman {
+        const listSize = lengths.length
+        let maxCodeLength = 0
+        let minCodeLength = Number.POSITIVE_INFINITY
+        
+        for (let i = 0, il = listSize; i < il; ++i) {
+            if (lengths[i] > maxCodeLength) maxCodeLength = lengths[i]
+            if (lengths[i] < minCodeLength) minCodeLength = lengths[i]
+        }
 
-function u(b: number, e: { index?: number, bufferSize?: number, bufferType?: number, resize?: number }) {
-    this.g = [];
-    this.h = 32768;
-    this.c = this.f = this.d = this.k = 0;
-    this.input = new Uint8Array(b);
-    this.l = !1;
-    this.i = v;
-    this.q = !1;
-    if (e || !(e = {})) e.index && (this.d = e.index), e.bufferSize && (this.h = e.bufferSize), e.bufferType && (this.i = e.bufferType), e.resize && (this.q = e.resize);
-    switch (this.i) {
-        case w:
-            this.a = 32768;
-            this.b = new Uint8Array(32768 + this.h + 258);
-            break;
-        case v:
-            this.a = 0;
-            this.b = new Uint8Array(this.h);
-            this.e = this.v;
-            this.m = this.s;
-            this.j = this.t;
-            break;
-        default:
-            throw Error("invalid inflate mode");
-    }
-}
-let w = 0,
-    v = 1;
-u.prototype.u = function() {
-    for (; !this.l;) {
-        let b = x(this, 3);
-        b & 1 && (this.l = !0);
-        b >>>= 1;
-        switch (b) {
-            case 0:
-                let e = this.input,
-                    a = this.d,
-                    c = this.b,
-                    d = this.a,
-                    f = e.length,
-                    g: number = 0,
-                    h: number = 0,
-                    k = c.length,
-                    m: number = 0;
-                this.c = this.f = 0;
-                if (a + 1 >= f) throw Error("invalid uncompressed block header: LEN");
-                g = e[a++] | e[a++] << 8;
-                if (a + 1 >= f) throw Error("invalid uncompressed block header: NLEN");
-                h = e[a++] | e[a++] << 8;
-                if (g === ~h) throw Error("invalid uncompressed block header: length verify");
-                if (a + g > e.length) throw Error("input buffer is broken");
-                switch (this.i) {
-                    case w:
-                        for (; d +
-                            g > c.length;) {
-                            m = k - d;
-                            g -= m;
-                            c.set(e.subarray(a, a + m), d), d += m, a += m;
-                            this.a = d;
-                            c = this.e();
-                            d = this.a
-                        }
-                        break;
-                    case v:
-                        for (; d + g > c.length;) c = this.e({
-                            o: 2
-                        });
-                        break;
-                    default:
-                        throw Error("invalid inflate mode");
+        const size = 1 << maxCodeLength
+        const table = new Uint32Array(size)
+
+        for (let bitLength = 1, code = 0, skip = 2; bitLength <= maxCodeLength;) {
+            for (let i = 0; i < listSize; ++i) {
+                if (lengths[i] === bitLength) {
+                    let reversed = 0 
+                    for (let rtemp = code, j = 0; j < bitLength; ++j) {
+                        reversed = (reversed << 1) | (rtemp & 1)
+                        rtemp >>= 1
+                    }
+                    const value = (bitLength << 16) | i;
+                    for (let j = reversed; j < size; j += skip) table[j] = value
+                    ++code
                 }
-                c.set(e.subarray(a, a + g), d), d += g, a += g;
-                this.d = a;
-                this.a = d;
-                this.b = c;
-                break;
-            case 1:
-                this.j(y, z);
-                break;
-            case 2:
-                A(this);
-                break;
-            default:
-                throw Error("unknown BTYPE: " + b);
+            }
+            ++bitLength
+            code <<= 1
+            skip <<= 1
         }
-    }
-    return this.m()
-};
-let B = [16, 17, 18, 0, 8, 7, 9, 6, 10, 5, 11, 4, 12, 3, 13, 2, 14, 1, 15],
-    C = new Uint16Array(B),
-    D = [3, 4, 5, 6, 7, 8, 9, 10, 11, 13, 15, 17, 19, 23, 27, 31, 35, 43, 51, 59, 67, 83, 99, 115, 131, 163, 195, 227, 258, 258, 258],
-    E = new Uint16Array(D),
-    F = [0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4, 5, 5, 5, 5, 0, 0, 0],
-    G = new Uint8Array(F),
-    H = [1, 2, 3, 4, 5, 7, 9, 13, 17, 25, 33, 49, 65, 97, 129, 193, 257, 385, 513, 769, 1025, 1537, 2049, 3073, 4097, 6145, 8193, 12289, 16385, 24577],
-    I = new Uint16Array(H),
-    K = [0, 0, 0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7, 8, 8, 9, 9, 10, 10, 11, 11, 12, 12, 13,
-        13
-    ],
-    L = new Uint8Array(K),
-    M = new Uint8Array(288),
-    N: number, O: number;
-N = 0;
-for (O = M.length; N < O; ++N) M[N] = 143 >= N ? 8 : 255 >= N ? 9 : 279 >= N ? 7 : 8;
-let y = t(M),
-    P = new Uint8Array(30),
-    Q: number, R: number;
-Q = 0;
-for (R = P.length; Q < R; ++Q) P[Q] = 5;
-let z = t(P);
 
-interface CC { f: number, c: number, d: number, input: Int8Array }
-
-function x(b: CC, e: number) {
-    let a = b.f, c = b.c, d = b.input, f = b.d, g = d.length, h: number
-    for (; c < e;) {
-        if (f >= g) throw Error("input buffer is broken");
-        a |= d[f++] << c;
-        c += 8
+        return new Huffman(table, maxCodeLength, minCodeLength)
     }
-    h = a & (1 << e) - 1;
-    b.f = a >>> e;
-    b.c = c - e;
-    b.d = f;
-    return h
 }
 
-function S(b: CC, e: { 0: Int8Array, 1: number }) {
-    let a = b.f, c = b.c, d = b.input, f = b.d, g = d.length, h = e[0], k = e[1], m: number, r: number
-    for (; c < k && !(f >= g);) a |= d[f++] << c, c += 8;
-    m = h[a & (1 << k) - 1];
-    r = m >>> 16;
-    b.f = a >> r;
-    b.c = c - r;
-    b.d = f;
-    return m & 65535
-}
+const ZLIB_RAW_INFLATE_BUFFER_SIZE = 0x8000
 
-function A(b:any) {
-    function e(a:any, b:any, c:any) {
-        let e:any, d = this.p,
-            f:any, g:any;
-        for (g = 0; g < a;) switch (e = S(this, b), e) {
-            case 16:
-                for (f = 3 + x(this, 2); f--;) c[g++] = d;
-                break;
-            case 17:
-                for (f = 3 + x(this, 3); f--;) c[g++] = 0;
-                d = 0;
-                break;
-            case 18:
-                for (f = 11 + x(this, 7); f--;) c[g++] = 0;
-                d = 0;
-                break;
-            default:
-                d = c[g++] = e
-        }
-        this.p = d;
-        return c
+class RawInflate {
+    buffer: Uint8Array = new Uint8Array(0)
+    blocks: Uint8Array[] = []
+    currentLitlenTable?: Huffman
+    bufferSize = ZLIB_RAW_INFLATE_BUFFER_SIZE
+    ip = 0
+    bitsbuf = 0
+    bitsbuflen = 0
+    output = new Uint8Array(this.bufferSize)
+    op = 0
+    bfinal = false
+
+    constructor(public input: Uint8Array) {
     }
-    let a = x(b, 5) + 257,
-        c = x(b, 5) + 1,
-        d = x(b, 4) + 4,
-        f = new Uint8Array(C.length),
-        g:any, h:any, k:any, m:any;
-    for (m = 0; m < d; ++m) f[C[m]] = x(b, 3);
-    g = t(f);
-    h = new Uint8Array(a);
-    k = new Uint8Array(c);
-    b.p = 0;
-    b.j(t(e.call(b, a, g, h)), t(e.call(b, c, g, k)))
+
+    decompress() {
+        while (!this.bfinal) {
+            this.parseBlock()
+        }
+
+        return this.concatBufferDynamic()
+    }
+
+    static Order = new Uint16Array([16, 17, 18, 0, 8, 7, 9, 6, 10, 5, 11, 4, 12, 3, 13, 2, 14, 1, 15])
+    static LengthCodeTable = new Uint16Array([
+        0x0003, 0x0004, 0x0005, 0x0006, 0x0007, 0x0008, 0x0009, 0x000a, 0x000b,
+        0x000d, 0x000f, 0x0011, 0x0013, 0x0017, 0x001b, 0x001f, 0x0023, 0x002b,
+        0x0033, 0x003b, 0x0043, 0x0053, 0x0063, 0x0073, 0x0083, 0x00a3, 0x00c3,
+        0x00e3, 0x0102, 0x0102, 0x0102
+    ])
+    static LengthExtraTable = new Uint8Array([
+        0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4, 5, 5,
+        5, 5, 0, 0, 0
+    ])
+    static DistCodeTable = new Uint16Array([
+        0x0001, 0x0002, 0x0003, 0x0004, 0x0005, 0x0007, 0x0009, 0x000d, 0x0011,
+        0x0019, 0x0021, 0x0031, 0x0041, 0x0061, 0x0081, 0x00c1, 0x0101, 0x0181,
+        0x0201, 0x0301, 0x0401, 0x0601, 0x0801, 0x0c01, 0x1001, 0x1801, 0x2001,
+        0x3001, 0x4001, 0x6001
+    ])
+    static DistExtraTable = new Uint8Array([
+        0, 0, 0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7, 8, 8, 9, 9, 10, 10, 11,
+        11, 12, 12, 13, 13
+    ])
+
+    static FixedLiteralLengthTable = (() => {
+        const lengths = new Uint8Array(288)
+        for (let i = 0, il = lengths.length; i < il; ++i) lengths[i] = (i <= 143) ? 8 : (i <= 255) ? 9 : (i <= 279) ? 7 : 8
+        return Huffman.buildHuffmanTable(lengths)
+    })()
+
+    static FixedDistanceTable = (() => {
+        const lengths = new Uint8Array(30)
+        for (let i = 0, il = lengths.length; i < il; ++i) lengths[i] = 5
+        return Huffman.buildHuffmanTable(lengths)
+    })()
+    
+    parseBlock() {
+        let hdr = this.readBits(3)
+        if (hdr & 0x1) this.bfinal = true
+        hdr >>>= 1
+        switch (hdr) {
+            case 0: this.parseUncompressedBlock(); break
+            case 1: this.parseFixedHuffmanBlock(); break
+            case 2: this.parseDynamicHuffmanBlock(); break
+            default: throw new Error(`unknown BTYPE: ${hdr}`)
+        }
+    }
+
+    readBits(length: number) {
+        let bitsbuf = this.bitsbuf
+        let bitsbuflen = this.bitsbuflen
+        const input = this.input
+        let ip = this.ip
+        const inputLength = input.length
+        if (ip + ((length - bitsbuflen + 7) >> 3) >= inputLength) throw new Error('input buffer is broken')
+        while (bitsbuflen < length) {
+            bitsbuf |= input[ip++] << bitsbuflen
+            bitsbuflen += 8
+        }
+        const octet = bitsbuf & ((1 << length) - 1)
+        bitsbuf >>>= length
+        bitsbuflen -= length
+    
+        this.bitsbuf = bitsbuf
+        this.bitsbuflen = bitsbuflen
+        this.ip = ip
+    
+        return octet
+    }
+    
+    readCodeByTable(table: Huffman) {
+        let bitsbuf = this.bitsbuf
+        let bitsbuflen = this.bitsbuflen
+        let ip = this.ip
+        const input = this.input
+        const inputLength = input.length
+        const codeTable = table.data
+        const maxCodeLength: number = table.max
+        while (bitsbuflen < maxCodeLength) {
+            if (ip >= inputLength) break
+            bitsbuf |= input[ip++] << bitsbuflen
+            bitsbuflen += 8
+        }
+        const codeWithLength = codeTable[bitsbuf & ((1 << maxCodeLength) - 1)]
+        const codeLength = codeWithLength >>> 16
+        if (codeLength > bitsbuflen) throw new Error(`invalid code length: ${codeLength}`)
+        this.bitsbuf = bitsbuf >> codeLength
+        this.bitsbuflen = bitsbuflen - codeLength
+        this.ip = ip
+        return codeWithLength & 0xffff
+    }
+    
+    parseUncompressedBlock() {
+        const input = this.input
+        let ip = this.ip
+        let output = this.output
+        let op = this.op
+        const inputLength = input.length
+        this.bitsbuf = 0
+        this.bitsbuflen = 0
+        if (ip + 1 >= inputLength) throw new Error('invalid uncompressed block header: LEN')
+        const len = input[ip++] | (input[ip++] << 8)
+        if (ip + 1 >= inputLength) throw new Error('invalid uncompressed block header: NLEN')
+        const nlen = input[ip++] | (input[ip++] << 8)
+        if (len === ~nlen) throw new Error('invalid uncompressed block header: length verify')
+        if (ip + len > input.length) throw new Error('input buffer is broken')
+        while (op + len > output.length) output = this.expandBufferAdaptive(2)
+        output.set(input.subarray(ip, ip + len), op)
+        op += len
+        ip += len
+        this.ip = ip
+        this.op = op
+        this.output = output
+    }
+    
+    parseFixedHuffmanBlock() {
+        this.decodeHuffmanAdaptive(RawInflate.FixedLiteralLengthTable, RawInflate.FixedDistanceTable);
+    }
+    
+    parseDynamicHuffmanBlock() {
+        const hlit = this.readBits(5) + 257;
+        const hdist = this.readBits(5) + 1;
+        const hclen = this.readBits(4) + 4;
+        const codeLengths = new Uint8Array(RawInflate.Order.length);
+        let prev = 0
+
+        for (let i = 0; i < hclen; ++i) codeLengths[RawInflate.Order[i]] = this.readBits(3)
+
+        const codeLengthsTable = Huffman.buildHuffmanTable(codeLengths);
+        const lengthTable = new Uint8Array(hlit + hdist)
+        for (let i = 0, il = hlit + hdist; i < il;) {
+            const code = this.readCodeByTable(codeLengthsTable);
+            switch (code) {
+                case 16: {
+                    let repeat = 3 + this.readBits(2)
+                    while (repeat--) lengthTable[i++] = prev
+                    break
+                }
+                case 17: {
+                    let repeat = 3 + this.readBits(3)
+                    while (repeat--) lengthTable[i++] = 0
+                    prev = 0
+                    break
+                }
+                case 18: {
+                    let repeat = 11 + this.readBits(7)
+                    while (repeat--) lengthTable[i++] = 0
+                    prev = 0
+                    break
+                }
+                default:
+                    lengthTable[i++] = code
+                    prev = code
+                    break
+            }
+        }
+    
+        const litlenTable = Huffman.buildHuffmanTable(lengthTable.subarray(0, hlit))
+        const distTable = Huffman.buildHuffmanTable(lengthTable.subarray(hlit))
+
+        this.decodeHuffmanAdaptive(litlenTable, distTable)
+    }
+    decodeHuffmanAdaptive(litlen: Huffman, dist: Huffman) {
+        let output = this.output
+        let op = this.op
+        let code = 0
+        let olength = output.length
+        this.currentLitlenTable = litlen
+        const lengthCodeTable = RawInflate.LengthCodeTable
+        const lengthExtraTable = RawInflate.LengthExtraTable
+        const distCodeTable = RawInflate.DistCodeTable
+        const distExtraTable = RawInflate.DistExtraTable
+
+        while ((code = this.readCodeByTable(litlen)) !== 256) {
+            if (code < 256) {
+                if (op >= olength) {
+                    output = this.expandBufferAdaptive()
+                    olength = output.length
+                }
+                output[op++] = code
+                continue
+            }
+    
+            const ti = code - 257
+            let codeLength = lengthCodeTable[ti]
+            if (lengthExtraTable[ti] > 0) codeLength += this.readBits(lengthExtraTable[ti])
+
+            code = this.readCodeByTable(dist)
+            let codeDist = distCodeTable[code]
+            if (distExtraTable[code] > 0) codeDist += this.readBits(distExtraTable[code])
+
+            if (op + codeLength > olength) {
+                output = this.expandBufferAdaptive()
+                olength = output.length
+            }
+
+            while (codeLength--) output[op] = output[(op++) - codeDist]
+        }
+    
+        while (this.bitsbuflen >= 8) {
+            this.bitsbuflen -= 8
+            this.ip--
+        }
+        this.op = op
+    }
+
+    expandBufferAdaptive(ratio: number = (this.input.length / this.ip + 1) | 0) {
+        const input = this.input;
+        const output = this.output;
+
+        let newSize: number
+        if (ratio < 2) {
+            const maxHuffCode = (input.length - this.ip) / this.currentLitlenTable!.min
+            const maxInflateSize = (maxHuffCode / 2 * 258) | 0
+            newSize = (maxInflateSize < output.length) ? (output.length + maxInflateSize) : (output.length << 1)
+        } else {
+            newSize = output.length * ratio;
+        }
+    
+        const buffer = new Uint8Array(newSize)
+        buffer.set(output)
+
+        this.output = buffer
+    
+        return this.output
+    }
+
+    concatBufferDynamic() {
+        let buffer;
+        const op = this.op;
+        buffer = this.output.subarray(0, op);
+        this.buffer = buffer;
+        return this.buffer;
+    }
 }
-u.prototype.j = function(b:any, e:any) {
-    let a = this.b,
-        c = this.a;
-    this.n = b;
-    for (let d = a.length - 258, f:any, g:any, h:any, k:any; 256 !== (f = S(this, b));)
-        if (256 > f) c >= d && (this.a = c, a = this.e(), c = this.a), a[c++] = f;
-        else {
-            g = f - 257;
-            k = E[g];
-            0 < G[g] && (k += x(this, G[g]));
-            f = S(this, e);
-            h = I[f];
-            0 < L[f] && (h += x(this, L[f]));
-            c >= d && (this.a = c, a = this.e(), c = this.a);
-            for (; k--;) a[c] = a[c++ - h]
-        }
-    for (; 8 <= this.c;) this.c -= 8, this.d--;
-    this.a = c
-};
-u.prototype.t = function(b:any, e:any) {
-    let a = this.b,
-        c = this.a;
-    this.n = b;
-    for (let d = a.length, f:any, g:any, h:any, k:any; 256 !== (f = S(this, b));)
-        if (256 > f) c >= d && (a = this.e(), d = a.length), a[c++] = f;
-        else {
-            g = f - 257;
-            k = E[g];
-            0 < G[g] && (k += x(this, G[g]));
-            f = S(this, e);
-            h = I[f];
-            0 < L[f] && (h += x(this, L[f]));
-            c + k > d && (a = this.e(), d = a.length);
-            for (; k--;) a[c] = a[c++ - h]
-        }
-    for (; 8 <= this.c;) this.c -= 8, this.d--;
-    this.a = c
-};
-u.prototype.e = function() {
-    let b = new Uint8Array(this.a - 32768),
-        e = this.a - 32768,
-        a:any, c:any, d = this.b;
-    b.set(d.subarray(32768, b.length));
-    this.g.push(b);
-    this.k += b.length;
-    d.set(d.subarray(e, e + 32768));
-    this.a = 32768;
-    return d
-};
-u.prototype.v = function(b:any) {
-    let e:any, a = this.input.length / this.d + 1 | 0,
-        c:any, d:any, f:any, g = this.input,
-        h = this.b;
-    b && ("number" === typeof b.o && (a = b.o), "number" === typeof b.r && (a += b.r));
-    2 > a ? (c = (g.length - this.d) / this.n[2], f = 258 * (c / 2) | 0, d = f < h.length ? h.length + f : h.length << 1) : d = h.length * a;
-    e = new Uint8Array(d); e.set(h);
-    return this.b = e
-};
-u.prototype.m = function() {
-    let b = 0,
-        e = this.b,
-        a = this.g,
-        c:any, d = new Uint8Array(this.k + (this.a - 32768)),
-        f:any, g:any, h:any, k:any;
-    if (0 === a.length) return this.b.subarray(32768, this.a);
-    f = 0;
-    for (g = a.length; f < g; ++f) {
-        c = a[f];
-        h = 0;
-        for (k = c.length; h < k; ++h) d[b++] = c[h]
-    }
-    f = 32768;
-    for (g = this.a; f < g; ++f) d[b++] = e[f];
-    this.g = [];
-    return this.buffer = d
-};
-u.prototype.s = function() {
-    let b: any, e = this.a;
-    true ? this.q ? (b = new Uint8Array(e), b.set(this.b.subarray(0, e))) : b = this.b.subarray(0, e) : (this.b.length > e && (this.b.length = e), b = this.b);
-    return this.buffer = b
-};
-p("Zlib.RawInflate", u);
-p("Zlib.RawInflate.prototype.decompress", u.prototype.u);
-let T: any = {
-    ADAPTIVE: v,
-    BLOCK: w
-},
-    U: any, V: any, W: any, X: any;
-if (Object.keys) U = Object.keys(T);
-else
-    for (V in U = [], W = 0, T) U[W++] = V;
-W = 0;
-for (X = U.length; W < X; ++W) V = U[W], p("Zlib.RawInflate.BufferType." + V, T[V]);
 
 export function zlib_inflate_raw(data: Uint8Array): Uint8Array {
-    let clazz = exported.Zlib.RawInflate;
-    let inflate = new clazz(data);
-    return inflate.decompress();
-}
-
-export function zlib_inflate_raw_arraybuffer(data: ArrayBuffer): ArrayBuffer {
-    return zlib_inflate_raw(new Uint8Array(data)).buffer;
+    return new RawInflate(data).decompress()
 }
