@@ -22,8 +22,8 @@ export class MemoryVfs extends Vfs {
         const file = this.files[path];
 		if (!file) {
             const error:any = new Error(`MemoryVfs: Can't find '${path}'`);
-			console.warn(error);
-			console.warn(error['stack']);
+			//console.warn(error);
+			//console.warn(error['stack']);
 			return PromiseFast.reject(error);
 		} else {
 			return PromiseFast.resolve(file);

@@ -7,7 +7,10 @@ const _self: any = (typeof window != 'undefined') ? window : self;
 
 declare global {
     interface String {
+        (value: any): string;
         format(...args: any[]): string
+        rstrip(): string;
+        contains(value: string): boolean;
     }
     interface Number {
         extract(offset: number, length: number): number
@@ -28,6 +31,16 @@ Number.prototype.signExtend = function(bits: number): number { return (this << (
 
 String.prototype.format = function(...args: any[]): string {
     return sprintf(this, ...args)
+}
+
+String.prototype.rstrip = function() {
+    const string = <string>this;
+    return string.replace(/\s+$/, '');
+}
+
+String.prototype.contains = function(value: string) {
+    const string = <string>this;
+    return string.indexOf(value) >= 0;
 }
 
 export function sprintf(...args: any[]): string {
@@ -365,35 +378,6 @@ export interface NumericRange {
 	start: number;
 	end: number;
 }
-declare global {
-    interface String {
-        (value: any): string;
-        rstrip(): string;
-        contains(value: string): boolean;
-        startsWith(value: string): boolean;
-        endsWith(value: string): boolean;
-    }
-}
-
-String.prototype.startsWith = function(value: string) {
-    const string = <string>this;
-    return string.substr(0, value.length) == value;
-};
-
-String.prototype.endsWith = function(value: string) {
-    const string = <string>this;
-    return string.substr(-value.length) == value;
-};
-
-String.prototype.rstrip = function() {
-    const string = <string>this;
-    return string.replace(/\s+$/, '');
-};
-
-String.prototype.contains = function(value: string) {
-    const string = <string>this;
-    return string.indexOf(value) >= 0;
-};
 
 interface MicrotaskCallback {
 	(): void;
@@ -1423,13 +1407,3 @@ export function isInsideWorker() {
 (<any>window).throwWaitPromise = throwWaitPromise;
 (<any>window).PromiseFast = PromiseFast;
 (<any>window).DomHelp = DomHelp;
-
-declare class Map<K, V> {
-	constructor();
-	size: number;
-	clear(): void;
-	delete(key:K):boolean;
-	set(key:K, value:V):Map<K, V>;
-	get(key:K):V;
-	has(key:K):boolean;
-}

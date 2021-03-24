@@ -6,6 +6,7 @@
     "unit_test": "npx tsc && npx esbuild test/_unittests.ts --log-level=silent --bundle --platform=node --sourcemap=inline --outfile=dist/tests.js && node --enable-source-maps dist/tests.js",
     "integration_test": "npx tsc && npx esbuild test/_integrationtests.ts --log-level=silent --bundle --platform=node --sourcemap=inline --outfile=dist/tests.js && node --enable-source-maps dist/tests.js",
     "test": "npx tsc && npx esbuild test/_alltests.ts --log-level=silent --bundle --platform=node --sourcemap=inline --outfile=dist/tests.js && node --enable-source-maps dist/tests.js",
+    "test_interpreted": "npx tsc && npx esbuild test/_alltests.ts --log-level=silent --bundle --platform=node --sourcemap=inline --outfile=dist/tests.js && node --enable-source-maps dist/tests.js --interpreted",
     "docgen": "npx esbuild test/docgen.ts --log-level=silent --bundle --platform=node --sourcemap=inline --outfile=dist/docgen.js && node --enable-source-maps dist/docgen.js",
     "benchmark": "npx esbuild src/headless.ts --log-level=silent --bundle --platform=node --sourcemap=inline --outfile=dist/headless.js && node --enable-source-maps dist/headless.js data/benchmark/benchmark.prx",
     "benchmark_interpreted": "npx esbuild src/headless.ts --log-level=silent --bundle --platform=node --sourcemap=inline --outfile=dist/headless.js && node --enable-source-maps dist/headless.js --interpreted data/benchmark/benchmark.prx",

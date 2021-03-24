@@ -32,7 +32,9 @@ class ItNode {
             params.push(time)
             params.push('ms')
         }
-        console.log(...params)
+        if (this.name != '') {
+            console.log(...params)
+        }
         if (error) {
             const exception = (error.stack || error).toString().replace(/.*at.*@microtest\.ts.*/gm, '###').replace(/###(\n|$)/g, '')
             context.exceptions.push(exception)
