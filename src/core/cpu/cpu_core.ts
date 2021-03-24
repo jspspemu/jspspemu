@@ -1198,10 +1198,10 @@ export class CpuState extends Instruction {
 
         let result = false
         if (isNaN(s) || isNaN(t)) {
-            result ||= fc_unordererd
+            result = result || fc_unordererd
         } else {
-            if (fc_equal) result ||= s == t
-            if (fc_less) result ||= s < t
+            if (fc_equal) result = result || (s == t)
+            if (fc_less) result = result || (s < t)
         }
 
         this.fcr31_cc = result
