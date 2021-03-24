@@ -1,7 +1,7 @@
 ﻿import "../../../emu/global"
 import "./webgl_enums"
 import { GpuStats } from '../gpu_stats';
-import {ArrayBufferUtils, Signal1} from "../../../global/utils";
+import {addressToHex, ArrayBufferUtils, Signal1} from "../../../global/utils";
 import "./webgl_enums";
 import {MathUtils} from "../../../global/math";
 import {GL} from "./webgl_enums";
@@ -62,6 +62,7 @@ export class Texture {
             for (let n = 0; n < clut.length; n++) {
                 clut[n] = clutState.getColor(mem, n)
             }
+            //if (clutState.numberOfColors <= 16) console.warn("clut", clutState.numberOfColors, clutState.start, clutState.mask, clutState.shift, [...clut].map(it => addressToHex(it)))
 		}
 		
 		this.fromBytesRGBA(PixelConverter.decode(

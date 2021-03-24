@@ -15,6 +15,7 @@ function param2(p: number, offset: number) { return (p >> offset) & 0x3; }
 function param3(p: number, offset: number) { return (p >> offset) & 0x7; }
 function param4(p: number, offset: number) { return (p >> offset) & 0xF; }
 function param5(p: number, offset: number) { return (p >> offset) & 0x1F; }
+function param6(p: number, offset: number) { return (p >> offset) & 0x3F; }
 function param8(p: number, offset: number) { return (p >> offset) & 0xFF; }
 function param10(p: number, offset: number) { return (p >> offset) & 0x3FF; }
 function param16(p: number, offset: number) { return (p >> offset) & 0xFFFF; }
@@ -396,7 +397,8 @@ export class ClutState {
 
 	get address() { return param24(this.data[Op.CLUTADDR]) | ((this.data[Op.CLUTADDRUPPER] << 8) & 0xFF000000); }
 	get addressEnd() { return this.address + this.sizeInBytes; }
-	get numberOfColors() { return this.data[Op.CLOAD] * 8; }
+    get numberOfBlocks() { return param6(this.cload, 0); }
+	get numberOfColors() { return this.numberOfBlocks << 4; }
 	get pixelFormat() { return <PixelFormat>param2(this.data[Op.CMODE], 0); }
     get colorBits() { return PixelConverter.getSizeInBits(this.pixelFormat) }
 
@@ -405,7 +407,8 @@ export class ClutState {
 	get start() { return param5(this.data[Op.CMODE], 16); }
 	get sizeInBytes() { return PixelConverter.getSizeInBytes(this.pixelFormat, this.numberOfColors); }
 
-    getIndex(n: number) { return ((this.start + n) >>> this.shift) & this.mask }
+    //getIndex(n: number) { return ((this.start + n) >> this.shift) & this.mask }
+    getIndex(n: number) { return ((n >> this.shift) & this.mask) + (this.start << 4) }
 
     getRawColor(mem: Memory, n: number): number {
         switch (this.colorBits) {

@@ -11,6 +11,7 @@ declare global {
     }
     interface Number {
         extract(offset: number, length: number): number
+        extractBit(offset: number): boolean
         extract8(offset: number): number
         signExtend(bits: number): number
     }
@@ -18,6 +19,7 @@ declare global {
 
 Number.prototype.extract = function(offset: number, length: number): number { return BitUtils.extract(this, offset, length) }
 Number.prototype.extract8 = function(offset: number): number { return BitUtils.extract8(this, offset) }
+Number.prototype.extractBit = function(offset: number): boolean { return BitUtils.extractBool(this, offset) }
 Number.prototype.signExtend = function(bits: number): number { return (this << (32 - bits)) >> (32 - bits) }
 
 String.prototype.format = function(...args: any[]): string {
@@ -1106,7 +1108,7 @@ export function numberToFileSize(value: number) {
 	return `${value} B`;
 }
 
-export function addressToHex(address: number) {
+export function addressToHex(address: number): string {
 	return '0x' + addressToHex2(address);
 }
 
