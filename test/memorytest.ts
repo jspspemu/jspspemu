@@ -1,6 +1,6 @@
-///<reference path="./global.d.ts" />
+
 import {getMemoryInstance} from "../src/core/memory";
-import {assert} from "chai"
+import {assert, before, after, it, describe} from "./@microtest";
 
 export function ext() { }
 

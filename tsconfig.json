@@ -12,14 +12,13 @@
     "sourceMap": true,
     "typeRoots": [
     ],
-    "outDir": "output"
+    "noEmit": true
   },
   "files": [
     "src/emu/global.ts",
     "src/app.ts",
     "src/headless.ts",
-    "src/docgen.ts",
     "src/at3decoder.ts",
-    "test/_alltests.ts",
+    "test/_alltests.ts"
   ]
 }

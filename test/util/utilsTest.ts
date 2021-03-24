@@ -1,9 +1,9 @@
-﻿///<reference path="../global.d.ts" />
+﻿
 import {String_repeat} from "../../src/global/utils";
 import {Stream} from "../../src/global/stream";
 import {Int16, Int32} from "../../src/global/struct";
 import {compareNumbers} from "../../src/global/array";
-import {assert} from "chai"
+import {assert, before, after, it, describe} from "../@microtest";
 
 export function ref() { } // Workaround to allow typescript to include this module
 

@@ -1,5 +1,5 @@
-///<reference path="../global.d.ts" />
-import {assert} from "chai"
+
+import {assert, before, after, it, describe} from "../@microtest";
 
 describe('codegen', () => {
 	describe('relooper', () => {

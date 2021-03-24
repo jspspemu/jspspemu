@@ -1,8 +1,9 @@
-﻿///<reference path="../global.d.ts" />
+﻿
+
 import {downloadFileAsync} from "../../src/global/async";
 import {Stream} from "../../src/global/stream";
 import {Pbp} from "../../src/format/pbp";
-import {assert} from "chai"
+import {assert, before, after, it, describe} from "../@microtest";
 
 export function ref() { } // Workaround to allow typescript to include this module
 

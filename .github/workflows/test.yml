@@ -12,7 +12,9 @@ jobs:
         with:
           submodules: true
       - name: Install
-        run: yarn install
+        run: npm install
+      - name: Check TypeScript
+        run: yarn check_typescript
       - name: Build
         run: yarn build
       - name: Unit Test

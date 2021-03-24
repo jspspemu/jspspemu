@@ -1,7 +1,7 @@
-﻿///<reference path="./global.d.ts" />
+﻿
 
 import {MemoryAsyncStream, Stream} from "../src/global/stream";
-import {assert} from "chai"
+import {assert, before, after, it, describe} from "./@microtest";
 
 export function ref() { } // Workaround to allow typescript to include this module
 
@@ -230,7 +230,7 @@ describe('pspautotests', function () {
 		mlogger.groupEnd();
 
 
-		assert.isTrue(output == expected, "Output not expected. " + distinctLines + "/" + totalLines + " lines didn't match. Please check mlogger for details.");
+		assert.ok(output == expected, "Output not expected. " + distinctLines + "/" + totalLines + " lines didn't match. Please check mlogger for details.");
 	}
 
     let groupCollapsed = false;

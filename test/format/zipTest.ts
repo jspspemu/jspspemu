@@ -1,9 +1,9 @@
-﻿///<reference path="../global.d.ts" />
+﻿
 import {downloadFileAsync} from "../../src/global/async";
 import {MemoryAsyncStream, Stream} from "../../src/global/stream";
 import {Zip} from "../../src/format/zip";
 import {ZipVfs} from "../../src/hle/vfs/vfs_zip";
-import {assert} from "chai"
+import {assert, before, after, it, describe} from "../@microtest";
 
 export function ref() { } // Workaround to allow typescript to include this module
 

@@ -1,5 +1,5 @@
-﻿///<reference path="./global.d.ts" />
-import {assert} from "chai"
+﻿
+import {assert, before, after, it, describe} from "./@microtest";
 import {CpuInstructions} from "../src/core/cpu/cpu_instructions";
 
 export function ref() { } // Workaround to allow typescript to include this module

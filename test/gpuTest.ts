@@ -1,7 +1,6 @@
-﻿///<reference path="./global.d.ts" />
+﻿
 
-//import {assert} from "chai"
-//import {ColorEnum, IndexEnum, NumericEnum, VertexInfo} from "../src/core/gpu/gpu_state";
+import {assert, before, after, it, describe} from "./@microtest";
 
 export function ref() { } // Workaround to allow typescript to include this module
 

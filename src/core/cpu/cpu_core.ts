@@ -495,7 +495,8 @@ export class CpuState extends Instruction {
                 case VCondition.GE: c = s[i] >= t[i]; break;
                 case VCondition.GT: c = s[i] > t[i]; break;
 
-                case VCondition.EZ: c = s[i] == 0.0 || s[i] == -0.0; break;
+                //case VCondition.EZ: c = s[i] === 0.0 || s[i] === -0.0; break;
+                case VCondition.EZ: c = s[i] === 0.0; break;
                 case VCondition.EN: c = MathFloat.isnan(s[i]); break;
                 case VCondition.EI: c = MathFloat.isinf(s[i]); break;
                 case VCondition.ES: c = MathFloat.isnanorinf(s[i]); break;   // Tekken Dark Resurrection

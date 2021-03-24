@@ -1,5 +1,5 @@
-﻿///<reference path="./global.d.ts" />
-import {assert} from "chai"
+﻿
+import {assert, before, after, it, describe} from "./@microtest";
 import {addressToHex, addressToHex2, StringDictionary} from "../src/global/utils";
 import {MipsAssembler} from "../src/core/cpu/cpu_assembler";
 import {TestMemory} from "../src/core/memory";

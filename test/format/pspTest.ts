@@ -1,6 +1,5 @@
-﻿///<reference path="../global.d.ts" />
+﻿import {assert, before, after, it, describe} from "../@microtest";
 import {Stream} from "../../src/global/stream";
-import {assert} from "chai"
 
 export function ref() { } // Workaround to allow typescript to include this module
 
@@ -22,7 +21,7 @@ describe('psp', () => {
         assert.equal(resultByteArray.length, expectedByteArray.length);
 		for (let n = 0; n < resultByteArray.length; n++) {
 			if (resultByteArray[n] != expectedByteArray[n]) {
-				assert.equal(resultByteArray[n], expectedByteArray[n], "failed at " + n + ' with total length ' + resultByteArray.length);
+				assert.equal(resultByteArray[n], expectedByteArray[n], `failed at ${n} with total length ${resultByteArray.length}`);
 			}
 		}
 	})

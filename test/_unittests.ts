@@ -1,9 +1,11 @@
-﻿///<reference path="./global.d.ts" />
+﻿
 
 import '../src/emu/global';
 import {LoggerLevel, loggerPolicies} from "../src/global/utils";
 
 loggerPolicies.minLogLevel = LoggerLevel.WARN
+
+import './@microtest';
 
 import './format/pspTest';
 import './format/csoTest';
@@ -18,6 +20,7 @@ import './util/utilsTest';
 import './testasm';
 import './gpuTest';
 import './instructionTest';
+import './memorytest';
 import './hle/elfTest';
 import './promisetest';
 import './cpu/cpu_interpreterTest';

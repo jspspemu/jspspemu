@@ -1,5 +1,4 @@
 ///<reference path="../node_modules/@types/node/index.d.ts" />
-///<reference path="../node_modules/@types/jsdom/ts3.5/index.d.ts" />
 
 import {Atrac3PlusUtil, AtracFileInfo} from "./me/atrac3plus/Atrac3PlusUtil";
 import * as fs from "fs";

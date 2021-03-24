@@ -1,5 +1,5 @@
-﻿///<reference path="../global.d.ts" />
-import {assert} from "chai"
+﻿
+import {assert, before, after, it, describe} from "../@microtest";
 import {downloadFileAsync} from "../../src/global/async";
 import {DelayedAsyncStream, MemoryAsyncStream, Stream} from "../../src/global/stream";
 import {ArrayBufferUtils} from "../../src/global/utils";
@@ -11,7 +11,6 @@ import {FileOpenFlags} from "../../src/hle/vfs/vfs";
 import {StorageVfs} from "../../src/hle/vfs/vfs_storage";
 import {MemoryStickVfs} from "../../src/hle/vfs/vfs_ms";
 import {MemoryVfs} from "../../src/hle/vfs/vfs_memory";
-import {catchExceptionAsync} from "../util/testUtils";
 
 export function ref() { } // Workaround to allow typescript to include this module
 
@@ -47,7 +46,7 @@ describe('vfs', async () => {
             assert.equal(5, data.byteLength)
         }
         {
-            const e = await catchExceptionAsync(async () => { await storageVfs.readAllAsync('nonExistant') })
+            const e = await assert.catchExceptionAsync(async () => { await storageVfs.readAllAsync('nonExistant') })
             assert.equal("File 'nonExistant' doesn't exist", e.message)
         }
         {
@@ -81,7 +80,7 @@ describe('vfs', async () => {
             assert.equal(5, data.byteLength);
         }
         {
-            const e = await catchExceptionAsync(async () => { await msVfs.readAllAsync('nonExistant') })
+            const e = await assert.catchExceptionAsync(async () => { await msVfs.readAllAsync('nonExistant') })
             assert.equal("File 'nonExistant' doesn't exist", e.message);
         }
 	});

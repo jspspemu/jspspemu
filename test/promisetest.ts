@@ -1,7 +1,4 @@
-///<reference path="./global.d.ts" />
-
-import {assert} from "chai"
-
+import {assert, before, after, it, describe} from "./@microtest";
 import {PromiseFast} from "../src/global/utils";
 import {waitAsync} from "../src/global/async";
 

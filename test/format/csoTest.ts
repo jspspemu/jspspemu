@@ -1,6 +1,7 @@
-﻿///<reference path="../global.d.ts" />
+﻿
+
 import {downloadFileAsync} from "../../src/global/async";
-import {assert} from "chai"
+import {assert, before, after, it, describe} from "../@microtest";
 import {MemoryAsyncStream, Stream} from "../../src/global/stream";
 import {Cso} from "../../src/format/cso";
 import {Iso} from "../../src/format/iso";
