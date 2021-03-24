@@ -1,5 +1,0 @@
-go into common/
-make
-
-go into each test
-make
