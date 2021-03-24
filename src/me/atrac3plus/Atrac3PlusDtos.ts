@@ -8,7 +8,6 @@ import {Atrac3plusConstants} from "./Atrac3plusConstants";
 type Int = number
 function BooleanArray(size: number) { return ArrayUtils.create(size, _ => false) }
 function FloatArray(size: number) { return new Float32Array(size) }
-function intArrayOf(...values: number[]) { return new Int32Array(values) }
 function arrayOf<T>(...values: T[]) { return values }
 
 export class WaveEnvelope {

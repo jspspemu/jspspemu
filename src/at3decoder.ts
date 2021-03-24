@@ -8,19 +8,6 @@ import {IMemory} from "./me/MeUtils";
 
 type Int = number
 
-//const fileName = "c:\\temp\\bgm01.at3"
-const fileName = "c:\\temp\\bgm012.at3"
-const s = fs.readFileSync(fileName)
-const info = new AtracFileInfo()
-Atrac3PlusUtil.analyzeRiffFile(Stream.fromUint8Array(s), 0, s.length, info)
-console.info(info)
-
-const out = new GrowableStream()
-const decoder = new Atrac3plusDecoder()
-const nchannels = 2
-console.log(`decoder.init(${info.atracBytesPerFrame}, ${info.atracChannels}, ${nchannels}, 0)`)
-decoder.init(info.atracBytesPerFrame, info.atracChannels, nchannels, 0)
-
 class MyMemory implements IMemory {
     constructor(public s: Uint8Array) {
     }
@@ -30,15 +17,41 @@ class MyMemory implements IMemory {
     }
 }
 
-const mem = new MyMemory(s);
 
-let ipos = info.inputFileDataOffset
+//const fileName = "c:\\temp\\bgm01.at3"
+const fileName = "c:\\temp\\bgm012.at3"
+const s = fs.readFileSync(fileName)
+let lastOut
+
 while (true) {
-    const res = decoder.decode(mem, ipos, s.length, out)
-    if (res <= 10) {
-        console.log(`res: ${res}`)
-        break
+    const start = performance.now()
+    const info = new AtracFileInfo()
+    Atrac3PlusUtil.analyzeRiffFile(Stream.fromUint8Array(s), 0, s.length, info)
+    //console.info(info)
+
+    const out = new GrowableStream()
+    lastOut = out
+    const decoder = new Atrac3plusDecoder()
+    const nchannels = 2
+    //console.log(`decoder.init(${info.atracBytesPerFrame}, ${info.atracChannels}, ${nchannels}, 0)`)
+    decoder.init(info.atracBytesPerFrame, info.atracChannels, nchannels, 0)
+
+    const mem = new MyMemory(s);
+
+    let ipos = info.inputFileDataOffset
+    while (true) {
+        const res = decoder.decode(mem, ipos, s.length - ipos, out)
+        //console.log(`res: ${res} : ${out.position}`)
+        if (res <= 0) {
+            break
+        }
+        ipos += info.atracBytesPerFrame
     }
-    ipos += info.atracBytesPerFrame
+    //
+    const end = performance.now()
+    console.log("decoding time", end - start)
+
+    break
 }
-fs.writeFileSync("c:/temp/jspspemu.atrac3plus.raw", out.toByteArray())
+
+fs.writeFileSync("c:/temp/jspspemu.atrac3plus.raw", lastOut.toByteArray())

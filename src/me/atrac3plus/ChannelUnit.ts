@@ -3,13 +3,11 @@ import {Atrac3plusDsp} from "./Atrac3plusDsp";
 import {AtracGainInfo, Channel, ChannelUnitContext, Context, WavesData} from "./Atrac3PlusDtos";
 import {logger} from "../../global/utils";
 import {Atrac3plusData1, Atrac3pSpecCodeTab} from "./Atrac3plusData1";
-import {ArrayUtils} from "../../global/math";
+import {ArrayUtils, BitUtils} from "../../global/math";
 import {Atrac3plusData2} from "./Atrac3plusData2";
-import {Atrac3plusDecoder} from "./Atrac3plusDecoder";
 import {Atrac3plusConstants} from "./Atrac3plusConstants";
 
 function intArrayOf(...values: number[]) { return new Int32Array(values) }
-function floatArrayOf(...values: number[]) { return new Float32Array(values) }
 function arrayOf<T>(...values: T[]) { return values }
 
 type Int = number
@@ -443,7 +441,7 @@ export class ChannelUnit {
     
                     for (let i = 0; i < this.ctx.usedQuantUnits; i++) {
                         const delta = vlcTab!!.getVLC2(this.br)
-                        chan.quSfIdx[i] = (chan.quSfIdx[i] + delta.signExtend(4)) & 0x3F
+                        chan.quSfIdx[i] = (chan.quSfIdx[i] + BitUtils.signExtend(delta, 4)) & 0x3F
                     }
                 }
                 break;
@@ -469,7 +467,7 @@ export class ChannelUnit {
     
                         for (let i = 1; i < this.ctx.usedQuantUnits; i++) {
                             const delta = vlcTab.getVLC2(this.br)
-                            diff = diff + delta.signExtend(4) & 0x3F
+                            diff = diff + BitUtils.signExtend(delta, 4) & 0x3F
                             chan.quSfIdx[i] = (diff + chan.quSfIdx[i]) & 0x3F
                         }
                     } else {
@@ -674,7 +672,7 @@ export class ChannelUnit {
 					for (let i = 0; i < numCoeffs; i++) {
 						var cf = _val & mask
 						if (isSigned) {
-							cf = cf.signExtend(bits)
+							cf = BitUtils.signExtend(cf, bits)
 						} else if (cf != 0 && this.br.readBool()) {
 							cf = -cf
 						}
@@ -1246,7 +1244,7 @@ export class ChannelUnit {
                 for (let sb = 0; sb < this.ctx.wavesInfo.numToneBands; sb++) {
                     if (bandHasTones[sb]) {
                         var delta = ChannelUnit.tone_vlc_tabs[2].getVLC2(this.br)
-                        delta = delta.signExtend(3)
+                        delta = BitUtils.signExtend(delta, 3)
                         dst[sb].numWavs = ref[sb].numWavs + delta & 0xF
                     }
                 }
@@ -1323,7 +1321,7 @@ export class ChannelUnit {
 				const owav = dst[sb].startIndex
 				for (let i = 0; i < dst[sb].numWavs; i++) {
 					var delta = ChannelUnit.tone_vlc_tabs[6]!!.getVLC2(this.br)
-					delta = delta.signExtend(8)
+					delta = BitUtils.signExtend(delta, 8)
 					const pred = (i < ref[sb].numWavs) ? this.ctx.wavesInfo.waves[iwav + i]!!.freqIndex : ((ref[sb].numWavs > 0) ? this.ctx.wavesInfo.waves[iwav + ref[sb].numWavs - 1]!!.freqIndex : 0)
                     this.ctx.wavesInfo.waves[owav + i]!!.freqIndex = pred + delta & 0x3FF
 				}
@@ -1412,7 +1410,7 @@ export class ChannelUnit {
                     }
                     for (let i = 0; i < dst[sb].numWavs; i++) {
                         var delta = ChannelUnit.tone_vlc_tabs[5]!!.getVLC2(this.br)
-                        delta = delta.signExtend(5)
+                        delta = BitUtils.signExtend(delta, 5)
                         const pred = (refwaves[dst[sb].startIndex + i] >= 0) ? this.ctx.wavesInfo.waves[refwaves[dst[sb].startIndex + i]]!!.ampSf : 34
                         this.ctx.wavesInfo.waves[dst[sb].startIndex + i]!!.ampSf = pred + delta & 0x3F
                     }

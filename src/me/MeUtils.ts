@@ -44,11 +44,11 @@ export class CodecUtils {
         decodedChannels: Int,
         outputChannels: Int
     ) {
+        const samples0 = samples[0]
         switch (outputChannels) {
             case 1: {
                 for (let i = 0; i < numberOfSamples; i++) {
-                    const sample = this.convertSampleFloatToInt16(samples[0][i])
-                    output.writeInt16LE(sample)
+                    output.writeInt16LE(this.convertSampleFloatToInt16(samples0[i]))
                 }
                 break;
             }
@@ -56,16 +56,15 @@ export class CodecUtils {
                 if (decodedChannels == 1) {
                     // Convert decoded mono into output stereo
                     for (let i = 0; i < numberOfSamples; i++) {
-                        const sample = this.convertSampleFloatToInt16(samples[0][i])
+                        const sample = this.convertSampleFloatToInt16(samples0[i])
                         output.writeInt16LE(sample)
                         output.writeInt16LE(sample)
                     }
                 } else {
+                    const samples1 = samples[1]
                     for (let i = 0; i < numberOfSamples; i++) {
-                        const lsample = this.convertSampleFloatToInt16(samples[0][i])
-                        const rsample = this.convertSampleFloatToInt16(samples[1][i])
-                        output.writeInt16LE(lsample)
-                        output.writeInt16LE(rsample)
+                        output.writeInt16LE(this.convertSampleFloatToInt16(samples0[i]))
+                        output.writeInt16LE(this.convertSampleFloatToInt16(samples1[i]))
                     }
                 }
                 break;
@@ -828,6 +827,7 @@ export class FFT {
 	// pre/post rotation tables
 	tcos = new Float32Array(0)
 	tsin = new Float32Array(0)
+    private TEMP_FLOAT4 = new Float32Array(4)
 
 	copy(that: FFT) {
 		this.nbits = that.nbits
@@ -928,10 +928,10 @@ export class FFT {
 		const n8 = n >> 3
 
 		// pre rotation
-		var in1 = 0
-		var in2 = n2 - 1
+        let in1 = 0;
+        let in2 = n2 - 1;
         for (let k = 0; k < n4; k++) {
-			const j = this.revtab!![k]
+			const j = this.revtab[k]
             FFT.CMUL(output, outputOffset + j * 2, outputOffset + j * 2 + 1, input[inputOffset + in2], input[inputOffset + in1], this.tcos[k], this.tsin[k])
 			in1 += 2
 			in2 -= 2
@@ -939,14 +939,18 @@ export class FFT {
         this.fftCalcFloat(output, outputOffset)
 
 		// post rotation + reordering
-		const r = new Float32Array(4)
-        for (let k = 0; k < n8; k++) {
-			FFT.CMUL(r, 0, 3, output[outputOffset + (n8 - k - 1) * 2 + 1], output[outputOffset + (n8 - k - 1) * 2 + 0], this.tsin[n8 - k - 1], this.tcos[n8 - k - 1])
-			FFT.CMUL(r, 2, 1, output[outputOffset + (n8 + k) * 2 + 1], output[outputOffset + (n8 + k) * 2 + 0], this.tsin[n8 + k], this.tcos[n8 + k])
-			output[outputOffset + (n8 - k - 1) * 2 + 0] = r[0]
-			output[outputOffset + (n8 - k - 1) * 2 + 1] = r[1]
-			output[outputOffset + (n8 + k) * 2 + 0] = r[2]
-			output[outputOffset + (n8 + k) * 2 + 1] = r[3]
+		const r = this.TEMP_FLOAT4
+        for (let i = 0; i < n8; i++) {
+            const offset0 = (outputOffset + (n8 - i - 1) * 2 + 0)|0
+            const offset1 = (outputOffset + (n8 - i - 1) * 2 + 1)|0
+            const offset2 = (outputOffset + (n8 + i) * 2 + 0)|0
+            const offset3 = (outputOffset + (n8 + i) * 2 + 1)|0
+            FFT.CMUL(r, 0, 3, output[offset1], output[offset0], this.tsin[n8 - i - 1], this.tcos[n8 - i - 1])
+            FFT.CMUL(r, 2, 1, output[offset3], output[offset2], this.tsin[n8 + i], this.tcos[n8 + i])
+			output[offset0] = r[0]
+			output[offset1] = r[1]
+			output[offset2] = r[2]
+			output[offset3] = r[3]
 		}
 	}
 
@@ -1195,28 +1199,36 @@ export class FFT {
 
 		// pre rotation
         for (let i = 0; i < n8; i++) {
-			var re = -input[inputOffset + 2 * i + n3] - input[inputOffset + n3 - 1 - 2 * i]
-			var im = -input[inputOffset + n4 + 2 * i] + input[inputOffset + n4 - 1 - 2 * i]
-			var j = this.revtab!![i]
-            FFT.CMUL(output, outputOffset + 2 * j + 0, outputOffset + 2 * j + 1, re, im, -this.tcos[i], this.tsin[i])
+            {
+                const re = -input[inputOffset + 2 * i + n3] - input[inputOffset + n3 - 1 - 2 * i]
+                const im = -input[inputOffset + n4 + 2 * i] + input[inputOffset + n4 - 1 - 2 * i]
+                const j = this.revtab[i]
+                FFT.CMUL(output, outputOffset + 2 * j + 0, outputOffset + 2 * j + 1, re, im, -this.tcos[i], this.tsin[i])
+            }
 
-			re = input[inputOffset + 2 * i] - input[inputOffset + n2 - 1 - 2 * i]
-			im = -input[inputOffset + n2 + 2 * i] - input[inputOffset + n - 1 - 2 * i]
-			j = this.revtab!![n8 + i]
-            FFT.CMUL(output, outputOffset + 2 * j + 0, outputOffset + 2 * j + 1, re, im, -this.tcos[n8 + i], this.tsin[n8 + i])
+            {
+                const re = input[inputOffset + 2 * i] - input[inputOffset + n2 - 1 - 2 * i]
+                const im = -input[inputOffset + n2 + 2 * i] - input[inputOffset + n - 1 - 2 * i]
+                const j = this.revtab[n8 + i]
+                FFT.CMUL(output, outputOffset + 2 * j + 0, outputOffset + 2 * j + 1, re, im, -this.tcos[n8 + i], this.tsin[n8 + i])
+            }
 		}
 
         this.fftCalcFloat(output, outputOffset)
 
 		// post rotation
-		const r = new Float32Array(4)
+		const r = this.TEMP_FLOAT4
         for (let i = 0; i < n8; i++) {
-            FFT.CMUL(r, 3, 0, output[outputOffset + (n8 - i - 1) * 2 + 0], output[outputOffset + (n8 - i - 1) * 2 + 1], -this.tsin[n8 - i - 1], -this.tcos[n8 - i - 1])
-            FFT.CMUL(r, 1, 2, output[outputOffset + (n8 + i) * 2 + 0], output[outputOffset + (n8 + i) * 2 + 1], -this.tsin[n8 + i], -this.tcos[n8 + i])
-			output[outputOffset + (n8 - i - 1) * 2 + 0] = r[0]
-			output[outputOffset + (n8 - i - 1) * 2 + 1] = r[1]
-			output[outputOffset + (n8 + i) * 2 + 0] = r[2]
-			output[outputOffset + (n8 + i) * 2 + 1] = r[3]
+            const offset0 = (outputOffset + (n8 - i - 1) * 2 + 0)|0
+            const offset1 = (outputOffset + (n8 - i - 1) * 2 + 1)|0
+            const offset2 = (outputOffset + (n8 + i) * 2 + 0)|0
+            const offset4 = (outputOffset + (n8 + i) * 2 + 1)|0
+            FFT.CMUL(r, 3, 0, output[offset0], output[offset1], -this.tsin[n8 - i - 1], -this.tcos[n8 - i - 1])
+            FFT.CMUL(r, 1, 2, output[offset2], output[offset4], -this.tsin[n8 + i], -this.tcos[n8 + i])
+			output[offset0] = r[0]
+			output[offset1] = r[1]
+			output[offset2] = r[2]
+			output[offset4] = r[3]
 		}
 	}
 

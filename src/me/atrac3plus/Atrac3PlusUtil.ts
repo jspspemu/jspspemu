@@ -104,7 +104,9 @@ export class Atrac3PlusUtil {
 								restChunk += " %02X".format(b)
 							}
 							if (restChunk.length > 0) {
-								log.trace("Additional chunk data:%s".format(restChunk))
+							    if (log.isTraceEnabled) {
+                                    log.trace("Additional chunk data:%s".format(restChunk))
+                                }
 							}
 						}
 
@@ -153,7 +155,9 @@ export class Atrac3PlusUtil {
 								loop.fraction = this.readUnaligned32(mem, loopInfoAddr + 16)
 								loop.playCount = this.readUnaligned32(mem, loopInfoAddr + 20)
 
-								log.trace("Loop #%d: %s".format(i, loop.toString()))
+                                if (log.isTraceEnabled) {
+                                    log.trace("Loop #%d: %s".format(i, loop.toString()))
+                                }
 								loopInfoAddr += 24
 							}
 							// TODO Second buffer processing disabled because still incomplete

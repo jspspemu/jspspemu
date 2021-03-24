@@ -399,6 +399,10 @@ export class BitUtils {
 		return (this.extract(data, offset, 1) != 0);
 	}
 
+	static signExtend(value: number, bits: number) {
+        return (value << (32 - bits)) >> (32 - bits)
+    }
+
 	static extractSigned(data: number, offset: number, length: number) {
         const mask = this.mask(length);
         const signBit = (1 << (offset + (length - 1)));

@@ -10,12 +10,17 @@ type Int = number
 
 const TWOPI = 2 * Math.PI
 
+const TEMP_idctIn = new Float32Array(Atrac3plusConstants.ATRAC3P_SUBBANDS)
+const TEMP_idctOut = new Float32Array(Atrac3plusConstants.ATRAC3P_SUBBANDS)
+const TEMP_pwcsp = new Float32Array(Atrac3plusConstants.ATRAC3P_SUBBAND_SAMPLES)
+
 /*
  * Based on the FFmpeg version from Maxim Poliakovski.
  * All credits go to him.
  * C to Java conversion by gid15 for the jpcsp project.
  * Java to Kotlin for kpspemu
  */
+// noinspection JSMethodCanBeStatic
 export class Atrac3plusDsp {
 	initImdct(mdctCtx: FFT) {
 		SineWin.initFfSineWindows()
@@ -24,9 +29,8 @@ export class Atrac3plusDsp {
 		mdctCtx.mdctInit(8, true, -1.0)
 	}
 
-	powerCompensation(ctx: ChannelUnitContext, chIndex: Int, sp: Float32Array, _rngIndex: Int, sb: Int) {
-		let rngIndex = _rngIndex
-		const pwcsp = new Float32Array(Atrac3plusConstants.ATRAC3P_SUBBAND_SAMPLES)
+	powerCompensation(ctx: ChannelUnitContext, chIndex: Int, sp: Float32Array, rngIndex: Int, sb: Int) {
+		const pwcsp = TEMP_pwcsp
         let gcv = 0
         const swapCh = (ctx.unitType == Atrac3plusConstants.CH_UNIT_STEREO && ctx.swapChannels[sb]) ? 1 : 0
 
@@ -36,14 +40,9 @@ export class Atrac3plusDsp {
 		}
 
 		// generate initial noise spectrum
-		{
-			let i = 0
-			while (i < Atrac3plusConstants.ATRAC3P_SUBBAND_SAMPLES) {
-				pwcsp[i] = Atrac3plusDsp.noise_tab[rngIndex & 0x3FF]
-				i++
-				rngIndex++
-			}
-		}
+        for (let i = 0; i < Atrac3plusConstants.ATRAC3P_SUBBAND_SAMPLES; i++) {
+            pwcsp[i] = Atrac3plusDsp.noise_tab[rngIndex++ & 0x3FF]
+        }
 
 		// check gain control information
 		const g1 = channel1.gainData[sb]
@@ -51,15 +50,10 @@ export class Atrac3plusDsp {
 
 		const gainLev = (g1.numPoints > 0) ? 6 - g1.levCode[0] : 0
 
-		for (let i = 0; i < g2.numPoints; i++) {
-			gcv = Math.max(gcv, gainLev - (g2.levCode[i] - 6))
-		}
+		for (let i = 0; i < g2.numPoints; i++) gcv = Math.max(gcv, gainLev - (g2.levCode[i] - 6))
+        for (let i = 0; i < g1.numPoints; i++) gcv = Math.max(gcv, 6 - g1.levCode[i])
 
-		for (let i = 0; i < g1.numPoints; i++) {
-			gcv = Math.max(gcv, 6 - g1.levCode[i])
-		}
-
-		const grpLev = Atrac3plusDsp.pwc_levs[channel1.powerLevs[Atrac3plusDsp.subband_to_powgrp[sb]]] / (1 << gcv)
+        const grpLev = Atrac3plusDsp.pwc_levs[channel1.powerLevs[Atrac3plusDsp.subband_to_powgrp[sb]]] / (1 << gcv)
 
 		// skip the lowest two quant units (frequencies 0...351 Hz) for subband 0
 
@@ -67,7 +61,7 @@ export class Atrac3plusDsp {
         const qu_until = Atrac3plusDsp.subband_to_qu[sb + 1]
 
 		for (let qu = qu_from; qu < qu_until; qu++) {
-			const channel = ctx.channels[chIndex]!!
+			const channel = ctx.channels[chIndex]
 			if (channel.quWordlen[qu] <= 0) continue
             const quLev = Atrac3plusDsp.ff_atrac3p_sf_tab[channel.quSfIdx[qu]] * Atrac3plusDsp.ff_atrac3p_mant_tab[channel.quWordlen[qu]] / (1 << channel.quWordlen[qu]) * grpLev
 			const dst = Atrac3plusDsp.ff_atrac3p_qu_to_spec_pos[qu]
@@ -122,18 +116,18 @@ export class Atrac3plusDsp {
 	 * @param  out          receives synthesized data
 	 */
 	private wavesSynth(synthParams: WaveSynthParams, wavesInfo: WavesData, envelope: WaveEnvelope, phaseShift: Boolean, regOffset: Int, out: Float32Array) {
-		var waveParam = wavesInfo.startIndex
+        let waveParam = wavesInfo.startIndex;
 
-		var wn = 0
-		while (wn < wavesInfo.numWavs) {
+        let wn = 0;
+        while (wn < wavesInfo.numWavs) {
 			// amplitude dequantization
 			const waveParam1 = synthParams.waves[waveParam]!!
 			const amp = (Atrac3plusDsp.amp_sf_tab[waveParam1.ampSf] * ((synthParams.amplitudeMode == 0) ? ((waveParam1.ampIndex + 1) / 15.13) : 1.0))
 
 			const inc = waveParam1.freqIndex
-			var pos = Atrac3plusDsp.DEQUANT_PHASE(waveParam1.phaseIndex) - (regOffset ^ 128) * (inc & 2047)
+            let pos = Atrac3plusDsp.DEQUANT_PHASE(waveParam1.phaseIndex) - (regOffset ^ 128) * (inc & 2047);
 
-			// waveform generation
+            // waveform generation
 			for (let i = 0; i < 128; i++) {
 				out[i] += (Atrac3plusDsp.sine_table[pos] * amp)
 				pos = pos + (inc & 2047)
@@ -208,8 +202,8 @@ export class Atrac3plusDsp {
 		}
 
 		// is the visible part of the envelope non-zero?
-		const reg1EnvNonzero = (tonesNow.currEnv.stopPos < 32) ? false : true
-		const reg2EnvNonzero = (tonesNext.currEnv.startPos >= 32) ? false : true
+		const reg1EnvNonzero = (tonesNow.currEnv.stopPos >= 32)
+		const reg2EnvNonzero = (tonesNext.currEnv.startPos < 32)
 
 		// synthesize waves for both overlapping regions
 		if (tonesNow.numWavs > 0 && reg1EnvNonzero) {
@@ -240,40 +234,59 @@ export class Atrac3plusDsp {
 	}
 
 	ipqf(dctCtx: FFT, hist: IPQFChannelContext, _in: Float32Array, out: Float32Array) {
-		const idctIn = new Float32Array(Atrac3plusConstants.ATRAC3P_SUBBANDS)
-		const idctOut = new Float32Array(Atrac3plusConstants.ATRAC3P_SUBBANDS)
-
 		out.fill(0, 0, Atrac3plusConstants.ATRAC3P_FRAME_SAMPLES)
 
-        for (let s = 0; s < Atrac3plusConstants.ATRAC3P_SUBBAND_SAMPLES; s++) {
-			// pack up one sample from each subband
-            for (let sb = 0; sb < Atrac3plusConstants.ATRAC3P_SUBBANDS; sb++) {
-				idctIn[sb] =_in[sb * Atrac3plusConstants.ATRAC3P_SUBBAND_SAMPLES + s]
-			}
+        const ATRAC3P_SUBBAND_SAMPLES = Atrac3plusConstants.ATRAC3P_SUBBAND_SAMPLES;
+        const ATRAC3P_SUBBANDS = Atrac3plusConstants.ATRAC3P_SUBBANDS;
+        const ATRAC3P_PQF_FIR_LEN = Atrac3plusConstants.ATRAC3P_PQF_FIR_LEN;
+        const mod23_lut = Atrac3plusDsp.mod23_lut;
+        const ipqf_coeffs1 = Atrac3plusDsp.ipqf_coeffs1;
+        const ipqf_coeffs2 = Atrac3plusDsp.ipqf_coeffs2;
+        const hist_buf1 = hist.buf1;
+        const hist_buf2 = hist.buf2;
 
-			// Calculate the sine and cosine part of the PQF using IDCT-IV
-			dctCtx.imdctHalf(idctOut, 0, idctIn, 0)
+        const idctIn = TEMP_idctIn
+        const idctOut = TEMP_idctOut
 
-			// append the result to the history
-            for (let i = 0; i <= 7; i++) {
-				hist.buf1[hist.pos][i] = idctOut[i + 8]
-				hist.buf2[hist.pos][i] = idctOut[7 - i]
-			}
+        for (let s = 0; s < ATRAC3P_SUBBAND_SAMPLES; s++) {
+            // pack up one sample from each subband
+            for (let sb = 0; sb < ATRAC3P_SUBBANDS; sb++) {
+                idctIn[sb] = _in[sb * ATRAC3P_SUBBAND_SAMPLES + s]
+            }
 
-            let posNow = hist.pos;
-            let posNext = Atrac3plusDsp.mod23_lut[posNow + 2]; // posNext = (posNow + 1) % 23
+            // Calculate the sine and cosine part of the PQF using IDCT-IV
+            dctCtx.imdctHalf(idctOut, 0, idctIn, 0)
 
-			for (let t = 0; t < Atrac3plusConstants.ATRAC3P_PQF_FIR_LEN; t++) {
-				for (let i = 0; i <= 7; i++) {
-					out[s * 16 + i + 0] += hist.buf1[posNow][i] * Atrac3plusDsp.ipqf_coeffs1[t][i] + hist.buf2[posNext][i] * Atrac3plusDsp.ipqf_coeffs2[t][i]
-					out[s * 16 + i + 8] += hist.buf1[posNow][7 - i] * Atrac3plusDsp.ipqf_coeffs1[t][i + 8] + hist.buf2[posNext][7 - i] * Atrac3plusDsp.ipqf_coeffs2[t][i + 8]
-				}
+            // append the result to the history
+            {
+                const buf1 = hist_buf1[hist.pos]
+                const buf2 = hist_buf2[hist.pos]
+                for (let i = 0; i < 8; i++) {
+                    buf1[i] = idctOut[i + 8]
+                    buf2[i] = idctOut[7 - i]
+                }
+            }
 
-				posNow = Atrac3plusDsp.mod23_lut[posNext + 2] // posNow = (posNow + 2) % 23;
-				posNext = Atrac3plusDsp.mod23_lut[posNow + 2] // posNext = (posNext + 2) % 23;
-			}
+            {
+                let posNow = hist.pos
+                const s16 = s * 16
 
-			hist.pos = Atrac3plusDsp.mod23_lut[hist.pos] // hist.pos = (hist.pos - 1) % 23;
+                for (let t = 0; t < ATRAC3P_PQF_FIR_LEN; t++) {
+                    const posNext = mod23_lut[posNow + 2] // posNext = (posNext + 2) % 23;
+                    const buf1 = hist_buf1[posNow]
+                    const buf2 = hist_buf2[posNext]
+                    const coefs1 = ipqf_coeffs1[t]
+                    const coefs2 = ipqf_coeffs2[t]
+                    for (let i = 0; i < 8; i++) {
+                        out[s16 + i + 0] += buf1[i] * coefs1[i] + buf2[i] * coefs2[i]
+                        out[s16 + i + 8] += buf1[7 - i] * coefs1[i + 8] + buf2[7 - i] * coefs2[i + 8]
+                    }
+
+                    posNow = mod23_lut[posNext + 2] // posNow = (posNow + 2) % 23;
+                }
+            }
+
+			hist.pos = mod23_lut[hist.pos] // hist.pos = (hist.pos - 1) % 23;
 		}
 	}
 
