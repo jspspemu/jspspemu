@@ -45,7 +45,7 @@ export interface IInstructionCache {
 class VfpuPrefixBase {
 	enabled = false;
 	constructor(private vfrc: Int32Array, private index: number) { }
-	_info: number;
+	_info: number = 0;
 	_readInfo() { this._info = this.getInfo(); }
 	eat() { this.enabled = false; }
 	getInfo() { return this.vfrc[this.index]; }
@@ -59,10 +59,12 @@ export interface IEmulatorContext {
 }
 
 export class NativeFunction {
-	name: string;
-	nid: number;
-	firmwareVersion: number;
+	name: string = '';
+	nid: number = 0;
+	firmwareVersion: number = 0;
+    // @ts-ignore
 	call: (context: IEmulatorContext, state: CpuState) => void;
+    // @ts-ignore
 	nativeCall: Function;
 }
 
@@ -1242,7 +1244,7 @@ type ICpuFunctionWithArgs = (state: CpuState, args: any) => void;
 class CpuFunctionWithArgs {
 	public constructor(public func: ICpuFunction, public args: any) { }
 }
-type IFunctionGenerator = (address: number) => CpuFunctionWithArgs;
+type IFunctionGenerator = (address: number, level: number) => CpuFunctionWithArgs;
 
 export class InvalidatableCpuFunction {
 	private func: CpuFunctionWithArgs | null = null;
@@ -1250,7 +1252,7 @@ export class InvalidatableCpuFunction {
 	public constructor(public PC: number, private generator: IFunctionGenerator) { }
 	public invalidate() { this.func = null; }
 	public execute(state: CpuState): void {
-		if (this.func == null) this.func = this.generator(this.PC);
+		if (this.func == null) this.func = this.generator(this.PC, 0);
 		state.checkCycles(0);
 		this.func.func(state);
 	}

@@ -1,5 +1,7 @@
 {
   "compilerOptions": {
+    "strict": true,
+    "alwaysStrict": true,
     "experimentalDecorators": true,
     "strictNullChecks": true,
     "incremental": true,

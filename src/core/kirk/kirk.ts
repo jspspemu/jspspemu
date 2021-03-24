@@ -76,16 +76,16 @@ export class KIRK_AES128CBC_HEADER {
 }
 
 export class AES128CMACHeader { // SIZE: 0090
-	AES_key: number[];
-	CMAC_key: number[];
-	CMAC_header_hash: number[];
-	CMAC_data_hash: number[];
-	Unknown1: number[];
-	Mode: KirkMode;
-	UseECDSAhash: number;
-	Unknown2: number[];
-	DataSize: number;
-	DataOffset: number;
+	AES_key: number[] = []
+	CMAC_key: number[] = []
+	CMAC_header_hash: number[] = []
+	CMAC_data_hash: number[] = []
+	Unknown1: number[] = []
+	Mode: KirkMode = 0
+	UseECDSAhash: number = 0
+	Unknown2: number[] = []
+	DataSize: number = 0
+	DataOffset: number = 0
 
 	static struct = StructClass.create<AES128CMACHeader>(AES128CMACHeader, <StructEntry[]>[ // 0x14
 		{ AES_key: StructArray(UInt8, 16) }, // 0000 -

@@ -15,9 +15,9 @@ class VagDecoder {
 	private predict1: number = 0;
 	private predict2: number = 0;
 
-	sampleIndexInBlock: number;
-	sampleIndexInBlock2: number;
-	reachedEnd: boolean;
+	sampleIndexInBlock: number = 0
+	sampleIndexInBlock2: number = 0
+	reachedEnd: boolean = false
 	loopStack = <VagState[]>[];
 
 	currentState = new VagState();
@@ -148,11 +148,11 @@ class VagBlock {
 */
 
 class VagHeader {
-	magic: number;
-	vagVersion: number;
-	dataSize: number;
-	sampleRate: number;
-	//name: string;
+	magic: number = 0
+	vagVersion: number = 0
+	dataSize: number = 0
+	sampleRate: number = 0
+	//name: string = ''
 
 	static struct = StructClass.create<VagHeader>(VagHeader, [
 		{ magic: UInt32 },

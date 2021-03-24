@@ -15,7 +15,7 @@ import {MemoryVfs} from "../src/hle/vfs/vfs_memory";
 const mlogger = logger.named('');
 
 describe('pspautotests', function () {
-	this.timeout(5000);
+	//this.timeout(5000);
 
     const tests = [
 		//{ "audio/atrac": ["atractest", "decode", "ids", "resetting", "setdata"] },
@@ -244,7 +244,7 @@ describe('pspautotests', function () {
                 testNameList.forEach((testName:any) => {
 					it(testName, async () => {
 						// noinspection JSPotentiallyInvalidUsageOfThis
-                        this.timeout(15000);
+                        //this.timeout(15000);
 
                         const emulator = new Emulator();
                         //emulator.interpreted = true

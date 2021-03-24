@@ -107,6 +107,7 @@ export class EmulatorControllerNormal {
                 //postAction('memory.invalidateDataRange', {low: low, high: high});
             });
 
+            // @ts-ignore
             emulator.audio.onPlayDataAsync.add((id: number, channels: number, data: Int16Array, leftvolume: number, rightvolume: number) => {
                 return audio.playDataAsync(id, channels, ArrayBufferUtils.cloneInt16Array(data), leftvolume, rightvolume);
             });

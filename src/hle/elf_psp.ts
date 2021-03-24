@@ -22,15 +22,15 @@ import {ISymbol, ISymbolLookup} from "../emu/context";
 const console = logger.named('elf.psp');
 
 export class ElfPspModuleInfo {
-	moduleAtributes: number;
-	moduleVersion: number;
-	name: string;
-	gp: number;
-	pc: number;
-	exportsStart: number;
-	exportsEnd: number;
-	importsStart: number;
-	importsEnd: number;
+	moduleAtributes: number = 0
+	moduleVersion: number = 0
+	name: string = ''
+	gp: number = 0
+	pc: number = 0
+	exportsStart: number = 0
+	exportsEnd: number = 0
+	importsStart: number = 0
+	importsEnd: number = 0
 
 	// http://hitmen.c02.at/files/yapspd/psp_doc/chap26.html
 	// 26.2.2.8
@@ -47,15 +47,15 @@ export class ElfPspModuleInfo {
 }
 
 export class ElfPspModuleImport {
-	name: string;
-	nameOffset: number;
-	version: number;
-	flags: number;
-	entrySize: number;
-	functionCount: number;
-	variableCount: number;
-	nidAddress: number;
-	callAddress: number;
+	name: string = ''
+	nameOffset: number = 0
+	version: number = 0
+	flags: number = 0
+	entrySize: number = 0
+	functionCount: number = 0
+	variableCount: number = 0
+	nidAddress: number = 0
+	callAddress: number = 0
 
 	static struct = StructClass.create<ElfPspModuleImport>(ElfPspModuleImport, [
 		{ nameOffset: UInt32 },
@@ -70,13 +70,13 @@ export class ElfPspModuleImport {
 }
 
 export class ElfPspModuleExport {
-	name: string;
-	version: number;
-	flags: number;
-	entrySize: number;
-	variableCount: number;
-	functionCount: number;
-	exports: number;
+	name: string = ''
+	version: number = 0
+	flags: number = 0
+	entrySize: number = 0
+	variableCount: number = 0
+	functionCount: number = 0
+	exports: number = 0
 
 	static struct = StructClass.create<ElfPspModuleExport>(ElfPspModuleExport, [
 		{ name: UInt32 },
@@ -109,11 +109,15 @@ class InstructionReader {
 }
 
 export class PspElfLoader implements ISymbolLookup {
+    // @ts-ignore
     private elfLoader: ElfLoader;
+    // @ts-ignore
     moduleInfo: ElfPspModuleInfo;
 	assembler = new MipsAssembler();
 	baseAddress: number = 0;
+    // @ts-ignore
 	partition: MemoryPartition;
+    // @ts-ignore
 	elfDwarfLoader: ElfDwarfLoader;
 
 	constructor(private memory: Memory, private memoryManager: MemoryManager, private moduleManager: ModuleManager, private syscallManager: SyscallManager) {
@@ -323,7 +327,7 @@ export class PspElfLoader implements ISymbolLookup {
         const importsCount = importsBytesSize / ElfPspModuleImport.struct.length;
         const imports = StructArray<ElfPspModuleImport>(ElfPspModuleImport.struct, importsCount).read(importsStream);
         imports.forEach(_import => {
-            _import.name = this.memory.readStringz(_import.nameOffset)
+            _import.name = this.memory.readStringz(_import.nameOffset)!
             const imported = this.updateModuleFunctions(_import);
             this.updateModuleVars(_import);
 			console.info('Imported: ', imported.name, imported.registeredNativeFunctions.map(i => i.name));

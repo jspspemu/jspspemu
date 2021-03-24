@@ -5,8 +5,8 @@ import {MyStorage, indexedDbOpenAsync} from "./indexeddb";
 const console = logger.named('vfs.storage');
 
 export class StorageVfs extends Vfs {
-	private db: MyStorage;
-	private openDbPromise: PromiseFast<StorageVfs>;
+    private db?: MyStorage;
+    private openDbPromise?: PromiseFast<StorageVfs>;
 
 
 	constructor(private key: string) {
@@ -25,13 +25,13 @@ export class StorageVfs extends Vfs {
 
 	openAsync(path: string, flags: FileOpenFlags, mode: FileMode): PromiseFast<VfsEntry> {
 		return this.initializeOnceAsync().then(() => {
-			return StorageVfsEntry.fromNameAsync(this.db, path, flags, mode);
+			return StorageVfsEntry.fromNameAsync(this.db!, path, flags, mode);
 		});
 	}
 	
 	deleteAsync(path:string):PromiseFast<void> {
 		return this.initializeOnceAsync().then(() => {
-			return this.db.deleteAsync(path);
+			return this.db!.deleteAsync(path);
 		});
 	}
 }
@@ -44,7 +44,8 @@ interface File {
 }
 
 class StorageVfsEntry extends VfsEntry {
-	private file: File;
+	// @ts-ignore
+    private file: File;
 
 	constructor(private db: MyStorage, private name: string) {
 		super();

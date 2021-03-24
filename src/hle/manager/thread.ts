@@ -78,7 +78,8 @@ export class Thread {
 	waitingObject: any = null;
 	waitingPromise: PromiseFast<any>|null = null;
 	runningPromise: PromiseFast<number>;
-	runningStop: () => void;
+	// @ts-ignore
+    runningStop: () => void;
 	acceptingCallbacks = false;
 
 	get runningOrAcceptingCallbacks() {
@@ -253,7 +254,9 @@ export class ThreadManager implements Component {
 	enqueuedTime = 0;
 	running: boolean = false;
 	exitPromise: PromiseFast<number>;
+    // @ts-ignore
 	exitResolve: (errorCode: number) => void;
+    // @ts-ignore
 	current: Thread;
 	private rootCpuState: CpuState;
 

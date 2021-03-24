@@ -101,13 +101,13 @@ export class ThreadManForUser {
 }
 
 class SceKernelSemaInfo {
-	size: number;
-	name: string;
-	attributes: SemaphoreAttribute;
-	initialCount: number;
-	currentCount: number;
-	maximumCount: number;
-	numberOfWaitingThreads: number;
+	size: number = 0
+	name: string = ''
+	attributes: SemaphoreAttribute = SemaphoreAttribute.FirstInFirstOut
+	initialCount: number = 0
+	currentCount: number = 0
+	maximumCount: number = 0
+	numberOfWaitingThreads: number = 0
 
 	static struct = StructClass.create<SceKernelSemaInfo>(SceKernelSemaInfo, [
 		{ size: Int32 },
@@ -126,7 +126,7 @@ class WaitingSemaphoreThread {
 }
 
 class Semaphore {
-	id: number;
+	id: number = 0
 	currentCount: number;
 	waitingSemaphoreThreadList = new SortedSet<WaitingSemaphoreThread>();
 

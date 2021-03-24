@@ -10,11 +10,11 @@ enum DataType {
 }
 
 class HeaderStruct {
-	magic: number;
-	version: number;
-	keyTable: number;
-	valueTable: number;
-	numberOfPairs: number;
+	magic: number = 0
+	version: number = 0
+	keyTable: number = 0
+	valueTable: number = 0
+	numberOfPairs: number = 0
 
 	static struct = StructClass.create<HeaderStruct>(HeaderStruct, [
 		{ magic: UInt32 },
@@ -31,15 +31,15 @@ export interface IEntryStruct {
 }
 
 class EntryStruct implements IEntryStruct {
-	key: string;
-	value: any;
+	key: string = ''
+	value: any
 
-	keyOffset: number;
-	private unknown: number;
-	dataType: DataType;
-	valueSize: number;
-	valueSizePad: number;
-	valueOffset: number;
+	keyOffset: number = 0
+	private unknown: number = 0
+	dataType: DataType = DataType.Binary
+	valueSize: number = 0
+	valueSizePad: number = 0
+	valueOffset: number = 0
 
 	static struct = StructClass.create<EntryStruct>(EntryStruct, [
 		{ keyOffset: UInt16 },
@@ -54,7 +54,8 @@ class EntryStruct implements IEntryStruct {
 export class Psf {
 	public entries: IEntryStruct[] = [];
 	public entriesByName: StringDictionary<any> = {};
-	private header: HeaderStruct;
+	// @ts-ignore
+    private header: HeaderStruct;
 
 	constructor() {
 	}

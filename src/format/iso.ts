@@ -42,7 +42,7 @@ class DirectoryRecordDate {
 
 class IsoStringDate {
     // 2009032214540800
-    data: string;
+    data: string = ''
 
     get year() { return parseInt(this.data.substr(0, 4)); }
     get month() { return parseInt(this.data.substr(4, 2)); }
@@ -68,9 +68,9 @@ enum VolumeDescriptorHeaderType { // : byte
 
 class VolumeDescriptorHeader
 {
-	type: VolumeDescriptorHeaderType;
-	id: string;
-	version: number;
+	type: VolumeDescriptorHeaderType = VolumeDescriptorHeaderType.BootRecord
+	id: string = ''
+	version: number = 0
 
 	static struct = StructClass.create<VolumeDescriptorHeader>(VolumeDescriptorHeader, [
 		{ type: UInt8 },
@@ -121,41 +121,47 @@ class DirectoryRecord {
 
 class PrimaryVolumeDescriptor
 {
-	header: VolumeDescriptorHeader;
-	systemId: string;
-	volumeId: string;
-    volumeSpaceSize: number;
-    volumeSetSize: number;
-    volumeSequenceNumber: number;
-    logicalBlockSize: number;
-    pathTableSize: number;
-    typeLPathTable: number;
-    optType1PathTable: number;
-    typeMPathTable: number;
-    optTypeMPathTable: number;
+	// @ts-ignore
+    header: VolumeDescriptorHeader;
+	systemId: string = ''
+	volumeId: string = ''
+    volumeSpaceSize: number = 0
+    volumeSetSize: number = 0
+    volumeSequenceNumber: number = 0
+    logicalBlockSize: number = 0
+    pathTableSize: number = 0
+    typeLPathTable: number = 0
+    optType1PathTable: number = 0
+    typeMPathTable: number = 0
+    optTypeMPathTable: number = 0
 
+    // @ts-ignore
     directoryRecord: DirectoryRecord;
 
-    volumeSetId: string;
-    publisherId: string;
-    preparerId: string;
-    applicationId: string;
-    copyrightFileId: string;
-    abstractFileId: string;
-    bibliographicFileId: string;
+    volumeSetId: string = ''
+    publisherId: string = ''
+    preparerId: string = ''
+    applicationId: string = ''
+    copyrightFileId: string = ''
+    abstractFileId: string = ''
+    bibliographicFileId: string = ''
 
-    creationDate: IsoStringDate;
-    modificationDate: IsoStringDate;
-    expirationDate: IsoStringDate;
-    effectiveDate: IsoStringDate;
+    // @ts-ignore
+    creationDate: IsoStringDate
+    // @ts-ignore
+    modificationDate: IsoStringDate
+    // @ts-ignore
+    expirationDate: IsoStringDate
+    // @ts-ignore
+    effectiveDate: IsoStringDate
 
-    fileStructureVersion: number;
-	pad5: number;
+    fileStructureVersion: number = 0
+	pad5: number = 0
 
-	pad6: number;
+	pad6: number = 0
 
-    applicationData: number[];
-    pad7: number[];
+    applicationData: number[] = []
+    pad7: number[] = []
 
     static struct = StructClass.create<PrimaryVolumeDescriptor>(PrimaryVolumeDescriptor, <StructEntry[]>[
 		{ header: VolumeDescriptorHeader.struct },
@@ -244,9 +250,13 @@ class IsoNode implements IIsoNode {
 }
 
 export class Iso implements AsyncStream {
+    // @ts-ignore
     private asyncStream: AsyncStream;
+    // @ts-ignore
     private _root: IsoNode;
+    // @ts-ignore
     private _children: IsoNode[];
+    // @ts-ignore
     private _childrenByPath: StringDictionary<IsoNode>;
 
 	date: Date = new Date();

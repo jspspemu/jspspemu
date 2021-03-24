@@ -32,14 +32,14 @@ class Uleb128Class implements IType<number> {
 const Uleb128 = new Uleb128Class();
 
 class ElfDwarfHeader {
-	total_length: number;
-	version: number;
-	prologue_length: number;
-	minimum_instruction_length: number;
-	default_is_stmt: number;
-	line_base: number;
-	line_range: number;
-	opcode_base: number;
+	total_length: number = 0
+	version: number = 0
+	prologue_length: number = 0
+	minimum_instruction_length: number = 0
+	default_is_stmt: number = 0
+	line_base: number = 0
+	line_range: number = 0
+	opcode_base: number = 0
 
 	get total_length_real() { return this.total_length + 4; }
 

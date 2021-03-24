@@ -7,9 +7,9 @@ enum PbpMagic {
 }
 
 class PbpHeader {
-    magic: PbpMagic;
-    version: number;
-    offsets: number[];
+    magic: PbpMagic = 0
+    version: number = 0
+    offsets: number[] = []
 
     static struct = StructClass.create<PbpHeader>(PbpHeader, [
         {magic: Int32},
@@ -32,8 +32,10 @@ export class Names {
 export const PbpNames = Names
 
 export class Pbp {
-    private header: PbpHeader;
-    private stream: Stream;
+    // @ts-ignore
+    private header: PbpHeader
+    // @ts-ignore
+    private stream: Stream
 
     private static names = [Names.ParamSfo, Names.Icon0Png, Names.Icon1Pmf, Names.Pic0Png, Names.Pic1Png, Names.Snd0At3, Names.PspData, Names.PsarData];
 

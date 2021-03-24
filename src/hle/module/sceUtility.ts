@@ -552,10 +552,10 @@ class SceUtilitySavedataParam {
 }
 
 class SizeFreeInfo {
-	sectorSize: number;
-	freeSectors: number;
-	freeKb: number;
-	freeKbString: string;
+	sectorSize: number = 0
+	freeSectors: number = 0
+	freeKb: number = 0
+	freeKbString: string = ''
 
 	static struct = StructClass.create<SizeFreeInfo>(SizeFreeInfo, [
 		{ sectorSize: UInt32 },
@@ -566,13 +566,13 @@ class SizeFreeInfo {
 }
 
 class SizeUsedInfo {
-	gameName: string; // 16
-	saveName: string; // 20
-	usedSectors: number;
-	usedKb: number;
-	usedKbString: string; // 8
-	usedKb32: number;
-	usedKb32String: string; // 8
+	gameName: string = '' // 16
+	saveName: string = '' // 20
+	usedSectors: number = 0
+	usedKb: number = 0
+	usedKbString: string = '' // 8
+	usedKb32: number = 0
+	usedKb32String: string = '' // 8
 
 	static struct = StructClass.create<SizeUsedInfo>(SizeUsedInfo, [
 		{ gameName: Stringz(16) },
@@ -586,11 +586,11 @@ class SizeUsedInfo {
 }
 
 class SizeRequiredSpaceInfo {
-	requiredSpaceSectors: number;
-	requiredSpaceKb: number;
-	requiredSpaceString: string; // 8
-	requiredSpace32KB: number;
-	requiredSpace32KBString: string; // 8
+	requiredSpaceSectors: number = 0
+	requiredSpaceKb: number = 0
+	requiredSpaceString: string = '' // 8
+	requiredSpace32KB: number = 0
+	requiredSpace32KBString: string = '' // 8
 
 	static struct = StructClass.create<SizeRequiredSpaceInfo>(SizeRequiredSpaceInfo, [
 		{ requiredSpaceSectors: UInt32 },
@@ -602,13 +602,14 @@ class SizeRequiredSpaceInfo {
 }
 
 class PspUtilityMsgDialogParams {
-	base: PspUtilityDialogCommon;
-	unknown: number; // uint
-	mnode: PspUtilityMsgDialogMode; // uint
-	errorValue: number; // uint
-	message: string; // byte[512]
-	options: PspUtilityMsgDialogOption;
-	buttonPressed: PspUtilityMsgDialogPressed;
+	// @ts-ignore
+    base: PspUtilityDialogCommon;
+	unknown: number = 0 // uint
+	mnode: PspUtilityMsgDialogMode = PspUtilityMsgDialogMode.PSP_UTILITY_MSGDIALOG_MODE_ERROR // uint
+	errorValue: number = 0 // uint
+	message: string = '' // byte[512]
+	options: PspUtilityMsgDialogOption = PspUtilityMsgDialogOption.PSP_UTILITY_MSGDIALOG_OPTION_ERROR
+	buttonPressed: PspUtilityMsgDialogPressed = PspUtilityMsgDialogPressed.PSP_UTILITY_MSGDIALOG_RESULT_UNKNOWN1
 
 	static struct = StructClass.create<PspUtilityMsgDialogParams>(PspUtilityMsgDialogParams, [
 		{ base: PspUtilityDialogCommon.struct },

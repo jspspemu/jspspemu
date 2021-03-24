@@ -58,11 +58,11 @@ export class sceReg {
 }
 
 class RegParam {
-	regType: number;
-	name: string;
-	nameLength: number;
-	unknown2: number;
-	unknown3: number;
+	regType: number = 0
+	name: string = ''
+	nameLength: number = 0
+	unknown2: number = 0
+	unknown3: number = 0
 
 	static struct = StructClass.create<RegParam>(RegParam, [
 		{ regType: UInt32 },

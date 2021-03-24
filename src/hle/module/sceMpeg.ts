@@ -51,7 +51,7 @@ export class sceMpeg {
 	}
 	
 	
-	private mode: number;
+	private mode: number = 0
 	private pixelformat: PixelFormat = PixelFormat.RGBA_8888;
 	
 	@nativeFunction(0xA11C7026, 150, 'uint', 'uint/void*')
@@ -108,7 +108,8 @@ export class sceMpeg {
 	}
 	
 	private mpegs = new Map<number, Mpeg>();
-	private mpeg: Mpeg;
+	// @ts-ignore
+    private mpeg: Mpeg;
 
 	@nativeFunction(0xd8c5f121, 150, 'uint', 'uint/uint/uint/void*/uint/uint')
 	sceMpegCreate(mpegAddr: number, dataPtr: number, size: number, ringbufferAddr: Stream, mode: number, ddrTop: number) {
@@ -247,7 +248,8 @@ class MeStream {
 }
 
 class Mpeg {
-	private stream: MeStream;
+	// @ts-ignore
+    private stream: MeStream;
 	private streamIdGen: number = 1;
 	private avcEsBuf: number = 1;
 	
@@ -269,8 +271,8 @@ class Mpeg {
 }
 
 class SceMpegAvcMode {
-	mode: number;
-	pixelformat: number;
+	mode: number = 0;
+	pixelformat: number = 0;
 	static struct = StructClass.create(SceMpegAvcMode, [
 		// PSP info
 		{ mode: Int32 },
@@ -279,10 +281,10 @@ class SceMpegAvcMode {
 }
 
 class SceMpegAu {
-	pts: Integer64;  // presentation time stamp
-	dts: Integer64;  // decode time stamp
-	esBuffer: number;
-	esSize: number;
+	pts: Integer64 = Integer64.ZERO;  // presentation time stamp
+	dts: Integer64 = Integer64.ZERO;  // decode time stamp
+	esBuffer: number = 0;
+	esSize: number = 0;
 
 	static struct = StructClass.create(SceMpegAu, [
 		{ pts: Int64 },
@@ -293,13 +295,13 @@ class SceMpegAu {
 }
 
 class PmfStruct {
-	magic: string; // PSMF
-	version: number;
-	offset: number;
-	size: number;
-	_dummy: number;
-	firstTimestampOffset: number;
-	lastTimestampOffset: number;
+	magic: string = '' // PSMF
+	version: number = 0
+	offset: number = 0
+	size: number = 0
+	_dummy: number = 0
+	firstTimestampOffset: number = 0
+	lastTimestampOffset: number = 0
 	static struct = StructClass.create(PmfStruct, [
 		// PSP info
 		{ magic: Stringn(4) },
@@ -313,19 +315,19 @@ class PmfStruct {
 }
 
 class RingBuffer  {
-	packets: number;
-	packetsRead: number;
-	packetsWritten: number;
-	packetsAvail: number; // pspsdk: unk2, noxa: iUnk0
-	packetSize: number; // 2048
-	data: number; // address, ring buffer
-	callback_addr: number; // see sceMpegRingbufferPut
-	callback_args: number;
-	dataUpperBound: number;
-	semaID: number; // unused?
-	mpeg: number; // pointer to mpeg struct, fixed up in sceMpegCreate
+	packets: number = 0
+	packetsRead: number = 0
+	packetsWritten: number = 0
+	packetsAvail: number = 0 // pspsdk: unk2, noxa: iUnk0
+	packetSize: number = 0 // 2048
+	data: number = 0 // address, ring buffer
+	callback_addr: number = 0 // see sceMpegRingbufferPut
+	callback_args: number = 0
+	dataUpperBound: number = 0
+	semaID: number = 0 // unused?
+	mpeg: number = 0 // pointer to mpeg struct, fixed up in sceMpegCreate
 	// Note: not available in all versions.
-	gp: number;
+	gp: number = 0
 	static struct = StructClass.create(RingBuffer, [
 		{ packets: Int32_l },
 		{ packetsRead: Int32_l },

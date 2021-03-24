@@ -1,10 +1,8 @@
-//import { Emulator } from '../emulator';
-import {PspControllerContributor, PspCtrlButtons, SceCtrlData} from '../core/controller';
-import {Component} from "../core/component";
+import {PspControllerContributor, PspCtrlButtons} from '../core/controller';
 import {BitUtils, MathUtils} from "../global/math";
 
 const navigator = (typeof window != 'undefined') ? window.navigator : null;
-const getGamepads: (() => Gamepad[]|null)|null = (navigator && navigator.getGamepads) ? navigator.getGamepads.bind(navigator) : null;
+const getGamepads = navigator?.getGamepads?.bind(navigator);
 
 const gamepadButtonMapping = [
     PspCtrlButtons.cross, // 0

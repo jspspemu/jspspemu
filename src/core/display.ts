@@ -63,10 +63,11 @@ const console = logger.named('display')
 export class PspDisplay extends BasePspDisplay implements IPspDisplay {
 	private context: CanvasRenderingContext2D|null;
 	vblank = new Signal1<number>();
+    // @ts-ignore
 	private imageData: ImageData;
 	private enabled: boolean = true;
 	private _hcount: number = 0;
-	private startTime: number;
+	private startTime: number = 0;
 
 	static PROCESSED_PIXELS_PER_SECOND = 9000000; // hz
 	static CYCLES_PER_PIXEL = 1;
@@ -84,8 +85,8 @@ export class PspDisplay extends BasePspDisplay implements IPspDisplay {
 	static VERTICAL_SYNC_HZ = PspDisplay.HORIZONTAL_SYNC_HZ / PspDisplay.HCOUNT_PER_VBLANK; // 59.998800024
 	static VERTICAL_SECONDS = 1 / PspDisplay.VERTICAL_SYNC_HZ; // 0.016667
 
-	private currentMs:number;
-	private elapsedSeconds:number;
+	private currentMs:number = 0;
+	private elapsedSeconds:number = 0
 	hcountTotal = 0;
 	hcountCurrent = 0;
 	vblankCount = 0;

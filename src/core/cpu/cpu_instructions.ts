@@ -542,6 +542,7 @@ export class Instructions {
 		return this.fastFindByData(i32, pc);
 	}
 
+    // @ts-ignore
 	private decoder: (instructionsByName: StringDictionary<InstructionType>, i32: number, pc: number) => InstructionType;
 
 	private fastFindByData(i32: number, pc: number = 0) {

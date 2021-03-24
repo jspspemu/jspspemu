@@ -137,7 +137,7 @@ export abstract class Memory {
         return new Uint8Array(buffer, offset, high - low);
 	}
 
-	getPointerU8Array(address: number, size?: number) {
+	getPointerU8Array(address: number, size?: number): Uint8Array {
 		if (!size) size = this.availableAfterAddress(address);
         const buffer = this.getBuffer(address), offset = this.getOffsetInBuffer(address);
         return new Uint8Array(buffer, offset, size);
@@ -294,11 +294,12 @@ export abstract class Memory {
 		//this._checkWriteBreakpoints(address, address + stream.length);
 	}
 
-	readStringz(address: number) {
+	readStringz(address: number): string|null {
 		if (address == 0) return null;
         let endAddress = address;
         while (this.lbu(endAddress) != 0) endAddress++;
-		return String.fromCharCode.apply(null, this.getPointerU8Array(address, endAddress - address));
+		// @ts-ignore
+        return String.fromCharCode.apply(null, this.getPointerU8Array(address, endAddress - address));
 	}
 
 	/*

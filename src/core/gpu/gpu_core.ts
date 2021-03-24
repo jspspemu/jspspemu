@@ -52,14 +52,18 @@ let dumpFrameCommands = false;
 const dumpFrameCommandsList: string[] = [];
 
 class PspGpuList {
-    current4: number;
-    stall4: number;
-	callbackId: number;
-	argsPtr: Stream;
+    current4: number = 0
+    stall4: number = 0
+	callbackId: number = 0
+	// @ts-ignore
+    argsPtr: Stream;
     completed: boolean = false;
 	status = DisplayListStatus.Paused;
+    // @ts-ignore
 	private promise: PromiseFast<any>;
+    // @ts-ignore
 	private promiseResolve: Function;
+    // @ts-ignore
 	private promiseReject: Function;
 	errorCount: number = 0;
 

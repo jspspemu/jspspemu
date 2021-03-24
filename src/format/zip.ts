@@ -8,10 +8,13 @@ import {zlib_inflate_raw} from "./zlib";
 
 export class ZipEntry {
 	private children: StringDictionary<ZipEntry> = {};
-	zipDirEntry: ZipDirEntry;
+	// @ts-ignore
+    zipDirEntry: ZipDirEntry;
 	normalizedName: string;
-	isDirectory: boolean;
+	isDirectory: boolean = false
+    // @ts-ignore
 	compressedData: Uint8Array;
+    // @ts-ignore
 	uncompressedData: Uint8Array;
 
 	get size() {
@@ -169,14 +172,14 @@ export const enum ZipCompressionType {
 }
 
 export class ZipEndLocator {
-	magic: number;
-	currentDiskNumber: number;
-	startDiskNumber: number;
-	entriesOnDisk: number;
-	entriesInDirectory: number;
-	directorySize: number;
-	directoryOffset: number;
-	commentLength: number;
+	magic: number = 0
+	currentDiskNumber: number = 0
+	startDiskNumber: number = 0
+	entriesOnDisk: number = 0
+	entriesInDirectory: number = 0
+	directorySize: number = 0
+	directoryOffset: number = 0
+	commentLength: number = 0
 
 	static struct = StructClass.create<ZipEndLocator>(ZipEndLocator, [
 		{ magic: UInt32 },
@@ -191,19 +194,19 @@ export class ZipEndLocator {
 }
 
 export class ZipFileRecord {
-	magic: number;
-	version: number;
-	flags: number;
-	compType: ZipCompressionType;
-	dosTime: number;
-	dosDate: number;
-	crc32: number;
-	compressedSize: number;
-	uncompressedSize: number;
-	fileNameLength: number;
-	extraFieldLength: number;
-	fileName: string;
-	extraField: string;
+	magic: number = 0
+	version: number = 0
+	flags: number = 0
+	compType: ZipCompressionType = ZipCompressionType.STORED
+	dosTime: number = 0
+	dosDate: number = 0
+	crc32: number = 0
+	compressedSize: number = 0
+	uncompressedSize: number = 0
+	fileNameLength: number = 0
+	extraFieldLength: number = 0
+	fileName: string = ''
+	extraField: string = ''
 
 	static struct = StructClass.create<ZipFileRecord>(ZipFileRecord, [
 		{ magic: UInt32 },
@@ -223,26 +226,26 @@ export class ZipFileRecord {
 }
 
 export class ZipDirEntry {
-	magic: number;
-	versionMadeBy: number;
-	versionToExtract: number;
-	flags: number;
-	compType: ZipCompressionType;
-	dosTime: number;
-	dosDate: number;
-	crc32: number;
-	compressedSize: number;
-	uncompressedSize: number;
-	fileNameLength: number;
-	extraFieldLength: number;
-	fileCommentsLength: number;
-	diskNumberStart: number;
-	internalAttributes: number;
-	externalAttributes: number;
-	headerOffset: number;
-	fileName: string;
-	extraField: string;
-	fileComments: string;
+	magic: number = 0
+	versionMadeBy: number = 0
+	versionToExtract: number = 0
+	flags: number = 0
+	compType: ZipCompressionType = ZipCompressionType.STORED
+	dosTime: number = 0
+	dosDate: number = 0
+	crc32: number = 0
+	compressedSize: number = 0
+	uncompressedSize: number = 0
+	fileNameLength: number = 0
+	extraFieldLength: number = 0
+	fileCommentsLength: number = 0
+	diskNumberStart: number = 0
+	internalAttributes: number = 0
+	externalAttributes: number = 0
+	headerOffset: number = 0
+	fileName: string = ''
+	extraField: string = ''
+	fileComments: string = ''
 
 	static struct = StructClass.create<ZipDirEntry>(ZipDirEntry, [
 		{ magic: UInt32 },

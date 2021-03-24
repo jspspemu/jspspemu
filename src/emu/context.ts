@@ -27,23 +27,40 @@ export interface ISymbolLookup {
 }
 
 export class EmulatorContext {
-	display: IPspDisplay;
-	config: Config;
-	controller: IPspController;
-	rtc: PspRtc;
-	gpu: PspGpu;
-	netManager: NetManager;
-	memoryManager: MemoryManager;
-	threadManager: ThreadManager;
-	callbackManager: CallbackManager;
-	moduleManager: ModuleManager;
-	audio: PspAudio;
-	memory: Memory;
-	fileManager: FileManager;
-	interruptManager: InterruptManager;
-	symbolLookup: ISymbolLookup;
-	interop: Interop;
-	battery: Battery;
+    // @ts-ignore
+    display: IPspDisplay;
+    // @ts-ignore
+    config: Config;
+    // @ts-ignore
+    controller: IPspController;
+    // @ts-ignore
+    rtc: PspRtc;
+    // @ts-ignore
+    gpu: PspGpu;
+    // @ts-ignore
+    netManager: NetManager;
+    // @ts-ignore
+    memoryManager: MemoryManager;
+    // @ts-ignore
+    threadManager: ThreadManager;
+    // @ts-ignore
+    callbackManager: CallbackManager;
+    // @ts-ignore
+    moduleManager: ModuleManager;
+    // @ts-ignore
+    audio: PspAudio;
+    // @ts-ignore
+    memory: Memory;
+    // @ts-ignore
+    fileManager: FileManager;
+    // @ts-ignore
+    interruptManager: InterruptManager;
+    // @ts-ignore
+    symbolLookup: ISymbolLookup;
+    // @ts-ignore
+    interop: Interop;
+    // @ts-ignore
+    battery: Battery;
 	onStdout = new Signal1<string>();
 	onStderr = new Signal1<string>();
 

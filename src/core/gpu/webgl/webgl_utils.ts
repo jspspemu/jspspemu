@@ -28,7 +28,8 @@ export class WrappedWebGLUniform {
 
 export class WrappedWebGLAttrib {
 	public location: number;
-	private buffer: WebGLBuffer;
+	// @ts-ignore
+    private buffer: WebGLBuffer;
 
 	constructor(private gl: WebGLRenderingContext, private program: WebGLProgram, private name: string) {
 		this.location = gl.getAttribLocation(program, name);

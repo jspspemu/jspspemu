@@ -23,6 +23,7 @@ export class Atrac3plusDecoder {
 
     get numberOfSamples(): Int { return Atrac3plusConstants.ATRAC3P_FRAME_SAMPLES }
 
+    // noinspection JSUnusedLocalSymbols
     init(bytesPerFrame: Int, channels: Int, outputChannels: Int, codingMode: Int): Int {
         const ctx = new Context()
         this.ctx = ctx

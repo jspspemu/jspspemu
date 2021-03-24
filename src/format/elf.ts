@@ -7,27 +7,27 @@ import {Memory} from "../core/memory";
 const console = logger.named('elf');
 
 export class ElfHeader {
-	magic: string;
-	class: number;
-	data: number;
-	idVersion: number;
-	_padding: number[];
-	type: ElfType;
-	machine: ElfMachine;
-	version: number;
-	entryPoint: number;
-	programHeaderOffset: number;
-	sectionHeaderOffset: number;
-	flags: number;
-	elfHeaderSize: number;
-	programHeaderEntrySize: number;
-	programHeaderCount: number;
-	sectionHeaderEntrySize: number;
-	sectionHeaderCount: number;
-	sectionHeaderStringTable: number;
+	magic: string = ''
+	class: number = 0
+	data: number = 0
+	idVersion: number = 0
+	_padding: number[] = []
+	type: ElfType = 0
+	machine: ElfMachine = 0
+	version: number = 0
+	entryPoint: number = 0
+	programHeaderOffset: number = 0
+	sectionHeaderOffset: number = 0
+	flags: number = 0
+	elfHeaderSize: number = 0
+	programHeaderEntrySize: number = 0
+	programHeaderCount: number = 0
+	sectionHeaderEntrySize: number = 0
+	sectionHeaderCount: number = 0
+	sectionHeaderStringTable: number = 0
 
 	get hasValidMagic() {
-		return this.magic == String.fromCharCode(0x7F) + 'ELF';
+		return this.magic == '\u007FELF';
 	}
 
 	get hasValidMachine() {
@@ -61,14 +61,14 @@ export class ElfHeader {
 }
 
 export class ElfProgramHeader {
-	type: ElfProgramHeaderType;
-	offset: number;
-	virtualAddress: number;
-	psysicalAddress: number;
-	fileSize: number;
-	memorySize: number;
-	flags: ElfProgramHeaderFlags;
-	alignment: number;
+	type: ElfProgramHeaderType = ElfProgramHeaderType.NoLoad
+	offset: number = 0
+	virtualAddress: number = 0
+	psysicalAddress: number = 0
+	fileSize: number = 0
+	memorySize: number = 0
+	flags: ElfProgramHeaderFlags = ElfProgramHeaderFlags.Executable
+	alignment: number = 0
 
 	static struct = StructClass.create<ElfProgramHeader>(ElfProgramHeader, [
 		{ type: UInt32 },
@@ -83,18 +83,19 @@ export class ElfProgramHeader {
 }
 
 export class ElfSectionHeader {
-	nameOffset: number;
-	name: string;
-	stream: Stream;
-	type: ElfSectionHeaderType;
-	flags: ElfSectionHeaderFlags;
-	address: number;
-	offset: number;
-	size: number;
-	link: number;
-	info: number;
-	addressAlign: number;
-	entitySize: number;
+	nameOffset: number = 0
+	name: string = ''
+	// @ts-ignore
+    stream: Stream
+	type: ElfSectionHeaderType = ElfSectionHeaderType.Null
+	flags: ElfSectionHeaderFlags = ElfSectionHeaderFlags.None
+	address: number = 0
+	offset: number = 0
+	size: number = 0
+	link: number = 0
+	info: number = 0
+	addressAlign: number = 0
+	entitySize: number = 0
 
 	static struct = StructClass.create<ElfSectionHeader>(ElfSectionHeader, [
 		{ nameOffset: UInt32 },
@@ -204,8 +205,8 @@ export const enum ElfRelocType {
 }
 
 export class ElfReloc {
-	pointerAddress: number;
-	info: number;
+	pointerAddress: number = 0
+	info: number = 0
 
 	get pointeeSectionHeaderBase() { return (this.info >> 16) & 0xFF; }
 	get pointerSectionHeaderBase() { return (this.info >> 8) & 0xFF; }
@@ -219,12 +220,17 @@ export class ElfReloc {
 
 
 export class ElfLoader {
-	public header: ElfHeader;
+	// @ts-ignore
+    public header: ElfHeader;
+    // @ts-ignore
 	stream: Stream;
-	public programHeaders: ElfProgramHeader[];
-	public sectionHeaders: ElfSectionHeader[];
-	public sectionHeadersByName: StringDictionary<ElfSectionHeader>;
+	public programHeaders: ElfProgramHeader[] = []
+	public sectionHeaders: ElfSectionHeader[] = []
+	// @ts-ignore
+    public sectionHeadersByName: StringDictionary<ElfSectionHeader>;
+    // @ts-ignore
 	private sectionHeaderStringTable: ElfSectionHeader;
+    // @ts-ignore
 	private stringTableStream: Stream;
 
 	constructor() {

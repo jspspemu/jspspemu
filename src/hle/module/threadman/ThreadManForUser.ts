@@ -329,25 +329,25 @@ export class ThreadManForUser {
 }
 
 class SceKernelThreadInfo {
-    size: number;
-    name: string;
-    attributes: number;
-	status: ThreadStatus;
-    entryPoint: number;
-    stackPointer: number;
-    stackSize: number;
-    GP: number;
-    priorityInit: number;
-    priority: number;
-    waitType: number;
-    waitId: number;
-    wakeupCount: number;
-    exitStatus: number;
-    runClocksLow: number;
-    runClocksHigh: number;
-    interruptPreemptionCount: number;
-    threadPreemptionCount: number;
-    releaseCount: number;
+    size: number = 0
+    name: string = ''
+    attributes: number = 0
+	status: ThreadStatus = ThreadStatus.RUNNING
+    entryPoint: number = 0
+    stackPointer: number = 0
+    stackSize: number = 0
+    GP: number = 0
+    priorityInit: number = 0
+    priority: number = 0
+    waitType: number = 0
+    waitId: number = 0
+    wakeupCount: number = 0
+    exitStatus: number = 0
+    runClocksLow: number = 0
+    runClocksHigh: number = 0
+    interruptPreemptionCount: number = 0
+    threadPreemptionCount: number = 0
+    releaseCount: number = 0
 
     static struct = StructClass.create<SceKernelThreadInfo>(SceKernelThreadInfo, [
 		{ size: Int32 },

@@ -11,7 +11,8 @@ export class sceNetAdhoc {
 	constructor(private context: EmulatorContext) {
 	}
 
-	private partition: MemoryPartition;
+	// @ts-ignore
+    private partition: MemoryPartition;
 
 	/** Initialise the adhoc library. */
 	@nativeFunction(0xE1D621D7, 150, 'int', '')
@@ -207,7 +208,7 @@ class PdpRecv {
 }
 
 export class Pdp {
-	id: number;
+	id: number = 0
 	onMessageCancel: Cancelable | null;
 	chunks = <NetPacket[]>[];
 	onChunkRecv = new Signal0();

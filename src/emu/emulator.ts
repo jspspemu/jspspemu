@@ -46,32 +46,51 @@ import {Html5Keyboard} from "../html5/Html5Keyboard";
 const console = logger.named('emulator');
 
 export class Emulator {
-	public context: EmulatorContext;
+	// @ts-ignore
+    public context: EmulatorContext;
 	public memory: Memory;
+    // @ts-ignore
 	private memoryManager: MemoryManager;
+    // @ts-ignore
 	private rtc: PspRtc;
+    // @ts-ignore
 	private interruptManager: InterruptManager;
+    // @ts-ignore
 	fileManager: FileManager;
 	audio: PspAudio = new PspAudio();
+    // @ts-ignore
 	canvas: HTMLCanvasElement;
+    // @ts-ignore
 	webgl_canvas: HTMLCanvasElement;
+    // @ts-ignore
 	display: PspDisplay;
+    // @ts-ignore
 	public gpu: PspGpu;
 	public gpuStats: GpuStats = new GpuStats();
 	public battery = new Battery();
+    // @ts-ignore
 	public controller: PspController;
+    // @ts-ignore
 	private syscallManager: SyscallManager;
+    // @ts-ignore
 	private threadManager: ThreadManager;
+    // @ts-ignore
 	private netManager: NetManager;
+    // @ts-ignore
 	private moduleManager: ModuleManager;
+    // @ts-ignore
 	private ms0Vfs: MountableVfs;
+    // @ts-ignore
 	private callbackManager: CallbackManager;
+    // @ts-ignore
 	private interop: Interop;
+    // @ts-ignore
 	private storageVfs: StorageVfs;
 	//private dropboxVfs: DropboxVfs;
 	public config: Config = new Config();
 	public cpuConfig = new CpuConfig()
 	//private usingDropbox: boolean = false;
+    // @ts-ignore
 	emulatorVfs: EmulatorVfs;
 
 	// Interpreted

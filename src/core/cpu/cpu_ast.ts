@@ -6,9 +6,9 @@ import {MathFloat} from "../../global/math";
 import {relooperProcess} from "../../codegen/relooper";
 
 export class ANode {
-	index:number;
-	toJs():string { return ''; }
-	optimize():ANode { return this; }
+	index: number = 0
+	toJs(): string { return ''; }
+	optimize(): ANode { return this; }
 }
 
 export class ANodeStm extends ANode {

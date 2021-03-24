@@ -72,11 +72,11 @@ export const enum CommandType {
 }
 
 class SizeInfoStruct {
-	maxClusters: number;
-	freeClusters: number;
-	maxSectors: number;
-	sectorSize: number;
-	sectorCount: number;
+	maxClusters: number = 0
+	freeClusters: number = 0
+	maxSectors: number = 0
+	sectorSize: number = 0
+	sectorCount: number = 0
 
 	static struct = StructClass.create<SizeInfoStruct>(SizeInfoStruct, [
 		{ maxClusters: UInt32 },

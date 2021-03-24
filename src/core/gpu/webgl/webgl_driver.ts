@@ -21,11 +21,13 @@ import {Memory} from "../../memory";
 
 let globalDriver: WebGlPspDrawDriver|null = null;
 export class WebGlPspDrawDriver {
-	private gl: WebGLRenderingContext;
-	
-	private cache: ShaderCache;
-	private textureHandler: TextureHandler;
-	private glAntialiasing:boolean;
+	// @ts-ignore
+    private gl: WebGLRenderingContext
+    // @ts-ignore
+	private cache: ShaderCache
+    // @ts-ignore
+	private textureHandler: TextureHandler
+	private glAntialiasing: boolean = false
 
 	constructor(private canvas: HTMLCanvasElement, public stats: GpuStats) {
 		globalDriver = this;
@@ -87,8 +89,8 @@ export class WebGlPspDrawDriver {
 	    this.rehashSignal.clear()
     }
 
-	private clearing: boolean;
-	private clearingFlags: ClearBufferSet;
+	private clearing: boolean = false
+	private clearingFlags: ClearBufferSet = 0
 
 	setClearMode(clearing: boolean, flags: number) {
 		this.clearing = clearing;

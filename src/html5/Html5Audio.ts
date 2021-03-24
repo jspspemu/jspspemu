@@ -32,7 +32,7 @@ export class PspAudioBuffer {
 
 class Audio2Channel {
     private buffers: PspAudioBuffer[] = [];
-    private node: ScriptProcessorNode;
+    private node?: ScriptProcessorNode;
     currentBuffer: PspAudioBuffer | undefined | null;
 
     constructor(public id: number, public context: AudioContext | null) {

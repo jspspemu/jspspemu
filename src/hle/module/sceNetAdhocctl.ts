@@ -10,7 +10,7 @@ export class sceNetAdhocctl {
 	private currentState = State.Disconnected;
 	private currentName = "noname";
 
-	public ws: WebSocket;
+	public ws?: WebSocket;
 
 	/** Initialise the Adhoc control library */
 	@nativeFunction(0xE26F226E, 150, 'int', 'int/int/void*')

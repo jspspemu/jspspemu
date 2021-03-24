@@ -22,6 +22,7 @@ function fromCryptoArray(uint8View: Uint8Array) {
 */
 
 function ab2str(buf: Uint8Array) {
+    // @ts-ignore
 	return String.fromCharCode.apply(null, buf);
 }
 

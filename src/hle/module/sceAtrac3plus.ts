@@ -559,6 +559,7 @@ class AtracID {
     secondBufferReadPosition: Int = 0
     secondBufferSize: Int = 0
     data = new Uint8Array(0)
+    // @ts-ignore
     dataMem: IMemory
     startAddr: Int = 0
     readAddr: Int = 0

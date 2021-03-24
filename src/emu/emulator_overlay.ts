@@ -14,8 +14,11 @@ interface OverlaySection {
 let canDOMCreateElements = (typeof document != 'undefined');
 
 class OverlayCounter<T> implements OverlaySection {
+    // @ts-ignore
     public value: T;
+    // @ts-ignore
     public element: HTMLElement;
+
     constructor(public name: string, private resetValue: T, private representer?: (v: T) => any) {
         this.reset();
         if (canDOMCreateElements) {
@@ -34,6 +37,7 @@ class OverlayCounter<T> implements OverlaySection {
 }
 
 class OverlayIntent implements OverlaySection {
+    // @ts-ignore
     public element: HTMLButtonElement;
     constructor(text: string, action: () => void) {
         if (canDOMCreateElements) {
@@ -49,6 +53,7 @@ class OverlayIntent implements OverlaySection {
 }
 
 class OverlaySlider implements OverlaySection {
+    // @ts-ignore
     public element: HTMLInputElement;
     constructor(text: string, initialRatio: number, action: (value: number) => void) {
         if (canDOMCreateElements) {
@@ -148,20 +153,20 @@ export class DebugOverlay {
         this.webglDriver.drawRatio = ratio;
         this.webglDriver.redrawLastTransfer();
     });
-    overlayIndexCount = this.overlay.createCounter('indexCount', 0, numberToSeparator);
-    overlayNonIndexCount = this.overlay.createCounter('nonIndexCount', 0, numberToSeparator);
-    overlayVertexCount = this.overlay.createCounter('vertexCount', 0, numberToSeparator);
-    trianglePrimCount = this.overlay.createCounter('trianglePrimCount', 0, numberToSeparator);
-    triangleStripPrimCount = this.overlay.createCounter('triangleStripPrimCount', 0, numberToSeparator);
-    spritePrimCount = this.overlay.createCounter('spritePrimCount', 0, numberToSeparator);
-    otherPrimCount = this.overlay.createCounter('otherPrimCount', 0, numberToSeparator);
-    hashMemoryCount = this.overlay.createCounter('hashMemoryCount', 0, numberToSeparator);
-    hashMemorySize = this.overlay.createCounter('hashMemorySize', 0, numberToFileSize);
-    totalCommands = this.overlay.createCounter('totalCommands', 0, numberToSeparator);
-    totalStalls = this.overlay.createCounter('totalStalls', 0, numberToSeparator);
-    primCount = this.overlay.createCounter('primCount', 0, numberToSeparator);
-    batchCount = this.overlay.createCounter('batchCount', 0, numberToSeparator);
-    timePerFrame = this.overlay.createCounter('time', 0, (v) => `${v.toFixed(0)} ms`);
+    overlayIndexCount = this.overlay.createCounter<number>('indexCount', 0, numberToSeparator);
+    overlayNonIndexCount = this.overlay.createCounter<number>('nonIndexCount', 0, numberToSeparator);
+    overlayVertexCount = this.overlay.createCounter<number>('vertexCount', 0, numberToSeparator);
+    trianglePrimCount = this.overlay.createCounter<number>('trianglePrimCount', 0, numberToSeparator);
+    triangleStripPrimCount = this.overlay.createCounter<number>('triangleStripPrimCount', 0, numberToSeparator);
+    spritePrimCount = this.overlay.createCounter<number>('spritePrimCount', 0, numberToSeparator);
+    otherPrimCount = this.overlay.createCounter<number>('otherPrimCount', 0, numberToSeparator);
+    hashMemoryCount = this.overlay.createCounter<number>('hashMemoryCount', 0, numberToSeparator);
+    hashMemorySize = this.overlay.createCounter<number>('hashMemorySize', 0, numberToFileSize);
+    totalCommands = this.overlay.createCounter<number>('totalCommands', 0, numberToSeparator);
+    totalStalls = this.overlay.createCounter<number>('totalStalls', 0, numberToSeparator);
+    primCount = this.overlay.createCounter<number>('primCount', 0, numberToSeparator);
+    batchCount = this.overlay.createCounter<number>('batchCount', 0, numberToSeparator);
+    timePerFrame = this.overlay.createCounter<number>('time', 0, (v) => `${v.toFixed(0)} ms`);
 
     gpuFreezing = new Signal1<boolean>();
     gpuDumpCommands = new Signal0();

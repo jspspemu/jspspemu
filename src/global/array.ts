@@ -87,6 +87,7 @@ Array.prototype.binarySearchIndex = function <T>(selector: (item: T) => number) 
 };
 
 Array.prototype.min = <any>(function (selector: Function) {
+    // @ts-ignore
     const array = <any[]>this;
     if (!selector) selector = (a:any) => a;
 	if (array.length == 0) return null;
@@ -94,6 +95,7 @@ Array.prototype.min = <any>(function (selector: Function) {
 });
 
 Array.prototype.max = <any>(function (selector: Function) {
+    // @ts-ignore
     const array = <any[]>this;
     if (!selector) selector = (a:any) => a;
 	if (array.length == 0) return null;
@@ -105,10 +107,12 @@ Array.prototype.sortBy = function (selector: Function) {
 };
 
 Array.prototype.cast = <any>(function () {
+    // @ts-ignore
 	return this;
 });
 
 Array.prototype.count = <any>(function (selector: Function) {
+    // @ts-ignore
     const array = <any[]>this;
     if (!selector) selector = funcTrue;
     let result = 0;
@@ -117,6 +121,7 @@ Array.prototype.count = <any>(function (selector: Function) {
 });
 
 Array.prototype.any = <any>(function (selector: Function) {
+    // @ts-ignore
     const array = <any[]>this;
     if (!selector) selector = funcTrue;
 	for (let n = 0; n < array.length; n++) if (selector(array[n])) return true;
@@ -124,6 +129,7 @@ Array.prototype.any = <any>(function (selector: Function) {
 });
 
 Array.prototype.first = <any>(function (selector: Function) {
+    // @ts-ignore
     const array = <any[]>this;
     if (!selector) selector = identity;
 	for (let n = 0; n < array.length; n++) if (selector(array[n])) return array[n];
@@ -131,6 +137,7 @@ Array.prototype.first = <any>(function (selector: Function) {
 });
 
 Array.prototype.sum = <any>(function (selector: Function) {
+    // @ts-ignore
     const array = <any[]>this;
     if (!selector) selector = (a:any) => a;
 	return array.reduce((previous, current) => { return previous + selector(current); }, 0);
@@ -143,6 +150,7 @@ Array.prototype.remove = function (item) {
 };
 
 Array.prototype.toLookupMap = <any>function () {
+    // @ts-ignore
     const array = <any[]>this;
     const lookup: { [k: string]: any } = {};
     for (let n = 0; n < array.length; n++) {

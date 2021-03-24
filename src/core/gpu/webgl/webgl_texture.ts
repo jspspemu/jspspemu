@@ -153,9 +153,9 @@ export class TextureHandler {
 		this.invalidateWithGl(gl);
 	}
 
-	private texturesByHash:Map<string, Texture>;
-	private texturesByAddress:Map<number, Texture>;
-	private textures:Texture[];
+	private texturesByHash: Map<string, Texture> = new Map<string, Texture>();
+	private texturesByAddress: Map<number, Texture> = new Map<number, Texture>();
+	private textures: Texture[] = []
 	
 	rehashSignal = new Signal1<number>();
 	

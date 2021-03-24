@@ -120,12 +120,12 @@ export class SysMemUserForUser {
         const memory = this.context.memory;
         let state = thread.state;
 
-		const readParam = (type:string) => {
+		const readParam = (type:string): string => {
 			switch (type) {
-				case '%s': return memory.readStringz(state.getGPR(gprIndex++));
+				case '%s': return memory.readStringz(state.getGPR(gprIndex++))!
 				case '%d': return String(state.getGPR(gprIndex++));
 			}
-			return '??[' + type + ']??';
+			return `??[${type}]??`;
 		};
 		console.info('sceKernelPrintf: ' + format.replace(/%[dsux]/g, (data) => {
 			return readParam(data);

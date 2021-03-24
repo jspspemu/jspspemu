@@ -11,7 +11,6 @@ function intArrayOf(...values: number[]) { return new Int32Array(values) }
 function arrayOf<T>(...values: T[]) { return values }
 
 type Int = number
-type Float = number
 
 const log = logger.named("Atrac3plus.ChannelUnit")
 
@@ -21,9 +20,11 @@ const log = logger.named("Atrac3plus.ChannelUnit")
 * C to Java conversion by gid15 for the jpcsp project.
 * Java to Kotlin for kpspemu
 */
+// noinspection JSMethodCanBeStatic
 export class ChannelUnit {
 	ctx = new ChannelUnitContext()
-	private br: BitReader
+	// @ts-ignore
+    private br: BitReader
 	private dsp?: Atrac3plusDsp = undefined
 	private numChannels: Int = 0
 
@@ -58,7 +59,7 @@ export class ChannelUnit {
 	}
 
 	decode(): Int {
-		var ret: Int
+        let ret: Int;
 
         this.ctx.numQuantUnits = this.br.read(5) + 1
 		if (this.ctx.numQuantUnits > 28 && this.ctx.numQuantUnits < 32) {
@@ -167,8 +168,8 @@ export class ChannelUnit {
 	/**
 	 * Add weighting coefficients to the decoded word-length information.
 	 *
-	 * @param[in,out] chan          ptr to the channel parameters
-	 * @param[in]     wtab_idx      index of the table of weights
+	 * @param chan          ptr to the channel parameters
+	 * @param weightIdx     index of the table of weights
 	 * @return result code: 0 = OK, otherwise - error code
 	 */
 	private addWordlenWeights(chan: Channel, weightIdx: Int): Int {
@@ -188,16 +189,16 @@ export class ChannelUnit {
 	/**
 	 * Decode word length for each quantization unit of a channel.
 	 *
-	 * @param[in]     chNum        channel to process
+	 * @param     chNum        channel to process
 	 * @return result code: 0 = OK, otherwise - error code
 	 */
 	private decodeChannelWordlen(chNum: Int): Int {
 		let ret: Int
 		const chan = this.ctx.channels[chNum]
 		const refChan = this.ctx.channels[0]
-		var weightIdx = 0
+        let weightIdx = 0;
 
-		chan.fillMode = 0
+        chan.fillMode = 0
 
 		switch (this.br.read(2)) {
 		// switch according to coding mode
@@ -258,8 +259,8 @@ export class ChannelUnit {
 
 				if (chNum > 0 && chan.numCodedVals > 0) {
 					const vlcTab = ChannelUnit.wl_vlc_tabs[this.br.read(2)]!!
-					var delta = vlcTab.getVLC2(this.br)
-					chan.quWordlen[0] = (refChan.quWordlen[0] + delta) & 7
+                    let delta = vlcTab.getVLC2(this.br);
+                    chan.quWordlen[0] = (refChan.quWordlen[0] + delta) & 7
 
 					for (let i = 1; i < chan.numCodedVals; i++) {
 						const diff = refChan.quWordlen[i] - refChan.quWordlen[i - 1]
@@ -279,8 +280,8 @@ export class ChannelUnit {
 							chan.quWordlen[i] = (chan.quWordlen[i] + delta) & 7
 						}
 					} else {
-						var i: Int
-						i = 0
+                        let i: Int;
+                        i = 0
 						while (i < (chan.numCodedVals & (-2))) {
 							if (!this.br.readBool()) {
 								chan.quWordlen[i] = (chan.quWordlen[i] + vlcTab.getVLC2(this.br)) & 7
@@ -357,15 +358,15 @@ export class ChannelUnit {
 	/**
 	 * Decode scale factor indexes for each quant unit of a channel.
 	 *
-	 * @param[in]     chNum        channel to process
+	 * @param     chNum        channel to process
 	 * @return result code: 0 = OK, otherwise - error code
 	 */
 	private decodeChannelSfIdx(chNum: Int): Int {
 		const chan = this.ctx.channels[chNum]
 		const refChan = this.ctx.channels[0]
-		var weightIdx = 0
+        let weightIdx = 0;
 
-		chan.fillMode = 0
+        chan.fillMode = 0
 
 		switch (this.br.read(2)) {
 		// switch according to coding mode
@@ -425,8 +426,8 @@ export class ChannelUnit {
             case 2: {
                 if (chNum > 0) {
                     const vlcTab = ChannelUnit.sf_vlc_tabs[this.br.read(2)]!!
-    
-                    var delta = vlcTab.getVLC2(this.br)
+
+                    let delta = vlcTab.getVLC2(this.br);
                     chan.quSfIdx[0] = (refChan.quSfIdx[0] + delta) & 0x3F
     
                     for (let i = 1; i < this.ctx.usedQuantUnits; i++) {
@@ -455,14 +456,14 @@ export class ChannelUnit {
                 } else {
                     weightIdx = this.br.read(2)
                     const vlcSel = this.br.read(2)
-                    var vlcTab = ChannelUnit.sf_vlc_tabs[vlcSel]!!
-    
+                    let vlcTab = ChannelUnit.sf_vlc_tabs[vlcSel]!!;
+
                     if (weightIdx == 3) {
                         vlcTab = ChannelUnit.sf_vlc_tabs[vlcSel + 4]!!
 
                         this.unpackSfVqShape(chan.quSfIdx, this.ctx.usedQuantUnits)
-    
-                        var diff = (this.br.read(4) + 56) & 0x3F
+
+                        let diff = (this.br.read(4) + 56) & 0x3F;
                         chan.quSfIdx[0] = (chan.quSfIdx[0] + diff) & 0x3F
     
                         for (let i = 1; i < this.ctx.usedQuantUnits; i++) {
@@ -505,8 +506,8 @@ export class ChannelUnit {
 
 		/* scan for last non-zero coeff in both channels and
 	     * set number of quant units having coded spectrum */
-		var i: Int
-		i = this.ctx.numQuantUnits - 1
+        let i: Int;
+        i = this.ctx.numQuantUnits - 1
 		while (i >= 0) {
 			if (this.ctx.channels[0].quWordlen[i] != 0 || this.numChannels == 2 && this.ctx.channels[1].quWordlen[i] != 0) {
 				break
@@ -538,7 +539,7 @@ export class ChannelUnit {
 	/**
 	 * Decode code table indexes for each quant unit of a channel.
 	 *
-	 * @param[in]     chNum        channel to process
+	 * @param     chNum        channel to process
 	 * @return result code: 0 = OK, otherwise - error code
 	 */
 	private decodeChannelCodeTab(chNum: Int): Int {
@@ -593,8 +594,8 @@ export class ChannelUnit {
 					vlcTab = ChannelUnit.ct_vlc_tabs[0]!!
 					deltaVlc = ChannelUnit.ct_vlc_tabs[0]!!
 				}
-				var pred = 0
-				numVals = this.numCtValues
+                let pred = 0;
+                numVals = this.numCtValues
 				if (numVals < 0) {
 					return numVals
 				}
@@ -663,15 +664,15 @@ export class ChannelUnit {
 		const isSigned = tab.isSigned
 		const mask = (1 << bits) - 1
 
-		var pos = 0
-		while (pos < numSpecs) {
+        let pos = 0;
+        while (pos < numSpecs) {
 			if (groupSize == 1 || this.br.readBool()) {
                 for (let j = 0; j < groupSize; j++) {
-					var _val = vlcTab.getVLC2(this.br)
+                    let _val = vlcTab.getVLC2(this.br);
 
-					for (let i = 0; i < numCoeffs; i++) {
-						var cf = _val & mask
-						if (isSigned) {
+                    for (let i = 0; i < numCoeffs; i++) {
+                        let cf = _val & mask;
+                        if (isSigned) {
 							cf = BitUtils.signExtend(cf, bits)
 						} else if (cf != 0 && this.br.readBool()) {
 							cf = -cf
@@ -700,14 +701,14 @@ export class ChannelUnit {
             for (let qu = 0; qu < this.ctx.usedQuantUnits; qu++) {
 				const numSpecs = Atrac3plusDsp.ff_atrac3p_qu_to_spec_pos[qu + 1] - Atrac3plusDsp.ff_atrac3p_qu_to_spec_pos[qu]
 				const wordlen = chan.quWordlen[qu]
-				var codetab = chan.quTabIdx[qu]
-				if (wordlen > 0) {
+                let codetab = chan.quTabIdx[qu];
+                if (wordlen > 0) {
 					if (!this.ctx.useFullTable) {
 						codetab = Atrac3plusData2.atrac3p_ct_restricted_to_full[chan.tableType][wordlen - 1][codetab]
 					}
 
-					var tabIndex = (chan.tableType * 8 + codetab) * 7 + wordlen - 1
-					const tab = Atrac3plusData1.atrac3p_spectra_tabs[tabIndex]
+                    let tabIndex = (chan.tableType * 8 + codetab) * 7 + wordlen - 1;
+                    const tab = Atrac3plusData1.atrac3p_spectra_tabs[tabIndex]
 
 					if (tab.redirect >= 0) {
 						tabIndex = tab.redirect
@@ -825,7 +826,7 @@ export class ChannelUnit {
 	/**
 	 * Implements coding mode 1 (master) for gain compensation levels.
 	 *
-	 * @param[out]    dst    ptr to the output array
+	 * @param    dst    ptr to the output array
 	 */
 	private gaincLevelMode1m(dst: AtracGainInfo) {
 		if (dst.numPoints > 0) {
@@ -841,8 +842,8 @@ export class ChannelUnit {
 	/**
 	 * Implements coding mode 3 (slave) for gain compensation levels.
 	 *
-	 * @param[out]   dst   ptr to the output array
-	 * @param[in]    ref   ptr to the reference channel
+	 * @param   dst   ptr to the output array
+	 * @param    ref   ptr to the reference channel
 	 */
 	private gaincLevelMode3s(dst: AtracGainInfo, ref: AtracGainInfo) {
 		for (let i = 0; i < dst.numPoints; i++) {
@@ -853,8 +854,8 @@ export class ChannelUnit {
 	/**
 	 * Decode level code for each gain control point.
 	 *
-	 * @param[in]     ch_num          channel to process
-	 * @param[in]     coded_subbands  number of subbands to process
+	 * @param     chNum          channel to process
+	 * @param     codedSubbands  number of subbands to process
 	 * @return result code: 0 = OK, otherwise - error code
 	 */
 	private decodeGaincLevels(chNum: Int, codedSubbands: Int): Int {
@@ -941,8 +942,8 @@ export class ChannelUnit {
 	/**
 	 * Implements coding mode 0 for gain compensation locations.
 	 *
-	 * @param[out]    dst    ptr to the output array
-	 * @param[in]     pos    position of the value to be processed
+	 * @param    dst    ptr to the output array
+	 * @param     pos    position of the value to be processed
 	 */
 	private gaincLocMode0(dst: AtracGainInfo, pos: Int) {
 		if (pos == 0 || dst.locCode[pos - 1] < 15) {
@@ -958,7 +959,7 @@ export class ChannelUnit {
 	/**
 	 * Implements coding mode 1 for gain compensation locations.
 	 *
-	 * @param[out]    dst    ptr to the output array
+	 * @param    dst    ptr to the output array
 	 */
 	private gaincLocMode1(dst: AtracGainInfo) {
 		if (dst.numPoints > 0) {
@@ -977,8 +978,8 @@ export class ChannelUnit {
 	/**
 	 * Decode location code for each gain control point.
 	 *
-	 * @param[in]     chNum          channel to process
-	 * @param[in]     codedSubbands  number of subbands to process
+	 * @param     chNum          channel to process
+	 * @param     codedSubbands  number of subbands to process
 	 * @return result code: 0 = OK, otherwise - error code
 	 */
 	private decodeGaincLocCodes(chNum: Int, codedSubbands: Int): Int {
@@ -1006,7 +1007,7 @@ export class ChannelUnit {
                         const ref = refChan.gainData[sb]
     
                         // 1st value is vlc-coded modulo delta to master
-                        var delta = ChannelUnit.gain_vlc_tabs[10].getVLC2(this.br)
+                        let delta = ChannelUnit.gain_vlc_tabs[10].getVLC2(this.br)
                         const pred = (ref.numPoints > 0) ? ref.locCode[0] : 0
                         dst.locCode[0] = pred + delta & 0x1F
     
@@ -1072,7 +1073,7 @@ export class ChannelUnit {
     
                         // 1st value is vlc-coded modulo delta to the corresponding
                         // value of the previous subband if any or zero
-                        var delta = ChannelUnit.gain_vlc_tabs[6].getVLC2(this.br)
+                        let delta = ChannelUnit.gain_vlc_tabs[6].getVLC2(this.br)
                         const pred = (chan.gainData[sb - 1].numPoints > 0) ? chan.gainData[sb - 1].locCode[0] : 0
                         dst.locCode[0] = pred + delta & 0x1F
     
@@ -1137,7 +1138,7 @@ export class ChannelUnit {
 	 * @return result code: 0 = OK, otherwise - error code
 	 */
 	private decodeGaincData(): Int {
-		var ret: Int
+		let ret: Int
 
 		for (let chNum = 0; chNum < this.numChannels; chNum++) {
 			for (let i = 0; i < Atrac3plusConstants.ATRAC3P_SUBBANDS; i++) {
@@ -1182,8 +1183,8 @@ export class ChannelUnit {
 	/**
 	 * Decode envelope for all tones of a channel.
 	 *
-	 * @param[in]     chNum           channel to process
-	 * @param[in]     bandHasTones    ptr to an array of per-band-flags:
+	 * @param     chNum           channel to process
+	 * @param     bandHasTones    ptr to an array of per-band-flags:
 	 * 1 - tone data present
 	 */
 	private decodeTonesEnvelope(chNum: Int, bandHasTones: boolean[]) {
@@ -1213,8 +1214,8 @@ export class ChannelUnit {
 	/**
 	 * Decode number of tones for each subband of a channel.
 	 *
-	 * @param[in]     chNum           channel to process
-	 * @param[in]     bandHasTones    ptr to an array of per-band-flags:
+	 * @param     chNum           channel to process
+	 * @param     bandHasTones    ptr to an array of per-band-flags:
 	 * 1 - tone data present
 	 * @return result code: 0 = OK, otherwise - error code
 	 */
@@ -1243,7 +1244,7 @@ export class ChannelUnit {
             case 2: { // VLC modulo delta to master (slave only)
                 for (let sb = 0; sb < this.ctx.wavesInfo.numToneBands; sb++) {
                     if (bandHasTones[sb]) {
-                        var delta = ChannelUnit.tone_vlc_tabs[2].getVLC2(this.br)
+                        let delta = ChannelUnit.tone_vlc_tabs[2].getVLC2(this.br);
                         delta = BitUtils.signExtend(delta, 3)
                         dst[sb].numWavs = ref[sb].numWavs + delta & 0xF
                     }
@@ -1278,8 +1279,8 @@ export class ChannelUnit {
 	/**
 	 * Decode frequency information for each subband of a channel.
 	 *
-	 * @param[in]     chNum           channel to process
-	 * @param[in]     bandHasTones    ptr to an array of per-band-flags:
+	 * @param     chNum           channel to process
+	 * @param     bandHasTones    ptr to an array of per-band-flags:
 	 * 1 - tone data present
 	 */
 	private decodeTonesFrequency(chNum: Int, bandHasTones: boolean[]) {
@@ -1320,8 +1321,8 @@ export class ChannelUnit {
 				const iwav = ref[sb].startIndex
 				const owav = dst[sb].startIndex
 				for (let i = 0; i < dst[sb].numWavs; i++) {
-					var delta = ChannelUnit.tone_vlc_tabs[6]!!.getVLC2(this.br)
-					delta = BitUtils.signExtend(delta, 8)
+                    let delta = ChannelUnit.tone_vlc_tabs[6]!!.getVLC2(this.br);
+                    delta = BitUtils.signExtend(delta, 8)
 					const pred = (i < ref[sb].numWavs) ? this.ctx.wavesInfo.waves[iwav + i]!!.freqIndex : ((ref[sb].numWavs > 0) ? this.ctx.wavesInfo.waves[iwav + ref[sb].numWavs - 1]!!.freqIndex : 0)
                     this.ctx.wavesInfo.waves[owav + i]!!.freqIndex = pred + delta & 0x3FF
 				}
@@ -1332,8 +1333,8 @@ export class ChannelUnit {
 	/**
 	 * Decode amplitude information for each subband of a channel.
 	 *
-	 * @param[in]     chNum           channel to process
-	 * @param[in]     bandHasTones    ptr to an array of per-band-flags:
+	 * @param     chNum           channel to process
+	 * @param     bandHasTones    ptr to an array of per-band-flags:
 	 * 1 - tone data present
 	 */
 	private decodeTonesAmplitude(chNum: Int, bandHasTones: boolean[]) {
@@ -1349,9 +1350,9 @@ export class ChannelUnit {
 				const wsrc = dst[sb].startIndex
 				const wref = ref[sb].startIndex
                 for (let j = 0; j < dst[sb].numWavs; j++) {
-					var fi = 0
-					var maxdiff = 1024
-					for (let i = 0; i < ref[sb].numWavs; i++) {
+                    let fi = 0;
+                    let maxdiff = 1024;
+                    for (let i = 0; i < ref[sb].numWavs; i++) {
 						const diff = Math.abs(this.ctx.wavesInfo.waves[wsrc + j]!!.freqIndex - this.ctx.wavesInfo.waves[wref + i]!!.freqIndex)
 						if (diff < maxdiff) {
 							maxdiff = diff
@@ -1409,7 +1410,7 @@ export class ChannelUnit {
                         continue
                     }
                     for (let i = 0; i < dst[sb].numWavs; i++) {
-                        var delta = ChannelUnit.tone_vlc_tabs[5]!!.getVLC2(this.br)
+                        let delta = ChannelUnit.tone_vlc_tabs[5]!!.getVLC2(this.br);
                         delta = BitUtils.signExtend(delta, 5)
                         const pred = (refwaves[dst[sb].startIndex + i] >= 0) ? this.ctx.wavesInfo.waves[refwaves[dst[sb].startIndex + i]]!!.ampSf : 34
                         this.ctx.wavesInfo.waves[dst[sb].startIndex + i]!!.ampSf = pred + delta & 0x3F
@@ -1434,7 +1435,7 @@ export class ChannelUnit {
 	/**
 	 * Decode phase information for each subband of a channel.
 	 *
-	 * @param     chNnum          channel to process
+	 * @param     chNum          channel to process
 	 * @param     bandHasTones    ptr to an array of per-band-flags:
 	 * 1 - tone data present
 	 */
@@ -1537,14 +1538,14 @@ export class ChannelUnit {
 			return
 		}
 
-		var RNGindex = 0
+        let RNGindex = 0;
         for (let qu = 0; qu < this.ctx.usedQuantUnits; qu++) {
 			RNGindex += this.ctx.channels[0].quSfIdx[qu] + this.ctx.channels[1].quSfIdx[qu]
 		}
 
 		{
-			var sb = 0
-			while (sb < this.ctx.numCodedSubbands) {
+            let sb = 0;
+            while (sb < this.ctx.numCodedSubbands) {
 				sbRNGindex[sb] = RNGindex & 0x3FC
 				sb++
 				RNGindex += 128

@@ -76,6 +76,7 @@ export class Atrac {
     private static qmf_window = new Float32Array(48)
     private static qmf_48tap_half = new Float32Array([-0.00001461907, -0.00009205479, -0.000056157569, 0.00030117269, 0.0002422519, -0.00085293897, -0.0005205574, 0.0020340169, 0.00078333891, -0.0042153862, -0.00075614988, 0.0078402944, -0.000061169922, -0.01344162, 0.0024626821, 0.021736089, -0.007801671, -0.034090221, 0.01880949, 0.054326009, -0.043596379, -0.099384367, 0.13207909, 0.46424159])
 
+    // noinspection JSUnusedGlobalSymbols
     static generateTables() {
         // Generate scale factors
         if (this.ff_atrac_sf_table[63] == 0) {
@@ -94,13 +95,13 @@ export class Atrac {
         }
     }
 
+    // noinspection JSUnusedGlobalSymbols
     static iqmf(inlo: Float32Array, inloOffset: Int, inhi: Float32Array, inhiOffset: Int, nIn: Int, out: Float32Array, outOffset: Int, delayBuf: Float32Array, temp: Float32Array) {
-        var outOffset = outOffset
+        let i = 0
         MemoryUtils.arraycopyF(delayBuf, 0, temp, 0, 46)
 
         // loop1
         {
-            var i = 0
             while (i < nIn) {
                 temp[46 + 2 * i + 0] = inlo[inloOffset + i] + inhi[inhiOffset + i]
                 temp[46 + 2 * i + 1] = inlo[inloOffset + i] - inhi[inhiOffset + i]

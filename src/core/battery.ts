@@ -1,7 +1,7 @@
 export class Battery {
-	public charging: boolean;
-	public level: number;
-	public lifetime: number;
+	public charging: boolean = false
+	public level: number = 0
+	public lifetime: number = 0
 	
 	get isLowBattery() {
 		return this.level < 0.22;

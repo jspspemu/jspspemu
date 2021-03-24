@@ -872,7 +872,6 @@ export class FFT {
 	}
 
 	mdctInit(nbits: Int, inverse: Boolean, scale: Double): Int {
-		var scale = scale
 		const n = 1 << nbits
         this.mdctBits = nbits
         this.mdctSize = n
@@ -900,7 +899,9 @@ export class FFT {
 	/**
 	 * Compute inverse MDCT of size N = 2^nbits
 	 * @param output N samples
+     * @param outputOffset
 	 * @param input N/2 samples
+     * @param inputOffset
 	 */
 	imdctCalc(output: Float32Array, outputOffset: Int, input: Float32Array, inputOffset: Int) {
 		const n = 1 << this.mdctBits
@@ -919,7 +920,9 @@ export class FFT {
 	 * Compute the middle half of the inverse MDCT of size N = 2^nbits,
 	 * thus excluding the parts that can be derived by symmetry
 	 * @param output N/2 samples
+     * @param outputOffset
 	 * @param input N/2 samples
+     * @param inputOffset
 	 */
 	imdctHalf(output: Float32Array, outputOffset: Int, input: Float32Array, inputOffset: Int) {
 		const n = 1 << this.mdctBits
@@ -988,18 +991,18 @@ export class FFT {
 		// BF(t2, z[5].im, z[4].im, -z[5].im);
 		// BF(t5, z[7].re, z[6].re, -z[7].re);
 		// BF(t6, z[7].im, z[6].im, -z[7].im);
-		var t1 = (z[o + 8] + z[o + 10])
-		z[o + 10] = z[o + 8] - z[o + 10]
-		var t2 = (z[o + 9] + z[o + 11])
-		z[o + 11] = z[o + 9] - z[o + 11]
-		var t5 = (z[o + 12] + z[o + 14])
-		z[o + 14] = z[o + 12] - z[o + 14]
-		var t6 = (z[o + 13] + z[o + 15])
-		z[o + 15] = z[o + 13] - z[o + 15]
+        let t1 = (z[o + 8] + z[o + 10]);
+        z[o + 10] = z[o + 8] - z[o + 10]
+        let t2 = (z[o + 9] + z[o + 11]);
+        z[o + 11] = z[o + 9] - z[o + 11]
+        let t5 = (z[o + 12] + z[o + 14]);
+        z[o + 14] = z[o + 12] - z[o + 14]
+        let t6 = (z[o + 13] + z[o + 15]);
+        z[o + 15] = z[o + 13] - z[o + 15]
 
 		// BUTTERFLIES(z[0],z[2],z[4],z[6]);
-		var t3 = t5 - t1
-		t5 = t5 + t1
+        let t3 = t5 - t1;
+        t5 = t5 + t1
 		z[o + 8] = (z[o + 0] - t5)
 		z[o + 0] = (z[o + 0] + t5)
 		z[o + 13] = (z[o + 5] - t3)
@@ -1034,22 +1037,22 @@ export class FFT {
 	}
 
 	private pass(z: Float32Array, o: Int, cos: Float32Array, n: Int) {
-		var o0 = o
-		var o1 = o + 2 * n * 2
-		var o2 = o + 4 * n * 2
-		var o3 = o + 6 * n * 2
-		var wre = 0
-		var wim = 2 * n
-		n--
+        let o0 = o;
+        let o1 = o + 2 * n * 2;
+        let o2 = o + 4 * n * 2;
+        let o3 = o + 6 * n * 2;
+        let wre = 0;
+        let wim = 2 * n;
+        n--
 
 		// TRANSFORM_ZERO(z[0],z[o1],z[o2],z[o3]);
-		var t1 = z[o2 + 0]
-		var t2 = z[o2 + 1]
-		var t5 = z[o3 + 0]
-		var t6 = z[o3 + 1]
-		//   BUTTERFLIES(a0,a1,a2,a3)
-		var t3 = t5 - t1
-		t5 = t5 + t1
+        let t1 = z[o2 + 0];
+        let t2 = z[o2 + 1];
+        let t5 = z[o3 + 0];
+        let t6 = z[o3 + 1];
+        //   BUTTERFLIES(a0,a1,a2,a3)
+        let t3 = t5 - t1;
+        t5 = t5 + t1
 		z[o2 + 0] = (z[o0 + 0] - t5)
 		z[o0 + 0] = (z[o0 + 0] + t5)
 		z[o3 + 1] = (z[o1 + 1] - t3)

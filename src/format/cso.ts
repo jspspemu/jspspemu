@@ -4,16 +4,16 @@ import {AsyncStream, Stream} from "../global/stream";
 import {Integer64} from "../global/int64";
 import {zlib_inflate_raw} from "./zlib";
 
-const CSO_MAGIC = 'CISO';
+const CSO_MAGIC = 'CISO'
 
 class Header {
-    magic: string;
-    headerSize: number;
-    totalBytes: Integer64;
-    blockSize: number;
-    version: number;
-    alignment: number;
-    reserved: number;
+    magic: string = ''
+    headerSize: number = 0
+    totalBytes: Integer64 = Integer64.ZERO
+    blockSize: number = 0;
+    version: number = 0
+    alignment: number = 0
+    reserved: number = 0
 
     get numberOfBlocks() { return Math.floor(this.totalBytes.number / this.blockSize); }
 
@@ -30,7 +30,7 @@ class Header {
 
 class Block {
 	private _uncompressedData: Uint8Array|null = null;
-	public compressedData: Uint8Array;
+	public compressedData: Uint8Array = new Uint8Array()
 	public compressed: boolean;
 	public low: number;
 	public high: number;
@@ -66,8 +66,11 @@ class Block {
 
 export class Cso implements AsyncStream {
 	date: Date = new Date();
+    // @ts-ignore
     private stream: AsyncStream;
+    // @ts-ignore
     private header: Header;
+    // @ts-ignore
 	private offsets: Uint32Array;
 	
 	private getBlockInfo(index:number) {

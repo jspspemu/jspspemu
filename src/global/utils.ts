@@ -17,9 +17,13 @@ declare global {
     }
 }
 
+// @ts-ignore
 Number.prototype.extract = function(offset: number, length: number): number { return BitUtils.extract(this, offset, length) }
+// @ts-ignore
 Number.prototype.extract8 = function(offset: number): number { return BitUtils.extract8(this, offset) }
+// @ts-ignore
 Number.prototype.extractBit = function(offset: number): boolean { return BitUtils.extractBool(this, offset) }
+// @ts-ignore
 Number.prototype.signExtend = function(bits: number): number { return (this << (32 - bits)) >> (32 - bits) }
 
 String.prototype.format = function(...args: any[]): string {
@@ -215,6 +219,7 @@ export function sprintf(...args: any[]): string {
 }
 
 export function printf(...args: any[]) {
+    // @ts-ignore
 	console.log(sprintf.apply(sprintf, arguments));
 }
 
@@ -864,6 +869,7 @@ export class Signal1<T1> {
 
 	add(callback: (v1: T1) => void): Signal1Cancelable<T1> {
 		this.callbacks.push(callback);
+        // @ts-ignore
 		return new Signal1Cancelable(this, callback);
 	}
 
@@ -880,6 +886,7 @@ export class Signal1<T1> {
             callback(v1);
         };
         this.add(once);
+        // @ts-ignore
 		return new Signal1Cancelable(this, once);
 	}
 
@@ -1192,6 +1199,7 @@ export class PromiseFast<T> implements Thenable<T>, PromiseLike<T> {
     }
 
 	static fromPromise<T>(promise: Promise<T>): PromiseFast<T> {
+        // @ts-ignore
 	    return this.fromThenable(promise)
     }
 	
@@ -1202,6 +1210,7 @@ export class PromiseFast<T> implements Thenable<T>, PromiseLike<T> {
 	}
 
 	constructor(callback: (resolve: (value?: T) => void, reject: (error: Error) => void) => void) {
+        // @ts-ignore
 		callback(this._resolve.bind(this), this._reject.bind(this));
 	}
 
@@ -1306,12 +1315,16 @@ export class DomHelp {
 	static fromId(e:string) {
 		return new DomHelp(document.getElementById(e));
 	}
-	
+
+    // @ts-ignore
 	mousedown(callback: (e:MouseEvent) => void) { return this.on('mousedown', callback); }
+    // @ts-ignore
 	mouseup(callback: (e:MouseEvent) => void) { return this.on('mouseup', callback); }
+    // @ts-ignore
 	mousemove(callback: (e:MouseEvent) => void) { return this.on('mousemove', callback); }
 	click(callback?: (e:MouseEvent) => void) {
 		if (callback == null) this.e.click();
+        // @ts-ignore
 		return this.on('click', callback!);
 	}
 	showToggle() {

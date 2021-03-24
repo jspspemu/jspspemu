@@ -30,6 +30,7 @@
 /* Author: Chas Emerick <cemerick@snowtide.com> */
 const __whitespace = {" ": true, "\t": true, "\n": true, "\f": true, "\r": true};
 
+// @ts-ignore
 export const difflib = {
     defaultJunkFunction: function (c:string) {
         return __whitespace.hasOwnProperty(c);
@@ -99,27 +100,42 @@ export const difflib = {
     },
 
     SequenceMatcher: function (a:any, b:any, isjunk:any = undefined) {
+        // @ts-ignore
         this.set_seqs = function (a:any, b:any) {
+            // @ts-ignore
             this.set_seq1(a);
+            // @ts-ignore
             this.set_seq2(b);
         }
 
+        // @ts-ignore
         this.set_seq1 = function (a:any) {
+            // @ts-ignore
             if (a == this.a) return;
+            // @ts-ignore
             this.a = a;
+            // @ts-ignore
             this.matching_blocks = this.opcodes = null;
         }
 
+        // @ts-ignore
         this.set_seq2 = function (b:any) {
+            // @ts-ignore
             if (b == this.b) return;
+            // @ts-ignore
             this.b = b;
+            // @ts-ignore
             this.matching_blocks = this.opcodes = this.fullbcount = null;
+            // @ts-ignore
             this.__chain_b();
         }
 
+        // @ts-ignore
         this.__chain_b = function () {
+            // @ts-ignore
             const b = this.b;
             const n = b.length;
+            // @ts-ignore
             const b2j: any = this.b2j = {};
             const populardict: any = {};
             for (let i = 0; i < b.length; i++) {
@@ -143,6 +159,7 @@ export const difflib = {
                 }
             }
 
+            // @ts-ignore
             const isjunk = this.isjunk;
             const junkdict: any = {};
             if (isjunk) {
@@ -160,14 +177,21 @@ export const difflib = {
                 }
             }
 
+            // @ts-ignore
             this.isbjunk = difflib.__isindict(junkdict);
+            // @ts-ignore
             this.isbpopular = difflib.__isindict(populardict);
         }
 
+        // @ts-ignore
         this.find_longest_match = function (alo:any, ahi:any, blo:any, bhi:any) {
+            // @ts-ignore
             const a = this.a;
+            // @ts-ignore
             const b = this.b;
+            // @ts-ignore
             const b2j = this.b2j;
+            // @ts-ignore
             const isbjunk = this.isbjunk;
             let besti = alo;
             let bestj = blo;
@@ -222,9 +246,13 @@ export const difflib = {
             return [besti, bestj, bestsize];
         }
 
+        // @ts-ignore
         this.get_matching_blocks = function () {
+            // @ts-ignore
             if (this.matching_blocks != null) return this.matching_blocks;
+            // @ts-ignore
             const la = this.a.length;
+            // @ts-ignore
             const lb = this.b.length;
 
             const queue = [[0, la, 0, lb]];
@@ -236,6 +264,7 @@ export const difflib = {
                 ahi = qi[1];
                 blo = qi[2];
                 bhi = qi[3];
+                // @ts-ignore
                 x = this.find_longest_match(alo, ahi, blo, bhi);
                 i = x[0];
                 j = x[1];
@@ -276,17 +305,23 @@ export const difflib = {
             if (k1) non_adjacent.push([i1, j1, k1]);
 
             non_adjacent.push([la, lb, 0]);
+            // @ts-ignore
             this.matching_blocks = non_adjacent;
+            // @ts-ignore
             return this.matching_blocks;
         }
 
+        // @ts-ignore
         this.get_opcodes = function () {
+            // @ts-ignore
             if (this.opcodes != null) return this.opcodes;
             let i = 0;
             let j = 0;
             const answer: any[] = [];
+            // @ts-ignore
             this.opcodes = answer;
             let block: any, ai: any, bj: any, size: any, tag: any;
+            // @ts-ignore
             const blocks = this.get_matching_blocks();
             for (const idx in blocks) {
                 if (blocks.hasOwnProperty(idx)) {
@@ -315,8 +350,10 @@ export const difflib = {
 
         // this is a generator function in the python lib, which of course is not supported in javascript
         // the reimplementation builds up the grouped opcodes into a list in their entirety and returns that.
+        // @ts-ignore
         this.get_grouped_opcodes = function (n:any) {
             if (!n) n = 3;
+            // @ts-ignore
             let codes = this.get_opcodes();
             if (!codes) codes = [["equal", 0, 1, 0, 1]];
             let code: any, tag: any, i1: any, i2: any, j1: any, j2: any;
@@ -367,29 +404,40 @@ export const difflib = {
             return groups;
         };
 
+        // @ts-ignore
         this.ratio = function () {
             const matches = difflib.__reduce(
                 function (sum:any, triple:any) { return sum + triple[triple.length - 1]; },
+                // @ts-ignore
                 this.get_matching_blocks(), 0);
+            // @ts-ignore
             return difflib.__calculate_ratio(matches, this.a.length + this.b.length);
         };
 
+        // @ts-ignore
         this.quick_ratio = function () {
             let fullbcount: any, elt: any;
+            // @ts-ignore
             if (this.fullbcount == null) {
+                // @ts-ignore
                 this.fullbcount = fullbcount = {};
+                // @ts-ignore
                 for (let i = 0; i < this.b.length; i++) {
+                    // @ts-ignore
                     elt = this.b[i];
                     fullbcount[elt] = difflib.__dictget(fullbcount, elt, 0) + 1;
                 }
             }
+            // @ts-ignore
             fullbcount = this.fullbcount;
 
             const avail: any = {};
             const availhas = difflib.__isindict(avail);
             let matches = 0;
             let numb: any = 0;
+            // @ts-ignore
             for (let i = 0; i < this.a.length; i++) {
+                // @ts-ignore
                 elt = this.a[i];
                 if (availhas(elt)) {
                     numb = avail[elt];
@@ -400,6 +448,7 @@ export const difflib = {
                 if (numb > 0) matches++;
             }
 
+            // @ts-ignore
             return difflib.__calculate_ratio(matches, this.a.length + this.b.length);
         };
 
@@ -412,8 +461,11 @@ export const difflib = {
         };
         */
 
+        // @ts-ignore
         this.isjunk = isjunk ? isjunk : difflib.defaultJunkFunction;
+        // @ts-ignore
         this.a = this.b = null;
+        // @ts-ignore
         this.set_seqs(a, b);
     }
 };

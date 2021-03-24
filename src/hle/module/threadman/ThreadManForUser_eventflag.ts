@@ -127,10 +127,10 @@ class EventFlagWaitingThread {
 }
 
 class EventFlag {
-	name: string;
-	attributes: number;
-	currentPattern: number;
-	initialPattern: number;
+	name: string = ''
+	attributes: number = 0
+	currentPattern: number = 0
+	initialPattern: number = 0
 	waitingThreads = new SortedSet<EventFlagWaitingThread>();
 
 	waitAsync(bits: number, waitType: EventFlagWaitTypeSet, outBits: Stream, timeout: Stream, callbacks: AcceptCallbacks) {
@@ -190,12 +190,12 @@ class EventFlag {
 }
 
 class EventFlagInfo {
-	size: number;
-	name: string;
-	attributes: number; // HleEventFlag.AttributesSet
-	initialPattern: number;
-	currentPattern: number;
-	numberOfWaitingThreads: number;
+	size: number = 0
+	name: string = ''
+	attributes: number = 0 // HleEventFlag.AttributesSet
+	initialPattern: number = 0
+	currentPattern: number = 0
+	numberOfWaitingThreads: number = 0
 
 	static struct = StructClass.create<EventFlagInfo>(EventFlagInfo, [
 		{ size: Int32 },

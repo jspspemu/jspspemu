@@ -89,7 +89,7 @@ class IndentWriter {
 export class SimpleRelooper {
 	private lastId:number = 0;
 	private first:SimpleBlock|null = null;
-	private blocks:any[]
+	private blocks:any[] = []
 	
 	static process(callback: (sr:SimpleRelooper) => void):string {
         const sr = new SimpleRelooper();

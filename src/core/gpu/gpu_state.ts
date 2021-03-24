@@ -74,73 +74,73 @@ export const enum ColorEnum {
 
 export class VertexInfo {
 	// Calculated
-	weightOffset:number = 0;
-	textureOffset:number = 0;
-	colorOffset:number = 0;
-	normalOffset:number = 0;
-	positionOffset:number = 0;
-	textureComponentsCount:number = 0;
-	align: number;
-	size: number;
+	weightOffset:number = 0
+	textureOffset:number = 0
+	colorOffset:number = 0
+	normalOffset:number = 0
+	positionOffset:number = 0
+	textureComponentsCount:number = 0
+	align: number = 0
+	size: number = 0
 
-	// Extra	
-	value: number = -1;
-	reversedNormal: boolean;
-	address: number;
+	// Extra
+	value: number = -1
+	reversedNormal: boolean = false
+	address: number = 0
 	
 	// Attributes
-	weight: NumericEnum;
-	texture: NumericEnum;
-	color: ColorEnum;
-	normal: NumericEnum;
-	position: NumericEnum;
+	weight: NumericEnum = NumericEnum.Void
+	texture: NumericEnum = NumericEnum.Void
+	color: ColorEnum = ColorEnum.Void
+	normal: NumericEnum = NumericEnum.Void
+	position: NumericEnum = NumericEnum.Void
 
 	// Vertex Type
-	index: IndexEnum;
-	weightCount: number;
-	morphingVertexCount: number;
-	transform2D: boolean;
-	weightSize:number;
-	colorSize:number;
-	textureSize:number;
-	positionSize:number;
-	normalSize:number;
+	index: IndexEnum = IndexEnum.Void
+	weightCount: number = 0
+	morphingVertexCount: number = 0
+	transform2D: boolean = false
+	weightSize:number = 0
+	colorSize:number = 0
+	textureSize:number = 0
+	positionSize:number = 0
+	normalSize:number = 0
 
 	describe() {
 	    return `vertexInfo_${this.value >>> 0}_${this.textureComponentsCount}`
     }
 	
 	clone() {
-		return new VertexInfo().copyFrom(this);
+		return new VertexInfo().copyFrom(this)
 	}
 	
 	copyFrom(that:VertexInfo) {
-		this.weightOffset = that.weightOffset;
-		this.textureOffset = that.textureOffset;
-		this.colorOffset = that.colorOffset;
-		this.normalOffset = that.normalOffset; 
-		this.positionOffset = that.positionOffset;
-		this.textureComponentsCount = that.textureComponentsCount;
-		this.value = that.value;
-		this.size = that.size;
-		this.reversedNormal = that.reversedNormal;
-		this.address = that.address;
-		this.texture = that.texture;
-		this.color = that.color;
-		this.normal = that.normal;
-		this.position = that.position;
-		this.weight = that.weight;
-		this.index = that.index;
-		this.weightCount = that.weightCount;
+		this.weightOffset = that.weightOffset
+		this.textureOffset = that.textureOffset
+		this.colorOffset = that.colorOffset
+		this.normalOffset = that.normalOffset;
+		this.positionOffset = that.positionOffset
+		this.textureComponentsCount = that.textureComponentsCount
+		this.value = that.value
+		this.size = that.size
+		this.reversedNormal = that.reversedNormal
+		this.address = that.address
+		this.texture = that.texture
+		this.color = that.color
+		this.normal = that.normal
+		this.position = that.position
+		this.weight = that.weight
+		this.index = that.index
+		this.weightCount = that.weightCount
 		this.morphingVertexCount = that.morphingVertexCount
-		this.transform2D = that.transform2D;
-		this.weightSize = that.weightSize;
-		this.colorSize = that.colorSize;
+		this.transform2D = that.transform2D
+		this.weightSize = that.weightSize
+		this.colorSize = that.colorSize
 		this.textureSize = that.textureSize
-		this.positionSize = that.positionSize;
-		this.normalSize = that.normalSize;
-		this.align = that.align;
-		return this;
+		this.positionSize = that.positionSize
+		this.normalSize = that.normalSize
+		this.align = that.align
+		return this
 	}
 
 	setState(state:GpuState) {
@@ -148,31 +148,31 @@ export class VertexInfo {
 		this.address = vstate.address;
 	
 		if ((this.value != vstate.value) || (this.textureComponentsCount != state.texture.textureComponentsCount) || (this.reversedNormal != vstate.reversedNormal)) {
-			this.textureComponentsCount = state.texture.textureComponentsCount;
-			this.reversedNormal = vstate.reversedNormal;
-			this.value = vstate.value;
-			this.texture = vstate.texture;
-			this.color = vstate.color;
-			this.normal = vstate.normal;
-			this.position = vstate.position;
-			this.weight = vstate.weight;
-			this.index = vstate.index;
-			this.weightCount = vstate.weightCount;
-			this.morphingVertexCount = vstate.morphingVertexCount;
-			this.transform2D = vstate.transform2D;
+			this.textureComponentsCount = state.texture.textureComponentsCount
+			this.reversedNormal = vstate.reversedNormal
+			this.value = vstate.value
+			this.texture = vstate.texture
+			this.color = vstate.color
+			this.normal = vstate.normal
+			this.position = vstate.position
+			this.weight = vstate.weight
+			this.index = vstate.index
+			this.weightCount = vstate.weightCount
+			this.morphingVertexCount = vstate.morphingVertexCount
+			this.transform2D = vstate.transform2D
 		
 			this.updateSizeAndPositions();	
 		}
 
-		return this;
+		return this
 	}
 	
 	updateSizeAndPositions() {
-		this.weightSize = VertexInfo.NumericEnumSizes[this.weight];
-		this.colorSize = VertexInfo.ColorEnumSizes[this.color];
-		this.textureSize = VertexInfo.NumericEnumSizes[this.texture];
-		this.positionSize = VertexInfo.NumericEnumSizes[this.position];
-		this.normalSize = VertexInfo.NumericEnumSizes[this.normal];
+		this.weightSize = VertexInfo.NumericEnumSizes[this.weight]
+		this.colorSize = VertexInfo.ColorEnumSizes[this.color]
+		this.textureSize = VertexInfo.NumericEnumSizes[this.texture]
+		this.positionSize = VertexInfo.NumericEnumSizes[this.position]
+		this.normalSize = VertexInfo.NumericEnumSizes[this.normal]
 
 		this.size = 0;
 		this.size = MathUtils.nextAligned(this.size, this.weightSize);

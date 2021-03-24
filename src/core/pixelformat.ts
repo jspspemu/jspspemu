@@ -101,9 +101,9 @@ export class PixelConverter {
 			case PixelFormat.RGBA_5551: return PixelConverter.update5551(ArrayBufferUtils.uint8ToUint16(from), to, useAlpha);
 			case PixelFormat.RGBA_5650: return PixelConverter.update5650(ArrayBufferUtils.uint8ToUint16(from), to, useAlpha);
 			case PixelFormat.RGBA_4444: return PixelConverter.update4444(ArrayBufferUtils.uint8ToUint16(from), to, useAlpha);
+            case PixelFormat.PALETTE_T4: return PixelConverter.updateT4(from, to, useAlpha, palette!, clutStart, clutShift, clutMask);
 			case PixelFormat.PALETTE_T8: return PixelConverter.updateT8(from, to, useAlpha, palette!, clutStart, clutShift, clutMask);
-			case PixelFormat.PALETTE_T4: return PixelConverter.updateT4(from, to, useAlpha, palette!, clutStart, clutShift, clutMask);
-			default: throw new Error(`Unsupported pixel format ${format}`);
+			default: throw new Error(`Unsupported pixel format ${format} [${PixelFormat[format]}]`);
 		}
 	}
 
