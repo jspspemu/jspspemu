@@ -2,47 +2,46 @@ import "../emu/global"
 import {AsyncStream, BaseAsyncStream, BufferedAsyncStream, Stream} from "../global/stream";
 import {PromiseFast, PromiseGenerator, PromiseUtils, StringDictionary} from "../global/utils";
 import {
-	Int64,
-	Stringz,
-	StructArray,
-	StructClass,
-	StructEntry,
-	UInt16_2lb,
-	UInt32,
-	UInt32_2lb,
-	UInt8
+    GetStruct,
+    Int64,
+    Stringz,
+    Struct,
+    StructArray,
+    StructClass,
+    StructEntry,
+    StructMember,
+    StructStructArray,
+    StructStructStringz,
+    StructUInt16_2lb,
+    StructUInt32,
+    StructUInt32_2lb,
+    StructUInt8,
+    UInt16_2lb,
+    UInt32,
+    UInt32_2lb,
+    UInt8
 } from "../global/struct";
 import {MathUtils, parseIntFormat} from "../global/math";
 
 const SECTOR_SIZE = 0x800;
 
-class DirectoryRecordDate {
-	year = 2004;
-	month = 1;
-	day = 1;
-	hour = 0;
-	minute = 0;
-	second = 0;
-    offset = 0;
+class DirectoryRecordDate extends Struct {
+	@StructUInt8 year = 2004;
+    @StructUInt8 month = 1;
+    @StructUInt8 day = 1;
+    @StructUInt8 hour = 0;
+    @StructUInt8 minute = 0;
+    @StructUInt8 second = 0;
+    @StructUInt8 offset = 0;
 
     get date() {
         return new Date(this.year, this.month, this.day, this.hour, this.minute, this.second);
     }
-
-    static struct = StructClass.create<DirectoryRecordDate>(DirectoryRecordDate, [
-		{ year: UInt8 },
-		{ month: UInt8 },
-		{ day: UInt8 },
-		{ hour: UInt8 },
-		{ minute: UInt8 },
-		{ second: UInt8 },
-		{ offset: UInt8 },
-	]);
 }
 
-class IsoStringDate {
+class IsoStringDate extends Struct {
     // 2009032214540800
-    data: string = ''
+    @StructStructStringz(17) data: string = ''
 
     get year() { return parseInt(this.data.substr(0, 4)); }
     get month() { return parseInt(this.data.substr(4, 2)); }
@@ -52,10 +51,6 @@ class IsoStringDate {
     get second() { return parseInt(this.data.substr(12, 2)); }
     get hsecond() { return parseInt(this.data.substr(14, 2)); }
     get offset() { return parseInt(this.data.substr(16, 1)); }
-
-    static struct = StructClass.create<IsoStringDate>(IsoStringDate, [
-		{ data: Stringz(17) },
-    ]);
 }
 
 enum VolumeDescriptorHeaderType { // : byte
@@ -66,17 +61,10 @@ enum VolumeDescriptorHeaderType { // : byte
 	VolumePartitionDescriptor = 0x03,
 }
 
-class VolumeDescriptorHeader
-{
-	type: VolumeDescriptorHeaderType = VolumeDescriptorHeaderType.BootRecord
-	id: string = ''
-	version: number = 0
-
-	static struct = StructClass.create<VolumeDescriptorHeader>(VolumeDescriptorHeader, [
-		{ type: UInt8 },
-		{ id: Stringz(5) },
-		{ version: UInt8 },
-	]);
+class VolumeDescriptorHeader extends Struct {
+	@StructUInt8 type: VolumeDescriptorHeaderType = VolumeDescriptorHeaderType.BootRecord
+	@StructStructStringz(5) id: string = ''
+	@StructUInt8 version: number = 0
 }
 
 enum DirectoryRecordFlags {// : byte
@@ -89,120 +77,69 @@ enum DirectoryRecordFlags {// : byte
 }
 
 
-class DirectoryRecord {
-	length = 0;
-	extendedAttributeLength = 0;
-    extent = 0;
-    size = 0;
-	date = new DirectoryRecordDate();
-	flags = DirectoryRecordFlags.Directory;
-    fileUnitSize = 0;
-    interleave = 0;
-    volumeSequenceNumber = 0;
-    nameLength = 0;
+class DirectoryRecord extends Struct {
+	@StructUInt8 length = 0;
+    @StructUInt8 extendedAttributeLength = 0;
+    @StructUInt32_2lb extent = 0;
+    @StructUInt32_2lb size = 0;
+	@StructMember(DirectoryRecordDate.struct) date = new DirectoryRecordDate();
+    @StructUInt8 flags = DirectoryRecordFlags.Directory;
+    @StructUInt8 fileUnitSize = 0;
+    @StructUInt8 interleave = 0;
+    @StructUInt16_2lb volumeSequenceNumber = 0;
+    @StructUInt8 nameLength = 0;
     name = '';
     get offset() { return this.extent * SECTOR_SIZE; }
-
     get isDirectory() { return (this.flags & DirectoryRecordFlags.Directory) != 0; }
-
-	static struct = StructClass.create<DirectoryRecord>(DirectoryRecord, <StructEntry[]>[
-		{ length: UInt8 },
-		{ extendedAttributeLength: UInt8 },
-		{ extent: UInt32_2lb },
-		{ size: UInt32_2lb },
-		{ date: DirectoryRecordDate.struct },
-		{ flags: UInt8 },
-		{ fileUnitSize: UInt8 },
-		{ interleave: UInt8 },
-		{ volumeSequenceNumber: UInt16_2lb },
-		{ nameLength: UInt8 },
-    ]);
 }
 
-class PrimaryVolumeDescriptor
-{
+class PrimaryVolumeDescriptor extends Struct {
 	// @ts-ignore
-    header: VolumeDescriptorHeader;
-	systemId: string = ''
-	volumeId: string = ''
-    volumeSpaceSize: number = 0
-    volumeSetSize: number = 0
-    volumeSequenceNumber: number = 0
-    logicalBlockSize: number = 0
-    pathTableSize: number = 0
-    typeLPathTable: number = 0
-    optType1PathTable: number = 0
-    typeMPathTable: number = 0
-    optTypeMPathTable: number = 0
+    @StructMember(VolumeDescriptorHeader.struct) header: VolumeDescriptorHeader;
+    @StructUInt8 _pad1: number = 0
+	@StructStructStringz(0x20) systemId: string = ''
+    @StructStructStringz(0x20) volumeId: string = ''
+    @StructMember(Int64) _pad2: number = 0
+    @StructUInt32_2lb volumeSpaceSize: number = 0
+    @StructMember(StructArray(Int64, 4)) _pad3: any = null
+    @StructUInt32 volumeSetSize: number = 0
+    @StructUInt32 volumeSequenceNumber: number = 0
+    @StructUInt16_2lb logicalBlockSize: number = 0
+    @StructUInt32_2lb pathTableSize: number = 0
+    @StructUInt32 typeLPathTable: number = 0
+    @StructUInt32 optType1PathTable: number = 0
+    @StructUInt32 typeMPathTable: number = 0
+    @StructUInt32 optTypeMPathTable: number = 0
 
     // @ts-ignore
-    directoryRecord: DirectoryRecord;
+    @StructMember(DirectoryRecord.struct) directoryRecord: DirectoryRecord;
 
-    volumeSetId: string = ''
-    publisherId: string = ''
-    preparerId: string = ''
-    applicationId: string = ''
-    copyrightFileId: string = ''
-    abstractFileId: string = ''
-    bibliographicFileId: string = ''
+    @StructUInt8 _pad4: number = 0
+
+    @StructStructStringz(0x80) volumeSetId: string = ''
+    @StructStructStringz(0x80) publisherId: string = ''
+    @StructStructStringz(0x80) preparerId: string = ''
+    @StructStructStringz(0x80) applicationId: string = ''
+    @StructStructStringz(37) copyrightFileId: string = ''
+    @StructStructStringz(37) abstractFileId: string = ''
+    @StructStructStringz(37) bibliographicFileId: string = ''
 
     // @ts-ignore
-    creationDate: IsoStringDate
+    @StructMember(IsoStringDate.struct) creationDate: IsoStringDate
     // @ts-ignore
-    modificationDate: IsoStringDate
+    @StructMember(IsoStringDate.struct) modificationDate: IsoStringDate
     // @ts-ignore
-    expirationDate: IsoStringDate
+    @StructMember(IsoStringDate.struct) expirationDate: IsoStringDate
     // @ts-ignore
-    effectiveDate: IsoStringDate
+    @StructMember(IsoStringDate.struct) effectiveDate: IsoStringDate
 
-    fileStructureVersion: number = 0
-	pad5: number = 0
+    @StructUInt8 fileStructureVersion: number = 0
+    @StructUInt8 pad5: number = 0
 
-	pad6: number = 0
+	@StructStructArray(UInt8, 0x200) pad6: number = 0
+    @StructStructArray(UInt8, 653) pad7: number[] = []
 
     applicationData: number[] = []
-    pad7: number[] = []
-
-    static struct = StructClass.create<PrimaryVolumeDescriptor>(PrimaryVolumeDescriptor, <StructEntry[]>[
-		{ header: VolumeDescriptorHeader.struct },
-		{ _pad1: UInt8 },
-		{ systemId: Stringz(0x20) },
-		{ volumeId: Stringz(0x20) },
-		{ _pad2: Int64 },
-
-		{ volumeSpaceSize: UInt32_2lb },
-		{ _pad3: StructArray(Int64, 4) },
-		{ volumeSetSize: UInt32 },
-		{ volumeSequenceNumber: UInt32 },
-		{ logicalBlockSize: UInt16_2lb },
-		{ pathTableSize: UInt32_2lb },
-
-		{ typeLPathTable: UInt32 },
-		{ optType1PathTable: UInt32 },
-		{ typeMPathTable: UInt32 },
-		{ optTypeMPathTable: UInt32 },
-
-		{ directoryRecord: DirectoryRecord.struct },
-		{ _pad4: UInt8 },
-
-		{ volumeSetId: Stringz(0x80) },
-		{ publisherId: Stringz(0x80) },
-		{ preparerId: Stringz(0x80) },
-		{ applicationId: Stringz(0x80) },
-		{ copyrightFileId: Stringz(37) },
-		{ abstractFileId: Stringz(37) },
-		{ bibliographicFileId: Stringz(37) },
-
-		{ creationDate: IsoStringDate.struct },
-		{ modificationDate: IsoStringDate.struct },
-		{ expirationDate: IsoStringDate.struct },
-		{ effectiveDate: IsoStringDate.struct },
-
-		{ fileStructureVersion: UInt8 },
-		{ pad5: UInt8 },
-		{ pad6: StructArray<number>(UInt8, 0x200) },
-		{ pad7: StructArray<number>(UInt8, 653) },
-	]);
 }
 
 export interface IIsoNode {
@@ -349,7 +286,7 @@ export class Iso extends BaseAsyncStream {
             //Console.WriteLine("[{0}:{1:X}-{2:X}]", DirectoryRecordSize, DirectoryStream.Position, DirectoryStream.Position + DirectoryRecordSize);
 
             const directoryRecordStream = directoryStream.readStream(directoryRecordSize);
-            const directoryRecord = DirectoryRecord.struct.read(directoryRecordStream);
+            const directoryRecord = GetStruct(DirectoryRecord).read(directoryRecordStream);
             directoryRecord.name = directoryRecordStream.readStringz(directoryRecordStream.available);
 
 
