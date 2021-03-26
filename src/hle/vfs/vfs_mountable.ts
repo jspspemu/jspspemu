@@ -53,13 +53,13 @@ export class MountableVfs extends Vfs {
 		}
 	}
 
-	getStatAsync(path: string): PromiseFast<VfsStat> {
+	async getStatPromiseAsync(path: string): Promise<VfsStat> {
         const info = this.transformPath(path);
 
         if (info.mount.file) {
-			return PromiseFast.resolve(info.mount.file.stat());
+			return info.mount.file.stat()
 		} else {
-			return info.mount.vfs.getStatAsync(info.part);
+			return await info.mount.vfs.getStatPromiseAsync(info.part);
 		}
 	}
 	

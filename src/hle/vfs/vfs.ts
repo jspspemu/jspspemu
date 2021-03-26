@@ -16,12 +16,14 @@ export class Vfs {
         throw new Error("Must override openAsync : " + this);
     }
 
-	readAllAsync(path: string) {
-		return this.openAsync(path, FileOpenFlags.Read, parseInt('0777', 8)).thenFast(entry => entry.readAllAsync());
+	async readAllAsync(path: string) {
+        let entry = await this.openAsync(path, FileOpenFlags.Read, parseInt('0777', 8));
+        return entry.readAllAsync()
 	}
 
-	writeAllAsync(path: string, data: ArrayBuffer) {
-		return this.openAsync(path, FileOpenFlags.Create | FileOpenFlags.Truncate | FileOpenFlags.Write, parseInt('0777', 8)).thenFast(entry => entry.writeAllAsync(data));
+	async writeAllAsync(path: string, data: ArrayBuffer) {
+        let entry = await this.openAsync(path, FileOpenFlags.Create | FileOpenFlags.Truncate | FileOpenFlags.Write, parseInt('0777', 8));
+        return await entry.writeAllAsync(data)
 	}
 	
 	deleteAsync(path: string): PromiseFast<void> {
@@ -33,12 +35,26 @@ export class Vfs {
 	}
 
 	getStatAsync(path: string): PromiseFast<VfsStat> {
-		return this.openAsync(path, FileOpenFlags.Read, parseInt('0777', 8)).thenFast(entry => entry.stat());
+	    return PromiseFast.ensure(this.getStatPromiseAsync(path))
 	}
 
+	async getStatPromiseAsync(path: string): Promise<VfsStat> {
+        const entry = await this.openPromiseAsync(path, FileOpenFlags.Read, parseInt('0777', 8));
+        return entry.stat()
+    }
+
 	existsAsync(path: string): PromiseFast<boolean> {
-		return this.getStatAsync(path).thenFast(() => true).catch(() => false);
+	    return PromiseFast.ensure(this.existsPromiseAsync(path))
 	}
+
+    async existsPromiseAsync(path: string) {
+	    try {
+            await this.getStatPromiseAsync(path)
+            return true
+        } catch (e) {
+	        return false
+        }
+    }
 }
 
 export class ProxyVfs extends Vfs {
@@ -54,7 +70,17 @@ export class ProxyVfs extends Vfs {
 		return promise;
 	}
 
-	devctlAsync(command: number, input: Stream, output: Stream) {
+    private _callChainWhenErrorPromise<T>(callback: (vfs:Vfs, e: Error) => void) {
+        let promise: Promise<any> = Promise.reject(new Error());
+        this.parentVfsList.forEach(parentVfs => {
+            promise = promise.catch((e) => {
+                return callback(parentVfs, e);
+            });
+        });
+        return promise;
+    }
+
+    devctlAsync(command: number, input: Stream, output: Stream) {
 		return this._callChainWhenError<number>((vfs, e) => {
 			return vfs.devctlAsync(command, input, output);
 		});
@@ -80,9 +106,9 @@ export class ProxyVfs extends Vfs {
 			return vfs.openDirectoryAsync(path);
 		});
 	}
-	getStatAsync(path: string): PromiseFast<VfsStat> {
-		return this._callChainWhenError<VfsStat>((vfs, e) => {
-			return vfs.getStatAsync(path);
+	async getStatPromiseAsync(path: string): Promise<VfsStat> {
+		return this._callChainWhenErrorPromise<VfsStat>((vfs, e) => {
+			return vfs.getStatPromiseAsync(path);
 		});
 	}
 }

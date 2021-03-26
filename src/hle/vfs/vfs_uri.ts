@@ -28,9 +28,9 @@ export class UriVfs extends Vfs {
 		return PromiseFast.resolve(new MemoryVfsEntry(path, new ArrayBuffer(0)));
 	}
 
-	getStatAsync(path: string): PromiseFast<VfsStat> {
+	async getStatPromiseAsync(path: string) {
         const url = this.getAbsoluteUrl(path);
-        return PromiseFast.ensure(statUrlAsync(url));
+        return await statUrlAsync(url)
 	}
 }
 

@@ -1,5 +1,6 @@
 import { BatteryInfo } from '../core/battery';
 import {PromiseFast} from "../global/utils";
+import {waitAsync} from "../global/async";
 
 export interface BatteryManager {
     charging: boolean;
@@ -14,7 +15,7 @@ export interface BatteryManager {
 
 export class Html5Battery {
     static instance: Html5Battery = null as any;
-    private static promise: PromiseFast<Html5Battery> = null as any;
+    private static promise: Promise<Html5Battery> = null as any;
 
     constructor(private manager: BatteryManager) {
         Html5Battery.instance = this;
@@ -36,35 +37,33 @@ export class Html5Battery {
         return 1.0;
     }
 
-    static getAsync(): PromiseFast<Html5Battery> {
-        if (this.instance) return PromiseFast.resolve(this.instance);
+    static async getAsync(): Promise<Html5Battery> {
+        if (this.instance) return Promise.resolve(this.instance);
         if (this.promise) return this.promise;
-        if ((<any>navigator).battery) return PromiseFast.resolve(new Html5Battery((<any>navigator).battery));
+        if ((<any>navigator).battery) return Promise.resolve(new Html5Battery((<any>navigator).battery));
         if ((<any>navigator).getBattery) {
-
-            return this.promise = PromiseFast.fromThenable<BatteryManager>((<any>navigator).getBattery()).thenFast(v => {
+            return this.promise = (async () => {
+                const v = await (<any>navigator).getBattery()
                 return new Html5Battery(v);
-            });
+            })()
         }
-        return PromiseFast.resolve(new Html5Battery(null as any));
+        return Promise.resolve(new Html5Battery(null as any));
     }
 
-    static registerAndSetCallback(callback: (bi: BatteryInfo) => void) {
-        setTimeout(() => {
-			Html5Battery.getAsync().thenFast(battery => {
-				function sendData(): void {
-                    callback(<BatteryInfo>{
-						charging: battery.charging,
-						level: battery.level,
-						lifetime: battery.lifetime,
-					});
-				}
-				setInterval(() => {
-					sendData();
-				}, 300);
-				sendData();
-			});
-		}, 0);
+    static async registerAndSetCallback(callback: (bi: BatteryInfo) => void) {
+        await waitAsync(0)
+        const battery = await Html5Battery.getAsync()
+        function sendData(): void {
+            callback(<BatteryInfo>{
+                charging: battery.charging,
+                level: battery.level,
+                lifetime: battery.lifetime,
+            });
+        }
+        setInterval(() => {
+            sendData();
+        }, 300);
+        sendData();
     }
 }
 

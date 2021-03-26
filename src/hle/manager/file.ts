@@ -25,6 +25,10 @@ export class Device {
 	getStatAsync(uri: Uri) {
 		return this.vfs.getStatAsync(uri.pathWithoutDevice);
 	}
+
+    getStatPromiseAsync(uri: Uri) {
+        return this.vfs.getStatPromiseAsync(uri.pathWithoutDevice);
+    }
 }
 
 export class HleFile {
