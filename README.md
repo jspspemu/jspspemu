@@ -80,8 +80,8 @@ It JITs the vertex decoding.
 
 Module exported functions are like this:
 ```typescript
-@nativeFunction(0x13F592BC, 150, 'uint', 'int/int/int/void*')
-function sceAudioOutputPannedBlocking(channelId: number, leftVolume: number, rightVolume: number, buffer: Stream): any {
+@nativeFunction(0x13F592BC, 150)
+@U32 function sceAudioOutputPannedBlocking(@I32 channelId: number, @I32 leftVolume: number, @I32 rightVolume: number, @PTR buffer: Stream): any {
     const channel = this.channels[channelId];
     return channel.channel.playAsync(core.PspAudio.convertS16ToF32(buffer.readInt16Array(2 * channel.sampleCount)));
 }
