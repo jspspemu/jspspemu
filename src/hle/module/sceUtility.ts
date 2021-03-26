@@ -22,19 +22,18 @@ export class sceUtility {
 	}
 
 	@nativeFunction(0x50C4CD57, 150, 'uint', 'void*')
-	sceUtilitySavedataInitStart(paramsPtr: Stream) {
-		return PromiseFast.resolve(this._sceUtilitySavedataInitStart(paramsPtr.clone())).thenFast(result => {
-            const params = SceUtilitySavedataParam.struct.read(paramsPtr.clone());
-            params.base.result = result;
-			return 0;
-		});
+	async sceUtilitySavedataInitStart(paramsPtr: Stream) {
+        const result = await this._sceUtilitySavedataInitStart(paramsPtr.clone())
+        const params = SceUtilitySavedataParam.struct.read(paramsPtr.clone());
+        params.base.result = result;
+        return 0;
 	}
 
-	_sceUtilitySavedataInitStart(paramsPtr: Stream): PromiseFast<number> {
+	async _sceUtilitySavedataInitStart(paramsPtr: Stream) {
 		console.error('sceUtilitySavedataInitStart');
         const params = SceUtilitySavedataParam.struct.createProxy(paramsPtr);
 
-        return PromiseFast.resolve(0).thenFast(() => {
+        const func = (async () => {
             const fileManager = this.context.fileManager;
             const savePathFolder = "ms0:/PSP/SAVEDATA/" + params.gameName + params.saveName;
             const saveDataBin = savePathFolder + "/DATA.BIN";
@@ -48,103 +47,110 @@ export class sceUtility {
 			switch (params.mode) {
 				case PspUtilitySavedataMode.Autoload:
 				case PspUtilitySavedataMode.Load:
-				case PspUtilitySavedataMode.ListLoad:
-					return fileManager.openAsync(saveDataBin, FileOpenFlags.Read, parseIntFormat('0777')).thenFast(file => file.entry.readAllAsync()).thenFast(data => {
-						console.info('readed:', data.byteLength);
-						params.dataSize = data.byteLength;
-						this.context.memory.writeBytes(params.dataBufPointer, data);
-						return 0;
-					}).catch(error => {
-						console.info("can't read file:", saveDataBin, error);
-						return SceKernelErrors.ERROR_SAVEDATA_LOAD_NO_DATA;
-					});
+				case PspUtilitySavedataMode.ListLoad: {
+				    try {
+                        const file = await fileManager.openAsync(saveDataBin, FileOpenFlags.Read, parseIntFormat('0777'))
+                        const data = await file.entry.readAllAsync()
+                        console.info('readed:', data.byteLength);
+                        params.dataSize = data.byteLength;
+                        this.context.memory.writeBytes(params.dataBufPointer, data);
+                        return 0;
+                    } catch (error) {
+                        console.info("can't read file:", saveDataBin, error);
+                        return SceKernelErrors.ERROR_SAVEDATA_LOAD_NO_DATA;
+                    }
+                }
 				case PspUtilitySavedataMode.Autosave:
 				case PspUtilitySavedataMode.Save:
 				case PspUtilitySavedataMode.ListSave:
-                    const data = this.context.memory.readArrayBuffer(params.dataBufPointer, params.dataSize);
-
-                    return fileManager
-						.openAsync(saveDataBin, FileOpenFlags.Create | FileOpenFlags.Truncate | FileOpenFlags.Write, parseIntFormat('0777'))
-						.thenFast(file => file.entry.writeAllAsync(data))
-						.thenFast(written => {
-							return 0;
-						}).catch(error => {
-							return SceKernelErrors.ERROR_SAVEDATA_SAVE_ACCESS_ERROR;
-						});
+                {
+                    try {
+                        const data = this.context.memory.readArrayBuffer(params.dataBufPointer, params.dataSize);
+                        const file = await fileManager.openAsync(saveDataBin, FileOpenFlags.Create | FileOpenFlags.Truncate | FileOpenFlags.Write, parseIntFormat('0777'))
+                        const written = file.entry.writeAllAsync(data)
+                        return 0
+                    } catch (e) {
+                        return SceKernelErrors.ERROR_SAVEDATA_SAVE_ACCESS_ERROR;
+                    }
+                }
 				case PspUtilitySavedataMode.Read:
-				case PspUtilitySavedataMode.ReadSecure:
-					console.error("Not Implemented: sceUtilitySavedataInitStart.Read");
-					//return PromiseFast.resolve(-1);
-					return PromiseFast.resolve(0);
-				case PspUtilitySavedataMode.Sizes:
+				case PspUtilitySavedataMode.ReadSecure: {
+                    console.error("Not Implemented: sceUtilitySavedataInitStart.Read");
+                    return 0
+                }
+				case PspUtilitySavedataMode.Sizes: {
                     const SceKernelError = SceKernelErrors.ERROR_OK;
 
-					//Console.Error.WriteLine("Not Implemented: sceUtilitySavedataInitStart.Sizes");
+                    //Console.Error.WriteLine("Not Implemented: sceUtilitySavedataInitStart.Sizes");
 
-					const SectorSize = 1024;
-					const FreeSize = 32 * 1024 * 1024; // 32 MB
-					const UsedSize = 0;
+                    const SectorSize = 1024;
+                    const FreeSize = 32 * 1024 * 1024; // 32 MB
+                    const UsedSize = 0;
 
-					// MS free size.
-					// Gets the ammount of free space in the Memory Stick. If null,
-					// the size is ignored and no error is returned.
-					{
-						const sizeFreeInfoPtr = this.context.memory.getPointerPointer<SizeFreeInfo>(SizeFreeInfo.struct, params.msFreeAddr)!
-						sizeFreeInfoPtr.readWrite(sizeFreeInfo => {
-							sizeFreeInfo.sectorSize = SectorSize;
-							sizeFreeInfo.freeSectors = FreeSize / SectorSize;
-							sizeFreeInfo.freeKb = FreeSize / 1024;
-							sizeFreeInfo.freeKbString = sizeFreeInfo.freeKb + 'KB';
-						});
-					}
+                    // MS free size.
+                    // Gets the ammount of free space in the Memory Stick. If null,
+                    // the size is ignored and no error is returned.
+                    {
+                        const sizeFreeInfoPtr = this.context.memory.getPointerPointer<SizeFreeInfo>(SizeFreeInfo.struct, params.msFreeAddr)!
+                        sizeFreeInfoPtr.readWrite(sizeFreeInfo => {
+                            sizeFreeInfo.sectorSize = SectorSize;
+                            sizeFreeInfo.freeSectors = FreeSize / SectorSize;
+                            sizeFreeInfo.freeKb = FreeSize / 1024;
+                            sizeFreeInfo.freeKbString = sizeFreeInfo.freeKb + 'KB';
+                        });
+                    }
 
-					// MS data size.
-					// Gets the size of the data already saved in the Memory Stick.
-					// If null, the size is ignored and no error is returned.
-					{
+                    // MS data size.
+                    // Gets the size of the data already saved in the Memory Stick.
+                    // If null, the size is ignored and no error is returned.
+                    {
                         const sizeUsedInfoPtr = this.context.memory.getPointerPointer<SizeUsedInfo>(SizeUsedInfo.struct, params.msDataAddr);
-					}
+                    }
 
-					// Utility data size.
-					// Gets the size of the data to be saved in the Memory Stick.
-					// If null, the size is ignored and no error is returned.
-					{
+                    // Utility data size.
+                    // Gets the size of the data to be saved in the Memory Stick.
+                    // If null, the size is ignored and no error is returned.
+                    {
                         const sizeRequiredSpaceInfoPtr = this.context.memory.getPointerPointer<SizeRequiredSpaceInfo>(SizeRequiredSpaceInfo.struct, params.utilityDataAddr);
 
-						if (sizeRequiredSpaceInfoPtr != null) {
+                        if (sizeRequiredSpaceInfoPtr != null) {
                             let RequiredSize = 0;
-							RequiredSize += params.icon0FileData.size;
-							RequiredSize += params.icon1FileData.size;
-							RequiredSize += params.pic1FileData.size;
-							RequiredSize += params.snd0FileData.size;
-							RequiredSize += params.dataSize;
+                            RequiredSize += params.icon0FileData.size;
+                            RequiredSize += params.icon1FileData.size;
+                            RequiredSize += params.pic1FileData.size;
+                            RequiredSize += params.snd0FileData.size;
+                            RequiredSize += params.dataSize;
 
-							sizeRequiredSpaceInfoPtr.readWrite(sizeRequiredSpaceInfo => {
-								sizeRequiredSpaceInfo.requiredSpaceSectors = MathUtils.requiredBlocks(RequiredSize, SectorSize);
-								sizeRequiredSpaceInfo.requiredSpaceKb = MathUtils.requiredBlocks(RequiredSize, 1024);
-								sizeRequiredSpaceInfo.requiredSpace32KB = MathUtils.requiredBlocks(RequiredSize, 32 * 1024);
+                            sizeRequiredSpaceInfoPtr.readWrite(sizeRequiredSpaceInfo => {
+                                sizeRequiredSpaceInfo.requiredSpaceSectors = MathUtils.requiredBlocks(RequiredSize, SectorSize);
+                                sizeRequiredSpaceInfo.requiredSpaceKb = MathUtils.requiredBlocks(RequiredSize, 1024);
+                                sizeRequiredSpaceInfo.requiredSpace32KB = MathUtils.requiredBlocks(RequiredSize, 32 * 1024);
 
-								sizeRequiredSpaceInfo.requiredSpaceString = (sizeRequiredSpaceInfo.requiredSpaceKb) + "KB";
-								sizeRequiredSpaceInfo.requiredSpace32KBString = (sizeRequiredSpaceInfo.requiredSpace32KB) + "KB";
-							});
-						}
-					}
+                                sizeRequiredSpaceInfo.requiredSpaceString = (sizeRequiredSpaceInfo.requiredSpaceKb) + "KB";
+                                sizeRequiredSpaceInfo.requiredSpace32KBString = (sizeRequiredSpaceInfo.requiredSpace32KB) + "KB";
+                            });
+                        }
+                    }
 
-					if (SceKernelError != SceKernelErrors.ERROR_OK) return PromiseFast.resolve(SceKernelError);
-					break;
-				default:
-					console.error(`Not implemented ${params.mode}: ${PspUtilitySavedataMode[params.mode]}`);
-					break;
+                    if (SceKernelError != SceKernelErrors.ERROR_OK) return PromiseFast.resolve(SceKernelError);
+                    break;
+                }
+				default: {
+                    console.error(`Not implemented ${params.mode}: ${PspUtilitySavedataMode[params.mode]}`);
+                    break;
+                }
 			}
 			return PromiseFast.resolve(0);
-		}).thenFast(result => {
-			console.error('result: ', result);
-			params.base.result = result as number;
-			return 0;
-		}).catch(e => {
+		})
+        const result = await func()
+        try {
+            console.error('result: ', result);
+            params.base.result = result as number;
+            return 0;
+        } catch (e) {
 			console.error(e);
 			return 0;
-		});
+		}
 	}
 
 	@nativeFunction(0x9790B33C, 150, 'uint', '')
@@ -167,16 +173,14 @@ export class sceUtility {
 	}
 
 	@nativeFunction(0x2AD8E239, 150, 'uint', 'void*')
-	sceUtilityMsgDialogInitStart(paramsPtr: Stream) {
+	async sceUtilityMsgDialogInitStart(paramsPtr: Stream) {
 		// @TODO: should not stop
-		//_emulator_ui.EmulatorUI.openMessageAsync().thenFast();
 		let params = PspUtilityMsgDialogParams.struct.createProxy(paramsPtr);
 		console.warn('sceUtilityMsgDialogInitStart:', params.message);
-		return EmulatorUI.openMessageAsync(params.message).thenFast(() => {
-			params.buttonPressed = PspUtilityMsgDialogPressed.PSP_UTILITY_MSGDIALOG_RESULT_YES;
-			this.currentStep = DialogStepEnum.SUCCESS;
-			return 0;
-		})
+        await EmulatorUI.openMessageAsync(params.message)
+        params.buttonPressed = PspUtilityMsgDialogPressed.PSP_UTILITY_MSGDIALOG_RESULT_YES;
+        this.currentStep = DialogStepEnum.SUCCESS;
+        return 0;
 	}
 
 	@nativeFunction(0x9A1C91D7, 150, 'uint', '')
