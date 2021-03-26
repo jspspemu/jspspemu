@@ -113,7 +113,7 @@ export class ANodeFunction extends ANodeStmList {
 
 		//console.log(text);		
 
-		return this.prefix.toJs() + '\n' + text + this.sufix.toJs() + '\n';
+		return `${this.prefix.toJs()}\n${text}${this.sufix.toJs()}\n`;
 	}
 }
 
@@ -182,7 +182,7 @@ export class ANodeExprFloat extends ANodeExpr {
 	toJs() {
         const rfloat = MathFloat.reinterpretFloatAsInt(this.value);
         if (rfloat & 0x80000000) {
-			return '-' + MathFloat.reinterpretIntAsFloat(rfloat & 0x7FFFFFFF);
+			return `-${MathFloat.reinterpretIntAsFloat(rfloat & 0x7FFFFFFF)}`;
 		} else {
 			return String(this.value);
 		}
@@ -202,12 +202,12 @@ export class ANodeExprBinop extends ANodeExpr {
 		if (!this.left || !this.left.toJs) debugger;
 		if (!this.right || !this.right.toJs) debugger;
 	}
-	toJs() { return '(' + this.left.toJs() + ' ' + this.op + ' ' + this.right.toJs() + ')'; }
+	toJs() { return `(${this.left.toJs()} ${this.op} ${this.right.toJs()})`; }
 }
 
 export class ANodeExprUnop extends ANodeExpr {
 	constructor(public op: string, public right: ANodeExpr) { super(); }
-	toJs() { return '(' + this.op + '(' + this.right.toJs() + '))'; }
+	toJs() { return `(${this.op}(${this.right.toJs()}))`; }
 }
 
 export class ANodeExprAssign extends ANodeExpr {
@@ -221,7 +221,7 @@ export class ANodeExprAssign extends ANodeExpr {
 
 export class ANodeExprArray extends ANodeExpr {
 	constructor(public _items: ANodeExpr[]) { super(); }
-	toJs() { return '[' + this._items.map((item) => item.toJs()).join(', ') + ']'; }
+	toJs() { return `[${this._items.map((item) => item.toJs()).join(', ')}]`; }
 }
 
 export class ANodeExprCall extends ANodeExpr {
@@ -232,16 +232,16 @@ export class ANodeExprCall extends ANodeExpr {
 			if (!argument || !(argument instanceof ANodeExpr)) debugger;
 		});
 	}
-	toJs() { return this.name + '(' + this._arguments.map((argument) => argument.toJs()).join(', ') + ')'; }
+	toJs() { return `${this.name}(${this._arguments.map((argument) => argument.toJs()).join(', ')})`; }
 }
 
 export class ANodeStmIf extends ANodeStm {
 	constructor(public cond: ANodeExpr, public codeTrue: ANodeStm, public codeFalse?: ANodeStm) { super(); }
 	toJs() {
         let result = '';
-        result += 'if (' + this.cond.toJs() + ')';
-		result += ' { ' + this.codeTrue.toJs() + ' }';
-		if (this.codeFalse) result += ' else { ' + this.codeFalse.toJs() + ' }';
+        result += `if (${this.cond.toJs()})`;
+		result += ` { ${this.codeTrue.toJs()} }`;
+		if (this.codeFalse) result += ` else { ${this.codeFalse.toJs()} }`;
 		return result;
 	}
 }
@@ -288,7 +288,7 @@ export class MipsAstBuilder extends AstBuilder {
 
 	gpr_f(index: number): ANodeExprLValueVar {
 		if (index === 0) return new ANodeExprLValueVar('0');
-		return new ANodeExprLValueVar('gpr_f[' + index + ']');
+		return new ANodeExprLValueVar(`gpr_f[${index}]`);
 	}
 
 	tempr(index: number): ANodeExprLValueVar { return new ANodeExprLValueVar(`state.temp[${index}]`); }

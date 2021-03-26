@@ -672,5 +672,5 @@ export function hleUtilsBufferCopyWithRange(output: Stream, input: Stream, comma
 		//case CommandEnum.ECDSA_SIGN: return kirk_CMD16(output, input); break;
 		//case CommandEnum.ECDSA_VERIFY: return kirk_CMD17(input); break;
 	}
-	throw (new Error("Not implemented hleUtilsBufferCopyWithRange! with command " + command + ': ' + CommandEnum[command]));
+	throw new Error(`Not implemented hleUtilsBufferCopyWithRange! with command ${command}: ${CommandEnum[command]}`);
 }

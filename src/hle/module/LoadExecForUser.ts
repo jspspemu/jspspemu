@@ -31,7 +31,7 @@ export class LoadExecForUser {
 
     @nativeFunction(0x4AC57943, 150, 'uint', 'int')
 	sceKernelRegisterExitCallback(callbackId: number) {
-        //console.warn('Not implemented sceKernelRegisterExitCallback: ' + callbackId);
+        //console.warn(`Not implemented sceKernelRegisterExitCallback: ${callbackId}`);
         return 0;
     }
 }

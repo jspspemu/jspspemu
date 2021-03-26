@@ -23,14 +23,14 @@ function fromCryptoArray(uint8View: Uint8Array) {
 
 function ab2str(buf: Uint8Array) {
     // @ts-ignore
-	return String.fromCharCode.apply(null, buf);
+	return String.fromUint8Array(buf);
 }
 
 function ab2hex(buf: Uint8Array) {
     const parts: string[] = [];
     for (let n = 0; n < buf.length; n++) {
         let chunk = buf[n].toString(16);
-        while (chunk.length < 2) chunk = '0' + chunk;
+        while (chunk.length < 2) chunk = `0${chunk}`;
 		parts.push(chunk);
 	}
 	return parts.join('')

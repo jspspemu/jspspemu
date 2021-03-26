@@ -119,7 +119,7 @@ export class Texture {
 	}
 
 	static createCanvas() {
-		/*
+	    /*
 		const canvas:HTMLCanvasElement = document.createElement('canvas');
 		canvas.style.border = '1px solid white';
 		canvas.width = w2;
@@ -132,16 +132,16 @@ export class Texture {
 		for (let n = 0; n < w2 * h * 4; n++) u8[n] = data2[n];
 		ctx.putImageData(imageData, 0, 0);
 
-		console.error('generated texture!' + texture.toString());
+		console.error(`generated texture!${texture.toString()}`);
 		const div = document.createElement('div');
 		const textdiv = document.createElement('div');
-		textdiv.innerText = texture.toString() + 'w=' + w + ',w2=' + w2 + ',' + h; 
+        textdiv.innerText = `${texture.toString()}w=${w},w2=${w2},${h}`;
 		div.appendChild(canvas);
 		div.appendChild(textdiv);
 		
 		document.body.appendChild(div);
-		*/
-	}
+	    */
+    }
 
 	toString() {
 		return `Texture(address = ${this.addressStart}, hash = ${this.hash}, pixelFormat = ${this.pixelFormat}, swizzled = ${this.swizzled}`;

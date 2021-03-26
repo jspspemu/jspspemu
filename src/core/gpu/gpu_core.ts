@@ -457,7 +457,7 @@ class PspGpuListRunner {
         });
         const result = _peek();
         //result = Math.floor(Math.random() * 4);
-		console.warn('not implemented gpu list peeking -> ' + result);
+		console.warn(`not implemented gpu list peeking -> ${result}`);
 		return result;
 	}
 

@@ -106,7 +106,7 @@ export class IoFileMgrForUser {
 		if (fileId < 3) {
 			// @TODO: Fixme! Create a proper file
             const str = input.readString(input.length);
-            log.warn('STD[' + fileId + ']', str);
+            log.warn(`STD[${fileId}]`, str);
 			this.context.onStdout.dispatch(str);
 			//return immediateAsync().then(() => 0);
 			return 0;
@@ -328,15 +328,15 @@ export class IoFileMgrForUser {
 
 	@nativeFunction(0x06A70004, 150, 'uint', 'string/int')
 	sceIoMkdir(path: string, accessMode: number) {
-		log.warn('Not implemented: sceIoMkdir("' + path + '", ' + accessMode.toString(8) + ')');
+		log.warn(`Not implemented: sceIoMkdir("${path}", ${accessMode.toString(8)})`);
 		return 0;
 	}
 
 	@nativeFunction(0xB29DDF9C, 150, 'uint', 'string')
 	sceIoDopen(path: string) {
-		log.log('sceIoDopen("' + path + '")');
+		log.log(`sceIoDopen("${path}")`);
 		return this.context.fileManager.openDirectoryAsync(path).then((directory) => {
-			log.log('opened directory "' + path + '"');
+			log.log(`opened directory "${path}"`);
 			return this.directoryUids.allocate(directory);
 		}).catch((error) => {
 			log.error(error);

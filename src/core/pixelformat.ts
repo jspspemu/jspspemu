@@ -95,7 +95,7 @@ export class PixelConverter {
 	
 	static decode(format: PixelFormat, from: Uint8Array, to: Uint32Array, useAlpha: boolean = true, palette: Uint32Array|null = null, clutStart: number = 0, clutShift: number = 0, clutMask: number = 0):Uint32Array {
 		//static decode(format: PixelFormat, from: ArrayBuffer, fromIndex:number, to: Uint8Array, toIndex: number, count: number, useAlpha: boolean = true, palette: Uint32Array = null, clutStart: number = 0, clutShift: number = 0, clutMask: number = 0) {
-		//console.log(format + ':' + PixelFormat[format]);
+		//console.log(`${format}:${PixelFormat[format]}`);
 		switch (format) {
 			case PixelFormat.RGBA_8888: return PixelConverter.decode8888(from, to, useAlpha);
 			case PixelFormat.RGBA_5551: return PixelConverter.update5551(ArrayBufferUtils.uint8ToUint16(from), to, useAlpha);

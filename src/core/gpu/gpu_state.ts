@@ -221,7 +221,7 @@ export class VertexInfo {
 	get hash() { return (this.value + (this.textureComponentsCount * Math.pow(2, 24))) | 0; }
 
 	read(memory: Memory, count: number) {
-		//console.log('read vertices ' + count);
+		//console.log(`read vertices ${count}`);
         const vertices: any[] = [];
         for (let n = 0; n < count; n++) vertices.push(this.readOne(memory));
 		return vertices;
@@ -238,18 +238,18 @@ export class VertexInfo {
 	}
 	
 	toString() {
-		return 'VertexInfo(' + JSON.stringify({
-			address: this.address,
-			texture: this.texture,
-			color: this.color,
-			normal: this.normal,
-			position: this.position,
-			weight: this.weight,
-			index: this.index,
-			realWeightCount: this.realWeightCount,
-			morphingVertexCount: this.morphingVertexCount,
-			transform2D: this.transform2D,
-		}) + ')';
+		return `VertexInfo(${JSON.stringify({
+            address: this.address,
+            texture: this.texture,
+            color: this.color,
+            normal: this.normal,
+            position: this.position,
+            weight: this.weight,
+            index: this.index,
+            realWeightCount: this.realWeightCount,
+            morphingVertexCount: this.morphingVertexCount,
+            transform2D: this.transform2D,
+        })})`;
 	}
 
 }

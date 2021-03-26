@@ -550,7 +550,7 @@ export class Instructions {
             const switchCode = DecodingTable.createSwitch(this.instructionTypeList, iname =>
                 `return instructionsByName[${JSON.stringify(iname)}];`
             );
-            this.decoder = <any>(new Function('instructionsByName', 'value', 'pc', '"use strict";' + switchCode));
+            this.decoder = <any>(new Function('instructionsByName', 'value', 'pc', `"use strict";${switchCode}`));
 		}
 		return this.decoder(this.instructionTypeListByName, i32, pc);
 		/*
@@ -600,11 +600,11 @@ export class DecodingTable {
 			groups[commonValue].push(item);
 		});
 
-		writer.write('switch ((value & ' + sprintf('0x%08X', commonMask) + ') >>> 0) {\n');
+		writer.write(`switch ((value & ${sprintf('0x%08X', commonMask)}) >>> 0) {\n`);
 		writer.indent(() => {
 			for (const groupKey in groups) {
                 const group = groups[groupKey];
-                writer.write('case ' + sprintf('0x%08X', groupKey) + ':');
+                writer.write(`case ${sprintf('0x%08X', groupKey)}:`);
 				writer.indent(() => {
 					if (group.length == 1) {
 					    writer.write(` ${gen(group[0].name)}`)
@@ -615,7 +615,7 @@ export class DecodingTable {
 					}
 				});
 			}
-			writer.write('default: throw(sprintf("Invalid instruction 0x%08X at 0x%08X (' + this.lastId++ + ') failed mask 0x%08X", value, pc, ' + commonMask + '));\n');
+			writer.write(`default: throw(sprintf("Invalid instruction 0x%08X at 0x%08X (${this.lastId++}) failed mask 0x%08X", value, pc, ${commonMask}));\n`);
 		});
 		writer.write('}\n');
 	}

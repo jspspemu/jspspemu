@@ -23,7 +23,7 @@ export class MountableVfs extends Vfs {
 
 		for (let n = 0; n < this.mounts.length; n++) {
             const mount = this.mounts[n];
-            //console.log(mount.path + ' -- ' + path);
+            //console.log(`${mount.path} -- ${path}`);
 			if (path.startsWith(mount.path)) {
                 const part = path.substr(mount.path.length);
 				return { mount: mount, part: part };

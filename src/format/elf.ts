@@ -265,9 +265,9 @@ export class ElfLoader {
 	private readAndCheckHeaders(stream: Stream) {
 		this.stream = stream;
         const header = this.header = ElfHeader.struct.read(stream);
-        if (!header.hasValidMagic) throw ('Not an ELF file');
-		if (!header.hasValidMachine) throw ('Not a PSP ELF file');
-		if (!header.hasValidType) throw ('Not a executable or a Prx but has type ' + header.type);
+        if (!header.hasValidMagic) throw new Error('Not an ELF file')
+		if (!header.hasValidMachine) throw new Error('Not a PSP ELF file')
+		if (!header.hasValidType) throw new Error(`Not a executable or a Prx but has type ${header.type}`)
 	}
 
 	private getStringFromStringTable(index: number) {
@@ -276,7 +276,7 @@ export class ElfLoader {
 	}
 
 	private getSectionHeaderFileStream(sectionHeader: ElfSectionHeader) {
-		//console.log('::' + sectionHeader.type + ' ; ' + sectionHeader.offset + ' ; ' + sectionHeader.size);
+		//console.log(`::${sectionHeader.type} ; ${sectionHeader.offset} ; ${sectionHeader.size}`);
 		switch (sectionHeader.type) {
 			case ElfSectionHeaderType.NoBits: case ElfSectionHeaderType.Null:
 				return this.stream!.sliceWithLength(0, 0);

@@ -10,7 +10,7 @@ export class UriVfs extends Vfs {
 	}
 
 	private getAbsoluteUrl(path: string) {
-		return this.baseUri + '/' + path;
+		return `${this.baseUri}/${path}`;
 	}
 
 	openAsync(path: string, flags: FileOpenFlags, mode: FileMode): PromiseFast<VfsEntry> {

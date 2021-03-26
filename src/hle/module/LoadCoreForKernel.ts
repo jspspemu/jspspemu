@@ -11,7 +11,7 @@ export class LoadCoreForKernel {
 
 	@nativeFunction(0xCCE4A157, 150, 'int', 'int')
 	sceKernelFindModuleByUID(moduleID: number) {
-		console.warn('Not implemented sceKernelFindModuleByUID(' + moduleID + ')');
+		console.warn(`Not implemented sceKernelFindModuleByUID(${moduleID})`)
 		return 0;
 	}
 }

@@ -129,7 +129,7 @@ export class sceMpeg {
 		mpeg.writeInt32(dataPtr + 0x30);
 
         const mpegHandle = this.context.memory.getPointerStream(dataPtr + 0x30)!
-		mpegHandle.writeString("LIBMPEG\0" + "001\0")
+		mpegHandle.writeString("LIBMPEG\u0000001\u0000")
 		mpegHandle.writeInt32(-1);
 		
 		this.mpegs.set(mpegAddr, this.mpeg = new Mpeg());

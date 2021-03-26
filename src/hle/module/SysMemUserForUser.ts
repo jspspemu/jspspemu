@@ -127,9 +127,9 @@ export class SysMemUserForUser {
 			}
 			return `??[${type}]??`;
 		};
-		console.info('sceKernelPrintf: ' + format.replace(/%[dsux]/g, (data) => {
-			return readParam(data);
-		}));
+		console.info(`sceKernelPrintf: ${format.replace(/%[dsux]/g, (data) => {
+            return readParam(data);
+        })}`);
 		//console.warn(this.context.memory.readStringz(thread.state.GPR5));
 	}
 }

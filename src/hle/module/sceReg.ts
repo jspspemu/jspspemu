@@ -9,20 +9,20 @@ export class sceReg {
 	@nativeFunction(0x92E41280, 150, 'int', 'void*/int/void*')
 	sceRegOpenRegistry(regParamPtr: Stream, mode: number, regHandlePtr: Stream) {
 		const regParam = RegParam.struct.read(regParamPtr);
-		console.warn('sceRegOpenRegistry: ' + regParam.name);
+		console.warn(`sceRegOpenRegistry: ${regParam.name}`);
 		regHandlePtr.writeInt32(0);
 		return 0;
 	}
 
 	@nativeFunction(0x1D8A762E, 150, 'int', 'int/string/int/void*')
 	sceRegOpenCategory(regHandle: number, name:string, mode: number, regCategoryHandlePtr: Stream) {
-		console.warn('sceRegOpenCategory: ' + name);
+		console.warn(`sceRegOpenCategory: ${name}`);
 		return 0;
 	}
 
 	@nativeFunction(0xD4475AA8, 150, 'int', 'int/string/void*/void*/void*')
 	sceRegGetKeyInfo(categoryHandle: number, name: string, regKeyHandlePtr: Stream, regKeyTypesPtr: Stream, sizePtr: Stream) {
-		console.warn('sceRegGetKeyInfo: ' + name);
+		console.warn(`sceRegGetKeyInfo: ${name}`);
 		return 0;
 	}
 

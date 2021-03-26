@@ -134,7 +134,7 @@ export class SimpleRelooper {
 			let nblock = this.blocks[block.index + 1];
 			
 			if (block.index != 0) {
-				writer.write('case ' + block.index + ':\n');
+				writer.write(`case ${block.index}:\n`);
 				writer.indent();
 			}
 			

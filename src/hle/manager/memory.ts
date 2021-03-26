@@ -168,7 +168,7 @@ export class MemoryPartition {
         const endTotalFreeMemory = this.getTotalFreeMemory();
 
         if (endTotalFreeMemory != startTotalFreeMemory) {
-			console.log('assertion failed! : ' + startTotalFreeMemory + ',' + endTotalFreeMemory);
+			console.log(`assertion failed! : ${startTotalFreeMemory},${endTotalFreeMemory}`);
 		}
     }
 

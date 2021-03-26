@@ -17,7 +17,7 @@ class MyStorageIndexedDb implements MyStorage {
 	}
 
 	static openAsync(name: string) {
-		console.info('MyStorageIndexedDb.openAsync("' + name + '")');
+		console.info(`MyStorageIndexedDb.openAsync("${name}")`)
 		return new PromiseFast<MyStorage>((resolve, reject) => {
             const request = indexedDB.open(name, 1);
             request.onupgradeneeded = function (e) {
@@ -110,7 +110,7 @@ class MyStorageFake implements MyStorage {
 	private items: StringDictionary<string> = {};
 
 	constructor(private name: string) {
-		//console.log('new MyStorageFake(' + name + ')');
+		//console.log(`new MyStorageFake(${name})`);
 	}
 
 	putAsync(key: string, value: any): PromiseFast<void> {

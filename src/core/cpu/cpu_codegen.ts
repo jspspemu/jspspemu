@@ -936,7 +936,7 @@ export class InstructionAst {
         if (size != 4) throw (new Error("Not implemented _vtXXXX_q for VectorSize=" + size));
         const dest = getVectorRegs(i.VD, 2);
         const src = readVector_i(i.VS, 4);
-        const result = setVector_i(dest, (index) => ast.call('state.' + func, [src[index * 2 + 0], src[index * 2 + 1]]));
+        const result = setVector_i(dest, (index) => ast.call(`state.${func}`, [src[index * 2 + 0], src[index * 2 + 1]]));
         this.eatPrefixes();
 		return result;
 	}

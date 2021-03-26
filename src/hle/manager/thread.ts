@@ -164,7 +164,7 @@ export class Thread {
 	}
 
 	suspend() {
-		//console.log('suspended ' + this.name);
+		//console.log(`suspended ${this.name}`);
         this.running = false;
         this.manager.eventOcurred();
 	}
@@ -179,9 +179,9 @@ export class Thread {
 
 	suspendUntilPromiseDone(promise: PromiseFast<any>, info: NativeFunction) {
 		//this.waitingName = sprintf('%s:0x%08X (PromiseFast)', info.name, info.nid);
-		this.waitingName = info.name + ':0x' + info.nid.toString(16) + ' (PromiseFast)';
-		this.waitingObject = info;
-		this._suspendUntilPromiseDone(promise, Compensate.NO);
+		this.waitingName = `${info.name}:0x${info.nid.toString(16)} (PromiseFast)`
+		this.waitingObject = info
+		this._suspendUntilPromiseDone(promise, Compensate.NO)
 	}
 
 	_suspendUntilPromiseDone(promise: PromiseFast<any>, compensate: Compensate) {
@@ -215,7 +215,7 @@ export class Thread {
                 this.accumulatedMicroseconds += (endTime - startTime) * 1000;
 			}
 
-			//console.error('resumed ' + this.name);
+			//console.error(`resumed ${this.name}`);
             this.resume();
         });
     }
@@ -407,7 +407,7 @@ export class ThreadManager implements Component {
             if (ProgramExitException.is(e)) throw e
             const estack = e['stack'] || e;
             EmulatorUI.openMessageAsync(estack)
-			thread.stop('thread.stop.error:' + estack)
+			thread.stop(`thread.stop.error:${estack}`)
 			throw e
 		}
 	}

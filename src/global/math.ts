@@ -681,7 +681,7 @@ export class MathUtils {
 export class IntUtils {
 	static toHexString(value: number, padCount: number) {
         let str = (value >>> 0).toString(16);
-        while (str.length < padCount) str = '0' + str;
+        while (str.length < padCount) str = `0${str}`;
 		return str;
 	}
 }

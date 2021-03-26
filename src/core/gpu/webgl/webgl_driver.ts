@@ -95,7 +95,7 @@ export class WebGlPspDrawDriver {
 	setClearMode(clearing: boolean, flags: number) {
 		this.clearing = clearing;
 		this.clearingFlags = <ClearBufferSet>flags;
-		//console.log('clearing: ' + clearing + '; ' + flags);
+		//console.log(`clearing: ${clearing}; ${flags}`);
 	}
 
 	projectionMatrix = mat4.create();

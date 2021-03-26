@@ -220,7 +220,7 @@ export class ElfDwarfLoader {
 	}
 
 	getSymbolAt(address: number): ISymbol | null {
-		//console.log('this.symbolEntries: ' + this.symbolEntries.length);
+		//console.log(`this.symbolEntries: ${this.symbolEntries.length}`);
 		for (let n = 0; n < this.symbolEntries.length; n++) {
             const entry = this.symbolEntries[n];
             if (entry.contains(address)) return entry;

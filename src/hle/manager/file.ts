@@ -100,7 +100,7 @@ export class Uri {
 
 	append(that: Uri) {
 		if (that.isAbsolute) return that;
-		return new Uri(this.path + '/' + that.path);
+		return new Uri(`${this.path}/${that.path}`);
 	}
 }
 

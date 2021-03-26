@@ -29,24 +29,24 @@ export class ShaderCache {
         const defines: string[] = [];
         if (optimized) defines.push('OPTIMIZED 1');
 		if (vertex.transform2D) defines.push('TRANSFORM_2D 1');
-		if (vertex.hasPosition) defines.push('VERTEX_POSITION ' + vertex.position);
-		if (vertex.hasColor) defines.push('VERTEX_COLOR ' + vertex.color);
+		if (vertex.hasPosition) defines.push(`VERTEX_POSITION ${vertex.position}`);
+		if (vertex.hasColor) defines.push(`VERTEX_COLOR ${vertex.color}`);
 		if (vertex.hasTexture) {
-			defines.push('VERTEX_TEXTURE ' + vertex.texture);
+			defines.push(`VERTEX_TEXTURE ${vertex.texture}`);
 			if (PixelFormatUtils.hasClut(state.texture.pixelFormat)) {
 				defines.push('TEXTURE_CLUT 1');
 			}
 		}
-		if (vertex.hasNormal) defines.push('VERTEX_NORMAL ' + vertex.normal);
-		if (vertex.hasWeight) defines.push('VERTEX_WEIGHT ' + vertex.weight);
+		if (vertex.hasNormal) defines.push(`VERTEX_NORMAL ${vertex.normal}`);
+		if (vertex.hasWeight) defines.push(`VERTEX_WEIGHT ${vertex.weight}`);
 
 		if (!state.clearing) {
 			if (state.alphaTest.enabled) defines.push('ALPHATEST 1');
 		}
 
-		defines.push('VERTEX_SKINNING ' + vertex.realWeightCount);
+		defines.push(`VERTEX_SKINNING ${vertex.realWeightCount}`);
 
-        const preppend = defines.map(item => '#define ' + item + '').join("\n");
+        const preppend = defines.map(item => `#define ${item}`).join("\n");
 
         return ShaderCache.shaderProgram(
 			this.gl,

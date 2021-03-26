@@ -47,7 +47,7 @@ function executeProgram(gprInitial: StringDictionary<number>, program: string[])
 function generateGpr3Matrix(op: string, vector: number[]) {
     const gprInitial: any = {};
     const outputMatrix: string[][] = [];
-    for (let n = 0; n < vector.length; n++) gprInitial['$' + (15 + n)] = vector[n];
+    for (let n = 0; n < vector.length; n++) gprInitial[`$${15 + n}`] = vector[n];
 
     for (let n = 0; n < vector.length; n++) {
         const program: string[] = [];
@@ -73,7 +73,7 @@ function assertProgram(description:string, gprInitial: any, program: string[], g
 		} else {
 			value = (<any>state)[key];
 		}
-        assert.equal(addressToHex(value), addressToHex(assertion), description + ': ' + key + ' == ' + addressToHex(assertion));
+        assert.equal(addressToHex(value), addressToHex(assertion), `${description}: ${key} == ${addressToHex(assertion)}`);
     }
 }
 

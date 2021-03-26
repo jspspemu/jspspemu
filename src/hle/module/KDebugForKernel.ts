@@ -6,6 +6,6 @@ export class KDebugForKernel {
 
 	@nativeFunction(0x84F370BC, 150, 'void', 'string')
 	Kprintf(format: string) {
-		console.info('Kprintf: ' + format);
+		console.info(`Kprintf: ${format}`);
 	}
 }

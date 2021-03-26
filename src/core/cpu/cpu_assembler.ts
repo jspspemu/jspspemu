@@ -101,13 +101,13 @@ export class MipsAssembler {
 		//console.log(types);
 
 		if (matches === null) {
-			throw ('Not matching ' + instructionArguments + ' : ' + regex + ' : ' + instructionType.format);
+			throw (`Not matching ${instructionArguments} : ${regex} : ${instructionType.format}`);
 		}
 
 		for (let n = 0; n < types.length; n++) {
             const type = types[n];
             const match = matches[n + 1];
-            //console.log(type + ' = ' + match);
+            //console.log(`${type} = ${match}`);
 			this.update(instruction, type, match, labels);
 		}
 
@@ -121,7 +121,7 @@ export class MipsAssembler {
 		//console.log(name);
 		if (name.charAt(0) == '$') return parseInt(name.substr(1));
 		if (name.charAt(0) == 'r') return parseInt(name.substr(1));
-		throw ('Invalid register "' + name + '"');
+		throw (`Invalid register "${name}"`);
 	}
 
 	private decodeInteger(str: string) { return parseIntFormat(str) }

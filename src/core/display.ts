@@ -151,7 +151,7 @@ export class PspDisplay extends BasePspDisplay implements IPspDisplay {
 	}
 
 	setEnabledDisplay(enable: boolean) {
-		//console.log('display.setEnabledDisplay:' + enable);
+		//console.log(`display.setEnabledDisplay:${enable}`);
 		this.enabled = enable;
 		if (this.canvas) this.canvas.style.display = enable ? 'block' : 'none';
 		if (this.webglcanvas) this.webglcanvas.style.display = !enable ? 'block' : 'none';

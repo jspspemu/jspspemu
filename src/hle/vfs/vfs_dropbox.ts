@@ -40,7 +40,7 @@ class DirectoryInfo {
 }
 
 function getCanonicalPath(name: string) {
-    const canonicalPath = '/' + name.replace(/^\/+/, '').replace(/\/+$/, '')
+    const canonicalPath = `/${name.replace(/^\/+/, '').replace(/\/+$/, '')}`
     return canonicalPath == '/' ? '' : canonicalPath
 }
 
@@ -51,7 +51,7 @@ export function hasDropboxToken() {
 
 export function dropboxTryStoreCodeAndRefresh() {
     if (!window.localStorage || !window.document) return
-    const params = new URLSearchParams('?' + window.document.location.hash.substr(1))
+    const params = new URLSearchParams(`?${window.document.location.hash.substr(1)}`)
     const access_token = params.get('access_token') // 938ZZZZasDVCczUAAAAAAAAAAeoICnAsSE21321321cV441GeeeeeeQQ-YQZX55542135NGtz
     const token_type = params.get('token_type') // bearer
     const account_id = params.get('account_id') // dbid%1212131243564577asdasdasdassaddsadsadsasdzzxassasqwq13
@@ -275,7 +275,7 @@ export class DropboxVfsEntry extends VfsEntry {
 				return this.cachedContent.slice(offset, offset + length);
 			}))
 		} else {
-			//console.log('read dropbox file ' + this.path);
+			//console.log(`read dropbox file ${this.path}`);
 			return PromiseFast.ensure(client.readFileAsync(this.path, offset, (length !== undefined) ? offset + length : undefined))
 		}
 	}

@@ -224,7 +224,7 @@ export class Emulator {
                 const mountableVfs = this.ms0Vfs;
                 mountableVfs.mountVfs('/PSP/GAME/virtual', zipFs);
                 const availableElf = ['/EBOOT.ELF', '/BOOT.ELF', '/EBOOT.PBP'].first(item => zip.has(item))!;
-                console.log('elf: ' + availableElf);
+                console.log(`elf: ${availableElf}`);
                 const node = await zipFs.openAsync(availableElf, FileOpenFlags.Read, parseInt('0777', 8))
                 const data = await node.readAllAsync()
                 return await this._loadAndExecuteAsync(MemoryAsyncStream.fromArrayBuffer(data), 'ms0:/PSP/GAME/virtual/EBOOT.ELF');
@@ -262,7 +262,7 @@ export class Emulator {
                     const exists = await isoFs.existsAsync('PSP_GAME/SYSDIR/BOOT.BIN');
                     const path = exists ? 'PSP_GAME/SYSDIR/BOOT.BIN' : 'PSP_GAME/SYSDIR/EBOOT.BIN';
                     const bootBinData = await isoFs.readAllAsync(path)
-                    return await this._loadAndExecuteAsync(MemoryAsyncStream.fromArrayBuffer(bootBinData), 'umd0:/' + path);
+                    return await this._loadAndExecuteAsync(MemoryAsyncStream.fromArrayBuffer(bootBinData), `umd0:/${path}`);
                 }
             }
             case 'elf': {
@@ -337,7 +337,7 @@ export class Emulator {
 		try {
             this.start()
             const parentUrl = url.replace(/\/[^//]+$/, '');
-            console.info('parentUrl: ' + parentUrl);
+            console.info(`parentUrl: ${parentUrl}`);
             this.ms0Vfs.mountVfs('/PSP/GAME/virtual', new UriVfs(parentUrl));
             return await this._loadAndExecuteAsync(asyncStream, "ms0:/PSP/GAME/virtual/EBOOT.PBP");
         } catch (e) {

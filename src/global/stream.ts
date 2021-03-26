@@ -135,7 +135,7 @@ export class UrlAsyncStream implements AsyncStream {
 
 	readChunkAsync(offset: number, count: number) {
 		//console.error();
-		console.info('download chunk', this.url, offset + '-' + (offset + count), '(' + count + ')');
+		console.info('download chunk', this.url, `${offset}-${offset + count}`, '(' + count + ')');
 		return downloadFileChunkAsync(this.url, offset, count);
     }
 }
@@ -203,7 +203,7 @@ export class Stream {
             const blob = new Blob([this.toUInt8Array()], {type: "image/jpeg"});
             return urlCreator.createObjectURL(blob);
 		} catch (e) {
-			return 'data:image/png;base64,' + this.toBase64();
+			return `data:image/png;base64,${this.toBase64()}`;
 		}
 	}
 

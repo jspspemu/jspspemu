@@ -70,7 +70,7 @@ export class ThreadManForUser {
 	}
 
 	private _sceKernelDelayThreadCB(thread: Thread, delayInMicroseconds: number, acceptCallbacks: AcceptCallbacks) {
-		return new WaitingThreadInfo('_sceKernelDelayThreadCB', 'microseconds:' + delayInMicroseconds, thread.delayMicrosecondsAsync(delayInMicroseconds, false), acceptCallbacks);
+		return new WaitingThreadInfo('_sceKernelDelayThreadCB', `microseconds:${delayInMicroseconds}`, thread.delayMicrosecondsAsync(delayInMicroseconds, false), acceptCallbacks);
 	}
 
 	@nativeFunction(0xCEADEB47, 150, 'uint', 'Thread/uint')

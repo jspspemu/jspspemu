@@ -230,7 +230,7 @@ describe('pspautotests', function () {
 		mlogger.groupEnd();
 
 
-		assert.ok(output == expected, "Output not expected. " + distinctLines + "/" + totalLines + " lines didn't match. Please check mlogger for details.");
+		assert.ok(output == expected, `Output not expected. ${distinctLines}/${totalLines} lines didn't match. Please check mlogger for details.`);
 	}
 
     let groupCollapsed = false;
@@ -256,7 +256,7 @@ describe('pspautotests', function () {
                         if (!groupCollapsed) mlogger.groupEnd();
 						groupCollapsed = false;
 
-						//mlogger.groupCollapsed('' + testName);
+						//mlogger.groupCollapsed(`${testName}`);
 
                         try {
                             const data_prx = await downloadFileAsync(file_prx)

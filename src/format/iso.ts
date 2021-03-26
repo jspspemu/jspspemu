@@ -226,7 +226,7 @@ class IsoNode implements IIsoNode {
 
     get isRoot() { return this.parent == null; }
     get size() { return this.directoryRecord.size; }
-    get path():string { return (this.parent && !this.parent.isRoot) ? (this.parent.path + '/' + this.name) : this.name; }
+    get path():string { return (this.parent && !this.parent.isRoot) ? (`${this.parent.path}/${this.name}`) : this.name; }
     get name() { return this.directoryRecord.name;  }
     get isDirectory() { return this.directoryRecord.isDirectory; }
 	get date() { return this.directoryRecord.date.date; }

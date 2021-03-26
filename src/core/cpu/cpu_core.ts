@@ -87,7 +87,7 @@ export class SyscallManager {
 	getName(id: number) {
         const c = this.calls[id];
         if (c) return c.name;
-		return 'syscall_' + id;
+		return `syscall_${id}`;
 	}
 	
 	getNativeFunction(id:number) {
@@ -1385,7 +1385,7 @@ export class FunctionGenerator {
         const start = performance.now();
         const code = this.getFunctionCode(info, level);
         try {
-			//const func = <ICpuFunction>(new Function('state', 'args', '"use strict";' + code.code));
+			//const func = <ICpuFunction>(new Function('state', 'args', `"use strict";${code.code}`));
             const startHex = addressToHex(info.start);
             const func: ICpuFunction = <ICpuFunction>(new Function('args', `return function func_${startHex}(state) { "use strict"; ${code.code} }`)(code.args));
             const result = new FunctionGeneratorResult(func, code, info, new CpuFunctionWithArgs(func, code.args));
@@ -1678,9 +1678,9 @@ export function createNativeFunction(
 		}
 	}
 
-	function readFpr32() { return 'state.fpr[' + (fprindex++) + ']'; }
-	function readGpr32_S() { return '(' + _readGpr32() + ' | 0)'; }
-	function readGpr32_U() { return '(' + _readGpr32() + ' >>> 0)'; }
+	function readFpr32() { return `state.fpr[${fprindex++}]`; }
+	function readGpr32_S() { return `(${_readGpr32()} | 0)`; }
+	function readGpr32_U() { return `(${_readGpr32()} >>> 0)`; }
 
 	function readGpr64() {
 		gprindex = MathUtils.nextAligned(gprindex, 2);
@@ -1699,20 +1699,20 @@ export function createNativeFunction(
             case 'Thread': args.push('state.thread'); break;
             case 'CpuState': args.push('state'); break;
             case 'Memory': args.push('state.memory'); break;
-			case 'string': args.push('state.memory.readStringz(' + readGpr32_S() + ')'); break;
+			case 'string': args.push(`state.memory.readStringz(${readGpr32_S()})`); break;
 			case 'uint': args.push(readGpr32_U() + ' >>> 0'); break;
 			case 'int': args.push(readGpr32_S() + ' | 0'); break;
 			case 'bool': args.push(readGpr32_S() + ' != 0'); break;
 			case 'float': args.push(readFpr32()); break;
 			case 'ulong': case 'long': args.push(readGpr64()); break;
-			case 'void*': args.push('state.memory.getPointerStream(' + readGpr32_S() + ')'); break;
-			case 'byte[]': args.push('state.memory.getPointerStream(' + readGpr32_S() + ', ' + readGpr32_S() + ')'); break;
+			case 'void*': args.push(`state.memory.getPointerStream(${readGpr32_S()})`); break;
+			case 'byte[]': args.push(`state.memory.getPointerStream(${readGpr32_S()}, ${readGpr32_S()})`); break;
 			default:
                 let matches = item.match(/^byte\[(\d+)\]$/)
                 if (matches) {
-					args.push('state.memory.getPointerU8Array(' + readGpr32_S() + ', ' + matches[1] + ')');
+					args.push(`state.memory.getPointerU8Array(${readGpr32_S()}, ${matches[1]})`);
 				} else {
-					throw ('Invalid argument "' + item + '"');
+					throw new Error(`Invalid argument "${item}"`)
 				}
         }
     });
@@ -1727,7 +1727,7 @@ export function createNativeFunction(
 	if (DEBUG_NATIVEFUNC) {
 		code += `console.info(state.thread.name, nativeFunction.name);`;
 	}
-	code += 'let result = internalFunc(' + args.join(', ') + ');\n';
+	code += `let result = internalFunc(${args.join(', ')});\n`;
 
 	/*
 	let debugSyscalls = false;
@@ -1776,7 +1776,7 @@ export function createNativeFunction(
 			code += `${V0} = result; ${V1} = 0;\n`;
 			code += '}\n';
             break;
-        default: throw ('Invalid return value "' + retval + '"');
+        default: throw new Error(`Invalid return value "${retval}"`)
     }
 
     const nativeFunction = new NativeFunction();
