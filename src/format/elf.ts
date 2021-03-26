@@ -1,30 +1,38 @@
 ﻿import "../emu/global"
 import {logger, StringDictionary} from "../global/utils";
-import {Int16, Int32, Int8, Stringn, StructArray, StructClass, UInt16, UInt32} from "../global/struct";
+import {
+    GetStruct,
+    Int8,
+    StructArray,
+    StructClass, StructInt16, StructInt32, StructInt8,
+    StructStructArray, StructStructStringn, StructUInt16,
+    UInt16,
+    UInt32
+} from "../global/struct";
 import {Stream} from "../global/stream";
 import {Memory} from "../core/memory";
 
 const console = logger.named('elf');
 
 export class ElfHeader {
-	magic: string = ''
-	class: number = 0
-	data: number = 0
-	idVersion: number = 0
-	_padding: number[] = []
-	type: ElfType = 0
-	machine: ElfMachine = 0
-	version: number = 0
-	entryPoint: number = 0
-	programHeaderOffset: number = 0
-	sectionHeaderOffset: number = 0
-	flags: number = 0
-	elfHeaderSize: number = 0
-	programHeaderEntrySize: number = 0
-	programHeaderCount: number = 0
-	sectionHeaderEntrySize: number = 0
-	sectionHeaderCount: number = 0
-	sectionHeaderStringTable: number = 0
+    @StructStructStringn(4) magic: string = ''
+	@StructInt8 class: number = 0
+	@StructInt8 data: number = 0
+	@StructInt8 idVersion: number = 0
+	@StructStructArray(Int8, 9) _padding: number[] = []
+	@StructUInt16 type: ElfType = 0
+	@StructInt16 machine: ElfMachine = 0
+	@StructInt32 version: number = 0
+	@StructInt32 entryPoint: number = 0
+	@StructInt32 programHeaderOffset: number = 0
+	@StructInt32 sectionHeaderOffset: number = 0
+	@StructInt32 flags: number = 0
+	@StructInt16 elfHeaderSize: number = 0
+	@StructInt16 programHeaderEntrySize: number = 0
+	@StructInt16 programHeaderCount: number = 0
+	@StructInt16 sectionHeaderEntrySize: number = 0
+	@StructInt16 sectionHeaderCount: number = 0
+	@StructInt16 sectionHeaderStringTable: number = 0
 
 	get hasValidMagic() {
 		return this.magic == '\u007FELF';
@@ -37,27 +45,6 @@ export class ElfHeader {
 	get hasValidType() {
 		return [ElfType.Executable, ElfType.Prx].indexOf(this.type) >= 0;
 	}
-
-	static struct = StructClass.create<ElfHeader>(ElfHeader, [
-		{ magic: Stringn(4) },
-		{ class: Int8 },
-		{ data: Int8 },
-		{ idVersion: Int8 },
-		{ _padding: StructArray(Int8, 9) },
-		{ type: UInt16 },
-		{ machine: Int16 },
-		{ version: Int32 },
-		{ entryPoint: Int32 },
-		{ programHeaderOffset: Int32 },
-		{ sectionHeaderOffset: Int32 },
-		{ flags: Int32 },
-		{ elfHeaderSize: Int16 },
-		{ programHeaderEntrySize: Int16 },
-		{ programHeaderCount: Int16 },
-		{ sectionHeaderEntrySize: Int16 },
-		{ sectionHeaderCount: Int16 },
-		{ sectionHeaderStringTable: Int16 },
-	]);
 }
 
 export class ElfProgramHeader {
@@ -264,7 +251,7 @@ export class ElfLoader {
 
 	private readAndCheckHeaders(stream: Stream) {
 		this.stream = stream;
-        const header = this.header = ElfHeader.struct.read(stream);
+        const header = this.header = GetStruct(ElfHeader).read(stream);
         if (!header.hasValidMagic) throw new Error('Not an ELF file')
 		if (!header.hasValidMachine) throw new Error('Not a PSP ELF file')
 		if (!header.hasValidType) throw new Error(`Not a executable or a Prx but has type ${header.type}`)

@@ -164,7 +164,7 @@ export class Emulator {
             .mountVfs('/', new MemoryVfs())
         this.storageVfs = new StorageVfs('psp_storage')
 
-        const memStickVfsList: Vfs[] = [this.storageVfs, this.ms0Vfs]
+        const memStickVfsList: Vfs[] = [this.storageVfs, this.ms0Vfs, this.storageVfs]
 
         if (hasDropboxToken()) {
             //memStickVfsList.unshift(new DropboxVfs())

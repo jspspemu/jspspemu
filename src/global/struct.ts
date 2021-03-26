@@ -143,11 +143,19 @@ export class StructClass<T> implements IType<T> {
 	processedItems: StructEntryProcessed<T>[] = [];
 
 	constructor(private _class: any, private items: StructEntry[]) {
-		this.processedItems = items.map(item => {
-			for (const key in item) return { name: key, type: item[key] };
-			throw (new Error("Entry must have one item"));
-		});
+	    for (const item of items) {
+	        let add = 0
+            for (const key in item) {
+                this.addItem(key, item[key])
+                add++
+            }
+            if (!add) throw new Error("Entry must have one item");
+        }
 	}
+
+	addItem(name: string, type: any) {
+        this.processedItems.push({ name: name, type: type })
+    }
 
 	static create<T>(_class: Class<T>, items: StructEntry[]) {
 		return new StructClass<T>(_class, items);
@@ -243,7 +251,7 @@ export function StructArray<T>(elementType: IType<T>, count: number) {
 	return new StructArrayClass<T>(elementType, count);
 }
 
-export class StructStringn {
+export class StructStringn implements IType<string> {
 	constructor(private count: number) {
 	}
 
@@ -432,4 +440,43 @@ export class Pointer<T> {
 	write(value: T) {
 		this.type.write(this.stream.clone(), value);
 	}
+}
+
+
+
+export function StructMember<T>(kind: IType<T>): any {
+    return (target: any, key: string, descriptor: TypedPropertyDescriptor<T>) => {
+        //console.log("StructMember", kind, target, key, descriptor)
+        //console.log(target.$$struct)
+        //console.log(target.constructor)
+        if (!target.$$struct) {
+            target.$$struct = StructClass.create(target.constructor, [])
+        }
+        target.$$struct!.addItem(key, kind)
+        //console.log(target, key, descriptor);
+        //if (typeof target.natives == 'undefined') target.natives = [];
+        //if (!descriptor) {
+        //    console.error("descriptor == null");
+        //    console.error(target);
+        //    console.error(key);
+        //    console.error(descriptor);
+        //}
+        //target.natives.push((target: any) => {
+        //    return createNativeFunction(exportId, firmwareVersion, retval, args, target, descriptor.value, options, `${target.constructor.name}`, key)
+        //});
+        return descriptor;
+    };
+}
+
+export const StructUInt8: any = StructMember(UInt8)
+export const StructInt8: any = StructMember(Int8)
+export const StructUInt16: any = StructMember(UInt16)
+export const StructInt16: any = StructMember(Int16)
+export const StructInt32: any = StructMember(Int32)
+export function StructStructStringn(count: number): any { return StructMember(Stringn(count)) }
+export function StructStructArray<T>(elementType: IType<T>, count: number): any { return StructMember(StructArray(elementType, count)) }
+
+
+export function GetStruct<T>(clazz: Class<T>): StructClass<T> {
+    return (clazz as any).struct || (clazz as any).prototype.$$struct
 }
