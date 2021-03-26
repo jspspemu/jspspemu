@@ -6,7 +6,7 @@ const console = logger.named('vfs.storage');
 
 export class StorageVfs extends Vfs {
     private db?: MyStorage;
-    private openDbPromise?: PromiseFast<StorageVfs>;
+    private openDbPromise?: Promise<StorageVfs>;
 
 
 	constructor(private key: string) {
@@ -15,11 +15,13 @@ export class StorageVfs extends Vfs {
 
 	initializeOnceAsync() {
 		if (!this.openDbPromise) {
-			this.openDbPromise = indexedDbOpenAsync(this.key, 3, ['files']).thenFast(db => {
-				this.db = db;
-				return this;
-			});
-		}
+			this.openDbPromise = (async () => {
+                const db = await indexedDbOpenAsync(this.key, 3, ['files'])
+                this.db = db;
+                return this;
+            })()
+
+        }
 		return this.openDbPromise;
 	}
 
@@ -28,11 +30,13 @@ export class StorageVfs extends Vfs {
         return await StorageVfsEntry.fromNameAsync(this.db!, path, flags, mode);
 	}
 	
-	deleteAsync(path:string):PromiseFast<void> {
-		return this.initializeOnceAsync().thenFast(() => {
-			return this.db!.deleteAsync(path);
-		});
+	deleteAsync(path:string): PromiseFast<void> {
+		return PromiseFast.ensure(this._deleteAsync(path))
 	}
+	async _deleteAsync(path:string): Promise<void> {
+        await this.initializeOnceAsync()
+        return this.db!.deleteAsync(path);
+    }
 }
 
 interface File {
@@ -70,19 +74,14 @@ class StorageVfsEntry extends VfsEntry {
 		return (new StorageVfsEntry(db, name)).initAsync(flags, mode);
 	}
 
-	private _getFileAsync(): PromiseFast<File> {
-		return this.db.getAsync(this.name).thenFast(file => {
-			if (!file) file = { name: this.name, content: new ArrayBuffer(0), date: new Date(), exists: false };
-			return file;
-		});
+	private async _getFileAsync(): Promise<File> {
+	    let file = await this.db.getAsync(this.name)
+        if (!file) file = { name: this.name, content: new ArrayBuffer(0), date: new Date(), exists: false };
+        return file;
 	}
 
-	private _getAllAsync() {
-		return this._getFileAsync().thenFast(item => item.content);
-	}
-
-	private _writeAllAsync(data:ArrayBuffer) {
-		return this.db.putAsync(this.name, {
+	private async _writeAllAsync(data:ArrayBuffer) {
+		return await this.db.putAsync(this.name, {
 			'name': this.name,
 			'content': new Uint8Array(data),
 			'date': new Date(),
@@ -100,13 +99,18 @@ class StorageVfsEntry extends VfsEntry {
 	}
 
 	writeChunkAsync(offset: number, data: ArrayBuffer): PromiseFast<number> {
+	    return PromiseFast.ensure(this._writeChunkAsync(offset, data))
+	}
+
+    async _writeChunkAsync(offset: number, data: ArrayBuffer) {
         const newContent = new ArrayBuffer(Math.max(this.file.content.byteLength, offset + data.byteLength));
         const newContentArray = new Uint8Array(newContent);
         newContentArray.set(new Uint8Array(this.file.content), 0);
-		newContentArray.set(new Uint8Array(data), offset);
-		this.file.content = newContentArray;
-		return this._writeAllAsync(newContent).thenFast(() => data.byteLength);
-	}
+        newContentArray.set(new Uint8Array(data), offset);
+        this.file.content = newContentArray;
+        await this._writeAllAsync(newContent)
+        return data.byteLength
+    }
 
 	stat(): VfsStat {
 		return {

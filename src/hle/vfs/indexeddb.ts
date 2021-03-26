@@ -1,4 +1,4 @@
-﻿import {logger, PromiseFast, StringDictionary} from "../../global/utils";
+﻿import {logger, StringDictionary} from "../../global/utils";
 
 const console = logger.named('indexeddb');
 
@@ -6,19 +6,19 @@ const console = logger.named('indexeddb');
 declare const IDBKeyRange: IDBKeyRange;
 
 export interface MyStorage {
-	putAsync(key: string, value: any): PromiseFast<void>;
-	deleteAsync(key: string): PromiseFast<void>;
-	hasAsync(key: string): PromiseFast<boolean>;
-	getAsync(key: string): PromiseFast<any>;
+	putAsync(key: string, value: any): Promise<void>;
+	deleteAsync(key: string): Promise<void>;
+	hasAsync(key: string): Promise<boolean>;
+	getAsync(key: string): Promise<any>;
 }
 
 class MyStorageIndexedDb implements MyStorage {
 	constructor(private db: IDBDatabase) {
 	}
 
-	static openAsync(name: string) {
+	static async openAsync(name: string) {
 		console.info(`MyStorageIndexedDb.openAsync("${name}")`)
-		return new PromiseFast<MyStorage>((resolve, reject) => {
+		return new Promise<MyStorage>((resolve, reject) => {
             const request = indexedDB.open(name, 1);
             request.onupgradeneeded = function (e) {
                 const db = request.result;
@@ -43,10 +43,10 @@ class MyStorageIndexedDb implements MyStorage {
 		return this.db.transaction(['items'], "readwrite").objectStore('items');
 	}
 
-	putAsync(key: string, value: any): PromiseFast<void> {
+    async putAsync(key: string, value: any): Promise<void> {
 		console.log('putAsync', key, value);
         const store = this.getItemsStore();
-        return new PromiseFast<void>((resolve, reject) => {
+        return new Promise<void>((resolve, reject) => {
             const request = store.put({key: key, value: value});
             request.onsuccess = function (e) {
 				resolve();
@@ -57,10 +57,10 @@ class MyStorageIndexedDb implements MyStorage {
 		});
 	}
 
-	deleteAsync(key: string): PromiseFast<void> {
+    async deleteAsync(key: string): Promise<void> {
 		console.log('deleteAsync', key);
         const store = this.getItemsStore();
-        return new PromiseFast<void>((resolve, reject) => {
+        return new Promise<void>((resolve, reject) => {
             const request = store.delete(key);
 
             request.onsuccess = function (e) {
@@ -73,14 +73,19 @@ class MyStorageIndexedDb implements MyStorage {
 		});
 	}
 
-	hasAsync(key: string): PromiseFast<boolean> {
+    async hasAsync(key: string): Promise<boolean> {
 		console.log('hasAsync', key);
-		return this.getAsync(key).thenFast(() => true, () => false);
+		try {
+            await this.getAsync(key)
+            return true
+        } catch (e) {
+		    return false
+        }
 	}
 
-	getAsync(key: string): PromiseFast<any> {
+    async getAsync(key: string): Promise<any> {
         const store = this.getItemsStore();
-        return new PromiseFast((resolve, reject) => {
+        return new Promise((resolve, reject) => {
 			//console.log('rr');
 			//const keyRange = IDBKeyRange.only(key);
 			//const keyRange = IDBKeyRange.lowerBound(0);
@@ -113,35 +118,35 @@ class MyStorageFake implements MyStorage {
 		//console.log(`new MyStorageFake(${name})`);
 	}
 
-	putAsync(key: string, value: any): PromiseFast<void> {
+	putAsync(key: string, value: any): Promise<void> {
 		console.log('putAsync', key, value);
 		this.items[key] = value;
-		return PromiseFast.resolve();
+		return Promise.resolve();
 	}
 
-	deleteAsync(key: string): PromiseFast<void> {
+	deleteAsync(key: string): Promise<void> {
 		console.log('deleteAsync', key);
 		delete this.items[key];
-		return PromiseFast.resolve();
+		return Promise.resolve();
 	}
 
-	hasAsync(key: string): PromiseFast<boolean> {
+	hasAsync(key: string): Promise<boolean> {
         const value = this.items[key] !== undefined;
         console.log('hasAsync', key, value);
-		return PromiseFast.resolve(value);
+		return Promise.resolve(value);
 	}
 
-	getAsync(key: string): PromiseFast<any> {
+	getAsync(key: string): Promise<any> {
         const result = this.items[key];
         console.log('getAsync', key, result);
-		return PromiseFast.resolve(result);
+		return Promise.resolve(result);
 	}
 }
 
-export function indexedDbOpenAsync(name: string, version: number, stores: string[]): PromiseFast<MyStorage> {
+export async function indexedDbOpenAsync(name: string, version: number, stores: string[]): Promise<MyStorage> {
 	if (typeof indexedDB == "undefined") {
-		return PromiseFast.resolve(new MyStorageFake(name));
+		return new MyStorageFake(name);
 	} else {
-		return MyStorageIndexedDb.openAsync(name + '_v2');
+		return await MyStorageIndexedDb.openAsync(name + '_v2');
 	}
 }

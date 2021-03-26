@@ -131,7 +131,7 @@ export class Thread {
 	}
 
 	accumulatedMicroseconds = 0;
-	delayMicrosecondsAsync(delayMicroseconds: number, allowCompensating = false) {
+	async delayMicrosecondsAsync(delayMicroseconds: number, allowCompensating = false) {
 		//console.error(delayMicroseconds, this.accumulatedMicroseconds);
 		//return waitAsync(delayMicroseconds / 1000).thenFast(() => 0);
 
@@ -153,14 +153,13 @@ export class Thread {
 		}
 
         const start = performance.now();
-        return waitAsync(delayMicroseconds / 1000).thenFast(() => {
-            const end = performance.now();
-            const elapsedmicroseconds = (end - start) * 1000;
+        await waitAsync(delayMicroseconds / 1000)
+        const end = performance.now();
+        const elapsedmicroseconds = (end - start) * 1000;
 
-            this.accumulatedMicroseconds += ((elapsedmicroseconds - delayMicroseconds) | 0);
+        this.accumulatedMicroseconds += ((elapsedmicroseconds - delayMicroseconds) | 0);
 
-			return 0;
-		});
+        return 0;
 	}
 
 	suspend() {

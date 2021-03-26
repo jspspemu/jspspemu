@@ -58,7 +58,7 @@ export class BufferedAsyncStream extends ProxyAsyncStream {
 		this.cache.data = data;
 	}
 
-	readChunkAsync(offset: number, count: number):PromiseFast<ArrayBuffer> {
+	async readChunkPromiseAsync(offset: number, count: number):Promise<ArrayBuffer> {
         const availableFromOffset = this.size - offset;
         const start = offset;
         let end = offset + count;
@@ -69,17 +69,16 @@ export class BufferedAsyncStream extends ProxyAsyncStream {
 
 		if (cache) {
 		    //console.log("CACHE HIT")
-			return PromiseFast.resolve(cache.data.slice(start - cache.start, end - cache.start));
+			return cache.data.slice(start - cache.start, end - cache.start)
 		} else {
             let bigCount = Math.max(count, this.bufferSize);
             bigCount = Math.min(bigCount, availableFromOffset);
 
 			end = start + bigCount;
 
-			return this.stream.readChunkAsync(offset, bigCount).thenFast(data => {
-				this.putCacheEntry(start, data);
-				return this.readChunkAsync(offset, count);
-			});
+			const data = await this.stream.readChunkAsync(offset, bigCount)
+            this.putCacheEntry(start, data);
+            return this.readChunkPromiseAsync(offset, count);
 		}
     }
 }

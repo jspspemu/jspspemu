@@ -66,7 +66,7 @@ export class sceNetAdhoc {
 
 	/** Receive a PDP packet */
 	@nativeFunction(0xDFE53E03, 150, 'int', 'int/byte[6]/void*/void*/void*/void*/int')
-	sceNetAdhocPdpRecv(pdpId: number, srcMac: Uint8Array, portPtr: Stream, data: Stream, dataLengthPtr: Stream, timeout: number, nonblock: number): any {
+	async sceNetAdhocPdpRecv(pdpId: number, srcMac: Uint8Array, portPtr: Stream, data: Stream, dataLengthPtr: Stream, timeout: number, nonblock: number) {
         const block = !nonblock;
         const pdp = this.pdps.get(pdpId);
 		const recvOne = (chunk: NetPacket) => {
@@ -79,7 +79,8 @@ export class sceNetAdhoc {
 
 		// block
 		if (block) {
-			return pdp.recvOneAsync().thenFast(recvOne);
+            const data = await pdp.recvOneAsync()
+			return recvOne(data)
 		} else {
 			if (pdp.chunks.length <= 0) return 0x80410709; // ERROR_NET_ADHOC_NO_DATA_AVAILABLE
 			return recvOne(pdp.chunks.shift()!);
