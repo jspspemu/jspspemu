@@ -1,4 +1,4 @@
-﻿import {createNativeFunction, CreateOptions, ThreadTypeType, VoidTypeType} from "../core/cpu/cpu_core";
+﻿import {createNativeFunction, CreateOptions, MemoryTypeType, ThreadTypeType, VoidTypeType} from "../core/cpu/cpu_core";
 import {Float32, Int32, Int64, IType, Pointer, Ptr, StringzVariable, UInt32} from "../global/struct";
 import {Stream} from "../global/stream";
 
