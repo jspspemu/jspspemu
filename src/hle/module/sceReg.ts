@@ -6,7 +6,7 @@ import {
     StructUInt32
 } from "../../global/struct";
 import {EmulatorContext} from "../../emu/context";
-import {I32, nativeFunction, nativeFunctionEx, PTR, STRING} from "../utils";
+import {I32, nativeFunctionEx, PTR, STRING} from "../utils";
 
 export class sceReg {
 	constructor(private context: EmulatorContext) { }

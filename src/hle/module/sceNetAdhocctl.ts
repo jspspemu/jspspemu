@@ -2,7 +2,7 @@
 import {Stream} from "../../global/stream";
 import {Cancelable, UidCollection} from "../../global/utils";
 import {EmulatorContext} from "../../emu/context";
-import {nativeFunction} from "../utils";
+import {I32, nativeFunctionEx, PTR, STRING} from "../utils";
 
 export class sceNetAdhocctl {
 	constructor(private context: EmulatorContext) { }
@@ -13,23 +13,23 @@ export class sceNetAdhocctl {
 	public ws?: WebSocket;
 
 	/** Initialise the Adhoc control library */
-	@nativeFunction(0xE26F226E, 150, 'int', 'int/int/void*')
-	sceNetAdhocctlInit(stacksize: number, priority: number, product: Stream) {
+	@nativeFunctionEx(0xE26F226E, 150)
+	@I32 sceNetAdhocctlInit(@I32 stacksize: number, @I32 priority: number, @PTR product: Stream) {
 		this.currentState = State.Disconnected;
 		return 0;
 	}
 
 	/** Terminate the Adhoc control library */
-	@nativeFunction(0x9D689E13, 150, 'int', '')
-	sceNetAdhocctlTerm() {
+	@nativeFunctionEx(0x9D689E13, 150)
+    @I32 sceNetAdhocctlTerm() {
 		return 0;
 	}
 
 	private connectHandlers = <Cancelable[]>[];
 
 	/** Connect to the Adhoc control */
-	@nativeFunction(0x0AD043ED, 150, 'int', 'string')
-	sceNetAdhocctlConnect(name: string) {
+	@nativeFunctionEx(0x0AD043ED, 150)
+	@I32 sceNetAdhocctlConnect(@STRING name: string) {
 		this.currentName = name;
 
 		this.connectHandlers.push(this.context.netManager.onopen.add(() => {
@@ -49,27 +49,27 @@ export class sceNetAdhocctl {
 	}
 
 	/** Disconnect from the Adhoc control */
-	@nativeFunction(0x34401D65, 150, 'int', '')
-	sceNetAdhocctlDisconnect() {
+	@nativeFunctionEx(0x34401D65, 150)
+	@I32 sceNetAdhocctlDisconnect() {
 		while (this.connectHandlers.length) this.connectHandlers.shift()!.cancel();
 		return 0;
 	}
 
 	private handlers = new UidCollection<HandlerCallback>(1);
 
-	@nativeFunction(0x20B317A0, 150, 'int', 'int/int')
-	sceNetAdhocctlAddHandler(callback: number, parameter: number) {
+	@nativeFunctionEx(0x20B317A0, 150)
+	@I32 sceNetAdhocctlAddHandler(@I32 callback: number, @I32 parameter: number) {
 		return this.handlers.allocate(new HandlerCallback(callback, parameter));
 	}
 
-	@nativeFunction(0x6402490B, 150, 'int', 'int')
-	sceNetAdhocctlDelHandler(handler: number) {
+	@nativeFunctionEx(0x6402490B, 150)
+	@I32 sceNetAdhocctlDelHandler(@I32 handler: number) {
 		this.handlers.remove(handler);
 		return 0;
 	}
 
-	@nativeFunction(0x75ECD386, 150, 'int', 'void*')
-	sceNetAdhocctlGetState(stateOut: Stream) {
+	@nativeFunctionEx(0x75ECD386, 150)
+	@I32 sceNetAdhocctlGetState(@PTR stateOut: Stream) {
 		stateOut.writeInt32(this.currentState);
 		return 0;
 	}

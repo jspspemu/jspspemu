@@ -42,6 +42,11 @@ export class ThreadType extends BaseCustomType { }
 export class BoolType extends BaseCustomType { }
 export class VoidType extends BaseCustomType { }
 export class BytesType extends BaseCustomType { }
+export class FixedBytesType extends BaseCustomType {
+    constructor(public size: number) {
+        super();
+    }
+}
 
 export const MemoryTypeType = new MemoryType()
 export const ThreadTypeType = new ThreadType()
@@ -1723,7 +1728,12 @@ export function createNativeFunction(
                 case MemoryTypeType: args.push('state.memory'); break;
                 case StringzVariable: args.push(`state.memory.readStringz(${readGpr32_S()})`); break;
                 case Int64: args.push(readGpr64()); break;
-                default: throw new Error(`Invalid parameter type ${item}`)
+                default:
+                    if (item instanceof FixedBytesType) {
+                        args.push(`state.memory.getPointerU8Array(${readGpr32_S()}, ${item.size})`);
+                    } else {
+                        throw new Error(`Invalid parameter type ${item}`)
+                    }
             }
         })
     } else if (argTypesString) {

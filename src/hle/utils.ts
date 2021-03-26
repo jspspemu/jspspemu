@@ -1,7 +1,8 @@
 ﻿import {
+    BoolTypeType,
     BytesTypeType,
     createNativeFunction,
-    CreateOptions,
+    CreateOptions, FixedBytesType,
     MemoryTypeType,
     ThreadTypeType,
     VoidTypeType
@@ -64,5 +65,7 @@ export const I64: any = param(Int64)
 export const F32: any = param(Float32)
 export const U32: any = param(UInt32)
 export const I32: any = param(Int32)
+export const BOOL: any = param(BoolTypeType)
 export const PTR: any = param(Ptr)
 export const BYTES: any = param(BytesTypeType)
+export function FBYTES(size: number): any { return param(new FixedBytesType(size)) }

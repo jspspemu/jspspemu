@@ -1,24 +1,24 @@
 ﻿import {sprintf} from "../../global/utils";
 import {Stream} from "../../global/stream";
 import {EmulatorContext} from "../../emu/context";
-import {nativeFunction, nativeFunctionEx, PTR, STRING, U32} from "../utils";
+import {I32, nativeFunctionEx, PTR, STRING, THREAD, U32} from "../utils";
 import {Thread} from "../manager/thread";
 
 export class ModuleMgrForUser {
 	constructor(private context: EmulatorContext) { }
 
-	@nativeFunction(0xD1FF982A, 150, 'uint', '')
-	sceKernelStopModule() {
+	@nativeFunctionEx(0xD1FF982A, 150)
+    @U32 sceKernelStopModule() {
 		return 0;
 	}
 
-	@nativeFunction(0x2E0911AA, 150, 'uint', 'int')
-	sceKernelUnloadModule(id: number) {
+	@nativeFunctionEx(0x2E0911AA, 150)
+	@U32 sceKernelUnloadModule(@I32 id: number) {
 		return 0;
 	}
 
-	@nativeFunction(0xD675EBB8, 150, 'uint', 'int/int/int/Thread')
-	sceKernelSelfStopUnloadModule(unknown: number, argsize: number, argp: number, thread: Thread) {
+	@nativeFunctionEx(0xD675EBB8, 150)
+    @U32 sceKernelSelfStopUnloadModule(@I32 unknown: number, @I32 argsize: number, @I32 argp: number, @THREAD thread: Thread) {
 		console.info("Call stack:");
 		thread.state.printCallstack(this.context.symbolLookup);
 		//this.context.instructionCache.functionGenerator.getInstructionUsageCount().forEach((item) => { console.log(item.name, ':', item.count); });
@@ -26,8 +26,8 @@ export class ModuleMgrForUser {
 		throw new Error("sceKernelSelfStopUnloadModule");
 	}
 
-	@nativeFunction(0xCC1D3699, 150, 'uint', 'int/int/int/Thread')
-	sceKernelStopUnloadSelfModule(argsize: number, argp: number, optionsAddress:number, thread: Thread) {
+	@nativeFunctionEx(0xCC1D3699, 150)
+    @U32 sceKernelStopUnloadSelfModule(@I32 argsize: number, @I32 argp: number, @I32 optionsAddress:number, @THREAD thread: Thread) {
 		throw new Error("sceKernelStopUnloadSelfModule");
 	}
 
@@ -37,26 +37,26 @@ export class ModuleMgrForUser {
 		return 0x08900000;
 	}
 
-	@nativeFunction(0x50F0C1EC, 150, 'uint', 'int/int/uint/void*/void*')
-	sceKernelStartModule(moduleId: number, argumentSize: number, argumentPointer: number, status:Stream, sceKernelSMOption:Stream) {
+	@nativeFunctionEx(0x50F0C1EC, 150)
+    @U32 sceKernelStartModule(@I32 moduleId: number, @I32 argumentSize: number, @U32 argumentPointer: number, @PTR status:Stream, @PTR sceKernelSMOption:Stream) {
 		console.warn(sprintf('Not implemented ModuleMgrForUser.sceKernelStartModule(%d, %d, %d)', moduleId, argumentSize, argumentPointer));
 		return 0;
 	}
 
-	@nativeFunction(0xD8B73127, 150, 'uint', 'uint')
-	sceKernelGetModuleIdByAddress(address: number) {
+	@nativeFunctionEx(0xD8B73127, 150)
+    @U32 sceKernelGetModuleIdByAddress(@U32 address: number) {
 		console.warn(sprintf('Not implemented ModuleMgrForUser.sceKernelGetModuleIdByAddress(%08X)', address));
 		return 3;
 	}
 
-	@nativeFunction(0xF0A26395, 150, 'uint', '')
-	sceKernelGetModuleId() {
+	@nativeFunctionEx(0xF0A26395, 150)
+    @U32 sceKernelGetModuleId() {
 		console.warn(sprintf('Not implemented ModuleMgrForUser.sceKernelGetModuleId()'));
 		return 4; // TODO!
 	}
 
-	@nativeFunction(0xB7F46618, 150, 'uint', 'uint/uint/void*')
-	sceKernelLoadModuleByID(fileId: number, flags: number, sceKernelLMOption: Stream) {
+	@nativeFunctionEx(0xB7F46618, 150)
+    @U32 sceKernelLoadModuleByID(@U32 fileId: number, @U32 flags: number, @PTR sceKernelLMOption: Stream) {
 		console.warn(sprintf('Not implemented ModuleMgrForUser.sceKernelLoadModuleByID(%d, %08X)', fileId, flags));
 		return 0;
 	}

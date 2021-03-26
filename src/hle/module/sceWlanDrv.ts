@@ -1,11 +1,11 @@
 ﻿import {EmulatorContext} from "../../emu/context";
-import {nativeFunction} from "../utils";
+import {BOOL, nativeFunctionEx} from "../utils";
 
 export class sceWlanDrv {
 	constructor(private context: EmulatorContext) { }
 
-	@nativeFunction(0xD7763699, 150, 'bool', '')
-	sceWlanGetSwitchState() {
+	@nativeFunctionEx(0xD7763699, 150)
+	@BOOL sceWlanGetSwitchState() {
 		return true;
 	}
 }
