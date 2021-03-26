@@ -104,6 +104,12 @@ export class UInt32Type implements IType<number> {
 	get length() { return 4; }
 }
 
+export class PtrType implements IType<number> {
+    read(stream: Stream): any { return stream.readUInt32LE(); }
+    write(stream: Stream, value: any): void { stream.writeUInt32LE(value); }
+    get length() { return 4; }
+}
+
 export class UInt16Type implements IType<number> {
 	constructor(public endian: Endian) { }
 
@@ -118,6 +124,14 @@ export class UInt8Type implements IType<number> {
 	read(stream: Stream): any { return stream.readUInt8(this.endian); }
 	write(stream: Stream, value: any): void { stream.writeUInt8(value, this.endian); }
 	get length() { return 1; }
+}
+
+export class Float32Type implements IType<number> {
+    constructor(public endian: Endian) { }
+
+    read(stream: Stream): any { return stream.readFloat32(this.endian); }
+    write(stream: Stream, value: any): void { stream.writeFloat32(value, this.endian); }
+    get length() { return 4; }
 }
 
 export interface StructEntryProcessed<T> {
@@ -369,6 +383,10 @@ export const Int8_b = new Int8Type(Endian.BIG);
 export const UInt8 = new UInt8Type(Endian.LITTLE);
 export const UInt16 = new UInt16Type(Endian.LITTLE);
 export const UInt32 = new UInt32Type(Endian.LITTLE);
+
+export const Ptr = new PtrType();
+
+export const Float32 = new Float32Type(Endian.LITTLE);
 //export const UInt64 = new UInt64Type(Endian.LITTLE);
 
 export const UInt16_l = new UInt16Type(Endian.LITTLE);
