@@ -989,22 +989,22 @@ export class Signal2<T1, T2> {
 }
 
 export class SignalPromise<T1, T2, T3, T4, T5> {
-	callbacks: ((v1?: T1, v2?: T2, v3?: T3, v4?: T4, v5?: T5) => PromiseFast<any>)[] = [];
+	callbacks: ((v1?: T1, v2?: T2, v3?: T3, v4?: T4, v5?: T5) => Promise<any>)[] = [];
 
 	get length() { return this.callbacks.length; }
 	clear() { this.callbacks = []; }
 
-	add(callback: (v1?: T1, v2?: T2, v3?: T3, v4?: T4, v5?: T5) => PromiseFast<any>) {
+	add(callback: (v1?: T1, v2?: T2, v3?: T3, v4?: T4, v5?: T5) => Promise<any>) {
 		this.callbacks.push(callback);
 		return this;
 	}
 
 	dispatchAsync(v1?: T1, v2?: T2, v3?: T3, v4?: T4, v5?: T5) {
-        const promises: PromiseFast<any>[] = [];
+        const promises: Promise<any>[] = [];
         this.callbacks.forEach((callback) => {
 			promises.push(callback(v1, v2, v3, v4, v5));
 		});
-		return PromiseFast.all(promises)
+		return Promise.all(promises)
 	}
 }
 

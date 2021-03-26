@@ -38,7 +38,7 @@ export class PspAudioChannel {
 		this.audio.onStop.dispatch(this.id);
 	}
 
-	playAsync(channels: number, data: Int16Array, leftVolume: number, rightVolume: number): PromiseFast<any> {
+	playAsync(channels: number, data: Int16Array, leftVolume: number, rightVolume: number): Promise<any> {
 		return this.audio.onPlayDataAsync.dispatchAsync(this.id, channels, data, leftVolume, rightVolume);
 	}
 }

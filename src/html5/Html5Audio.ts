@@ -85,24 +85,27 @@ class Audio2Channel {
         }
     }
 
-    playAsync(data: Float32Array): PromiseFast<any> {
-        if (!this.node) return waitAsync(10).thenFast(() => 0);
+    async playAsync(data: Float32Array): Promise<any> {
+        if (!this.node) {
+            await waitAsync(10)
+            return 0
+        }
 
         if (this.buffers.length < 8) {
             //if (this.buffers.length < 16) {
             //(data.length / 2)
             this.buffers.push(new PspAudioBuffer(null, data));
             //return 0;
-            return PromiseFast.resolve(0);
+            return 0
         } else {
-            return new PromiseFast<number>((resolved, rejected) => {
+            return new Promise<number>((resolved, rejected) => {
                 this.buffers.push(new PspAudioBuffer(resolved, data));
                 return 0;
             });
         }
     }
 
-    playDataAsync(channels: number, data: Int16Array, leftVolume: number, rightVolume: number): PromiseFast<any> {
+    playDataAsync(channels: number, data: Int16Array, leftVolume: number, rightVolume: number): Promise<any> {
         //console.log(channels, data);
         return this.playAsync(convertS16ToF32(channels, data, leftVolume, rightVolume));
     }
