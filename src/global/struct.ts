@@ -477,7 +477,7 @@ export const StructUInt32: any = StructMember(UInt32)
 export const StructUInt32_2lb: any = StructMember(UInt32_2lb)
 export const StructUInt16_2lb: any = StructMember(UInt16_2lb)
 
-
+export const StructUInt32_b: any = StructMember(UInt32_b)
 
 export const StructInteger64_l: any = StructMember(Integer64_l)
 export const StructInteger64_b: any = StructMember(Integer64_b)

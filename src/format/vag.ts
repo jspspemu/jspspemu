@@ -1,6 +1,6 @@
 ﻿import "../emu/global"
 import {Stream} from "../global/stream";
-import {StructClass, UInt32, UInt32_b} from "../global/struct";
+import {Struct, StructClass, StructUInt32, StructUInt32_b, UInt32, UInt32_b} from "../global/struct";
 import {BitUtils, MathUtils} from "../global/math";
 import {Sample} from "../core/audio";
 import {SoundSource} from "../hle/module/sceSasCore";
@@ -147,20 +147,12 @@ class VagBlock {
 }
 */
 
-class VagHeader {
-	magic: number = 0
-	vagVersion: number = 0
-	dataSize: number = 0
-	sampleRate: number = 0
+class VagHeader extends Struct {
+	@StructUInt32 magic: number = 0
+	@StructUInt32_b vagVersion: number = 0
+    @StructUInt32_b dataSize: number = 0
+    @StructUInt32_b sampleRate: number = 0
 	//name: string = ''
-
-	static struct = StructClass.create<VagHeader>(VagHeader, [
-		{ magic: UInt32 },
-		{ vagVersion: UInt32_b },
-		{ dataSize: UInt32_b },
-		{ sampleRate: UInt32_b },
-		//{ name: Stringz(16) },
-	]);
 }
 
 export class VagSoundSource implements SoundSource{

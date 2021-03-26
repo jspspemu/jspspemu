@@ -1,5 +1,5 @@
 ﻿import {Stream} from "../../global/stream";
-import {StructClass, UInt32} from "../../global/struct";
+import {Struct, StructClass, StructUInt32, UInt32} from "../../global/struct";
 import {SceKernelErrors} from "../SceKernelErrors";
 import {ProxyVfs, Vfs} from "./vfs";
 import {CallbackManager} from "../manager/callback";
@@ -71,18 +71,10 @@ export const enum CommandType {
 	CheckMemoryStickStatus = 0x02025801,
 }
 
-class SizeInfoStruct {
-	maxClusters: number = 0
-	freeClusters: number = 0
-	maxSectors: number = 0
-	sectorSize: number = 0
-	sectorCount: number = 0
-
-	static struct = StructClass.create<SizeInfoStruct>(SizeInfoStruct, [
-		{ maxClusters: UInt32 },
-		{ freeClusters: UInt32 },
-		{ maxSectors: UInt32 },
-		{ sectorSize: UInt32 },
-		{ sectorCount: UInt32 },
-	]);
+class SizeInfoStruct extends Struct {
+	@StructUInt32 maxClusters: number = 0
+    @StructUInt32 freeClusters: number = 0
+    @StructUInt32 maxSectors: number = 0
+    @StructUInt32 sectorSize: number = 0
+    @StructUInt32 sectorCount: number = 0
 }

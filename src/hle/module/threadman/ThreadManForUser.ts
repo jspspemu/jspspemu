@@ -8,7 +8,15 @@
 	WaitingThreadInfo
 } from "../../../global/utils";
 import {Stream} from "../../../global/stream";
-import {Int32, Stringz, StructClass, UInt32} from "../../../global/struct";
+import {
+    Int32,
+    Stringz, Struct,
+    StructClass,
+    StructInt32,
+    StructStructStringz,
+    StructUInt32,
+    UInt32
+} from "../../../global/struct";
 import {MathUtils} from "../../../global/math";
 import {Integer64} from "../../../global/int64";
 import {SceKernelErrors} from "../../SceKernelErrors";
@@ -331,47 +339,25 @@ export class ThreadManForUser {
 	}
 }
 
-class SceKernelThreadInfo {
-    size: number = 0
-    name: string = ''
-    attributes: number = 0
-	status: ThreadStatus = ThreadStatus.RUNNING
-    entryPoint: number = 0
-    stackPointer: number = 0
-    stackSize: number = 0
-    GP: number = 0
-    priorityInit: number = 0
-    priority: number = 0
-    waitType: number = 0
-    waitId: number = 0
-    wakeupCount: number = 0
-    exitStatus: number = 0
-    runClocksLow: number = 0
-    runClocksHigh: number = 0
-    interruptPreemptionCount: number = 0
-    threadPreemptionCount: number = 0
-    releaseCount: number = 0
-
-    static struct = StructClass.create<SceKernelThreadInfo>(SceKernelThreadInfo, [
-		{ size: Int32 },
-		{ name: Stringz(32) },
-		{ attributes: UInt32 },
-		{ status: UInt32 },
-		{ entryPoint: UInt32 },
-		{ stackPointer: UInt32 },
-		{ stackSize: Int32 },
-		{ GP: UInt32 },
-		{ priorityInit: Int32 },
-		{ priority: Int32 },
-		{ waitType: UInt32 },
-		{ waitId: Int32 },
-		{ wakeupCount: Int32 },
-		{ exitStatus: Int32 },
-		{ runClocksLow: Int32 },
-		{ runClocksHigh: Int32 },
-		{ interruptPreemptionCount: Int32 },
-		{ threadPreemptionCount: Int32 },
-		{ releaseCount: Int32 },
-    ]);
+class SceKernelThreadInfo extends Struct {
+    @StructInt32 size: number = 0
+    @StructStructStringz(32) name: string = ''
+    @StructUInt32 attributes: number = 0
+    @StructUInt32 status: ThreadStatus = ThreadStatus.RUNNING
+    @StructUInt32 entryPoint: number = 0
+    @StructUInt32 stackPointer: number = 0
+    @StructInt32 stackSize: number = 0
+    @StructUInt32 GP: number = 0
+    @StructInt32 priorityInit: number = 0
+    @StructInt32 priority: number = 0
+    @StructUInt32 waitType: number = 0
+    @StructInt32 waitId: number = 0
+    @StructInt32 wakeupCount: number = 0
+    @StructInt32 exitStatus: number = 0
+    @StructInt32 runClocksLow: number = 0
+    @StructInt32 runClocksHigh: number = 0
+    @StructInt32 interruptPreemptionCount: number = 0
+    @StructInt32 threadPreemptionCount: number = 0
+    @StructInt32 releaseCount: number = 0
 }
 

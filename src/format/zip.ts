@@ -1,7 +1,14 @@
 ﻿import "../emu/global"
 
 import {AsyncStream, Stream} from "../global/stream";
-import {StringWithSize, StructArray, StructClass, UInt16, UInt32} from "../global/struct";
+import {
+    StringWithSize,
+    Struct,
+    StructArray,
+    StructMember,
+    StructUInt16,
+    StructUInt32
+} from "../global/struct";
 import {ArrayBufferUtils, PromiseFast, StringDictionary} from "../global/utils";
 import {BitUtils} from "../global/math";
 import {zlib_inflate_raw} from "./zlib";
@@ -168,102 +175,52 @@ export const enum ZipCompressionType {
 	DEFLATE64 = 9    
 }
 
-export class ZipEndLocator {
-	magic: number = 0
-	currentDiskNumber: number = 0
-	startDiskNumber: number = 0
-	entriesOnDisk: number = 0
-	entriesInDirectory: number = 0
-	directorySize: number = 0
-	directoryOffset: number = 0
-	commentLength: number = 0
-
-	static struct = StructClass.create<ZipEndLocator>(ZipEndLocator, [
-		{ magic: UInt32 },
-		{ currentDiskNumber: UInt16 },
-		{ startDiskNumber: UInt16 },
-		{ entriesOnDisk: UInt16 },
-		{ entriesInDirectory: UInt16 },
-		{ directorySize: UInt32 },
-		{ directoryOffset: UInt32 },
-		{ commentLength: UInt16 },
-	]);
+export class ZipEndLocator extends Struct {
+	@StructUInt32 magic: number = 0
+    @StructUInt16 currentDiskNumber: number = 0
+    @StructUInt16 startDiskNumber: number = 0
+    @StructUInt16 entriesOnDisk: number = 0
+    @StructUInt16 entriesInDirectory: number = 0
+    @StructUInt32 directorySize: number = 0
+    @StructUInt32 directoryOffset: number = 0
+    @StructUInt16 commentLength: number = 0
 }
 
-export class ZipFileRecord {
-	magic: number = 0
-	version: number = 0
-	flags: number = 0
-	compType: ZipCompressionType = ZipCompressionType.STORED
-	dosTime: number = 0
-	dosDate: number = 0
-	crc32: number = 0
-	compressedSize: number = 0
-	uncompressedSize: number = 0
-	fileNameLength: number = 0
-	extraFieldLength: number = 0
-	fileName: string = ''
-	extraField: string = ''
-
-	static struct = StructClass.create<ZipFileRecord>(ZipFileRecord, [
-		{ magic: UInt32 },
-		{ version: UInt16 },
-		{ flags: UInt16 },
-		{ compType: UInt16 },
-		{ dosTime: UInt16 },
-		{ dosDate: UInt16 },
-		{ crc32: UInt32 },
-		{ compressedSize: UInt32 },
-		{ uncompressedSize: UInt32 },
-		{ fileNameLength: UInt16 },
-		{ extraFieldLength: UInt16 },
-		{ fileName: StringWithSize(context => context.fileNameLength) },
-		{ extraField: StringWithSize(context => context.extraFieldLength) },
-	]);
+export class ZipFileRecord extends Struct {
+	@StructUInt32 magic: number = 0
+    @StructUInt16 version: number = 0
+    @StructUInt16 flags: number = 0
+    @StructUInt16 compType: ZipCompressionType = ZipCompressionType.STORED
+    @StructUInt16 dosTime: number = 0
+    @StructUInt16 dosDate: number = 0
+    @StructUInt32 crc32: number = 0
+    @StructUInt32 compressedSize: number = 0
+    @StructUInt32 uncompressedSize: number = 0
+    @StructUInt16 fileNameLength: number = 0
+    @StructUInt16 extraFieldLength: number = 0
+	@StructMember(StringWithSize((context: ZipFileRecord) => context.fileNameLength)) fileName: string = ''
+    @StructMember(StringWithSize((context: ZipFileRecord) => context.extraFieldLength)) extraField: string = ''
 }
 
-export class ZipDirEntry {
-	magic: number = 0
-	versionMadeBy: number = 0
-	versionToExtract: number = 0
-	flags: number = 0
-	compType: ZipCompressionType = ZipCompressionType.STORED
-	dosTime: number = 0
-	dosDate: number = 0
-	crc32: number = 0
-	compressedSize: number = 0
-	uncompressedSize: number = 0
-	fileNameLength: number = 0
-	extraFieldLength: number = 0
-	fileCommentsLength: number = 0
-	diskNumberStart: number = 0
-	internalAttributes: number = 0
-	externalAttributes: number = 0
-	headerOffset: number = 0
-	fileName: string = ''
-	extraField: string = ''
-	fileComments: string = ''
-
-	static struct = StructClass.create<ZipDirEntry>(ZipDirEntry, [
-		{ magic: UInt32 },
-		{ versionMadeBy: UInt16 },
-		{ versionToExtract: UInt16 },
-		{ flags: UInt16 },
-		{ compType: UInt16 },
-		{ dosTime: UInt16 },
-		{ dosDate: UInt16 },
-		{ crc32: UInt32 },
-		{ compressedSize: UInt32 },
-		{ uncompressedSize: UInt32 },
-		{ fileNameLength: UInt16 },
-		{ extraFieldLength: UInt16 },
-		{ fileCommentsLength: UInt16 },
-		{ diskNumberStart: UInt16 },
-		{ internalAttributes: UInt16 },
-		{ externalAttributes: UInt32 },
-		{ headerOffset: UInt32 },
-		{ fileName: StringWithSize(context => context.fileNameLength) },
-		{ extraField: StringWithSize(context => context.extraFieldLength) },
-		{ fileComments: StringWithSize(context => context.fileCommentsLength) },
-	]);
+export class ZipDirEntry extends Struct {
+	@StructUInt32 magic: number = 0
+	@StructUInt16 versionMadeBy: number = 0
+    @StructUInt16 versionToExtract: number = 0
+    @StructUInt16 flags: number = 0
+    @StructUInt16 compType: ZipCompressionType = ZipCompressionType.STORED
+    @StructUInt16 dosTime: number = 0
+    @StructUInt16 dosDate: number = 0
+    @StructUInt32 crc32: number = 0
+    @StructUInt32 compressedSize: number = 0
+    @StructUInt32 uncompressedSize: number = 0
+    @StructUInt16 fileNameLength: number = 0
+    @StructUInt16 extraFieldLength: number = 0
+    @StructUInt16 fileCommentsLength: number = 0
+    @StructUInt16 diskNumberStart: number = 0
+    @StructUInt16 internalAttributes: number = 0
+    @StructUInt32 externalAttributes: number = 0
+    @StructUInt32 headerOffset: number = 0
+	@StructMember(StringWithSize((context: ZipDirEntry) => context.fileNameLength)) fileName: string = ''
+    @StructMember(StringWithSize((context: ZipDirEntry) => context.extraFieldLength)) extraField: string = ''
+    @StructMember(StringWithSize((context: ZipDirEntry) => context.fileCommentsLength)) fileComments: string = ''
 }

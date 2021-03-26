@@ -1,6 +1,16 @@
 ﻿import "../../emu/global"
 
-import {Int32, StructArray, StructClass, StructEntry, UInt32, UInt8} from "../../global/struct";
+import {
+    GetStruct,
+    Int32,
+    Struct,
+    StructArray,
+    StructClass,
+    StructEntry,
+    StructInt32, StructStructArray, StructUInt32, StructUInt8,
+    UInt32,
+    UInt8
+} from "../../global/struct";
 import {Stream} from "../../global/stream";
 import {aes_decrypt} from "./crypto";
 
@@ -59,48 +69,27 @@ const Py1 = new Uint8Array([0x04, 0x9D, 0xF1, 0xA0, 0x75, 0xC0, 0xE0, 0x4F, 0xB3
 
 // ------------------------- INTERNAL STUFF -------------------------
 
-export class KIRK_AES128CBC_HEADER {
-	mode = KirkMode.Invalid0;
-	unk_4 = 0;
-	unk_8 = 0 
-    keyseed = 0;
-	data_size = 0;
-
-	static struct = StructClass.create<KIRK_AES128CBC_HEADER>(KIRK_AES128CBC_HEADER, <StructEntry[]>[ // 0x14
-		{ mode: Int32 },     //0
-		{ unk_4: Int32 }, //4
-		{ unk_8: Int32 }, //8
-		{ keyseed: Int32 }, // C
-		{ data_size: Int32 }, // 10
-	]);
+export class KIRK_AES128CBC_HEADER extends Struct {
+	@StructInt32 mode = KirkMode.Invalid0;
+    @StructInt32 unk_4 = 0;
+    @StructInt32 unk_8 = 0
+    @StructInt32 keyseed = 0;
+    @StructInt32 data_size = 0;
 }
 
-export class AES128CMACHeader { // SIZE: 0090
-	AES_key: number[] = []
-	CMAC_key: number[] = []
-	CMAC_header_hash: number[] = []
-	CMAC_data_hash: number[] = []
-	Unknown1: number[] = []
-	Mode: KirkMode = 0
-	UseECDSAhash: number = 0
-	Unknown2: number[] = []
-	DataSize: number = 0
-	DataOffset: number = 0
-
-	static struct = StructClass.create<AES128CMACHeader>(AES128CMACHeader, <StructEntry[]>[ // 0x14
-		{ AES_key: StructArray(UInt8, 16) }, // 0000 -
-		{ CMAC_key: StructArray(UInt8, 16) }, // 0010 -
-		{ CMAC_header_hash: StructArray(UInt8, 16) }, // 0020 -
-		{ CMAC_data_hash: StructArray(UInt8, 16) }, // 0030 -
-		{ Unknown1: StructArray(UInt8, 32) }, // 0040 -
-		{ Mode: UInt8 }, // 0060 -
-		{ UseECDSAhash: UInt8 }, // 0061 -
-		{ Unknown2: StructArray(UInt8, 14) }, // 0062 -
-		{ DataSize: UInt32 }, // 0070 -
-		{ DataOffset: UInt32 }, // 0074 -
-		{ Unknown3: StructArray(UInt8, 8) }, // 0078 -
-		{ Unknown4: StructArray(UInt8, 16) }, // 0080 -
-	]);
+export class AES128CMACHeader extends Struct { // SIZE: 0090
+	@StructStructArray(UInt8, 16) AES_key: number[] = []
+    @StructStructArray(UInt8, 16) CMAC_key: number[] = []
+    @StructStructArray(UInt8, 16) CMAC_header_hash: number[] = []
+    @StructStructArray(UInt8, 16) CMAC_data_hash: number[] = []
+    @StructStructArray(UInt8, 32) Unknown1: number[] = []
+	@StructUInt8 Mode: KirkMode = 0
+    @StructUInt8 UseECDSAhash: number = 0
+	@StructStructArray(UInt8, 14) Unknown2: number[] = []
+	@StructUInt32 DataSize: number = 0
+    @StructUInt32 DataOffset: number = 0
+    @StructStructArray(UInt8, 8) Unknown3: number[] = []
+    @StructStructArray(UInt8, 16) Unknown4: number[] = []
 }
 
 //interface KIRK_CMD1_HEADER
@@ -632,12 +621,12 @@ export enum CommandEnum {
 //
 
 export function CMD7(input: Stream) {
-    const header = KIRK_AES128CBC_HEADER.struct.read(input.slice());
+    const header = GetStruct(KIRK_AES128CBC_HEADER).read(input.slice());
 
 	if (header.mode != KirkMode.DecryptCbc) throw (new Error("Kirk Invalid mode '" + header.mode + "'"));
 	if (header.data_size == 0) throw (new Error("Kirk data size == 0"));
 
-	return aes_decrypt(input.sliceFrom(KIRK_AES128CBC_HEADER.struct.length).readAllBytes(), kirk_4_7_get_key(header.keyseed));
+	return aes_decrypt(input.sliceFrom(GetStruct(KIRK_AES128CBC_HEADER).length).readAllBytes(), kirk_4_7_get_key(header.keyseed));
 }
 
 function kirk_CMD7(output: Stream, input: Stream) {

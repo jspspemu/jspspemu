@@ -1,6 +1,6 @@
 ﻿import {Stream} from "../../global/stream";
 import {AcceptCallbacks, Compensate, PromiseFast, WaitingThreadInfo} from "../../global/utils";
-import {StructClass, UInt32} from "../../global/struct";
+import {Struct, StructClass, StructUInt32, UInt32} from "../../global/struct";
 import {EmulatorContext} from "../../emu/context";
 import {nativeFunction} from "../utils";
 import {Thread} from "../manager/thread";
@@ -82,16 +82,9 @@ export class sceGe_user {
 	}
 }
 
-class CallbackData {
-	signalFunction: number = 0 // GE callback for the signal interrupt alias void function(int id, void *arg) PspGeCallback;
-	signalArgument: number = 0 // GE callback argument for signal interrupt
-	finishFunction: number = 0 // GE callback for the finish interrupt alias void function(int id, void *arg) PspGeCallback;
-	finishArgument: number = 0 // GE callback argument for finish interrupt
-
-	static struct = StructClass.create<CallbackData>(CallbackData, [
-		{ signalFunction: UInt32 },
-		{ signalArgument: UInt32 },
-		{ finishFunction: UInt32 },
-		{ finishArgument: UInt32 },
-	]);
+class CallbackData extends Struct {
+	@StructUInt32 signalFunction: number = 0 // GE callback for the signal interrupt alias void function(int id, void *arg) PspGeCallback;
+    @StructUInt32 signalArgument: number = 0 // GE callback argument for signal interrupt
+    @StructUInt32 finishFunction: number = 0 // GE callback for the finish interrupt alias void function(int id, void *arg) PspGeCallback;
+    @StructUInt32 finishArgument: number = 0 // GE callback argument for finish interrupt
 }

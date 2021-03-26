@@ -1,4 +1,4 @@
-﻿import {Stringz, StructArray, StructClass, UInt16, UInt32, UInt8} from "../global/struct";
+﻿import {GetStruct, Stringz, StructArray, StructClass, UInt16, UInt32, UInt8} from "../global/struct";
 import {Stream} from "../global/stream";
 import {CommandEnum, hleUtilsBufferCopyWithRange, KIRK_AES128CBC_HEADER, KirkMode} from "../core/kirk/kirk";
 import {g_tagInfo} from "./elf_crypted_prx_keys_144";
@@ -118,7 +118,7 @@ function decrypt1(pbIn: Stream) {
 	h7_header.keyseed = pti.code; // initial seed for PRX
 	h7_header.data_size = 0x70; // size
 
-	KIRK_AES128CBC_HEADER.struct.write(pbOut.sliceFrom(0x2C), h7_header);
+	GetStruct(KIRK_AES128CBC_HEADER).write(pbOut.sliceFrom(0x2C), h7_header);
 
 	// redo part of the SIG check (step2)
     const buffer1 = Stream.fromSize(0x150);

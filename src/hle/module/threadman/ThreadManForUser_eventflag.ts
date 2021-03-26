@@ -7,7 +7,16 @@
 	WaitingThreadInfo
 } from "../../../global/utils";
 import {Stream} from "../../../global/stream";
-import {Int32, Stringz, StructClass, UInt32} from "../../../global/struct";
+import {
+    Int32,
+    Stringz,
+    Struct,
+    StructClass,
+    StructInt32,
+    StructStringz,
+    StructStructStringz, StructUInt32,
+    UInt32
+} from "../../../global/struct";
 import {SceKernelErrors} from "../../SceKernelErrors";
 import {EmulatorContext} from "../../../emu/context";
 import {nativeFunction} from "../../utils";
@@ -191,22 +200,13 @@ class EventFlag {
 	}
 }
 
-class EventFlagInfo {
-	size: number = 0
-	name: string = ''
-	attributes: number = 0 // HleEventFlag.AttributesSet
-	initialPattern: number = 0
-	currentPattern: number = 0
-	numberOfWaitingThreads: number = 0
-
-	static struct = StructClass.create<EventFlagInfo>(EventFlagInfo, [
-		{ size: Int32 },
-		{ name: Stringz(32) },
-		{ attributes: Int32 },
-		{ initialPattern: UInt32 },
-		{ currentPattern: UInt32 },
-		{ numberOfWaitingThreads: Int32 },
-	]);
+class EventFlagInfo extends Struct {
+	@StructInt32 size: number = 0
+	@StructStructStringz(32) name: string = ''
+    @StructInt32 attributes: number = 0 // HleEventFlag.AttributesSet
+    @StructUInt32 initialPattern: number = 0
+    @StructUInt32 currentPattern: number = 0
+    @StructInt32 numberOfWaitingThreads: number = 0
 }
 
 enum EventFlagWaitTypeSet {

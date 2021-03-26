@@ -1,6 +1,6 @@
 ﻿import {AcceptCallbacks, PromiseFast, SortedSet, sprintf, UidCollection, WaitingThreadInfo} from "../../../global/utils";
 import {Stream} from "../../../global/stream";
-import {Int32, Stringz, StructClass} from "../../../global/struct";
+import {Int32, Stringz, Struct, StructClass, StructInt32, StructStructStringz} from "../../../global/struct";
 import {SceKernelErrors} from "../../SceKernelErrors";
 import {EmulatorContext} from "../../../emu/context";
 import {nativeFunction} from "../../utils";
@@ -100,24 +100,14 @@ export class ThreadManForUser {
 	}
 }
 
-class SceKernelSemaInfo {
-	size: number = 0
-	name: string = ''
-	attributes: SemaphoreAttribute = SemaphoreAttribute.FirstInFirstOut
-	initialCount: number = 0
-	currentCount: number = 0
-	maximumCount: number = 0
-	numberOfWaitingThreads: number = 0
-
-	static struct = StructClass.create<SceKernelSemaInfo>(SceKernelSemaInfo, [
-		{ size: Int32 },
-		{ name: Stringz(32) },
-		{ attributes: Int32 },
-		{ initialCount: Int32 },
-		{ currentCount: Int32 },
-		{ maximumCount: Int32 },
-		{ numberOfWaitingThreads: Int32 },
-	]);
+class SceKernelSemaInfo extends Struct {
+	@StructInt32 size: number = 0
+    @StructStructStringz(32) name: string = ''
+    @StructInt32 attributes: SemaphoreAttribute = SemaphoreAttribute.FirstInFirstOut
+    @StructInt32 initialCount: number = 0
+    @StructInt32 currentCount: number = 0
+    @StructInt32 maximumCount: number = 0
+    @StructInt32 numberOfWaitingThreads: number = 0
 }
 
 class WaitingSemaphoreThread {
