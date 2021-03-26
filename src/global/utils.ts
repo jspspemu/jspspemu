@@ -6,6 +6,9 @@ import {BitUtils, MathFloat, MathUtils} from "./math";
 const _self: any = (typeof window != 'undefined') ? window : self;
 
 declare global {
+    interface StringConstructor {
+        fromUint8Array(array: Uint8Array): string
+    }
     interface String {
         (value: any): string;
         format(...args: any[]): string
@@ -18,6 +21,16 @@ declare global {
         extract8(offset: number): number
         signExtend(bits: number): number
     }
+}
+
+const u16TextDecoder = new TextDecoder('utf-16')
+String.fromUint8Array = function(array: Uint8Array): string {
+    if (array.length <= 1024) {
+        return String.fromCharCode.apply(null, array as any)
+    }
+    const temp = new Uint16Array(array.length)
+    temp.set(array, 0)
+    return u16TextDecoder.decode(temp)
 }
 
 // @ts-ignore
@@ -952,7 +965,7 @@ export class Logger {
 	}
 
 	named(name: string) {
-		return new Logger(this.policy, this.console, (this.name + '.' + name).replace(/^\.+/, ''));
+		return new Logger(this.policy, this.console, (`${this.name}.${name}`).replace(/^\.+/, ''));
 	}
 
 	_log(type: string, level: LoggerLevel, args: any[]) {
@@ -1100,11 +1113,11 @@ export function numberToFileSize(value: number) {
 }
 
 export function addressToHex(address: number): string {
-	return '0x' + addressToHex2(address);
+	return `0x${addressToHex2(address)}`;
 }
 
 export function addressToHex2(address: number) {
-	return ('00000000' + (address >>> 0).toString(16)).substr(-8);
+	return (`00000000${(address >>> 0).toString(16)}`).substr(-8);
 }
 
 export interface Thenable<T> {

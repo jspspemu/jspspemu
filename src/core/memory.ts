@@ -126,8 +126,7 @@ export abstract class Memory {
 		return new Pointer<T>(type, this, address);
 	}
 
-	getPointerDataView(address: number, size?: number) {
-		if (!size) size = this.availableAfterAddress(address);
+	getPointerDataView(address: number, size: number = this.availableAfterAddress(address)) {
         const buffer = this.getBuffer(address), offset = this.getOffsetInBuffer(address);
         return new DataView(buffer, offset, size);
 	}
@@ -137,20 +136,17 @@ export abstract class Memory {
         return new Uint8Array(buffer, offset, high - low);
 	}
 
-	getPointerU8Array(address: number, size?: number): Uint8Array {
-		if (!size) size = this.availableAfterAddress(address);
+	getPointerU8Array(address: number, size: number = this.availableAfterAddress(address)): Uint8Array {
         const buffer = this.getBuffer(address), offset = this.getOffsetInBuffer(address);
         return new Uint8Array(buffer, offset, size);
 	}
 
-	getPointerU16Array(address: number, size?: number) {
-		if (!size) size = this.availableAfterAddress(address);
+	getPointerU16Array(address: number, size: number = this.availableAfterAddress(address)) {
         const buffer = this.getBuffer(address), offset = this.getOffsetInBuffer(address);
         return new Uint16Array(buffer, offset, size / 2);
 	}
 
-	getPointerU32Array(address: number, size?: number) {
-		if (!size) size = this.availableAfterAddress(address);
+	getPointerU32Array(address: number, size: number = this.availableAfterAddress(address)) {
         const buffer = this.getBuffer(address), offset = this.getOffsetInBuffer(address);
         return new Uint32Array(buffer, offset, size / 4);
 	}
@@ -298,8 +294,10 @@ export abstract class Memory {
 		if (address == 0) return null;
         let endAddress = address;
         while (this.lbu(endAddress) != 0) endAddress++;
+        const length = endAddress - address
+        const data = this.getPointerU8Array(address, length)
 		// @ts-ignore
-        return String.fromCharCode.apply(null, this.getPointerU8Array(address, endAddress - address));
+        return String.fromUint8Array(data);
 	}
 
 	/*

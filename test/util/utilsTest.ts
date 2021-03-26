@@ -18,6 +18,17 @@ describe('utils', () => {
         });
     });
 
+    describe('string reading', () => {
+        for (const length of [256, 64 * 1024]) {
+            it(`string decoding ${length}`, () => {
+                const array = new Uint8Array(length);
+                for (let n = 0; n < array.length; n++) array[n] = n
+                const str = String.fromUint8Array(array);
+                assert.equal(String.fromCharCode.apply(null, array as any), str)
+            })
+        }
+    })
+
     describe('Binary layouts', () => {
         it('should read int32', () => {
             const stream = Stream.fromArray([0x01, 0x02, 0x03, 0x04]);
