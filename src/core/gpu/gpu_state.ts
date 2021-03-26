@@ -605,9 +605,9 @@ export class Color {
 		return this;
 	}
 	
-	setRGB_A(rgb:number, a:number) {
+	setRGB_A(rgb:number, a: number) {
 		this.setRGB(rgb);
-		this.a = BitUtils.extractScale1f(rgb, 0, 8); 
+		this.a = BitUtils.extractScale1f(a, 0, 8);
 		return this;
 	}
 
