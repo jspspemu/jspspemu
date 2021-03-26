@@ -118,6 +118,7 @@ export class assert {
         this.ok(a != b, message)
     }
     static fail(value: any, message: string = `${value} is not false`) {
+        if (value instanceof Error) throw value
         this.ok(!value, message)
     }
     static async catchExceptionAsync(block: () => any): Promise<Error | any> {

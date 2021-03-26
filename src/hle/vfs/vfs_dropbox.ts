@@ -44,8 +44,14 @@ function getCanonicalPath(name: string) {
     return canonicalPath == '/' ? '' : canonicalPath
 }
 
+export function hasDropboxToken() {
+    if (!window.localStorage || !window.document) return false
+    return !!localStorage.getItem('DROPBOX_TOKEN')
+}
+
 export function dropboxTryStoreCodeAndRefresh() {
-    const params = new URLSearchParams('?' + document.location.hash.substr(1))
+    if (!window.localStorage || !window.document) return
+    const params = new URLSearchParams('?' + window.document.location.hash.substr(1))
     const access_token = params.get('access_token') // 938ZZZZasDVCczUAAAAAAAAAAeoICnAsSE21321321cV441GeeeeeeQQ-YQZX55542135NGtz
     const token_type = params.get('token_type') // bearer
     const account_id = params.get('account_id') // dbid%1212131243564577asdasdasdassaddsadsadsasdzzxassasqwq13
@@ -53,14 +59,15 @@ export function dropboxTryStoreCodeAndRefresh() {
 
     if (access_token) {
         localStorage.setItem('DROPBOX_TOKEN', access_token)
-        document.location.href = '/'
+        window.document.location.href = '/'
     }
 }
 
 export function getDropboxCodeOrRedirect() {
+    if (!window.localStorage || !window.document) return false
     const token = localStorage.getItem('DROPBOX_TOKEN')
     if (!token) {
-        document.location.href = generateDropboxAuthorizeUrl()
+        window.document.location.href = generateDropboxAuthorizeUrl()
     }
     return token
 }
@@ -233,7 +240,25 @@ export class DropboxVfsEntry extends VfsEntry {
 	}
 
 	enumerateAsync(): PromiseFast<VfsStat[]> {
-		throw (new Error("Must implement DropboxVfsEntry.enumerateAsync"));
+	    return PromiseFast.ensure((async () => {
+	        try {
+                const info = await client.readdirInfoAsync(this.path)
+                return info.entries.map(it => {
+                    return {
+                        name: it.name,
+                        size: it.size || 0,
+                        isDirectory: it[".tag"] == 'folder',
+                        timeCreation: new Date(it.server_modified ?? ""),
+                        timeLastAccess: new Date(it.server_modified ?? ""),
+                        timeLastModification: new Date(it.server_modified ?? ""),
+                        dependentData0: 0,
+                        dependentData1: 0
+                    }
+                })
+            } catch (e) {
+	            return []
+            }
+        })())
 	}
 
 	// @ts-ignore

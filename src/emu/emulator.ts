@@ -38,10 +38,11 @@ import {MemoryStickVfs} from "../hle/vfs/vfs_ms";
 import {MemoryVfs} from "../hle/vfs/vfs_memory";
 import {UriVfs} from "../hle/vfs/vfs_uri";
 import {ZipVfs} from "../hle/vfs/vfs_zip";
-import {FileOpenFlags, ProxyVfs} from "../hle/vfs/vfs";
+import {FileOpenFlags, ProxyVfs, Vfs} from "../hle/vfs/vfs";
 import {IsoVfs} from "../hle/vfs/vfs_iso";
 import {Html5Gamepad} from "../html5/Html5Gamepad";
 import {Html5Keyboard} from "../html5/Html5Keyboard";
+import {DropboxVfs, hasDropboxToken} from "../hle/vfs/vfs_dropbox";
 
 const console = logger.named('emulator');
 
@@ -148,7 +149,14 @@ export class Emulator {
             .mountVfs('/', new MemoryVfs())
         this.storageVfs = new StorageVfs('psp_storage')
 
-        const msvfs = new MemoryStickVfs([this.storageVfs, this.ms0Vfs], this.callbackManager, this.memory)
+        const memStickVfsList: Vfs[] = [this.storageVfs, this.ms0Vfs]
+
+        if (hasDropboxToken()) {
+            //memStickVfsList.unshift(new DropboxVfs())
+            memStickVfsList.push(new DropboxVfs())
+        }
+
+        const msvfs = new MemoryStickVfs(memStickVfsList, this.callbackManager, this.memory)
         this.fileManager
             .mount('fatms0', msvfs)
             .mount('ms0', msvfs)
