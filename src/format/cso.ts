@@ -1,6 +1,6 @@
 ﻿import {Integer64_l, Stringz, StructClass, UInt16, UInt32, UInt8} from "../global/struct";
 import {ArrayBufferUtils, PromiseFast} from "../global/utils";
-import {AsyncStream, Stream} from "../global/stream";
+import {AsyncStream, BaseAsyncStream, Stream} from "../global/stream";
 import {Integer64} from "../global/int64";
 import {zlib_inflate_raw} from "./zlib";
 
@@ -64,7 +64,7 @@ class Block {
 	}
 }
 
-export class Cso implements AsyncStream {
+export class Cso extends BaseAsyncStream {
 	date: Date = new Date();
     // @ts-ignore
     private stream: AsyncStream;
@@ -84,21 +84,20 @@ export class Cso implements AsyncStream {
 	get name() { return this.stream.name; }
     get size() { return this.header.totalBytes.number; }
 	
-	private readUncachedBlocksAsync(index: number, count:number):PromiseFast<Block[]> {
+	private async readUncachedBlocksAsync(index: number, count:number): Promise<Block[]> {
         const low = this.getBlockInfo(index).low;
         const high = this.getBlockInfo(index + count - 1).high;
-        return this.stream.readChunkAsync(low, high - low).thenFast((data) => {
-            const chunks: Block[] = [];
-            for (let n = 0; n < count; n++) {
-                const chunk = this.getBlockInfo(index + n);
-                chunk.compressedData = new Uint8Array(data, chunk.low - low, chunk.size);
-				chunks.push(chunk);
-			}
-			return chunks;
-		});		
+        const data = await this.stream.readChunkAsync(low, high - low)
+        const chunks: Block[] = [];
+        for (let n = 0; n < count; n++) {
+            const chunk = this.getBlockInfo(index + n);
+            chunk.compressedData = new Uint8Array(data, chunk.low - low, chunk.size);
+            chunks.push(chunk);
+        }
+        return chunks;
 	}
 
-	readChunkAsync(offset: number, count: number): PromiseFast<ArrayBuffer> {
+	async readChunkPromiseAsync(offset: number, count: number): Promise<ArrayBuffer> {
         const blockIndexLow = Math.floor(offset / this.header.blockSize);
         const blockIndexHigh = Math.floor((offset + count - 1) / this.header.blockSize);
         const blockCount = blockIndexHigh - blockIndexLow + 2;
@@ -106,24 +105,21 @@ export class Cso implements AsyncStream {
         const skip = offset % this.header.blockSize;
 
         //console.log('reading: ', offset, count, 'blocks:', blockIndexLow, blockIndexHigh, blockCount, 'skip:', skip);
+
+        const blocks = await this.readUncachedBlocksAsync(blockIndexLow, blockCount)
 		
-		return this.readUncachedBlocksAsync(blockIndexLow, blockCount).thenFast(blocks => {
-			return ArrayBufferUtils.copyUint8ToArrayBuffer(Block.getBlocksUncompressedData(blocks).subarray(skip, skip + count));
-		});
+        return ArrayBufferUtils.copyUint8ToArrayBuffer(Block.getBlocksUncompressedData(blocks).subarray(skip, skip + count));
     }
 
-    private loadAsync(stream: AsyncStream) {
+    private async loadAsync(stream: AsyncStream) {
 		this.stream = stream;
 		this.date = stream.date;
 
-        return stream.readChunkAsync(0, Header.struct.length).thenFast(buffer => {
-            const header = this.header = Header.struct.read(Stream.fromArrayBuffer(buffer));
-            if (header.magic != CSO_MAGIC) throw ('Not a CSO file');
-
-            return stream.readChunkAsync(Header.struct.length, (header.numberOfBlocks + 1) * 4).thenFast(buffer => {
-                this.offsets = new Uint32Array(buffer);
-                return this;
-            });
-        });
+        let buffer = await stream.readChunkAsync(0, Header.struct.length);
+        const header = this.header = Header.struct.read(Stream.fromArrayBuffer(buffer));
+        if (header.magic != CSO_MAGIC) throw ('Not a CSO file');
+        const buffer2 = await stream.readChunkAsync(Header.struct.length, (header.numberOfBlocks + 1) * 4)
+        this.offsets = new Uint32Array(buffer2);
+        return this;
     }
 }

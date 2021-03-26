@@ -1,7 +1,16 @@
 ﻿import "./global"
 
 import { GpuStats } from '../core/gpu/gpu_stats';
-import {DomHelp, logger, loggerPolicies, Microtask, PromiseFast, Signal1, Signal2} from "../global/utils";
+import {
+    DomHelp,
+    logger,
+    loggerPolicies,
+    Microtask,
+    PromiseFast,
+    PromiseMicrotask,
+    Signal1,
+    Signal2
+} from "../global/utils";
 import {EmulatorContext} from "./context";
 import {getMemoryInstance, Memory} from "../core/memory";
 import {PspRtc} from "../core/rtc";
@@ -123,10 +132,12 @@ export class Emulator {
 	private doFrameRunning = false
     private doFrame = () => {
         if (this.doFrameRunning) requestAnimationFrame(this.doFrame)
-        this.display.frame()
-        this.controller.frame()
-        this.audio.frame()
-        this.threadManager.frame()
+        PromiseMicrotask.queueExecuteNow(() => {
+            this.display.frame()
+            this.controller.frame()
+            this.audio.frame()
+            this.threadManager.frame()
+        })
     }
 
     start() {

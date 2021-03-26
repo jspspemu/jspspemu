@@ -1,5 +1,5 @@
 import "../emu/global"
-import {AsyncStream, BufferedAsyncStream, Stream} from "../global/stream";
+import {AsyncStream, BaseAsyncStream, BufferedAsyncStream, Stream} from "../global/stream";
 import {PromiseFast, PromiseGenerator, PromiseUtils, StringDictionary} from "../global/utils";
 import {
 	Int64,
@@ -249,7 +249,7 @@ class IsoNode implements IIsoNode {
     }
 }
 
-export class Iso implements AsyncStream {
+export class Iso extends BaseAsyncStream {
     // @ts-ignore
     private asyncStream: AsyncStream;
     // @ts-ignore
@@ -296,8 +296,8 @@ export class Iso implements AsyncStream {
 
 	get size() { return this.asyncStream.size; }
 
-	readChunkAsync(offset: number, count: number) {
-		return this.asyncStream.readChunkAsync(offset, count);
+	readChunkPromiseAsync(offset: number, count: number) {
+		return this.asyncStream.readChunkPromiseAsync(offset, count);
 	}
 
     async loadAsync(asyncStream: AsyncStream) {

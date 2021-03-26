@@ -1,28 +1,38 @@
 ﻿import "./window"
 import "./utils"
-import {Endian, PromiseFast, Utf8} from "./utils";
+import {Endian, PromiseFast, PromiseUtils, Utf8} from "./utils";
 import {IType} from "./struct";
 import {downloadFileAsync, downloadFileChunkAsync, statFileAsync, StatInfo} from "./async";
 import {Integer64} from "./int64";
-///<reference path="./int64.ts" />
-///<reference path="./async.ts" />
-///<reference path="./struct.ts" />
 
 export interface AsyncStream {
-	name: string;
-	date: Date;
-	size: number;
-	readChunkAsync(offset: number, count: number): PromiseFast<ArrayBuffer>;
+	name: string
+	date: Date
+	size: number
+	readChunkAsync(offset: number, count: number): PromiseFast<ArrayBuffer>
+    readChunkPromiseAsync(offset: number, count: number): Promise<ArrayBuffer>
 }
 
-export class ProxyAsyncStream implements AsyncStream {
+export abstract class BaseAsyncStream implements AsyncStream{
+    abstract date: Date;
+    abstract name: string;
+    abstract size: number;
+
+    readChunkAsync(offset: number, count: number): PromiseFast<ArrayBuffer> {
+        return PromiseFast.ensure(this.readChunkPromiseAsync(offset, count))
+    }
+    abstract readChunkPromiseAsync(offset: number, count: number): Promise<ArrayBuffer>
+}
+
+export class ProxyAsyncStream extends BaseAsyncStream {
 	constructor(public stream: AsyncStream) {
+	    super()
 	}
 
 	get name() { return this.stream.name; }
 	get date() { return this.stream.date; }
 	get size() { return this.stream.size; }
-	readChunkAsync(offset: number, count: number) { return this.stream.readChunkAsync(offset, count); }
+	readChunkPromiseAsync(offset: number, count: number) { return this.stream.readChunkPromiseAsync(offset, count); }
 }
 
 export class BufferedAsyncStream extends ProxyAsyncStream {
@@ -74,8 +84,9 @@ export class BufferedAsyncStream extends ProxyAsyncStream {
     }
 }
 
-export class MemoryAsyncStream implements AsyncStream {
+export class MemoryAsyncStream extends BaseAsyncStream {
 	constructor(private data: ArrayBuffer, public name = 'memory', public date = new Date()) {
+        super()
 	}
 
 	static fromArrayBuffer(data: ArrayBuffer): MemoryAsyncStream {
@@ -84,80 +95,84 @@ export class MemoryAsyncStream implements AsyncStream {
 
 	get size() { return this.data.byteLength; }
 
-	readChunkAsync(offset: number, count: number) {
-        return PromiseFast.resolve(this.data.slice(offset, offset + count))
+    async readChunkPromiseAsync(offset: number, count: number) {
+        return this.data.slice(offset, offset + count)
     }
 }
 
-export class DelayedAsyncStream implements AsyncStream {
+export class DelayedAsyncStream extends BaseAsyncStream {
     get name() { return `delayed-${this.parent.name}` }
 
     constructor(public parent: AsyncStream, public timeoutMs: number = 100, public date = new Date()) {
+        super()
     }
 
     get size() { return this.parent.size; }
 
-    readChunkAsync(offset: number, count: number): PromiseFast<ArrayBuffer> {
-        return this.parent.readChunkAsync(offset, count).thenFast(value => {
-            return PromiseFast.delay(this.timeoutMs, value)
-        })
+    async readChunkPromiseAsync(offset: number, count: number) {
+        const value = await this.parent.readChunkPromiseAsync(offset, count)
+        await PromiseUtils.delayAsync(this.timeoutMs)
+        return value
     }
 }
 
-export class UrlAsyncStream implements AsyncStream {
+export class UrlAsyncStream extends BaseAsyncStream {
 	name: string;
 	date: Date;
 
 	constructor(private url: string, public stat: StatInfo) {
+        super()
 		this.name = url;
 		this.date = stat.date;
 	}
 
-	static fromUrlAsync(url: string): PromiseFast<AsyncStream> {
+	static async fromUrlAsync(url: string): Promise<AsyncStream> {
 		console.info('open ', url);
-		return statFileAsync(url).thenFast((stat): PromiseFast<AsyncStream> => {
-			console.info('fromUrlAsync', stat);
+		const stat = await statFileAsync(url)
+        console.info('fromUrlAsync', stat);
 
-			if (stat.size == 0) {
-				console.error("Invalid file with size '" + stat.size + "'", stat);
-				throw (new Error("Invalid file with size '" + stat.size + "'"));
-			}
+        if (stat.size == 0) {
+            console.error("Invalid file with size '" + stat.size + "'", stat);
+            throw (new Error("Invalid file with size '" + stat.size + "'"));
+        }
 
-			// If file is less  than 5MB, then download it completely
-			if (stat.size < 5 * 1024 * 1024) {
-				return downloadFileAsync(url).thenFast(data => MemoryAsyncStream.fromArrayBuffer(data));
-			} else {
-				return PromiseFast.resolve(new BufferedAsyncStream(new UrlAsyncStream(url, stat)));
-			}
-		});
+        // If file is less  than 5MB, then download it completely
+        if (stat.size < 5 * 1024 * 1024) {
+            const data = await downloadFileAsync(url)
+            return MemoryAsyncStream.fromArrayBuffer(data)
+        } else {
+            return new BufferedAsyncStream(new UrlAsyncStream(url, stat));
+        }
 	}
 
 	get size() { return this.stat.size; }
 
-	readChunkAsync(offset: number, count: number) {
+	async readChunkPromiseAsync(offset: number, count: number) {
 		//console.error();
 		console.info('download chunk', this.url, `${offset}-${offset + count}`, '(' + count + ')');
 		return downloadFileChunkAsync(this.url, offset, count);
     }
 }
 
-export class FileAsyncStream implements AsyncStream {
+export class FileAsyncStream extends BaseAsyncStream {
 	date: Date;
 
 	constructor(private file: File) {
+        super()
 		this.date = (file as any).lastModifiedDate;
 	}
 
 	get name() { return this.file.name; }
 	get size() { return this.file.size; }
 
-	readChunkAsync(offset: number, count: number) {
-		return PromiseFast.ensure(new Promise<ArrayBuffer>((resolve, reject) => {
+	readChunkPromiseAsync(offset: number, count: number) {
+	    //console.log("FileAsyncStream.readChunkAsync", offset, count)
+		return new Promise<ArrayBuffer>((resolve, reject) => {
             const fileReader = new FileReader();
             fileReader.onload = (e) => { resolve((fileReader as any).result); };
 			fileReader.onerror = (e:any) => { reject(e['error']); };
 			fileReader.readAsArrayBuffer(this.file.slice(offset, offset + count));
-		}));
+		})
 	}
 }
 

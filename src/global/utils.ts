@@ -400,32 +400,62 @@ interface MicrotaskCallback {
 	(): void;
 }
 
-export class Microtask {
-	private static queued: boolean = false;
-	private static callbacks: MicrotaskCallback[] = [];
+export class _Microtask {
+	queued: boolean = false;
+	callbacks: MicrotaskCallback[] = [];
+	timeout: number = -1
 
-	static queue(callback: MicrotaskCallback) {
-		Microtask.callbacks.push(callback);
-		if (!Microtask.queued) {
-			Microtask.queued = true;
-			setTimeout(Microtask.execute, 0);
+	queue(callback: MicrotaskCallback) {
+        this.callbacks.push(callback);
+		if (!this.queued) {
+            this._executeLater()
 		}
 	}
 
-	static execute() {
+	queueExecuteNow(callback: MicrotaskCallback) {
+	    this._cancelTimeout()
+        this.queued = true
+        callback()
+        this._execute(false)
+    }
+
+	execute() {
+	    this._execute(true)
+	}
+
+	_cancelTimeout() {
+        if (this.timeout != -1) {
+            clearTimeout(this.timeout)
+            this.timeout = -1
+        }
+    }
+
+	_executeLater() {
+        this.queued = true
+        this._cancelTimeout()
+        this.timeout = setTimeout(() => { this.execute() }, 0) as any;
+    }
+
+    _execute(scheduleNext: boolean) {
         const start = performance.now();
-        while (Microtask.callbacks.length > 0) {
-            const callback = Microtask.callbacks.shift()!;
+        while (this.callbacks.length > 0) {
+            const callback = this.callbacks.shift()!;
             callback();
             const end = performance.now();
             if ((end - start) >= 20) {
-				setTimeout(Microtask.execute, 0);
-				return;
-			}
-		}
-		Microtask.queued = false;
-	}
+                if (scheduleNext) {
+                    this._executeLater()
+                }
+                return;
+            }
+        }
+        this.queued = false;
+    }
 }
+
+export const Microtask = new _Microtask()
+//export const PromiseMicrotask = new _Microtask()
+export const PromiseMicrotask = Microtask
 
 _self['polyfills'] = _self['polyfills'] || {};
 _self['polyfills']['ArrayBuffer_slice'] = !ArrayBuffer.prototype.slice;
@@ -1269,7 +1299,6 @@ export class PromiseFast<T> implements Thenable<T>, PromiseLike<T> {
         if (this._promise) {
             return PromiseFast.ensure((this._promise as any).then(resolved, rejected))
         }
-
         return this.thenFast(resolved, rejected)
     }
 
@@ -1323,7 +1352,7 @@ export class PromiseFast<T> implements Thenable<T>, PromiseLike<T> {
 	}
 
 	private _queueCheck() {
-		Microtask.queue(() => this._check());
+		PromiseMicrotask.queue(() => this._check());
 	}
 
 	private _check() {

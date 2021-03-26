@@ -19,7 +19,7 @@ export function immediateAsync() {
 }
 
 export function _downloadFileAsync(method: string, url: string, headers?: any) {
-	return new PromiseFast<XMLHttpRequest>((resolve, reject) => {
+	return new Promise<XMLHttpRequest>((resolve, reject) => {
         const request = new XMLHttpRequest();
 
         request.open(method, url, true);
@@ -55,9 +55,9 @@ const isNodeJs = (typeof XMLHttpRequest === 'undefined')
 
 const fs: any = isNodeJs ? eval('require')('fs') : null;
 
-export function downloadFileAsync(url: string, headers?: any):PromiseFast<ArrayBuffer> {
+export async function downloadFileAsync(url: string, headers?: any): Promise<ArrayBuffer> {
 	if (isNodeJs) {
-		return new PromiseFast<ArrayBuffer>((resolve, reject) => {
+		return new Promise<ArrayBuffer>((resolve, reject) => {
 			fs.readFile(url, (err:any, data:any) => {
 			  if (err) {
 				  reject(err);
@@ -67,10 +67,8 @@ export function downloadFileAsync(url: string, headers?: any):PromiseFast<ArrayB
 			});
 		});
 	} else {
-		return _downloadFileAsync('GET', url, headers).thenFast(request => {
-            const arraybuffer: ArrayBuffer = request.response; // not responseText
-			return arraybuffer;
-		});
+		const request = await _downloadFileAsync('GET', url, headers)
+        return request.response;
 	}
 }
 
@@ -88,7 +86,7 @@ export function downloadFileChunkAsync(url: string, from: number, count?: number
 	});
 }
 
-export function statFileAsync(url: string): PromiseFast<{size: number, date: Date}> {
+export async function statFileAsync(url: string): Promise<{size: number, date: Date}> {
     if (isNodeJs) {
         return new PromiseFast((resolve, reject) => {
             fs.stat(url, (err: any, stats: any) => {
@@ -102,15 +100,14 @@ export function statFileAsync(url: string): PromiseFast<{size: number, date: Dat
             });
         })
     } else {
-        return _downloadFileAsync('HEAD', url).thenFast(request => {
-            //console.error('content-type', request.getResponseHeader('content-type'));
-            //console.log(request.getAllResponseHeaders());
+        const request = await _downloadFileAsync('HEAD', url)
+        //console.error('content-type', request.getResponseHeader('content-type'));
+        //console.log(request.getAllResponseHeaders());
 
-            const size = parseInt(request.getResponseHeader('content-length') ?? '0');
-            const date = new Date(Date.parse(request.getResponseHeader('last-modified') ?? ''));
+        const size = parseInt(request.getResponseHeader('content-length') ?? '0');
+        const date = new Date(Date.parse(request.getResponseHeader('last-modified') ?? ''));
 
-            return {size: size, date: date};
-        });
+        return {size: size, date: date};
     }
 }
 
