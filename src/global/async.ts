@@ -6,9 +6,9 @@ export interface StatInfo {
 	date: Date;
 }
 
-export function waitAsync(timems: number) {
+export function waitAsync(timems: number, retval?: any) {
 	return new PromiseFast((resolve, reject) => {
-		setTimeout(resolve, timems);
+		setTimeout(() => { resolve(retval) }, timems);
 	});
 }
 

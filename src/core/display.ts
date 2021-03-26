@@ -6,7 +6,7 @@ import {Memory} from "./memory";
 import {InterruptManager, PspInterrupts} from "./interrupt";
 
 export interface ThreadWaiter {
-	delayMicrosecondsAsync(delayMicroseconds: number, allowcompensating:boolean): PromiseFast<number>;
+	delayMicrosecondsAsync(delayMicroseconds: number, allowcompensating:boolean): Promise<number>;
 }
 
 export interface IPspDisplay {
@@ -14,8 +14,8 @@ export interface IPspDisplay {
 	bufferWidth: number;
 	pixelFormat: PixelFormat;
 	sync: number;
-	waitVblankAsync(waiter: ThreadWaiter): PromiseFast<number>;
-	waitVblankStartAsync(waiter: ThreadWaiter): PromiseFast<number>;
+	waitVblankAsync(waiter: ThreadWaiter): Promise<number>;
+	waitVblankStartAsync(waiter: ThreadWaiter): Promise<number>;
 	setEnabledDisplay(enable: boolean): void;
 	updateTime(): void;
 	vblankCount: number;
@@ -205,17 +205,17 @@ export class PspDisplay extends BasePspDisplay implements IPspDisplay {
 		return false;
 	}
 
-	waitVblankAsync(waiter: ThreadWaiter):PromiseFast<number> {
+	async waitVblankAsync(waiter: ThreadWaiter) {
 		this.updateTime();
-		if (!this.mustWaitVBlank) return PromiseFast.resolve(0);
-		if (this.checkVblankThrottle()) return PromiseFast.resolve(0);
+		if (!this.mustWaitVBlank) return 0;
+		if (this.checkVblankThrottle()) return 0;
 		return waiter.delayMicrosecondsAsync(this.secondsLeftForVblank * 1000000, true);
 	}
 
-	waitVblankStartAsync(waiter: ThreadWaiter):PromiseFast<number> {
+    async waitVblankStartAsync(waiter: ThreadWaiter) {
 		this.updateTime();
-		if (!this.mustWaitVBlank) return PromiseFast.resolve(0);
-		if (this.checkVblankThrottle()) return PromiseFast.resolve(0);
+		if (!this.mustWaitVBlank) return 0
+		if (this.checkVblankThrottle()) return 0
 		return waiter.delayMicrosecondsAsync(this.secondsLeftForVblankStart * 1000000, true);
 	}
 }

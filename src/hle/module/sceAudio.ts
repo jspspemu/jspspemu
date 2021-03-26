@@ -26,8 +26,9 @@ export class sceAudio {
 	}
 
 	@nativeFunction(0x2D53F36E, 150, 'uint', 'int/void*')
-	sceAudioOutput2OutputBlocking(volume: number, buffer: Stream) {
-		return waitAsync(10).thenFast(() => 0);
+	async sceAudioOutput2OutputBlocking(volume: number, buffer: Stream) {
+        await waitAsync(10)
+		return 0
 	}
 
     @nativeFunction(0xB011922F, 150, "int", "int", {disableInsideInterrupt: true})
