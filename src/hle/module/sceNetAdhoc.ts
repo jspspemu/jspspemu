@@ -79,7 +79,7 @@ export class sceNetAdhoc {
 
 		// block
 		if (block) {
-			return pdp.recvOneAsync().then(recvOne);
+			return pdp.recvOneAsync().thenFast(recvOne);
 		} else {
 			if (pdp.chunks.length <= 0) return 0x80410709; // ERROR_NET_ADHOC_NO_DATA_AVAILABLE
 			return recvOne(pdp.chunks.shift()!);

@@ -17,7 +17,7 @@ describe('cso', () => {
 
 	it('should load fine', async () => {
         const cso = await Cso.fromStreamAsync(MemoryAsyncStream.fromArrayBuffer(testCsoArrayBuffer))
-        //cso.readChunkAsync(0x10 * 0x800 - 10, 0x800).then(data => {
+        //cso.readChunkAsync(0x10 * 0x800 - 10, 0x800).thenFast(data => {
         const data = await cso.readChunkAsync(0x10 * 0x800 - 10, 0x800)
         const stream = Stream.fromArrayBuffer(data)
         stream.skip(10)

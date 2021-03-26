@@ -1737,7 +1737,7 @@ export function createNativeFunction(
 		code += "const info = 'calling:' + state.thread.name + ':RA=' + state.RA.toString(16) + ':' + nativeFunction.name;\n";
 		code += "if (DebugOnce(info, 10)) {\n";
 		code += "logger.warn('#######', info, 'args=', args, 'result=', " + ((retval == 'uint') ? "sprintf('0x%08X', result) " : "result") + ");\n";
-		code += "if (PromiseFast.isPromise(result)) { result.then(function(value) { logger.warn('------> PROMISE: ',info,'args=', args, 'result-->', " + ((retval == 'uint') ? "sprintf('0x%08X', value) " : "value") + "); }); }\n";
+		code += "if (PromiseFast.isPromise(result)) { result.thenFast(function(value) { logger.warn('------> PROMISE: ',info,'args=', args, 'result-->', " + ((retval == 'uint') ? "sprintf('0x%08X', value) " : "value") + "); }); }\n";
 		code += "}\n";
 	}
 	*/

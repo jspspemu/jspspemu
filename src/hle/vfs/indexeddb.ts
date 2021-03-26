@@ -75,7 +75,7 @@ class MyStorageIndexedDb implements MyStorage {
 
 	hasAsync(key: string): PromiseFast<boolean> {
 		console.log('hasAsync', key);
-		return this.getAsync(key).then(() => true, () => false);
+		return this.getAsync(key).thenFast(() => true, () => false);
 	}
 
 	getAsync(key: string): PromiseFast<any> {

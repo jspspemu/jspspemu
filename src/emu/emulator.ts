@@ -13,7 +13,14 @@ import {PspController} from "../core/controller";
 import {Config} from "../hle/config";
 import {registerModulesAndSyscalls} from "../hle/pspmodules";
 import {Psf} from "../format/psf";
-import {AsyncStream, FileAsyncStream, MemoryAsyncStream, Stream, UrlAsyncStream} from "../global/stream";
+import {
+    AsyncStream,
+    BufferedAsyncStream,
+    FileAsyncStream,
+    MemoryAsyncStream,
+    Stream,
+    UrlAsyncStream
+} from "../global/stream";
 import {detectFormatAsync} from "../format/format";
 import {Cso} from "../format/cso";
 import {Pbp, PbpNames} from "../format/pbp";
@@ -358,6 +365,6 @@ export class Emulator {
     }
 
     async executeFileAsync(file: File) {
-        await this.loadAndExecuteAsync(new FileAsyncStream(file), '.');
+        await this.loadAndExecuteAsync(new BufferedAsyncStream(new FileAsyncStream(file)), '.');
 	}
 }

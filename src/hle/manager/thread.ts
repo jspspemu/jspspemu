@@ -133,7 +133,7 @@ export class Thread {
 	accumulatedMicroseconds = 0;
 	delayMicrosecondsAsync(delayMicroseconds: number, allowCompensating = false) {
 		//console.error(delayMicroseconds, this.accumulatedMicroseconds);
-		//return waitAsync(delayMicroseconds / 1000).then(() => 0);
+		//return waitAsync(delayMicroseconds / 1000).thenFast(() => 0);
 
 
 		this.accumulatedMicroseconds = Math.min(this.accumulatedMicroseconds, 50000); // Don't accumulate more than 50ms
@@ -153,7 +153,7 @@ export class Thread {
 		}
 
         const start = performance.now();
-        return waitAsync(delayMicroseconds / 1000).then(() => {
+        return waitAsync(delayMicroseconds / 1000).thenFast(() => {
             const end = performance.now();
             const elapsedmicroseconds = (end - start) * 1000;
 
@@ -196,7 +196,7 @@ export class Thread {
 
 		//console.log(promise);
 
-		promise.then((result: any) => {
+		promise.thenFast((result: any) => {
 			this.waitingPromise = null;
 			this.waitingName = null;
 			this.waitingObject = null;

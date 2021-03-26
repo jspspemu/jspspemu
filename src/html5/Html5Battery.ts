@@ -42,7 +42,7 @@ export class Html5Battery {
         if ((<any>navigator).battery) return PromiseFast.resolve(new Html5Battery((<any>navigator).battery));
         if ((<any>navigator).getBattery) {
 
-            return this.promise = PromiseFast.fromThenable<BatteryManager>((<any>navigator).getBattery()).then(v => {
+            return this.promise = PromiseFast.fromThenable<BatteryManager>((<any>navigator).getBattery()).thenFast(v => {
                 return new Html5Battery(v);
             });
         }
@@ -51,7 +51,7 @@ export class Html5Battery {
 
     static registerAndSetCallback(callback: (bi: BatteryInfo) => void) {
         setTimeout(() => {
-			Html5Battery.getAsync().then(battery => {
+			Html5Battery.getAsync().thenFast(battery => {
 				function sendData(): void {
                     callback(<BatteryInfo>{
 						charging: battery.charging,

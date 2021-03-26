@@ -36,7 +36,7 @@ export class IoFileMgrForUser {
 
 	@nativeFunction(0x109F50BC, 150, 'int', 'string/int/int')
 	sceIoOpen(filename: string, flags: FileOpenFlags, mode: FileMode) {
-		return this._sceIoOpenAsync(filename, flags, mode).then(result => {
+		return this._sceIoOpenAsync(filename, flags, mode).thenFast(result => {
             const str = sprintf('IoFileMgrForUser.sceIoOpen("%s", %d(%s), 0%o)', filename, flags, setToString(FileOpenFlags, flags), mode);
             if (result == SceKernelErrors.ERROR_ERRNO_FILE_NOT_FOUND) {
 				log.error(str, result);
@@ -49,7 +49,7 @@ export class IoFileMgrForUser {
 
 	private _sceIoOpenAsync(filename: string, flags: FileOpenFlags, mode: FileMode) {
 		return this.context.fileManager.openAsync(filename, flags, mode)
-			.then(file => {
+			.thenFast(file => {
 				return this.fileUids.allocate(file);
 			})
 			.catch(e => {
@@ -64,7 +64,7 @@ export class IoFileMgrForUser {
 		log.info(sprintf('IoFileMgrForUser.sceIoOpenAsync("%s", %d(%s), 0%o)', filename, flags, setToString(FileOpenFlags, flags), mode));
 		//if (filename == '') return PromiseFast.resolve(0);
 
-		return this._sceIoOpenAsync(filename, flags, mode).then(fileId => {
+		return this._sceIoOpenAsync(filename, flags, mode).thenFast(fileId => {
 			if (!this.hasFileById(fileId)) return SceKernelErrors.ERROR_ERRNO_FILE_NOT_FOUND;
             const file = this.getFileById(fileId);
             file.setAsyncOperation(PromiseFast.resolve(Integer64.fromNumber(fileId)));
@@ -119,13 +119,13 @@ export class IoFileMgrForUser {
             const str = input.readString(input.length);
             log.warn(`STD[${fileId}]`, str);
 			this.context.onStdout.dispatch(str);
-			//return immediateAsync().then(() => 0);
+			//return immediateAsync().thenFast(() => 0);
 			return 0;
 		} else {
 			if (!this.hasFileById(fileId)) return SceKernelErrors.ERROR_ERRNO_FILE_NOT_FOUND;
             const file = this.getFileById(fileId);
 
-            return file.entry.writeChunkAsync(file.cursor, input.toArrayBuffer()).then((writtenCount: number) => {
+            return file.entry.writeChunkAsync(file.cursor, input.toArrayBuffer()).thenFast((writtenCount: number) => {
 				log.info('sceIoWrite', 'file.cursor', file.cursor, 'input.length:', input.length, 'writtenCount:', writtenCount);
 				file.cursor += writtenCount;
 				return writtenCount;
@@ -141,7 +141,7 @@ export class IoFileMgrForUser {
 		if (!this.hasFileById(fileId)) return SceKernelErrors.ERROR_ERRNO_FILE_NOT_FOUND;
         const file = this.getFileById(fileId);
 
-        return file.entry.readChunkAsync(file.cursor, outputLength).then(readedData => {
+        return file.entry.readChunkAsync(file.cursor, outputLength).thenFast(readedData => {
 			file.cursor += readedData.byteLength;
 			//log.log(new Uint8Array(readedData));
 			this.context.memory.writeBytes(outputPointer, readedData);
@@ -157,7 +157,7 @@ export class IoFileMgrForUser {
 
         // SCE_KERNEL_ERROR_ASYNC_BUSY
 
-		file.setAsyncOperation(file.entry.readChunkAsync(file.cursor, outputLength).then(readedData => {
+		file.setAsyncOperation(file.entry.readChunkAsync(file.cursor, outputLength).thenFast(readedData => {
 			//log.log('sceIoReadAsync', file, fileId, outputLength, readedData.byteLength, new Uint8Array(readedData));
 			file.cursor += readedData.byteLength;
 			//log.info(thread, 'readed', new Uint8Array(readedData));
@@ -181,7 +181,7 @@ export class IoFileMgrForUser {
 
         if (file.asyncOperation) {
 			if (DebugOnce('_sceIoWaitAsyncCB', 100)) log.info(thread.name, ':_sceIoWaitAsyncCB', fileId, 'completed');
-			return file.asyncOperation.then(result => {
+			return file.asyncOperation.thenFast(result => {
 				//debugger;
 				if (DebugOnce('_sceIoWaitAsyncCB', 100)) log.info(thread.name, ':_sceIoWaitAsyncCB', fileId, 'result: ', result.getNumber());
 				resultPointer.writeInt64(result);
@@ -273,7 +273,7 @@ export class IoFileMgrForUser {
 
 		try {
 			return this.context.fileManager.getStatAsync(fileName)
-				.then(stat => {
+				.thenFast(stat => {
                     const stat2 = this._vfsStatToSceIoStat(stat);
                     log.info(sprintf('IoFileMgrForUser.sceIoGetstat("%s")', fileName), stat2);
 					if (sceIoStatPointer) {
@@ -346,7 +346,7 @@ export class IoFileMgrForUser {
 	@nativeFunction(0xB29DDF9C, 150, 'uint', 'string')
 	sceIoDopen(path: string) {
 		log.log(`sceIoDopen("${path}")`);
-		return this.context.fileManager.openDirectoryAsync(path).then((directory) => {
+		return this.context.fileManager.openDirectoryAsync(path).thenFast((directory) => {
 			log.log(`opened directory "${path}"`);
 			return this.directoryUids.allocate(directory);
 		}).catch((error) => {

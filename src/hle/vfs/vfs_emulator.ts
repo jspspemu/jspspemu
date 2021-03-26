@@ -22,7 +22,7 @@ export class EmulatorVfs extends Vfs {
                 const str = input.readString(input.length);
 				this.output += str;
 				this.context.onStdout.dispatch(str);
-				return immediateAsync().then(_ => 0);
+				return immediateAsync().thenFast(_ => 0);
 				//return 0;
 			case EmulatorDevclEnum.IsEmulator:
 				return 0; // Running on emulator

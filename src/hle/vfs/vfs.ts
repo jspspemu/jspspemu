@@ -13,11 +13,11 @@ export class Vfs {
 	}
 
 	readAllAsync(path: string) {
-		return this.openAsync(path, FileOpenFlags.Read, parseInt('0777', 8)).then(entry => entry.readAllAsync());
+		return this.openAsync(path, FileOpenFlags.Read, parseInt('0777', 8)).thenFast(entry => entry.readAllAsync());
 	}
 
 	writeAllAsync(path: string, data: ArrayBuffer) {
-		return this.openAsync(path, FileOpenFlags.Create | FileOpenFlags.Truncate | FileOpenFlags.Write, parseInt('0777', 8)).then(entry => entry.writeAllAsync(data));
+		return this.openAsync(path, FileOpenFlags.Create | FileOpenFlags.Truncate | FileOpenFlags.Write, parseInt('0777', 8)).thenFast(entry => entry.writeAllAsync(data));
 	}
 	
 	deleteAsync(path: string): PromiseFast<void> {
@@ -29,11 +29,11 @@ export class Vfs {
 	}
 
 	getStatAsync(path: string): PromiseFast<VfsStat> {
-		return this.openAsync(path, FileOpenFlags.Read, parseInt('0777', 8)).then(entry => entry.stat());
+		return this.openAsync(path, FileOpenFlags.Read, parseInt('0777', 8)).thenFast(entry => entry.stat());
 	}
 
 	existsAsync(path: string): PromiseFast<boolean> {
-		return this.getStatAsync(path).then(() => true).catch(() => false);
+		return this.getStatAsync(path).thenFast(() => true).catch(() => false);
 	}
 }
 

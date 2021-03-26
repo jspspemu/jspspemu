@@ -48,7 +48,7 @@ export class HleFile {
 
 	setAsyncOperation(operation: Integer64 | PromiseFast<Integer64> | Promise<Integer64>) {
 		this._asyncResult = null;
-		this._asyncPromise = PromiseFast.ensure(operation).then((value) => {
+		this._asyncPromise = PromiseFast.ensure(operation).thenFast((value) => {
 			this._asyncResult = value;
 			return value;
 		});
@@ -121,7 +121,7 @@ export class FileManager {
 
 	openAsync(name: string, flags: FileOpenFlags, mode: FileMode) {
         const uri = this.cwd.append(new Uri(name));
-        return this.getDevice(uri.device).openAsync(uri, flags, mode).then(entry => new HleFile(entry));
+        return this.getDevice(uri.device).openAsync(uri, flags, mode).thenFast(entry => new HleFile(entry));
 	}
 
 	devctlAsync(deviceName: string, command: number, input: Stream, output: Stream) {
@@ -130,8 +130,8 @@ export class FileManager {
 
 	openDirectoryAsync(name: string) {
         const uri = this.cwd.append(new Uri(name));
-        return this.getDevice(uri.device).openDirectoryAsync(uri).then(entry => {
-			return entry.enumerateAsync().then((items) => {
+        return this.getDevice(uri.device).openDirectoryAsync(uri).thenFast(entry => {
+			return entry.enumerateAsync().thenFast((items) => {
 				entry.close();
 				return new HleDirectory(items);
 			});

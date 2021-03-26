@@ -84,7 +84,7 @@ export class ThreadManForUser {
 	}
 
 	private _sceKernelWaitThreadEndCB(thread: Thread, acceptCallbacks:AcceptCallbacks) {
-		return new WaitingThreadInfo('_sceKernelWaitThreadEndCB', thread, thread.waitEndAsync().then(() => thread.exitStatus), acceptCallbacks);
+		return new WaitingThreadInfo('_sceKernelWaitThreadEndCB', thread, thread.waitEndAsync().thenFast(() => thread.exitStatus), acceptCallbacks);
 	}
 
 	@nativeFunction(0x840E8133, 150, 'uint', 'uint/void*')

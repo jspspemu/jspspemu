@@ -67,7 +67,7 @@ export function downloadFileAsync(url: string, headers?: any):PromiseFast<ArrayB
 			});
 		});
 	} else {
-		return _downloadFileAsync('GET', url, headers).then(request => {
+		return _downloadFileAsync('GET', url, headers).thenFast(request => {
             const arraybuffer: ArrayBuffer = request.response; // not responseText
 			return arraybuffer;
 		});
@@ -102,7 +102,7 @@ export function statFileAsync(url: string): PromiseFast<{size: number, date: Dat
             });
         })
     } else {
-        return _downloadFileAsync('HEAD', url).then(request => {
+        return _downloadFileAsync('HEAD', url).thenthen2(request => {
             //console.error('content-type', request.getResponseHeader('content-type'));
             //console.log(request.getAllResponseHeaders());
 

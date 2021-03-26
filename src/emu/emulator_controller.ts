@@ -1,10 +1,4 @@
-import { EmulatorControllerNormal } from './emulator_controller_normal';
-
-interface IBaseEmulatorController {
-	init(): void;
-	executeUrl(url: string): void;
-	executeFile(file: File): void;
-}
+import {EmulatorControllerNormal, IBaseEmulatorController} from './emulator_controller_normal';
 
 let controller: IBaseEmulatorController = new EmulatorControllerNormal();
 

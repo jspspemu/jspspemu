@@ -311,7 +311,7 @@ export class AsyncCache<T> {
 			item.lastUsedTime = Date.now();
 			return PromiseFast.resolve(item.value);
 		} else {
-			return generator().then(value => {
+			return generator().thenFast(value => {
                 const size = this.measure!(value);
                 this.freeUntilAvailable(size);
 				this.itemsMap[id] = new AsyncEntry(id, size, 1, value, Date.now());
@@ -615,7 +615,7 @@ export class PromiseUtils {
 				if (generators.length > 0) {
                     const generator = generators.shift()!;
                     const promise = generator();
-                    promise.then(step);
+                    promise.thenFast(step);
 				} else {
 					resolve();
 				}
@@ -1087,14 +1087,14 @@ if (typeof window.document != 'undefined') {
 }
 
 function inflateRawArrayBufferAsync(data: ArrayBuffer): PromiseFast<ArrayBuffer> {
-	return inflateRawAsync(new Uint8Array(data)).then(data => data.buffer);
+	return inflateRawAsync(new Uint8Array(data)).thenFast(data => data.buffer);
 }
 
 function inflateRawAsync(data: Uint8Array): PromiseFast<Uint8Array> {
 	return executeCommandAsync(`
 		const zlib = require("src/format/zlib");
 		args[0] = ArrayBufferUtils.fromUInt8Array(zlib.inflate_raw(new Uint8Array(args[0])));
-	`, [ArrayBufferUtils.fromUInt8Array(data)]).then(function(args: ArrayBuffer[]) {
+	`, [ArrayBufferUtils.fromUInt8Array(data)]).thenFast(function(args: ArrayBuffer[]) {
 		if (args.length == 0) throw new Error("Can't decode");
 		return new Uint8Array(args[0]);
 	});
@@ -1126,13 +1126,34 @@ export function addressToHex2(address: number) {
 
 export interface Thenable<T> {
 	then<Q>(resolved: (value: T) => Q, rejected: (error: Error) => void): Thenable<Q>;
+};
+
+declare global {
+    interface Promise<T> {
+        promise(): Promise<T>
+        thenFast<TResult1 = T, TResult2 = never>(onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | undefined | null, onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null): Promise<TResult1 | TResult2>;
+    }
 }
+
+Promise.prototype.promise = function() { return this }
+Promise.prototype.thenFast = Promise.prototype.then;
 
 // Note that this class is used since Promise.then is not executed immediately and that could lead to performance issues on critical paths
 export class PromiseFast<T> implements Thenable<T>, PromiseLike<T> {
     promise(): Promise<T> {
+        //console.warn("PromiseFast.promise", this._solved)
+        if (this._promise) {
+            return this._promise
+        }
+        if (this._solved) {
+            if (this._rejectedValue) {
+                return Promise.reject(this._rejectedValue)
+            } else {
+                return Promise.resolve<T>(this._resolvedValue as any)
+            }
+        }
         return new Promise<T>((resolve, reject) => {
-            this.then(resolve, reject)
+            this.thenFast(resolve, reject)
         })
     }
 
@@ -1150,7 +1171,11 @@ export class PromiseFast<T> implements Thenable<T>, PromiseLike<T> {
 	static resolve<T>(value?: any): PromiseFast<T> {
         if (value instanceof Promise) return PromiseFast.fromPromise(value)
 		if (value instanceof PromiseFast) return value
-		return new PromiseFast<T>((resolve, _) => resolve(value))
+        const result = new PromiseFast<T>((resolve, _) => _)
+        result._promise = Promise.resolve(value)
+        result._solved = true
+        result._resolvedValue = value
+		return result
 	}
 	static reject(error: Error): PromiseFast<any> { return new PromiseFast((resolve, reject) => reject(error)); }
 
@@ -1167,7 +1192,7 @@ export class PromiseFast<T> implements Thenable<T>, PromiseLike<T> {
             }
             for (let p of promises) {
 				if (p instanceof PromiseFast) {
-					p.then(one, oneError);
+					p.thenFast(one, oneError);
 				} else {
 					one();
 				}
@@ -1180,7 +1205,7 @@ export class PromiseFast<T> implements Thenable<T>, PromiseLike<T> {
 			if (promises.length == 0) return resolve();
 			for (let p of promises) {
 				if (p instanceof PromiseFast) {
-					p.then(resolve, reject);
+					p.thenFast(resolve, reject);
 				} else {
 					resolve();
 					return;
@@ -1201,7 +1226,9 @@ export class PromiseFast<T> implements Thenable<T>, PromiseLike<T> {
 
 	static fromPromise<T>(promise: Promise<T>): PromiseFast<T> {
         // @ts-ignore
-	    return this.fromThenable(promise)
+	    const promiseFast = this.fromThenable(promise)
+        promiseFast._promise = promise
+        return promiseFast
     }
 	
 	static fromThenable<T>(thenable:Thenable<T>):PromiseFast<T> {
@@ -1215,6 +1242,7 @@ export class PromiseFast<T> implements Thenable<T>, PromiseLike<T> {
 		callback(this._resolve.bind(this), this._reject.bind(this));
 	}
 
+	private _promise?: Promise<T>
 	private _resolvedValue: T|null = null;
 	private _rejectedValue: Error|null = null;
 	private _solved: boolean = false;
@@ -1235,17 +1263,26 @@ export class PromiseFast<T> implements Thenable<T>, PromiseLike<T> {
 		this._solved = true;
 		this._queueCheck();
 	}
+    then<Q>(resolved: (value: T) => PromiseFast<Q>, rejected?: (error: Error) => void): PromiseFast<Q>;
+    then<Q>(resolved: (value: T) => Q, rejected?: (error: Error) => void): PromiseFast<Q>;
+    then<Q>(resolved: (value: T) => PromiseFast<Q>, rejected?: (value: Error) => any): PromiseFast<Q> {
+        if (this._promise) {
+            return PromiseFast.ensure((this._promise as any).then(resolved, rejected))
+        }
 
-	then<Q>(resolved: (value: T) => PromiseFast<Q>, rejected?: (error: Error) => void): PromiseFast<Q>;
-	then<Q>(resolved: (value: T) => Q, rejected?: (error: Error) => void): PromiseFast<Q>;
-	then<Q>(resolved: (value: T) => PromiseFast<Q>, rejected?: (value: Error) => any): PromiseFast<Q> {
+        return this.thenFast(resolved, rejected)
+    }
+
+	thenFast<Q>(resolved: (value: T) => PromiseFast<Q>, rejected?: (error: Error) => void): PromiseFast<Q>;
+	thenFast<Q>(resolved: (value: T) => Q, rejected?: (error: Error) => void): PromiseFast<Q>;
+	thenFast<Q>(resolved: (value: T) => PromiseFast<Q>, rejected?: (value: Error) => any): PromiseFast<Q> {
         const promise = new PromiseFast<any>((resolve, reject) => {
 			if (resolved) {
 				this._resolvedCallbacks.push((a: any) => {
 					try {
                         const result = resolved(a);
 						if (result instanceof PromiseFast) {
-							result.then(resolve, reject);
+							result.thenFast(resolve, reject);
 						} else {
 							resolve(result);
 						}
@@ -1262,7 +1299,7 @@ export class PromiseFast<T> implements Thenable<T>, PromiseLike<T> {
 					try {
                         const result = rejected(a);
 						if (result instanceof PromiseFast) {
-							result.then(resolve, reject);
+							result.thenFast(resolve, reject);
 						} else {
 							resolve(result);
 						}
@@ -1282,7 +1319,7 @@ export class PromiseFast<T> implements Thenable<T>, PromiseLike<T> {
 	catch<Q>(rejected: (error: Error) => Q): PromiseFast<Q>;
 	catch<Q>(rejected: (error: Error) => PromiseFast<Q>): PromiseFast<Q>;
 	catch(rejected: (error: Error) => any): PromiseFast<any> {
-		return this.then(null as any, rejected);
+		return this.thenFast(null as any, rejected);
 	}
 
 	private _queueCheck() {

@@ -157,7 +157,7 @@ export class StructClass<T> implements IType<T> {
         const p = this.read(stream.clone());
         const result = callback(p);
         if (PromiseFast.isPromise(result)) {
-			return PromiseFast.ensure(result).then((result: any) => {
+			return PromiseFast.ensure(result).thenFast((result: any) => {
 				this.write(stream.clone(), p);
 				return result;
 			});
@@ -190,7 +190,7 @@ export class StructClass<T> implements IType<T> {
 	readWriteAsync<T2>(stream: Stream, callback: (p: T) => PromiseFast<T2>, process?: (p: T, v: T2) => T2) {
         const p = this.read(stream.clone());
         const result = callback(p);
-        return PromiseFast.resolve(result).then(v => {
+        return PromiseFast.resolve(result).thenFast(v => {
 			if (process != null) process(p, v);
 			this.write(stream.clone(), p);
 			return v;

@@ -63,7 +63,7 @@ export class ZipEntry {
 
 	readRawCompressedAsync():PromiseFast<Uint8Array> {
 		if (this.compressedData) return PromiseFast.resolve(this.compressedData);
-		return this.zip.zipStream.readChunkAsync(this.zipDirEntry.headerOffset, this.zipDirEntry.compressedSize + 1024).then((data) => {
+		return this.zip.zipStream.readChunkAsync(this.zipDirEntry.headerOffset, this.zipDirEntry.compressedSize + 1024).thenFast((data) => {
             const stream = Stream.fromArrayBuffer(data);
             const zipFileRecord = ZipFileRecord.struct.read(stream);
             return this.compressedData = stream.readBytes(zipFileRecord.compressedSize);
@@ -71,14 +71,14 @@ export class ZipEntry {
 	}
 
 	readChunkAsync(offset: number, length: number) {
-		return this.readAsync().then((data) => {
+		return this.readAsync().thenFast((data) => {
 			return ArrayBufferUtils.fromUInt8Array(data.subarray(offset, offset + length));
 		});
 	}
 	
 	readAsync() {
 		if (this.uncompressedData) return PromiseFast.resolve(this.uncompressedData);
-		return this.readRawCompressedAsync().then((data:Uint8Array) => {
+		return this.readRawCompressedAsync().thenFast((data:Uint8Array) => {
 			switch (this.compressionType) {
 				case ZipCompressionType.DEFLATE:
 					return zlib_inflate_raw(data);
@@ -87,7 +87,7 @@ export class ZipEntry {
 				default:
 					throw (new Error("Unsupported compression type '" + this.compressionType + "'"));
 			}
-		}).then((data) => {
+		}).thenFast((data) => {
 			return this.uncompressedData = <Uint8Array>data;
 		});
 	}
@@ -141,20 +141,17 @@ export class Zip {
 		}
 	}
 
-	static fromStreamAsync(zipStream: AsyncStream) {
+	static async fromStreamAsync(zipStream: AsyncStream) {
 		//console.info('zipStream', zipStream);
 
-		return zipStream.readChunkAsync(zipStream.size - ZipEndLocator.struct.length, ZipEndLocator.struct.length).then((data) => {
-            const zipEndLocator = ZipEndLocator.struct.read(Stream.fromArrayBuffer(data));
+        const data = await zipStream.readChunkAsync(zipStream.size - ZipEndLocator.struct.length, ZipEndLocator.struct.length);
+        const zipEndLocator = ZipEndLocator.struct.read(Stream.fromArrayBuffer(data));
 
-            //console.log('zipEndLocator', zipEndLocator);
+        //console.log('zipEndLocator', zipEndLocator);
 
-			return zipStream.readChunkAsync(zipEndLocator.directoryOffset, zipEndLocator.directorySize).then((data) => {
-                const dirEntries = StructArray<ZipDirEntry>(ZipDirEntry.struct, zipEndLocator.entriesInDirectory).read(Stream.fromArrayBuffer(data));
-
-                return new Zip(zipStream, dirEntries);
-			});
-		});
+        const data2 = await zipStream.readChunkAsync(zipEndLocator.directoryOffset, zipEndLocator.directorySize)
+        const dirEntries = StructArray<ZipDirEntry>(ZipDirEntry.struct, zipEndLocator.entriesInDirectory).read(Stream.fromArrayBuffer(data2));
+        return new Zip(zipStream, dirEntries);
 	}
 }
 

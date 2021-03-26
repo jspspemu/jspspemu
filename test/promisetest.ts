@@ -13,33 +13,33 @@ describe('promise', function () {
 		});
 	});
 	it('pass values', () => {
-		return PromiseFast.resolve(10).then(value => {
+		return PromiseFast.resolve(10).thenFast(value => {
 			assert.equal(10, value);
 		});
 	});
 	it('pass values2', () => {
-		return PromiseFast.resolve(10).then(_ => {
+		return PromiseFast.resolve(10).thenFast(_ => {
 			return 11;
-		}).then(value => {
+		}).thenFast(value => {
 			assert.equal(11, value);
 		});
 	});
 	it('pipe', () => {
-		return PromiseFast.resolve(10).then(_ => {
+		return PromiseFast.resolve(10).thenFast(_ => {
 			return PromiseFast.resolve(11);
-		}).then(value => {
+		}).thenFast(value => {
 			assert.equal(11, value);
 		});
 	});
 	it('pipe2', () => {
-		return PromiseFast.resolve(10).then(_ => {
-			return PromiseFast.resolve(11).then(_ => {
+		return PromiseFast.resolve(10).thenFast(_ => {
+			return PromiseFast.resolve(11).thenFast(_ => {
 				return 'test';
-				//return PromiseFast.resolve(12).then(() => {
-				//	return waitAsync(10).then('test');
+				//return PromiseFast.resolve(12).thenFast(() => {
+				//	return waitAsync(10).thenFast('test');
 				//});
 			});
-		}).then(value => {
+		}).thenFast(value => {
 			assert.equal('test', value);
 		});
 	});

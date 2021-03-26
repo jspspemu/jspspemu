@@ -15,7 +15,7 @@ export class StorageVfs extends Vfs {
 
 	initializeOnceAsync() {
 		if (!this.openDbPromise) {
-			this.openDbPromise = indexedDbOpenAsync(this.key, 3, ['files']).then(db => {
+			this.openDbPromise = indexedDbOpenAsync(this.key, 3, ['files']).thenFast(db => {
 				this.db = db;
 				return this;
 			});
@@ -24,13 +24,13 @@ export class StorageVfs extends Vfs {
 	}
 
 	openAsync(path: string, flags: FileOpenFlags, mode: FileMode): PromiseFast<VfsEntry> {
-		return this.initializeOnceAsync().then(() => {
+		return this.initializeOnceAsync().thenFast(() => {
 			return StorageVfsEntry.fromNameAsync(this.db!, path, flags, mode);
 		});
 	}
 	
 	deleteAsync(path:string):PromiseFast<void> {
-		return this.initializeOnceAsync().then(() => {
+		return this.initializeOnceAsync().thenFast(() => {
 			return this.db!.deleteAsync(path);
 		});
 	}
@@ -52,7 +52,7 @@ class StorageVfsEntry extends VfsEntry {
 	}
 
 	private initAsync(flags: FileOpenFlags, mode: FileMode) {
-		return this._getFileAsync().then(file => {
+		return this._getFileAsync().thenFast(file => {
 			console.info('initAsync', file);
 			if (!file.exists) {
 				if (!(flags & FileOpenFlags.Create)) {
@@ -72,14 +72,14 @@ class StorageVfsEntry extends VfsEntry {
 	}
 
 	private _getFileAsync(): PromiseFast<File> {
-		return this.db.getAsync(this.name).then(file => {
+		return this.db.getAsync(this.name).thenFast(file => {
 			if (!file) file = { name: this.name, content: new ArrayBuffer(0), date: new Date(), exists: false };
 			return file;
 		});
 	}
 
 	private _getAllAsync() {
-		return this._getFileAsync().then(item => item.content);
+		return this._getFileAsync().thenFast(item => item.content);
 	}
 
 	private _writeAllAsync(data:ArrayBuffer) {
@@ -106,7 +106,7 @@ class StorageVfsEntry extends VfsEntry {
         newContentArray.set(new Uint8Array(this.file.content), 0);
 		newContentArray.set(new Uint8Array(data), offset);
 		this.file.content = newContentArray;
-		return this._writeAllAsync(newContent).then(() => data.byteLength);
+		return this._writeAllAsync(newContent).thenFast(() => data.byteLength);
 	}
 
 	stat(): VfsStat {

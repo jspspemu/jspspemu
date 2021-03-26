@@ -3,7 +3,7 @@ import {AsyncStream, Stream} from "../global/stream";
 import {PromiseFast} from "../global/utils";
 
 export function detectFormatAsync(asyncStream: AsyncStream): PromiseFast<string> {
-	return asyncStream.readChunkAsync(0, 4).then((data):any => {
+	return asyncStream.readChunkAsync(0, 4).thenFast((data):any => {
         const stream = Stream.fromArrayBuffer(data);
         if (stream.length < 4) {
 			console.error(asyncStream);
@@ -20,7 +20,7 @@ export function detectFormatAsync(asyncStream: AsyncStream): PromiseFast<string>
 			case '~PSP': return 'psp';
 			case 'CISO': return 'ciso';
 			case '\u0000\u0000\u0000\u0000':
-				return asyncStream.readChunkAsync(0x10 * 0x800, 6).then(data => {
+				return asyncStream.readChunkAsync(0x10 * 0x800, 6).thenFast(data => {
                     const stream = Stream.fromArrayBuffer(data);
                     const magic = stream.readString(6);
                     switch (magic) {

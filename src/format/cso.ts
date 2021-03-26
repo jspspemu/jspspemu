@@ -87,7 +87,7 @@ export class Cso implements AsyncStream {
 	private readUncachedBlocksAsync(index: number, count:number):PromiseFast<Block[]> {
         const low = this.getBlockInfo(index).low;
         const high = this.getBlockInfo(index + count - 1).high;
-        return this.stream.readChunkAsync(low, high - low).then((data) => {
+        return this.stream.readChunkAsync(low, high - low).thenFast((data) => {
             const chunks: Block[] = [];
             for (let n = 0; n < count; n++) {
                 const chunk = this.getBlockInfo(index + n);
@@ -107,7 +107,7 @@ export class Cso implements AsyncStream {
 
         //console.log('reading: ', offset, count, 'blocks:', blockIndexLow, blockIndexHigh, blockCount, 'skip:', skip);
 		
-		return this.readUncachedBlocksAsync(blockIndexLow, blockCount).then(blocks => {
+		return this.readUncachedBlocksAsync(blockIndexLow, blockCount).thenFast(blocks => {
 			return ArrayBufferUtils.copyUint8ToArrayBuffer(Block.getBlocksUncompressedData(blocks).subarray(skip, skip + count));
 		});
     }
@@ -116,11 +116,11 @@ export class Cso implements AsyncStream {
 		this.stream = stream;
 		this.date = stream.date;
 
-        return stream.readChunkAsync(0, Header.struct.length).then(buffer => {
+        return stream.readChunkAsync(0, Header.struct.length).thenFast(buffer => {
             const header = this.header = Header.struct.read(Stream.fromArrayBuffer(buffer));
             if (header.magic != CSO_MAGIC) throw ('Not a CSO file');
 
-            return stream.readChunkAsync(Header.struct.length, (header.numberOfBlocks + 1) * 4).then(buffer => {
+            return stream.readChunkAsync(Header.struct.length, (header.numberOfBlocks + 1) * 4).thenFast(buffer => {
                 this.offsets = new Uint32Array(buffer);
                 return this;
             });

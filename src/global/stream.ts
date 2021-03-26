@@ -15,7 +15,7 @@ export interface AsyncStream {
 	readChunkAsync(offset: number, count: number): PromiseFast<ArrayBuffer>;
 }
 
-export class ProxyAsyncStream {
+export class ProxyAsyncStream implements AsyncStream {
 	constructor(public stream: AsyncStream) {
 	}
 
@@ -58,6 +58,7 @@ export class BufferedAsyncStream extends ProxyAsyncStream {
         //return this.stream.readChunkAsync(start, count);
 
 		if (cache) {
+		    //console.log("CACHE HIT")
 			return PromiseFast.resolve(cache.data.slice(start - cache.start, end - cache.start));
 		} else {
             let bigCount = Math.max(count, this.bufferSize);
@@ -65,7 +66,7 @@ export class BufferedAsyncStream extends ProxyAsyncStream {
 
 			end = start + bigCount;
 
-			return this.stream.readChunkAsync(offset, bigCount).then(data => {
+			return this.stream.readChunkAsync(offset, bigCount).thenFast(data => {
 				this.putCacheEntry(start, data);
 				return this.readChunkAsync(offset, count);
 			});
@@ -97,7 +98,7 @@ export class DelayedAsyncStream implements AsyncStream {
     get size() { return this.parent.size; }
 
     readChunkAsync(offset: number, count: number): PromiseFast<ArrayBuffer> {
-        return this.parent.readChunkAsync(offset, count).then(value => {
+        return this.parent.readChunkAsync(offset, count).thenFast(value => {
             return PromiseFast.delay(this.timeoutMs, value)
         })
     }
@@ -114,7 +115,7 @@ export class UrlAsyncStream implements AsyncStream {
 
 	static fromUrlAsync(url: string): PromiseFast<AsyncStream> {
 		console.info('open ', url);
-		return statFileAsync(url).then((stat): PromiseFast<AsyncStream> => {
+		return statFileAsync(url).thenFast((stat): PromiseFast<AsyncStream> => {
 			console.info('fromUrlAsync', stat);
 
 			if (stat.size == 0) {
@@ -124,7 +125,7 @@ export class UrlAsyncStream implements AsyncStream {
 
 			// If file is less  than 5MB, then download it completely
 			if (stat.size < 5 * 1024 * 1024) {
-				return downloadFileAsync(url).then(data => MemoryAsyncStream.fromArrayBuffer(data));
+				return downloadFileAsync(url).thenFast(data => MemoryAsyncStream.fromArrayBuffer(data));
 			} else {
 				return PromiseFast.resolve(new BufferedAsyncStream(new UrlAsyncStream(url, stat)));
 			}
@@ -151,12 +152,12 @@ export class FileAsyncStream implements AsyncStream {
 	get size() { return this.file.size; }
 
 	readChunkAsync(offset: number, count: number) {
-		return new PromiseFast<ArrayBuffer>((resolve, reject) => {
+		return PromiseFast.ensure(new Promise<ArrayBuffer>((resolve, reject) => {
             const fileReader = new FileReader();
             fileReader.onload = (e) => { resolve((fileReader as any).result); };
 			fileReader.onerror = (e:any) => { reject(e['error']); };
 			fileReader.readAsArrayBuffer(this.file.slice(offset, offset + count));
-		});
+		}));
 	}
 }
 

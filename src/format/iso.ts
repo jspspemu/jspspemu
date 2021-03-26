@@ -1,5 +1,5 @@
 import "../emu/global"
-import {AsyncStream, Stream} from "../global/stream";
+import {AsyncStream, BufferedAsyncStream, Stream} from "../global/stream";
 import {PromiseFast, PromiseGenerator, PromiseUtils, StringDictionary} from "../global/utils";
 import {
 	Int64,
@@ -267,6 +267,7 @@ export class Iso implements AsyncStream {
 
     static fromStreamAsync(asyncStream: AsyncStream) {
         return new Iso().loadAsync(asyncStream);
+        //return new Iso().loadAsync(asyncStream);
 	}
 
 	get(path: string): IIsoNode {
@@ -299,77 +300,77 @@ export class Iso implements AsyncStream {
 		return this.asyncStream.readChunkAsync(offset, count);
 	}
 
-    loadAsync(asyncStream: AsyncStream): PromiseFast<Iso> {
+    async loadAsync(asyncStream: AsyncStream) {
 		this.asyncStream = asyncStream;
 		this.date = asyncStream.date;
 
         if (PrimaryVolumeDescriptor.struct.length != SECTOR_SIZE) throw `Invalid PrimaryVolumeDescriptor.struct size ${PrimaryVolumeDescriptor.struct.length} != ${SECTOR_SIZE}`;
 
-		return asyncStream.readChunkAsync(SECTOR_SIZE * 0x10, 0x800).then(arrayBuffer => {
-            const stream = Stream.fromArrayBuffer(arrayBuffer);
-            const pvd = PrimaryVolumeDescriptor.struct.read(stream);
-            if (pvd.header.type != VolumeDescriptorHeaderType.PrimaryVolumeDescriptor) throw `Not an ISO file`;
-			if (pvd.header.id != 'CD001') throw `Not an ISO file`;
+        const arrayBuffer = await asyncStream.readChunkAsync(SECTOR_SIZE * 0x10, 0x800)
 
-			this._children = [];
-			this._childrenByPath = {};
-			this._root = new IsoNode(this, pvd.directoryRecord);
+        const stream = Stream.fromArrayBuffer(arrayBuffer);
+        const pvd = PrimaryVolumeDescriptor.struct.read(stream);
+        if (pvd.header.type != VolumeDescriptorHeaderType.PrimaryVolumeDescriptor) throw `Not an ISO file`;
+        if (pvd.header.id != 'CD001') throw `Not an ISO file`;
 
-			return this.processDirectoryRecordAsync(this._root).then(() => this);
-		});
+        this._children = [];
+        this._childrenByPath = {};
+        this._root = new IsoNode(this, pvd.directoryRecord);
+
+        await this.processDirectoryRecordAsync(this._root)
+
+        return this
     }
 
-    private processDirectoryRecordAsync(parentIsoNode: IsoNode) {
+    private async processDirectoryRecordAsync(parentIsoNode: IsoNode) {
         const directoryStart = parentIsoNode.directoryRecord.extent * SECTOR_SIZE;
         const directoryLength = parentIsoNode.directoryRecord.size;
 
-        return this.asyncStream.readChunkAsync(directoryStart, directoryLength).then((data) => {
-            const directoryStream = Stream.fromArrayBuffer(data);
+        //const start = performance.now()
+        const data = await this.asyncStream.readChunkAsync(directoryStart, directoryLength)
+        //const end = performance.now()
+        //console.warn(end - start)
+        const directoryStream = Stream.fromArrayBuffer(data);
 
-            while (directoryStream.available) {
-                const directoryRecordSize = directoryStream.readUInt8();
+        while (directoryStream.available) {
+            const directoryRecordSize = directoryStream.readUInt8();
 
-                // Even if a directory spans multiple sectors, the directory entries are not permitted to cross the sector boundary (unlike the path table).
-				// Where there is not enough space to record an entire directory entry at the end of a sector, that sector is zero-padded and the next
-				// consecutive sector is used.
-				if (directoryRecordSize == 0) {
-					directoryStream.position = MathUtils.nextAligned(directoryStream.position, SECTOR_SIZE);
-					//Console.WriteLine("AlignedTo: {0:X}", DirectoryStream.Position);
-					continue;
-				}
+            // Even if a directory spans multiple sectors, the directory entries are not permitted to cross the sector boundary (unlike the path table).
+            // Where there is not enough space to record an entire directory entry at the end of a sector, that sector is zero-padded and the next
+            // consecutive sector is used.
+            if (directoryRecordSize == 0) {
+                directoryStream.position = MathUtils.nextAligned(directoryStream.position, SECTOR_SIZE);
+                //Console.WriteLine("AlignedTo: {0:X}", DirectoryStream.Position);
+                continue;
+            }
 
-				directoryStream.position = directoryStream.position - 1;
+            directoryStream.position = directoryStream.position - 1;
 
-				//Console.WriteLine("[{0}:{1:X}-{2:X}]", DirectoryRecordSize, DirectoryStream.Position, DirectoryStream.Position + DirectoryRecordSize);
+            //Console.WriteLine("[{0}:{1:X}-{2:X}]", DirectoryRecordSize, DirectoryStream.Position, DirectoryStream.Position + DirectoryRecordSize);
 
-                const directoryRecordStream = directoryStream.readStream(directoryRecordSize);
-                const directoryRecord = DirectoryRecord.struct.read(directoryRecordStream);
-                directoryRecord.name = directoryRecordStream.readStringz(directoryRecordStream.available);
+            const directoryRecordStream = directoryStream.readStream(directoryRecordSize);
+            const directoryRecord = DirectoryRecord.struct.read(directoryRecordStream);
+            directoryRecord.name = directoryRecordStream.readStringz(directoryRecordStream.available);
 
 
-				//Console.WriteLine("{0}", name); Console.ReadKey();
+            //Console.WriteLine("{0}", name); Console.ReadKey();
 
-				if (directoryRecord.name == "" || directoryRecord.name == "\x01") continue;
+            if (directoryRecord.name == "" || directoryRecord.name == "\x01") continue;
 
-				//console.log(directoryRecord);
+            //console.log(directoryRecord);
 
-				//writefln("   %s", name);
+            //writefln("   %s", name);
 
-                const child = new IsoNode(this, directoryRecord, parentIsoNode);
-                parentIsoNode.addChild(child);
-				this._children.push(child);
-				this._childrenByPath[child.path] = child;
-			}
+            const child = new IsoNode(this, directoryRecord, parentIsoNode);
+            parentIsoNode.addChild(child);
+            this._children.push(child);
+            this._childrenByPath[child.path] = child;
+        }
 
-            const promiseGenerators: PromiseGenerator<any>[] = [];
-
-            parentIsoNode.childs.forEach(child => {
-				if (child.isDirectory) {
-					promiseGenerators.push(() => this.processDirectoryRecordAsync(child));
-				}
-			});
-
-			return PromiseUtils.sequence(promiseGenerators);
-		});
+        for (const child of parentIsoNode.childs) {
+            if (child.isDirectory) {
+                await this.processDirectoryRecordAsync(child)
+            }
+        }
     }
 }

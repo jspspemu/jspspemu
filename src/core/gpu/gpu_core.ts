@@ -462,7 +462,7 @@ class PspGpuListRunner {
 	}
 
 	waitAsync() {
-		return PromiseFast.all(this.runningLists.map(list => list.waitAsync())).then(() => DisplayListStatus.Completed);
+		return PromiseFast.all(this.runningLists.map(list => list.waitAsync())).thenFast(() => DisplayListStatus.Completed);
     }
 }
 
@@ -574,7 +574,7 @@ export class PspGpu implements Component {
 	drawSync(syncType: SyncType): any {
 		//console.log('drawSync');
 		//console.warn('Not implemented sceGe_user.sceGeDrawSync');
-		return this.listRunner.waitAsync().then(() => {
+		return this.listRunner.waitAsync().thenFast(() => {
 			this.flushCommands()
 			try {
                 const end = performance.now();
@@ -590,7 +590,7 @@ export class PspGpu implements Component {
 				optimizedDrawBuffer.reset();
 				this.batches = [];
 				//return freezing.waitUntilValueAsync(false);
-				return this.wv.waitUntilValueAsync(true).then(() => {
+				return this.wv.waitUntilValueAsync(true).thenFast(() => {
 					return this.freezing.waitUntilValueAsync(false);
 				});
 				//return this.freezing.waitUntilValueAsync(false);

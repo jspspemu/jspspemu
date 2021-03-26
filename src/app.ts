@@ -400,7 +400,7 @@ window.addEventListener('load', () => {
 	DomHelp.fromId('load_file').on('change', (e) => {
         const target: any = e.target;
         if (target.files && target.files.length > 0) {
-			console.clear();
+            document.getElementById('load_file')!.blur()
 			EmulatorController.executeFile(target.files[0]);
 		}
 	});

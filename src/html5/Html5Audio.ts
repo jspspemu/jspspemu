@@ -86,7 +86,7 @@ class Audio2Channel {
     }
 
     playAsync(data: Float32Array): PromiseFast<any> {
-        if (!this.node) return waitAsync(10).then(() => 0);
+        if (!this.node) return waitAsync(10).thenFast(() => 0);
 
         if (this.buffers.length < 8) {
             //if (this.buffers.length < 16) {

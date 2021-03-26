@@ -47,7 +47,7 @@ export class ThreadManForUser {
 		if (bits == 0) return SceKernelErrors.ERROR_KERNEL_EVENT_FLAG_ILLEGAL_WAIT_PATTERN;
         const timedOut = false;
         const previousPattern = eventFlag.currentPattern;
-        return new WaitingThreadInfo('_sceKernelWaitEventFlagCB', eventFlag, eventFlag.waitAsync(bits, waitType, outBits, timeout, acceptCallbacks).then(() => {
+        return new WaitingThreadInfo('_sceKernelWaitEventFlagCB', eventFlag, eventFlag.waitAsync(bits, waitType, outBits, timeout, acceptCallbacks).thenFast(() => {
 			if (outBits != null) outBits.writeUInt32(previousPattern);
 			return 0;
 		}), acceptCallbacks);
@@ -141,7 +141,7 @@ class EventFlag {
 				throwEndCycles();
 			});
 			this.waitingThreads.add(waitingSemaphoreThread);
-		}).then(() => 0);
+		}).thenFast(() => 0);
 	}
 
 	poll(bitsToMatch: number, waitType: EventFlagWaitTypeSet, outBits: Stream) {

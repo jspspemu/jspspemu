@@ -270,7 +270,7 @@ export class DropboxVfsEntry extends VfsEntry {
 
         if (this._size < 128 * 1024 * 1024) {
 			if (this.cachedContent) return PromiseFast.resolve(this.cachedContent.slice(offset, offset + length));
-			return PromiseFast.ensure(client.readFileAsync(this.path).then(data => {
+			return PromiseFast.ensure(client.readFileAsync(this.path).thenFast(data => {
 				this.cachedContent = data;
 				return this.cachedContent.slice(offset, offset + length);
 			}))
@@ -340,7 +340,7 @@ export class DropboxVfsEntry extends VfsEntry {
 /*
 const dvfs = new DropboxVfs();
 
-dvfs.openAsync('/test', FileOpenFlags.Create | FileOpenFlags.Write | FileOpenFlags.Truncate, <FileMode>parseIntFormat('0777')).then(value => {
+dvfs.openAsync('/test', FileOpenFlags.Create | FileOpenFlags.Write | FileOpenFlags.Truncate, <FileMode>parseIntFormat('0777')).thenFast(value => {
 	console.info('dvfs result:', value);
 }).catch(e => {
 		console.error('dvfs error:', e);
@@ -348,7 +348,7 @@ dvfs.openAsync('/test', FileOpenFlags.Create | FileOpenFlags.Write | FileOpenFla
 */
 
 /*
-client.readdirAsync('/PSP/GAME/virtual/SAVE/SharewareDoom').then(result => {
+client.readdirAsync('/PSP/GAME/virtual/SAVE/SharewareDoom').thenFast(result => {
 	console.log(result);
 });
 */

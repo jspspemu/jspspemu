@@ -10,7 +10,13 @@ import {Config} from "../hle/config";
 
 declare const self: any;
 
-export class EmulatorControllerNormal {
+export interface IBaseEmulatorController {
+    init(): void;
+    executeUrl(url: string): void;
+    executeFile(file: File): void;
+}
+
+export class EmulatorControllerNormal implements IBaseEmulatorController {
 	documentLocation = document.location.href.replace(/#.*$/, '').replace(/\/[^\/]*$/, '');
 	emulator = new Emulator();
 	audio = new Html5Audio2();

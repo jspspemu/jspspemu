@@ -23,7 +23,7 @@ export class sceUtility {
 
 	@nativeFunction(0x50C4CD57, 150, 'uint', 'void*')
 	sceUtilitySavedataInitStart(paramsPtr: Stream) {
-		return PromiseFast.resolve(this._sceUtilitySavedataInitStart(paramsPtr.clone())).then(result => {
+		return PromiseFast.resolve(this._sceUtilitySavedataInitStart(paramsPtr.clone())).thenFast(result => {
             const params = SceUtilitySavedataParam.struct.read(paramsPtr.clone());
             params.base.result = result;
 			return 0;
@@ -34,7 +34,7 @@ export class sceUtility {
 		console.error('sceUtilitySavedataInitStart');
         const params = SceUtilitySavedataParam.struct.createProxy(paramsPtr);
 
-        return PromiseFast.resolve(0).then(() => {
+        return PromiseFast.resolve(0).thenFast(() => {
             const fileManager = this.context.fileManager;
             const savePathFolder = "ms0:/PSP/SAVEDATA/" + params.gameName + params.saveName;
             const saveDataBin = savePathFolder + "/DATA.BIN";
@@ -49,7 +49,7 @@ export class sceUtility {
 				case PspUtilitySavedataMode.Autoload:
 				case PspUtilitySavedataMode.Load:
 				case PspUtilitySavedataMode.ListLoad:
-					return fileManager.openAsync(saveDataBin, FileOpenFlags.Read, parseIntFormat('0777')).then(file => file.entry.readAllAsync()).then(data => {
+					return fileManager.openAsync(saveDataBin, FileOpenFlags.Read, parseIntFormat('0777')).thenFast(file => file.entry.readAllAsync()).thenFast(data => {
 						console.info('readed:', data.byteLength);
 						params.dataSize = data.byteLength;
 						this.context.memory.writeBytes(params.dataBufPointer, data);
@@ -65,8 +65,8 @@ export class sceUtility {
 
                     return fileManager
 						.openAsync(saveDataBin, FileOpenFlags.Create | FileOpenFlags.Truncate | FileOpenFlags.Write, parseIntFormat('0777'))
-						.then(file => file.entry.writeAllAsync(data))
-						.then(written => {
+						.thenFast(file => file.entry.writeAllAsync(data))
+						.thenFast(written => {
 							return 0;
 						}).catch(error => {
 							return SceKernelErrors.ERROR_SAVEDATA_SAVE_ACCESS_ERROR;
@@ -137,7 +137,7 @@ export class sceUtility {
 					break;
 			}
 			return PromiseFast.resolve(0);
-		}).then(result => {
+		}).thenFast(result => {
 			console.error('result: ', result);
 			params.base.result = result as number;
 			return 0;
@@ -169,10 +169,10 @@ export class sceUtility {
 	@nativeFunction(0x2AD8E239, 150, 'uint', 'void*')
 	sceUtilityMsgDialogInitStart(paramsPtr: Stream) {
 		// @TODO: should not stop
-		//_emulator_ui.EmulatorUI.openMessageAsync().then();
+		//_emulator_ui.EmulatorUI.openMessageAsync().thenFast();
 		let params = PspUtilityMsgDialogParams.struct.createProxy(paramsPtr);
 		console.warn('sceUtilityMsgDialogInitStart:', params.message);
-		return EmulatorUI.openMessageAsync(params.message).then(() => {
+		return EmulatorUI.openMessageAsync(params.message).thenFast(() => {
 			params.buttonPressed = PspUtilityMsgDialogPressed.PSP_UTILITY_MSGDIALOG_RESULT_YES;
 			this.currentStep = DialogStepEnum.SUCCESS;
 			return 0;
