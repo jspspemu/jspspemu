@@ -168,7 +168,7 @@ export class Emulator {
 
         if (hasDropboxToken()) {
             //memStickVfsList.unshift(new DropboxVfs())
-            memStickVfsList.push(new DropboxVfs())
+            //memStickVfsList.push(new DropboxVfs())
         }
 
         const msvfs = new MemoryStickVfs(memStickVfsList, this.callbackManager, this.memory)

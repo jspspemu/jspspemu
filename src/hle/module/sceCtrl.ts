@@ -12,7 +12,6 @@ export class sceCtrl {
 	sceCtrlPeekBufferPositive(sceCtrlDataPtr: Stream, count: number) {
 		//console.log('sceCtrlPeekBufferPositive');
 		for (let n = 0; n < count; n++) SceCtrlData.struct.write(sceCtrlDataPtr, this.context.controller.data);
-		//return waitAsync(1).thenFast(v => count);
         return count;
     }
 
@@ -22,7 +21,11 @@ export class sceCtrl {
 
 		for (let n = 0; n < count; n++) SceCtrlData.struct.write(sceCtrlDataPtr, this.context.controller.data);
 		//return PromiseFast.resolve(0);
-		return new WaitingThreadInfo('sceCtrlReadBufferPositive', this.context.display, this.context.display.waitVblankStartAsync(thread).thenFast(v => count), AcceptCallbacks.NO);
+        const promise = (async () => {
+            await this.context.display.waitVblankStartAsync(thread)
+            return count
+        })()
+		return new WaitingThreadInfo('sceCtrlReadBufferPositive', this.context.display, promise, AcceptCallbacks.NO);
 		//return 0;
     }
 
