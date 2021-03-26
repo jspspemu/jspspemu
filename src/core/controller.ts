@@ -1,5 +1,11 @@
 ﻿import "../emu/global"
-import {Int8, StructArray, StructClass, UInt32} from "../global/struct";
+import {
+    Int8,
+    Struct,
+    StructInt8,
+    StructStructArray,
+    StructUInt32
+} from "../global/struct";
 import {MathUtils} from "../global/math";
 import {Component} from "./component";
 
@@ -38,14 +44,15 @@ export class PspController implements IPspController {
     }
 }
 
-export class SceCtrlData {
-	timeStamp: number = 0;
-	buttons: PspCtrlButtons = PspCtrlButtons.none;
-	lx: number = 0;
-	ly: number = 0;
-	_rsrv = new Int32Array(5)
+export class SceCtrlData extends Struct {
+	@StructUInt32 timeStamp: number = 0;
+    @StructUInt32 buttons: PspCtrlButtons = PspCtrlButtons.none;
+    @StructInt8 lx: number = 0;
+    @StructInt8 ly: number = 0;
+	@StructStructArray(Int8, 6) _rsrv = new Int32Array(5)
 
     constructor() {
+	    super()
 		this.x = 0;
 		this.y = 0;
 	}
@@ -76,14 +83,6 @@ export class SceCtrlData {
 
 	set x(value: number) { this.lx = MathUtils.clamp0_255(((value / 2.0) + 0.5) * 255.0); }
 	set y(value: number) { this.ly = MathUtils.clamp0_255(((value / 2.0) + 0.5) * 255.0); }
-
-	static struct = StructClass.create<SceCtrlData>(SceCtrlData, [
-		{ timeStamp: UInt32 },
-		{ buttons: UInt32 },
-		{ lx: Int8 },
-		{ ly: Int8 },
-		{ _rsrv: StructArray(Int8, 6) },
-	]);
 }
 
 export abstract class PspControllerContributor implements Component {

@@ -1,20 +1,17 @@
 ﻿import "../emu/global"
 import {logger, StringDictionary} from "../global/utils";
 import {
-    GetStruct,
-    Int8,
+    Int8, Struct,
     StructArray,
-    StructClass, StructInt16, StructInt32, StructInt8,
-    StructStructArray, StructStructStringn, StructUInt16,
-    UInt16,
-    UInt32
+    StructInt16, StructInt32, StructInt8,
+    StructStructArray, StructStructStringn, StructUInt16, StructUInt32
 } from "../global/struct";
 import {Stream} from "../global/stream";
 import {Memory} from "../core/memory";
 
 const console = logger.named('elf');
 
-export class ElfHeader {
+export class ElfHeader extends Struct {
     @StructStructStringn(4) magic: string = ''
 	@StructInt8 class: number = 0
 	@StructInt8 data: number = 0
@@ -47,55 +44,32 @@ export class ElfHeader {
 	}
 }
 
-export class ElfProgramHeader {
-	type: ElfProgramHeaderType = ElfProgramHeaderType.NoLoad
-	offset: number = 0
-	virtualAddress: number = 0
-	psysicalAddress: number = 0
-	fileSize: number = 0
-	memorySize: number = 0
-	flags: ElfProgramHeaderFlags = ElfProgramHeaderFlags.Executable
-	alignment: number = 0
-
-	static struct = StructClass.create<ElfProgramHeader>(ElfProgramHeader, [
-		{ type: UInt32 },
-		{ offset: UInt32 },
-		{ virtualAddress: UInt32 },
-		{ psysicalAddress: UInt32 },
-		{ fileSize: UInt32 },
-		{ memorySize: UInt32 },
-		{ flags: UInt32 },
-		{ alignment: UInt32 },
-	]);
+export class ElfProgramHeader extends Struct {
+	@StructUInt32 type: ElfProgramHeaderType = ElfProgramHeaderType.NoLoad
+    @StructUInt32 offset: number = 0
+    @StructUInt32 virtualAddress: number = 0
+    @StructUInt32 psysicalAddress: number = 0
+    @StructUInt32 fileSize: number = 0
+    @StructUInt32 memorySize: number = 0
+    @StructUInt32 flags: ElfProgramHeaderFlags = ElfProgramHeaderFlags.Executable
+    @StructUInt32 alignment: number = 0
 }
 
-export class ElfSectionHeader {
-	nameOffset: number = 0
-	name: string = ''
-	// @ts-ignore
-    stream: Stream
-	type: ElfSectionHeaderType = ElfSectionHeaderType.Null
-	flags: ElfSectionHeaderFlags = ElfSectionHeaderFlags.None
-	address: number = 0
-	offset: number = 0
-	size: number = 0
-	link: number = 0
-	info: number = 0
-	addressAlign: number = 0
-	entitySize: number = 0
+export class ElfSectionHeader extends Struct {
+    @StructUInt32 nameOffset: number = 0
+    @StructUInt32 type: ElfSectionHeaderType = ElfSectionHeaderType.Null
+    @StructUInt32 flags: ElfSectionHeaderFlags = ElfSectionHeaderFlags.None
+    @StructUInt32 address: number = 0
+    @StructUInt32 offset: number = 0
+    @StructUInt32 size: number = 0
+    @StructUInt32 link: number = 0
+    @StructUInt32 info: number = 0
+    @StructUInt32 addressAlign: number = 0
+    @StructUInt32 entitySize: number = 0
 
-	static struct = StructClass.create<ElfSectionHeader>(ElfSectionHeader, [
-		{ nameOffset: UInt32 },
-		{ type: UInt32 },
-		{ flags: UInt32 },
-		{ address: UInt32 },
-		{ offset: UInt32 },
-		{ size: UInt32 },
-		{ link: UInt32 },
-		{ info: UInt32 },
-		{ addressAlign: UInt32 },
-		{ entitySize: UInt32 },
-	]);
+    name: string = ''
+    // @ts-ignore
+    stream: Stream
 }
 
 export const enum ElfProgramHeaderType {
@@ -191,18 +165,13 @@ export const enum ElfRelocType {
 	StopRelocation = 0xFF,
 }
 
-export class ElfReloc {
-	pointerAddress: number = 0
-	info: number = 0
+export class ElfReloc extends Struct {
+	@StructUInt32 pointerAddress: number = 0
+    @StructUInt32 info: number = 0
 
 	get pointeeSectionHeaderBase() { return (this.info >> 16) & 0xFF; }
 	get pointerSectionHeaderBase() { return (this.info >> 8) & 0xFF; }
 	get type() { return <ElfRelocType>((this.info >> 0) & 0xFF); }
-
-	static struct = StructClass.create<ElfReloc>(ElfReloc, [
-		{ pointerAddress: UInt32 },
-		{ info: UInt32 },
-	]);
 }
 
 
@@ -251,7 +220,7 @@ export class ElfLoader {
 
 	private readAndCheckHeaders(stream: Stream) {
 		this.stream = stream;
-        const header = this.header = GetStruct(ElfHeader).read(stream);
+        const header = this.header = ElfHeader.struct.read(stream);
         if (!header.hasValidMagic) throw new Error('Not an ELF file')
 		if (!header.hasValidMachine) throw new Error('Not a PSP ELF file')
 		if (!header.hasValidType) throw new Error(`Not a executable or a Prx but has type ${header.type}`)

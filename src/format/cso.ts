@@ -1,4 +1,8 @@
-﻿import {Integer64_l, Stringz, StructClass, UInt16, UInt32, UInt8} from "../global/struct";
+﻿import {
+    Struct,
+    StructInteger64_l,
+    StructStructStringz, StructUInt16, StructUInt32, StructUInt8
+} from "../global/struct";
 import {ArrayBufferUtils, PromiseFast} from "../global/utils";
 import {AsyncStream, BaseAsyncStream, Stream} from "../global/stream";
 import {Integer64} from "../global/int64";
@@ -6,26 +10,16 @@ import {zlib_inflate_raw} from "./zlib";
 
 const CSO_MAGIC = 'CISO'
 
-class Header {
-    magic: string = ''
-    headerSize: number = 0
-    totalBytes: Integer64 = Integer64.ZERO
-    blockSize: number = 0;
-    version: number = 0
-    alignment: number = 0
-    reserved: number = 0
+class Header extends Struct {
+    @StructStructStringz(4) magic: string = ''
+    @StructUInt32 headerSize: number = 0
+    @StructInteger64_l totalBytes: Integer64 = Integer64.ZERO
+    @StructUInt32 blockSize: number = 0;
+    @StructUInt8 version: number = 0
+    @StructUInt8 alignment: number = 0
+    @StructUInt16 reserved: number = 0
 
     get numberOfBlocks() { return Math.floor(this.totalBytes.number / this.blockSize); }
-
-    static struct = StructClass.create<Header>(Header, [
-		{ magic: Stringz(4) },
-		{ headerSize: UInt32 },
-		{ totalBytes: Integer64_l },
-		{ blockSize: UInt32 },
-		{ version: UInt8 },
-		{ alignment: UInt8 },
-		{ reserved: UInt16 },
-    ]);
 }
 
 class Block {

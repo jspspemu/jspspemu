@@ -1,5 +1,10 @@
 ﻿import {logger, ProgramExitException, sprintf} from "../global/utils";
-import {Stringz, StructArray, StructClass, UInt16, UInt32, UInt8} from "../global/struct";
+import {
+    Struct,
+    StructArray,
+    StructStructStringz,
+    StructUInt16, StructUInt32, StructUInt8
+} from "../global/struct";
 import {Stream} from "../global/stream";
 import {MathUtils} from "../global/math";
 import {Memory} from "../core/memory";
@@ -21,79 +26,49 @@ import {ISymbol, ISymbolLookup} from "../emu/context";
 
 const console = logger.named('elf.psp');
 
-export class ElfPspModuleInfo {
-	moduleAtributes: number = 0
-	moduleVersion: number = 0
-	name: string = ''
-	gp: number = 0
-	pc: number = 0
-	exportsStart: number = 0
-	exportsEnd: number = 0
-	importsStart: number = 0
-	importsEnd: number = 0
-
-	// http://hitmen.c02.at/files/yapspd/psp_doc/chap26.html
-	// 26.2.2.8
-	static struct = StructClass.create<ElfPspModuleInfo>(ElfPspModuleInfo, [
-		{ moduleAtributes: UInt16 },
-		{ moduleVersion: UInt16 },
-		{ name: Stringz(28) },
-		{ gp: UInt32 },
-		{ exportsStart: UInt32 },
-		{ exportsEnd: UInt32 },
-		{ importsStart: UInt32 },
-		{ importsEnd: UInt32 },
-	]);
+// http://hitmen.c02.at/files/yapspd/psp_doc/chap26.html
+// 26.2.2.8
+export class ElfPspModuleInfo extends Struct {
+	@StructUInt16 moduleAtributes: number = 0
+    @StructUInt16 moduleVersion: number = 0
+	@StructStructStringz(28) name: string = ''
+	@StructUInt32 gp: number = 0
+    @StructUInt32 exportsStart: number = 0
+    @StructUInt32 exportsEnd: number = 0
+    @StructUInt32 importsStart: number = 0
+    @StructUInt32 importsEnd: number = 0
+    pc: number = 0
 }
 
-export class ElfPspModuleImport {
-	name: string = ''
-	nameOffset: number = 0
-	version: number = 0
-	flags: number = 0
-	entrySize: number = 0
-	functionCount: number = 0
-	variableCount: number = 0
-	nidAddress: number = 0
-	callAddress: number = 0
+export class ElfPspModuleImport extends Struct {
+	@StructUInt32 nameOffset: number = 0
+    @StructUInt16 version: number = 0
+    @StructUInt16 flags: number = 0
+    @StructUInt8 entrySize: number = 0
+    @StructUInt8 variableCount: number = 0
+    @StructUInt16 functionCount: number = 0
+    @StructUInt32 nidAddress: number = 0
+    @StructUInt32 callAddress: number = 0
 
-	static struct = StructClass.create<ElfPspModuleImport>(ElfPspModuleImport, [
-		{ nameOffset: UInt32 },
-		{ version: UInt16 },
-		{ flags: UInt16 },
-		{ entrySize: UInt8 },
-		{ variableCount: UInt8 },
-		{ functionCount: UInt16 },
-		{ nidAddress: UInt32 },
-		{ callAddress: UInt32 },
-	]);
+    name: string = ''
 }
 
-export class ElfPspModuleExport {
-	name: string = ''
-	version: number = 0
-	flags: number = 0
-	entrySize: number = 0
-	variableCount: number = 0
-	functionCount: number = 0
-	exports: number = 0
+export class ElfPspModuleExport extends Struct {
+    @StructUInt32 nameOffset: number = 0
+	@StructUInt16 version: number = 0
+	@StructUInt16 flags: number = 0
+	@StructUInt8 entrySize: number = 0
+    @StructUInt8 variableCount: number = 0
+    @StructUInt16 functionCount: number = 0
+    @StructUInt32 exports: number = 0
 
-	static struct = StructClass.create<ElfPspModuleExport>(ElfPspModuleExport, [
-		{ name: UInt32 },
-		{ version: UInt16 },
-		{ flags: UInt16 },
-		{ entrySize: UInt8 },
-		{ variableCount: UInt8 },
-		{ functionCount: UInt16 },
-		{ exports: UInt32 },
-	]);
+    name: string = ''
 }
 
 export const enum ElfPspModuleInfoAtributesEnum {
 	UserMode = 0x0000,
 	KernelMode = 0x100,
 }
-
 	
 class InstructionReader {
 	constructor(private memory: Memory) {

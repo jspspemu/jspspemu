@@ -1,7 +1,17 @@
 ﻿import "../emu/global"
 
 import {addressToHex, logger} from "../global/utils";
-import {Int8, IType, StringzVariable, StructArray, StructClass, UInt16, UInt32, UInt8} from "../global/struct";
+import {
+    Int8,
+    IType,
+    StringzVariable,
+    Struct,
+    StructArray,
+    StructClass,
+    UInt16,
+    UInt32,
+    UInt8
+} from "../global/struct";
 import {Stream} from "../global/stream";
 import {BitUtils} from "../global/math";
 import {ElfLoader} from "./elf";
@@ -31,7 +41,7 @@ class Uleb128Class implements IType<number> {
 
 const Uleb128 = new Uleb128Class();
 
-class ElfDwarfHeader {
+class ElfDwarfHeader extends Struct {
 	total_length: number = 0
 	version: number = 0
 	prologue_length: number = 0

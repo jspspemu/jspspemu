@@ -473,10 +473,22 @@ export const StructInt8: any = StructMember(Int8)
 export const StructUInt16: any = StructMember(UInt16)
 export const StructInt16: any = StructMember(Int16)
 export const StructInt32: any = StructMember(Int32)
+export const StructUInt32: any = StructMember(UInt32)
+
+export const StructInteger64_l: any = StructMember(Integer64_l)
+export const StructInteger64_b: any = StructMember(Integer64_b)
+
 export function StructStructStringn(count: number): any { return StructMember(Stringn(count)) }
+export function StructStructStringz(count: number): any { return StructMember(Stringz(count)) }
 export function StructStructArray<T>(elementType: IType<T>, count: number): any { return StructMember(StructArray(elementType, count)) }
 
+export class Struct {
+    // @ts-ignore
+    static get struct(): StructClass<this> { return GetStruct(this) }
+}
 
-export function GetStruct<T>(clazz: Class<T>): StructClass<T> {
-    return (clazz as any).struct || (clazz as any).prototype.$$struct
+//Struct.struct
+
+export function GetStruct<T extends Struct>(clazz: Class<T>): StructClass<T> {
+    return (clazz as any).prototype.$$struct || (clazz as any).struct
 }
