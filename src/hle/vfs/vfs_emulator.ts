@@ -1,6 +1,5 @@
 ﻿import {Stream} from "../../global/stream";
 import {PromiseFast} from "../../global/utils";
-import {immediateAsync} from "../../global/async";
 import {Vfs} from "./vfs";
 import {EmulatorContext} from "../../emu/context";
 
@@ -22,7 +21,7 @@ export class EmulatorVfs extends Vfs {
                 const str = input.readString(input.length);
 				this.output += str;
 				this.context.onStdout.dispatch(str);
-				return immediateAsync().thenFast(_ => 0);
+				return PromiseFast.resolve(0)
 				//return 0;
 			case EmulatorDevclEnum.IsEmulator:
 				return 0; // Running on emulator

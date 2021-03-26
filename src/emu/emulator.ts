@@ -4,10 +4,7 @@ import { GpuStats } from '../core/gpu/gpu_stats';
 import {
     DomHelp,
     logger,
-    loggerPolicies,
-    Microtask,
-    PromiseFast,
-    PromiseMicrotask,
+    loggerPolicies, Microtask,
     Signal1,
     Signal2
 } from "../global/utils";
@@ -132,7 +129,7 @@ export class Emulator {
 	private doFrameRunning = false
     private doFrame = () => {
         if (this.doFrameRunning) requestAnimationFrame(this.doFrame)
-        PromiseMicrotask.queueExecuteNow(() => {
+        Microtask.queueExecuteNow(() => {
             this.display.frame()
             this.controller.frame()
             this.audio.frame()

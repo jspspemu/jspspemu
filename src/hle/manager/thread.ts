@@ -174,7 +174,7 @@ export class Thread {
 		this.waitingName = info.name;
 		this.waitingObject = info.object;
 		this.acceptingCallbacks = (info.callbacks == AcceptCallbacks.YES);
-		this._suspendUntilPromiseDone(info.promise, info.compensate);
+		this._suspendUntilPromiseDone(PromiseFast.ensure(info.promise), info.compensate);
 	}
 
 	suspendUntilPromiseDone(promise: PromiseFast<any>, info: NativeFunction) {

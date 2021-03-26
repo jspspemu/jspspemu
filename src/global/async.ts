@@ -12,12 +12,6 @@ export function waitAsync(timems: number) {
 	});
 }
 
-export function immediateAsync() {
-	return new PromiseFast((resolve, reject) => {
-		Microtask.queue(resolve);
-	});
-}
-
 export function _downloadFileAsync(method: string, url: string, headers?: any) {
 	return new Promise<XMLHttpRequest>((resolve, reject) => {
         const request = new XMLHttpRequest();
