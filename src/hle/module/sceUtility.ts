@@ -4,18 +4,14 @@ import {PromiseFast} from "../../global/utils";
 import {Stream} from "../../global/stream";
 import {
     Int32,
-    Stringz,
     Struct,
-    StructArray,
-    StructClass, StructInt32, StructMember,
+    StructInt32, StructMember,
     StructStructArray, StructStructStringz, StructStructUtf8Stringz, StructUInt32, StructUInt8,
-    UInt32,
-    UInt8,
-    Utf8Stringz
+    UInt8
 } from "../../global/struct";
 import {MathUtils, parseIntFormat} from "../../global/math";
 import {EmulatorContext} from "../../emu/context";
-import {nativeFunction} from "../utils";
+import {I32, nativeFunctionEx, PTR, U32} from "../utils";
 import {FileOpenFlags} from "../vfs/vfs";
 import {EmulatorUI} from "../../ui/emulator_ui";
 import {PspLanguages} from "../structs";
@@ -25,14 +21,14 @@ export class sceUtility {
 
 	private currentStep: DialogStepEnum = DialogStepEnum.NONE;
 
-	@nativeFunction(0x2A2B3DE0, 150, 'uint', 'int')
-	sceUtilityLoadModule(pspModule: PspModule) {
+	@nativeFunctionEx(0x2A2B3DE0, 150)
+	@U32 sceUtilityLoadModule(@I32 pspModule: PspModule) {
 		console.warn("Not implemented sceUtilityLoadModule '" + pspModule + "'");
 		return PromiseFast.resolve(0);
 	}
 
-	@nativeFunction(0x50C4CD57, 150, 'uint', 'void*')
-	async sceUtilitySavedataInitStart(paramsPtr: Stream) {
+	@nativeFunctionEx(0x50C4CD57, 150)
+    @U32 async sceUtilitySavedataInitStart(@PTR paramsPtr: Stream) {
         const result = await this._sceUtilitySavedataInitStart(paramsPtr.clone())
         const params = SceUtilitySavedataParam.struct.read(paramsPtr.clone());
         params.base.result = result;
@@ -163,16 +159,16 @@ export class sceUtility {
 		}
 	}
 
-	@nativeFunction(0x9790B33C, 150, 'uint', '')
-	sceUtilitySavedataShutdownStart() {
+	@nativeFunctionEx(0x9790B33C, 150)
+    @U32 sceUtilitySavedataShutdownStart() {
 		//console.log('sceUtilitySavedataShutdownStart');
 		//debugger;
 		this.currentStep = DialogStepEnum.SHUTDOWN;
 		return 0;
 	}
 
-	@nativeFunction(0x8874DBE0, 150, 'uint', '')
-	sceUtilitySavedataGetStatus() {
+	@nativeFunctionEx(0x8874DBE0, 150)
+    @U32 sceUtilitySavedataGetStatus() {
 		//console.log('sceUtilitySavedataGetStatus');
 		//debugger;
 		try {
@@ -182,8 +178,8 @@ export class sceUtility {
 		}
 	}
 
-	@nativeFunction(0x2AD8E239, 150, 'uint', 'void*')
-	async sceUtilityMsgDialogInitStart(paramsPtr: Stream) {
+	@nativeFunctionEx(0x2AD8E239, 150)
+    @U32 async sceUtilityMsgDialogInitStart(@PTR paramsPtr: Stream) {
 		// @TODO: should not stop
 		let params = PspUtilityMsgDialogParams.struct.createProxy(paramsPtr);
 		console.warn('sceUtilityMsgDialogInitStart:', params.message);
@@ -193,8 +189,8 @@ export class sceUtility {
         return 0;
 	}
 
-	@nativeFunction(0x9A1C91D7, 150, 'uint', '')
-	sceUtilityMsgDialogGetStatus() {
+	@nativeFunctionEx(0x9A1C91D7, 150)
+    @U32 sceUtilityMsgDialogGetStatus() {
 		try {
 			return this.currentStep;
 		} finally {
@@ -202,12 +198,12 @@ export class sceUtility {
 		}
 	}
 
-	@nativeFunction(0x9A1C91D7, 150, 'uint', 'int')
-	sceUtilityMsgDialogUpdate(value: number) {
+	@nativeFunctionEx(0x9A1C91D7, 150)
+    @U32 sceUtilityMsgDialogUpdate(@I32 value: number) {
 	}
 
-	@nativeFunction(0x1579A159, 150, 'uint', '')
-	sceUtilityLoadNetModule() {
+	@nativeFunctionEx(0x1579A159, 150)
+    @U32 sceUtilityLoadNetModule() {
 		console.warn('Not implemented sceUtilityLoadNetModule');
 		return 0;
 	}
@@ -227,24 +223,24 @@ export class sceUtility {
 		throw (new Error("Invalid key " + id));
 	}
 
-	@nativeFunction(0xA5DA2406, 150, 'uint', 'int/void*')
-	sceUtilityGetSystemParamInt(id: PSP_SYSTEMPARAM_ID, valuePtr: Stream) {
+	@nativeFunctionEx(0xA5DA2406, 150)
+    @U32 sceUtilityGetSystemParamInt(@I32 id: PSP_SYSTEMPARAM_ID, @PTR valuePtr: Stream) {
 		//console.warn("Not implemented sceUtilityGetSystemParamInt", id, PSP_SYSTEMPARAM_ID[id]);
         const value = parseInt(this._getKey(id));
         if (valuePtr) valuePtr.writeInt32(value);
 		return 0;
 	}
 
-	@nativeFunction(0x34B78343, 150, 'uint', 'int/void*/int')
-	sceUtilityGetSystemParamString(id: PSP_SYSTEMPARAM_ID, strPtr: Stream, len: number) {
+	@nativeFunctionEx(0x34B78343, 150)
+    @U32 sceUtilityGetSystemParamString(@I32 id: PSP_SYSTEMPARAM_ID, @PTR strPtr: Stream, @I32 len: number) {
         let value = String(this._getKey(id));
         value = value.substr(0, Math.min(value.length, len - 1));
 		if (strPtr) strPtr.writeStringz(value);
 		return 0;
 	}
 
-	@nativeFunction(0xC629AF26, 150, 'uint', 'int')
-	sceUtilityLoadAvModule(id: number) {
+	@nativeFunctionEx(0xC629AF26, 150)
+    @U32 sceUtilityLoadAvModule(@I32 id: number) {
 		return 0;
 	}
 }

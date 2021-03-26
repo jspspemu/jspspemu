@@ -1,7 +1,7 @@
 ﻿import { SceKernelErrors } from '../SceKernelErrors';
 import {AcceptCallbacks, PromiseFast, Signal1} from "../../global/utils";
 import {EmulatorContext} from "../../emu/context";
-import {nativeFunction} from "../utils";
+import {I32, nativeFunctionEx, STRING, U32} from "../utils";
 
 export class sceUmdUser {
 	constructor(private context: EmulatorContext) { }
@@ -9,21 +9,21 @@ export class sceUmdUser {
 	callbackIds = <number[]>[];
 	signal = new Signal1<number>();
 
-	@nativeFunction(0xAEE7404D, 150, 'uint', 'int')
-	sceUmdRegisterUMDCallBack(callbackId: number) {
+	@nativeFunctionEx(0xAEE7404D, 150)
+	@U32 sceUmdRegisterUMDCallBack(@I32 callbackId: number) {
 		this.callbackIds.push(callbackId);
 		return 0;
 	}
 
-	@nativeFunction(0xBD2BDE07, 150, 'uint', 'int')
-	sceUmdUnRegisterUMDCallBack(callbackId: number) {
+	@nativeFunctionEx(0xBD2BDE07, 150)
+    @U32 sceUmdUnRegisterUMDCallBack(@I32 callbackId: number) {
 		if (!this.callbackIds.contains(callbackId)) return SceKernelErrors.ERROR_ERRNO_INVALID_ARGUMENT;
 		this.callbackIds.remove(callbackId);
 		return 0;
 	}
 
-	@nativeFunction(0x46EBB729, 150, 'uint', '')
-	sceUmdCheckMedium() {
+	@nativeFunctionEx(0x46EBB729, 150)
+    @U32 sceUmdCheckMedium() {
 		return UmdCheckMedium.Inserted;
 	}
 
@@ -40,13 +40,13 @@ export class sceUmdUser {
 		*/
 	}
 
-	@nativeFunction(0x8EF08FCE, 150, 'uint', 'uint')
-	sceUmdWaitDriveStat(pspUmdState: number) {
+	@nativeFunctionEx(0x8EF08FCE, 150)
+    @U32 sceUmdWaitDriveStat(@U32 pspUmdState: number) {
 		return this._sceUmdWaitDriveStat(pspUmdState, AcceptCallbacks.NO);
 	}
 
-	@nativeFunction(0x4A9E5E29, 150, 'uint', 'uint/uint')
-	sceUmdWaitDriveStatCB(pspUmdState: number, timeout: number) {
+	@nativeFunctionEx(0x4A9E5E29, 150)
+    @U32 sceUmdWaitDriveStatCB(@U32 pspUmdState: number, @U32 timeout: number) {
 		return this._sceUmdWaitDriveStat(pspUmdState, AcceptCallbacks.YES);
 	}
 
@@ -59,30 +59,30 @@ export class sceUmdUser {
 		});
 	}
 
-	@nativeFunction(0xC6183D47, 150, 'uint', 'int/string')
-	sceUmdActivate(mode: number, drive: string) {
+	@nativeFunctionEx(0xC6183D47, 150)
+    @U32 sceUmdActivate(@I32 mode: number, @STRING drive: string) {
 		this._notify(PspUmdState.PSP_UMD_READABLE | PspUmdState.PSP_UMD_READY | PspUmdState.PSP_UMD_PRESENT);
 		return 0;
 	}
 
-	@nativeFunction(0xE83742BA, 150, 'uint', 'int/string')
-	sceUmdDeactivate(mode: number, drive: string) {
+	@nativeFunctionEx(0xE83742BA, 150)
+    @U32 sceUmdDeactivate(@I32 mode: number, @STRING drive: string) {
 		this._notify(PspUmdState.PSP_UMD_READABLE | PspUmdState.PSP_UMD_READY | PspUmdState.PSP_UMD_PRESENT);
 		return 0;
 	}
 
-	@nativeFunction(0x6B4A146C, 150, 'uint', '')
-	sceUmdGetDriveStat() {
+	@nativeFunctionEx(0x6B4A146C, 150)
+    @U32 sceUmdGetDriveStat() {
 		return PspUmdState.PSP_UMD_PRESENT | PspUmdState.PSP_UMD_READY | PspUmdState.PSP_UMD_READABLE;
 	}
 
-	@nativeFunction(0x56202973, 150, 'uint', 'uint/uint')
-	sceUmdWaitDriveStatWithTimer(state: number, timeout: number) {
+	@nativeFunctionEx(0x56202973, 150)
+    @U32 sceUmdWaitDriveStatWithTimer(@U32 state: number, @U32 timeout: number) {
 		return PromiseFast.resolve(0);
 	}
 
-	@nativeFunction(0x20628E6F, 150, 'uint', '')
-	sceUmdGetErrorStat() {
+	@nativeFunctionEx(0x20628E6F, 150)
+    @U32 sceUmdGetErrorStat() {
 		//console.warn('called sceUmdGetErrorStat!');
 		return PromiseFast.resolve(0);
 	}

@@ -2,7 +2,7 @@
 import {Stream} from "../../global/stream";
 import {MathUtils} from "../../global/math";
 import {EmulatorContext} from "../../emu/context";
-import {nativeFunction} from "../utils";
+import {I32, nativeFunctionEx, PTR, THREAD, U32} from "../utils";
 import {Thread} from "../manager/thread";
 
 export class sceNetAdhocMatching {
@@ -12,8 +12,8 @@ export class sceNetAdhocMatching {
 	private poolStat = { size: 0, maxsize: 0, freesize: 0 };
 
 	/** Initialise the Adhoc matching library */
-	@nativeFunction(0x2A2A1E07, 150, 'int', 'int')
-	sceNetAdhocMatchingInit(memSize: number) {
+	@nativeFunctionEx(0x2A2A1E07, 150)
+	@I32 sceNetAdhocMatchingInit(@I32 memSize: number) {
 		//stateOut.writeInt32(this.currentState);
 		this.poolStat.size = memSize;
 		this.poolStat.maxsize = memSize;
@@ -22,47 +22,59 @@ export class sceNetAdhocMatching {
 	}
 
 	/** Terminate the Adhoc matching library */
-	@nativeFunction(0x7945ECDA, 150, 'int', '')
-	sceNetAdhocMatchingTerm() {
+	@nativeFunctionEx(0x7945ECDA, 150)
+    @I32 sceNetAdhocMatchingTerm() {
 		return 0;
 	}
 
 	private matchings = new UidCollection<Matching>(1);
 
 	/** Create an Adhoc matching object */
-	@nativeFunction(0xCA5EDA6F, 150, 'int', 'Thread/int/int/int/int/int/int/int/int/uint')
-	sceNetAdhocMatchingCreate(thread: Thread, mode: Mode, maxPeers: number, port: number, bufSize: number, helloDelay: number, pingDelay: number, initCount: number, msgDelay: number, callback: number) {
+	@nativeFunctionEx(0xCA5EDA6F, 150)
+    @I32 sceNetAdhocMatchingCreate(
+        @THREAD thread: Thread, @I32 mode: Mode,
+        @I32 maxPeers: number, @I32 port: number, @I32 bufSize: number,
+        @I32 helloDelay: number, @I32 pingDelay: number, @I32 initCount: number,
+        @I32 msgDelay: number, @U32 callback: number
+    ) {
         const matching = new Matching(this.context, thread, mode, maxPeers, port, bufSize, helloDelay, pingDelay, initCount, msgDelay, callback);
         matching.id = this.matchings.allocate(matching);
 		return matching.id;
 	}
 
 	/** Select a matching target */
-	@nativeFunction(0x5E3D4B79, 150, 'int', 'int/void*/int/void*')
-	sceNetAdhocMatchingSelectTarget(matchingId: number, macStream:Stream, dataLength: number, dataPointer: Stream) {
+	@nativeFunctionEx(0x5E3D4B79, 150)
+    @I32 sceNetAdhocMatchingSelectTarget(
+        @I32 matchingId: number, @PTR macStream:Stream,
+        @I32 dataLength: number, @PTR dataPointer: Stream
+    ) {
         const matching = this.matchings.get(matchingId);
         const mac = macStream.readBytes(6);
         matching.selectTarget(mac, (dataPointer && dataLength) ? dataPointer.readBytes(dataLength) : null);
 		return 0;
 	}
 
-	@nativeFunction(0xEA3C6108, 150, 'int', 'int/void*')
-	sceNetAdhocMatchingCancelTarget(matchingId: number, mac: Stream) {
+	@nativeFunctionEx(0xEA3C6108, 150)
+    @I32 sceNetAdhocMatchingCancelTarget(@I32 matchingId: number, @PTR mac: Stream) {
         const matching = this.matchings.get(matchingId);
         matching.cancelTarget(mac.readBytes(6));
 		return 0;
 	}
 
 	/** Delete an Adhoc matching object */
-	@nativeFunction(0xF16EAF4F, 150, 'int', 'int')
-	sceNetAdhocMatchingDelete(matchingId: number) {
+	@nativeFunctionEx(0xF16EAF4F, 150)
+    @I32 sceNetAdhocMatchingDelete(@I32 matchingId: number) {
 		this.matchings.remove(matchingId);
 		return 0;
 	}
 
 	/** Start a matching object */
-	@nativeFunction(0x93EF3843, 150, 'int', 'int/int/int/int/int/int/void*')
-	sceNetAdhocMatchingStart(matchingId: number, evthPri: number, evthStack: number, inthPri: number, inthStack: number, optLen: number, optData: Stream) {
+	@nativeFunctionEx(0x93EF3843, 150)
+    @I32 sceNetAdhocMatchingStart(
+        @I32 matchingId: number, @I32 evthPri: number, @I32 evthStack: number,
+        @I32 inthPri: number, @I32 inthStack: number, @I32 optLen: number,
+        @PTR optData: Stream
+    ) {
 		//throw (new Error("sceNetAdhocMatchingStart"));
         const matching = this.matchings.get(matchingId);
         matching.hello = optData.readBytes(optLen);
@@ -71,8 +83,8 @@ export class sceNetAdhocMatching {
 	}
 
 	/** Stop a matching object */
-	@nativeFunction(0x32B156B3, 150, 'int', 'int')
-	sceNetAdhocMatchingStop(matchingId:number) {
+	@nativeFunctionEx(0x32B156B3, 150)
+    @I32 sceNetAdhocMatchingStop(@I32 matchingId: number) {
         const matching = this.matchings.get(matchingId);
         matching.stop();
 		return 0;
