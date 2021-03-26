@@ -438,6 +438,14 @@ export class _Microtask {
 
     _execute(scheduleNext: boolean) {
         const start = performance.now();
+        while (this._timedTasks.length > 0) {
+            const task = this._timedTasks[0]
+            if (performance.now() >= task.time) {
+                this._timedTasks.shift()
+            } else {
+                break
+            }
+        }
         while (this.callbacks.length > 0) {
             const callback = this.callbacks.shift()!;
             callback();
@@ -451,11 +459,25 @@ export class _Microtask {
         }
         this.queued = false;
     }
+
+    _timedTasks: { time: number, resolve: () => void }[] = []
+
+    async waitAsync(timeMs: number) {
+	    return new Promise((resolve, reject) => {
+	        setTimeout(resolve, timeMs)
+        })
+        /*
+	    return new Promise<void>((resolve, reject) => {
+            this._timedTasks.push(
+                { time: performance.now() + timeMs, resolve: resolve }
+            )
+            this._timedTasks.sort((a, b) => a.time - b.time)
+        })
+         */
+    }
 }
 
 export const Microtask = new _Microtask()
-//export const PromiseMicrotask = new _Microtask()
-export const PromiseMicrotask = Microtask
 
 _self['polyfills'] = _self['polyfills'] || {};
 _self['polyfills']['ArrayBuffer_slice'] = !ArrayBuffer.prototype.slice;
@@ -680,7 +702,7 @@ export enum AcceptCallbacks { NO = 0, YES = 1 }
 export enum Compensate { NO = 0, YES = 1 }
 
 export class WaitingThreadInfo<T> {
-	public constructor(public name: string, public object: any, public promise: PromiseFast<T>, public callbacks: AcceptCallbacks, public compensate: Compensate = Compensate.YES) {
+	public constructor(public name: string, public object: any, public promise: PromiseFast<T> | Promise<T>, public callbacks: AcceptCallbacks, public compensate: Compensate = Compensate.YES) {
 	}
 }
 
@@ -1352,7 +1374,7 @@ export class PromiseFast<T> implements Thenable<T>, PromiseLike<T> {
 	}
 
 	private _queueCheck() {
-		PromiseMicrotask.queue(() => this._check());
+		Microtask.queue(() => this._check());
 	}
 
 	private _check() {
