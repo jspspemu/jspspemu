@@ -1,4 +1,4 @@
-﻿import {nativeFunction, nativeFunctionEx, STRING, VOID} from "../utils";
+﻿import {nativeFunctionEx, STRING, VOID} from "../utils";
 import {EmulatorContext} from "../../emu/context";
 
 export class KDebugForKernel {

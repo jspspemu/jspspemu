@@ -41,11 +41,13 @@ export class MemoryType extends BaseCustomType { }
 export class ThreadType extends BaseCustomType { }
 export class BoolType extends BaseCustomType { }
 export class VoidType extends BaseCustomType { }
+export class BytesType extends BaseCustomType { }
 
 export const MemoryTypeType = new MemoryType()
 export const ThreadTypeType = new ThreadType()
 export const BoolTypeType = new BoolType()
 export const VoidTypeType = new VoidType()
+export const BytesTypeType = new BytesType()
 
 
 export const enum CpuSpecialAddresses {
@@ -1716,15 +1718,15 @@ export function createNativeFunction(
                 case Int32: args.push(`${readGpr32_S()} | 0`); break;
                 case UInt32: args.push(`${readGpr32_U()} >>> 0`); break;
                 case Ptr: args.push(`state.memory.getPointerStream(${readGpr32_S()})`); break;
+                case BytesTypeType: args.push(`state.memory.getPointerStream(${readGpr32_S()}, ${readGpr32_S()})`); break;
                 case ThreadTypeType: args.push('state.thread'); break;
                 case MemoryTypeType: args.push('state.memory'); break;
                 case StringzVariable: args.push(`state.memory.readStringz(${readGpr32_S()})`); break;
+                case Int64: args.push(readGpr64()); break;
                 default: throw new Error(`Invalid parameter type ${item}`)
             }
         })
-    }
-
-	if (argTypesString) {
+    } else if (argTypesString) {
         const argTypes = argTypesString.split('/').filter(item => item.length > 0);
 
         if (argTypes.length != internalFunc.length) throw(new Error("Function arity mismatch '" + argTypesString + "' != " + String(internalFunc)));

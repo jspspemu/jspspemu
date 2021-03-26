@@ -1,4 +1,11 @@
-﻿import {createNativeFunction, CreateOptions, MemoryTypeType, ThreadTypeType, VoidTypeType} from "../core/cpu/cpu_core";
+﻿import {
+    BytesTypeType,
+    createNativeFunction,
+    CreateOptions,
+    MemoryTypeType,
+    ThreadTypeType,
+    VoidTypeType
+} from "../core/cpu/cpu_core";
 import {Float32, Int32, Int64, IType, Pointer, Ptr, StringzVariable, UInt32} from "../global/struct";
 import {Stream} from "../global/stream";
 
@@ -58,3 +65,4 @@ export const F32: any = param(Float32)
 export const U32: any = param(UInt32)
 export const I32: any = param(Int32)
 export const PTR: any = param(Ptr)
+export const BYTES: any = param(BytesTypeType)
