@@ -1,8 +1,8 @@
 ﻿import {createNativeFunction, CreateOptions, ThreadTypeType, VoidTypeType} from "../core/cpu/cpu_core";
-import {Float32, Int32, Int64, IType, Pointer, Ptr, UInt32} from "../global/struct";
+import {Float32, Int32, Int64, IType, Pointer, Ptr, StringzVariable, UInt32} from "../global/struct";
 import {Stream} from "../global/stream";
 
-export function nativeFunction(exportId: number, firmwareVersion: number, retval?: string, args?: string, options?: CreateOptions) {
+export function nativeFunction(exportId: number, firmwareVersion: number, retval: string|undefined, args: string|undefined, options?: CreateOptions) {
     return (target: any, key: string, descriptor: TypedPropertyDescriptor<any>) => {
         //console.log(target, key, descriptor);
         if (typeof target.natives == 'undefined') target.natives = [];
@@ -50,9 +50,11 @@ export function param(type: IType<any>): any {
 }
 
 export const VOID: any = param(VoidTypeType)
+export const STRING: any = param(StringzVariable)
+export const THREAD: any = param(ThreadTypeType)
+export const MEMORY: any = param(MemoryTypeType)
 export const I64: any = param(Int64)
 export const F32: any = param(Float32)
 export const U32: any = param(UInt32)
 export const I32: any = param(Int32)
 export const PTR: any = param(Ptr)
-export const THREAD: any = param(ThreadTypeType)

@@ -19,7 +19,7 @@ import {BranchFlagStm, InstructionAst} from "./cpu_codegen";
 import {DecodedInstruction, Instruction} from "./cpu_instruction";
 import {MipsDisassembler} from "./cpu_assembler";
 import {AnsiEscapeCodes} from "../../util/AnsiEscapeCodes";
-import {Float32, Int32, Int64, IType, Ptr, UInt32} from "../../global/struct";
+import {Float32, Int32, Int64, IType, Ptr, StringzVariable, UInt32} from "../../global/struct";
 import {Stream} from "../../global/stream";
 
 //const DEBUG_FUNCGEN = true;
@@ -37,10 +37,12 @@ export class BaseCustomType implements IType<number> {
     get length() { return 4; }
 }
 
+export class MemoryType extends BaseCustomType { }
 export class ThreadType extends BaseCustomType { }
 export class BoolType extends BaseCustomType { }
 export class VoidType extends BaseCustomType { }
 
+export const MemoryTypeType = new MemoryType()
 export const ThreadTypeType = new ThreadType()
 export const BoolTypeType = new BoolType()
 export const VoidTypeType = new VoidType()
@@ -1715,6 +1717,8 @@ export function createNativeFunction(
                 case UInt32: args.push(`${readGpr32_U()} >>> 0`); break;
                 case Ptr: args.push(`state.memory.getPointerStream(${readGpr32_S()})`); break;
                 case ThreadTypeType: args.push('state.thread'); break;
+                case MemoryTypeType: args.push('state.memory'); break;
+                case StringzVariable: args.push(`state.memory.readStringz(${readGpr32_S()})`); break;
                 default: throw new Error(`Invalid parameter type ${item}`)
             }
         })

@@ -1,7 +1,7 @@
 ﻿import { SceKernelErrors } from '../SceKernelErrors';
 import {PromiseFast} from "../../global/utils";
 import {EmulatorContext} from "../../emu/context";
-import {nativeFunction} from "../utils";
+import {I32, nativeFunctionEx, U32} from "../utils";
 
 export class sceDmac {
 	constructor(private context: EmulatorContext) { }
@@ -15,13 +15,13 @@ export class sceDmac {
 		return PromiseFast.resolve(0);
 	}
 
-	@nativeFunction(0x617F3FE6, 150, 'uint', 'uint/uint/int')
-	sceDmacMemcpy(destination: number, source: number, size: number) {
+	@nativeFunctionEx(0x617F3FE6, 150)
+	@U32 sceDmacMemcpy(@U32 destination: number, @U32 source: number, @I32 size: number) {
 		return this._sceDmacMemcpy(destination, source, size);
 	}
 
-	@nativeFunction(0xD97F94D8, 150, 'uint', 'uint/uint/int')
-	sceDmacTryMemcpy(destination: number, source: number, size: number) {
+	@nativeFunctionEx(0xD97F94D8, 150)
+    @U32 sceDmacTryMemcpy(@U32 destination: number, @U32 source: number, @I32 size: number) {
 		return this._sceDmacMemcpy(destination, source, size);
 	}
 }

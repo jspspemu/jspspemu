@@ -1,16 +1,16 @@
 ﻿import {EmulatorContext} from "../../emu/context";
-import {nativeFunction} from "../utils";
+import {I32, nativeFunctionEx, VOID} from "../utils";
 
 export class LoadCoreForKernel {
 	constructor(private context: EmulatorContext) { }
 
-	@nativeFunction(0xD8779AC6, 150, 'void', '')
-	sceKernelIcacheClearAll() {
+	@nativeFunctionEx(0xD8779AC6, 150)
+	@VOID sceKernelIcacheClearAll() {
 		this.context.currentInstructionCache.invalidateAll();
 	}
 
-	@nativeFunction(0xCCE4A157, 150, 'int', 'int')
-	sceKernelFindModuleByUID(moduleID: number) {
+	@nativeFunctionEx(0xCCE4A157, 150)
+	@I32 sceKernelFindModuleByUID(@I32 moduleID: number) {
 		console.warn(`Not implemented sceKernelFindModuleByUID(${moduleID})`)
 		return 0;
 	}

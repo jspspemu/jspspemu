@@ -1,7 +1,7 @@
 ﻿import {sprintf} from "../../global/utils";
 import {Stream} from "../../global/stream";
 import {EmulatorContext} from "../../emu/context";
-import {nativeFunction} from "../utils";
+import {nativeFunction, nativeFunctionEx, PTR, STRING, U32} from "../utils";
 import {Thread} from "../manager/thread";
 
 export class ModuleMgrForUser {
@@ -31,8 +31,8 @@ export class ModuleMgrForUser {
 		throw new Error("sceKernelStopUnloadSelfModule");
 	}
 
-	@nativeFunction(0x977DE386, 150, 'uint', 'string/uint/void*')
-	sceKernelLoadModule(path: string, flags: number, sceKernelLMOption: Stream) {
+	@nativeFunctionEx(0x977DE386, 150)
+	@U32 sceKernelLoadModule(@STRING path: string, @U32 flags: number, @PTR sceKernelLMOption: Stream) {
 		console.warn(sprintf('Not implemented ModuleMgrForUser.sceKernelLoadModule("%s", %d)', path, flags));
 		return 0x08900000;
 	}

@@ -1,9 +1,9 @@
 ﻿import {AcceptCallbacks, PromiseFast, SortedSet, sprintf, UidCollection, WaitingThreadInfo} from "../../../global/utils";
 import {Stream} from "../../../global/stream";
-import {Int32, Stringz, Struct, StructClass, StructInt32, StructStructStringz} from "../../../global/struct";
+import {Struct, StructInt32, StructStructStringz} from "../../../global/struct";
 import {SceKernelErrors} from "../../SceKernelErrors";
 import {EmulatorContext} from "../../../emu/context";
-import {nativeFunction} from "../../utils";
+import {I32, nativeFunctionEx, PTR, STRING, THREAD, U32} from "../../utils";
 import {Thread} from "../../manager/thread";
 
 export class ThreadManForUser {
@@ -11,8 +11,8 @@ export class ThreadManForUser {
 
 	private semaporesUid = new UidCollection<Semaphore>(1);
 
-	@nativeFunction(0xD6DA4BA1, 150, 'int', 'string/int/int/int/void*')
-	sceKernelCreateSema(name: string, attribute: SemaphoreAttribute, initialCount: number, maxCount: number, options: Stream) {
+	@nativeFunctionEx(0xD6DA4BA1, 150)
+	@I32 sceKernelCreateSema(@STRING name: string, @I32 attribute: SemaphoreAttribute, @I32 initialCount: number, @I32 maxCount: number, @PTR options: Stream) {
         const semaphore = new Semaphore(name, attribute, initialCount, maxCount);
         const id = this.semaporesUid.allocate(semaphore);
         semaphore.id = id;
@@ -20,8 +20,8 @@ export class ThreadManForUser {
 		return id;
 	}
 
-	@nativeFunction(0x28B6489C, 150, 'int', 'int')
-	sceKernelDeleteSema(id: number) {
+	@nativeFunctionEx(0x28B6489C, 150)
+	@I32 sceKernelDeleteSema(@I32 id: number) {
 		if (!this.semaporesUid.has(id)) return SceKernelErrors.ERROR_KERNEL_NOT_FOUND_SEMAPHORE;
         const semaphore = this.semaporesUid.get(id);
         semaphore.delete();
@@ -29,8 +29,8 @@ export class ThreadManForUser {
 		return 0;
 	}
 
-	@nativeFunction(0x8FFDF9A2, 150, 'uint', 'uint/uint/void*')
-	sceKernelCancelSema(id: number, count: number, numWaitingThreadsPtr: Stream) {
+	@nativeFunctionEx(0x8FFDF9A2, 150)
+    @U32 nativeFunctionEx(@U32 id: number, @U32 count: number, @PTR numWaitingThreadsPtr: Stream) {
 		if (!this.semaporesUid.has(id)) return SceKernelErrors.ERROR_KERNEL_NOT_FOUND_SEMAPHORE;
         const semaphore = this.semaporesUid.get(id);
         if (numWaitingThreadsPtr) numWaitingThreadsPtr.writeInt32(semaphore.numberOfWaitingThreads);
@@ -50,18 +50,18 @@ export class ThreadManForUser {
 		}
 	}
 
-	@nativeFunction(0x6D212BAC, 150, 'int', 'Thread/int/int/void*')
-	sceKernelWaitSemaCB(currentThread: Thread, id: number, signal: number, timeout: Stream): any {
+	@nativeFunctionEx(0x6D212BAC, 150)
+	@I32 sceKernelWaitSemaCB(@THREAD currentThread: Thread, @I32 id: number, @I32 signal: number, @PTR timeout: Stream): any {
 		return this._sceKernelWaitSemaCB(currentThread, id, signal, timeout, AcceptCallbacks.YES);
 	}
 
-	@nativeFunction(0x4E3A1105, 150, 'int', 'Thread/int/int/void*')
-	sceKernelWaitSema(currentThread: Thread, id: number, signal: number, timeout: Stream): any {
+	@nativeFunctionEx(0x4E3A1105, 150)
+	@I32 sceKernelWaitSemaEx(@THREAD currentThread: Thread, @I32 id: number, @I32 signal: number, @PTR timeout: Stream): any {
 		return this._sceKernelWaitSemaCB(currentThread, id, signal, timeout, AcceptCallbacks.NO);
 	}
 
-	@nativeFunction(0xBC6FEBC5, 150, 'int', 'int/void*')
-	sceKernelReferSemaStatus(id: number, infoStream: Stream) {
+	@nativeFunctionEx(0xBC6FEBC5, 150)
+	@I32 sceKernelReferSemaStatus(@I32 id: number, @PTR infoStream: Stream) {
 		if (!this.semaporesUid.has(id)) return SceKernelErrors.ERROR_KERNEL_NOT_FOUND_SEMAPHORE;
         const semaphore = this.semaporesUid.get(id);
         const semaphoreInfo = new SceKernelSemaInfo();
@@ -76,8 +76,8 @@ export class ThreadManForUser {
 		return 0;
 	}
 
-	@nativeFunction(0x3F53E640, 150, 'int', 'Thread/int/int')
-	sceKernelSignalSema(currentThread: Thread, id: number, signal: number): any {
+	@nativeFunctionEx(0x3F53E640, 150)
+	@I32 sceKernelSignalSema(@THREAD currentThread: Thread, @I32 id: number, @I32 signal: number): any {
 		if (!this.semaporesUid.has(id)) return SceKernelErrors.ERROR_KERNEL_NOT_FOUND_SEMAPHORE;
         const semaphore = this.semaporesUid.get(id);
         const previousCount = semaphore.currentCount;
@@ -90,8 +90,8 @@ export class ThreadManForUser {
 		}
 	}
 
-	@nativeFunction(0x58B1F937, 150, 'int', 'Thread/int/int')
-	sceKernelPollSema(currentThread: Thread, id: number, signal: number): any {
+	@nativeFunctionEx(0x58B1F937, 150)
+	@I32 sceKernelPollSema(@THREAD currentThread: Thread, @I32 id: number, @I32 signal: number): any {
         const semaphore = this.semaporesUid.get(id);
         if (signal <= 0) return SceKernelErrors.ERROR_KERNEL_ILLEGAL_COUNT;
 		if (signal > semaphore.currentCount) return SceKernelErrors.ERROR_KERNEL_SEMA_ZERO;
