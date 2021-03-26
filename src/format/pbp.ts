@@ -1,21 +1,15 @@
 ﻿import "../emu/global"
-import {Int32, StructArray, StructClass} from "../global/struct";
+import {Int32, Struct, StructArray, StructClass, StructInt32, StructStructArray} from "../global/struct";
 import {Stream} from "../global/stream";
 
 enum PbpMagic {
     expected = 0x50425000,
 }
 
-class PbpHeader {
-    magic: PbpMagic = 0
-    version: number = 0
-    offsets: number[] = []
-
-    static struct = StructClass.create<PbpHeader>(PbpHeader, [
-        {magic: Int32},
-        {version: Int32},
-        {offsets: StructArray(Int32, 8)},
-    ]);
+class PbpHeader extends Struct {
+    @StructInt32 magic: PbpMagic = 0
+    @StructInt32 version: number = 0
+    @StructStructArray(Int32, 8) offsets: number[] = []
 }
 
 export class Names {

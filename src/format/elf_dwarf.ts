@@ -7,7 +7,7 @@ import {
     StringzVariable,
     Struct,
     StructArray,
-    StructClass,
+    StructClass, StructInt8, StructMember, StructStructStringzVariable, StructUInt16, StructUInt32, StructUInt8,
     UInt16,
     UInt32,
     UInt8
@@ -40,29 +40,19 @@ class Uleb128Class implements IType<number> {
 }
 
 const Uleb128 = new Uleb128Class();
+export const StructUleb128: any = StructMember(Uleb128)
 
 class ElfDwarfHeader extends Struct {
-	total_length: number = 0
-	version: number = 0
-	prologue_length: number = 0
-	minimum_instruction_length: number = 0
-	default_is_stmt: number = 0
-	line_base: number = 0
-	line_range: number = 0
-	opcode_base: number = 0
+	@StructUInt32 total_length: number = 0
+	@StructUInt16 version: number = 0
+	@StructUInt32 prologue_length: number = 0
+    @StructUInt8 minimum_instruction_length: number = 0
+    @StructUInt8 default_is_stmt: number = 0
+    @StructInt8 line_base: number = 0
+    @StructInt8 line_range: number = 0
+    @StructInt8 opcode_base: number = 0
 
 	get total_length_real() { return this.total_length + 4; }
-
-	static struct = StructClass.create<ElfDwarfHeader>(ElfDwarfHeader, [
-		{ total_length: UInt32 },
-		{ version: UInt16 },
-		{ prologue_length: UInt32 },
-		{ minimum_instruction_length: UInt8 },
-		{ default_is_stmt: UInt8 },
-		{ line_base: Int8 },
-		{ line_range: UInt8 },
-		{ opcode_base: UInt8 },
-	]);
 }
 
 enum DW_LNS {
@@ -106,39 +96,35 @@ class State {
 }
 */
 
-class FileEntry {
-	name: string = '';
-	directory: string = '';
-	directory_index: number = 0;
-	time_mod: number = 0;
-	size: number = 0;
-	full_path() {
+class FileEntry extends Struct {
+	@StructStructStringzVariable name: string = '';
+	@StructUleb128 directory_index: number = 0;
+    @StructUleb128 time_mod: number = 0;
+    @StructUleb128 size: number = 0;
+
+    directory: string = '';
+
+    full_path() {
 		if (this.directory.length) {
 			return this.directory + "/" + this.name;
 		} else {
 			return name;
 		}
 	}
-
-	static struct = StructClass.create<FileEntry>(FileEntry, [
-		{ name: StringzVariable },
-		{ directory_index: Uleb128 },
-		{ time_mod: Uleb128 },
-		{ size: Uleb128 },
-	]);
 }
 
-export class ElfSymbol {
-	name: string = '';
-	index: number = -1;
-	nameIndex: number = 0;
-	value: number = 0;
-	size: number = 0;
-	info: number = 0;
-	other: number = 0;
-	shndx: number = 0;
+export class ElfSymbol extends Struct {
+	@StructUInt32 nameIndex: number = 0;
+	@StructUInt32 value: number = 0;
+	@StructUInt32 size: number = 0;
+	@StructUInt8 info: number = 0;
+	@StructUInt8 other: number = 0;
+	@StructUInt16 shndx: number = 0;
 
-	get type() { return <SymInfoType>BitUtils.extract(this.info, 0, 4); }
+    name: string = '';
+    index: number = -1;
+
+    get type() { return <SymInfoType>BitUtils.extract(this.info, 0, 4); }
 	get bind() { return <SymInfoBind>BitUtils.extract(this.info, 4, 4); }
 
 	get typeName(): string { return SymInfoType[this.type]; }
@@ -155,15 +141,6 @@ export class ElfSymbol {
 	contains(address: number) {
 		return (address >= this.low) && (address < (this.high));
 	}
-
-	static struct = StructClass.create<ElfSymbol>(ElfSymbol, [
-		{ nameIndex: UInt32 },
-		{ value: UInt32 },
-		{ size: UInt32 },
-		{ info: UInt8 },
-		{ other: UInt8 },
-		{ shndx: UInt16 },
-	]);
 }
 
 export enum SymInfoBind {

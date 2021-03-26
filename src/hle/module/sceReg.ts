@@ -1,5 +1,14 @@
 ﻿import {Stream} from "../../global/stream";
-import {Int32, Stringz, StructClass, UInt32} from "../../global/struct";
+import {
+    Int32,
+    Stringz,
+    Struct,
+    StructClass,
+    StructInt32,
+    StructStructStringz,
+    StructUInt32,
+    UInt32
+} from "../../global/struct";
 import {EmulatorContext} from "../../emu/context";
 import {nativeFunction} from "../utils";
 
@@ -57,18 +66,10 @@ export class sceReg {
 	}
 }
 
-class RegParam {
-	regType: number = 0
-	name: string = ''
-	nameLength: number = 0
-	unknown2: number = 0
-	unknown3: number = 0
-
-	static struct = StructClass.create<RegParam>(RegParam, [
-		{ regType: UInt32 },
-		{ name: Stringz(256) },
-		{ nameLength: Int32 },
-		{ unknown2: Int32 },
-		{ unknown3: Int32 },
-	]);
+class RegParam extends Struct {
+	@StructUInt32 regType: number = 0
+    @StructStructStringz(256) name: string = ''
+    @StructInt32 nameLength: number = 0
+    @StructInt32 unknown2: number = 0
+    @StructInt32 unknown3: number = 0
 }

@@ -2,7 +2,17 @@
 
 import {PromiseFast} from "../../global/utils";
 import {Stream} from "../../global/stream";
-import {Int32, Stringz, StructArray, StructClass, UInt32, UInt8, Utf8Stringz} from "../../global/struct";
+import {
+    Int32,
+    Stringz,
+    Struct,
+    StructArray,
+    StructClass, StructInt32, StructMember,
+    StructStructArray, StructStructStringz, StructStructUtf8Stringz, StructUInt32, StructUInt8,
+    UInt32,
+    UInt8,
+    Utf8Stringz
+} from "../../global/struct";
 import {MathUtils, parseIntFormat} from "../../global/math";
 import {EmulatorContext} from "../../emu/context";
 import {nativeFunction} from "../utils";
@@ -389,28 +399,16 @@ enum PspUtilityMsgDialogPressed {
 	PSP_UTILITY_MSGDIALOG_RESULT_BACK = 3,
 }
 
-class PspUtilityDialogCommon {
-	size = 0; // 0000 - Size of the structure
-	language = PspLanguages.SPANISH; // 0004 - Language
-	buttonSwap = 0; // 0008 - Set to 1 for X/O button swap
-	graphicsThread = 0; // 000C - Graphics thread priority
-	accessThread = 0; // 0010 - Access/fileio thread priority (SceJobThread)
-	fontThread = 0; // 0014 - Font thread priority (ScePafThread)
-	soundThread = 0; // 0018 - Sound thread priority
-	result = SceKernelErrors.ERROR_OK; // 001C - Result
-	reserved = [0, 0, 0, 0]; // 0020 - Set to 0
-
-	static struct = StructClass.create<PspUtilityDialogCommon>(PspUtilityDialogCommon, [
-		{ size: Int32 },
-		{ language: Int32 },
-		{ buttonSwap: Int32 },
-		{ graphicsThread: Int32 },
-		{ accessThread: Int32 },
-		{ fontThread: Int32 },
-		{ soundThread: Int32 },
-		{ result: Int32 },
-		{ reserved: StructArray<number>(Int32, 4) },
-	]);
+class PspUtilityDialogCommon extends Struct {
+	@StructInt32 size = 0; // 0000 - Size of the structure
+	@StructInt32 language = PspLanguages.SPANISH; // 0004 - Language
+	@StructInt32 buttonSwap = 0; // 0008 - Set to 1 for X/O button swap
+	@StructInt32 graphicsThread = 0; // 000C - Graphics thread priority
+	@StructInt32 accessThread = 0; // 0010 - Access/fileio thread priority (SceJobThread)
+	@StructInt32 fontThread = 0; // 0014 - Font thread priority (ScePafThread)
+	@StructInt32 soundThread = 0; // 0018 - Sound thread priority
+	@StructInt32 result = SceKernelErrors.ERROR_OK; // 001C - Result
+	@StructStructArray<number>(Int32, 4) reserved = [0, 0, 0, 0]; // 0020 - Set to 0
 }
 
 enum PspUtilitySavedataMode {
@@ -451,11 +449,11 @@ enum PspUtilitySavedataFocus {
 	PSP_UTILITY_SAVEDATA_FOCUS_LASTEMPTY = 8, // Last empty slot
 }
 
-class PspUtilitySavedataFileData {
-	bufferPointer = 0; // 0000 -
-	bufferSize = 0; // 0004 -
-	size = 0; // 0008 - why are there two sizes?
-	unknown = 0; // 000C -
+class PspUtilitySavedataFileData extends Struct {
+	@StructInt32 bufferPointer = 0; // 0000 -
+    @StructInt32 bufferSize = 0; // 0004 -
+    @StructInt32 size = 0; // 0008 - why are there two sizes?
+    @StructInt32 unknown = 0; // 000C -
 
 	get used() {
 		if (this.bufferPointer == 0) return false;
@@ -463,165 +461,81 @@ class PspUtilitySavedataFileData {
 		if (this.size == 0) return false;
 		return true;
 	}
-
-	static struct = StructClass.create<PspUtilitySavedataFileData>(PspUtilitySavedataFileData, [
-		{ bufferPointer: Int32 },
-		{ bufferSize: Int32 },
-		{ size: Int32 },
-		{ unknown: Int32 },
-	]);
 }
 
-class PspUtilitySavedataSFOParam {
-	title = ''; // 0000 -
-	savedataTitle = ''; // 0080 -
-	detail = ''; // 0100 -
-	parentalLevel = 0; // 0500 -
-	unknown = [0, 0, 0]; // 0501 -
-
-	static struct = StructClass.create<PspUtilitySavedataSFOParam>(PspUtilitySavedataSFOParam, [
-		{ title: Stringz(0x80) },
-		{ savedataTitle: Stringz(0x80) },
-		{ detail: Stringz(0x400) },
-		{ parentalLevel: UInt8 },
-		{ unknown: StructArray(UInt8, 3) },
-	]);
+class PspUtilitySavedataSFOParam extends Struct {
+	@StructStructStringz(0x80) title = ''; // 0000 -
+	@StructStructStringz(0x80) savedataTitle = ''; // 0080 -
+	@StructStructStringz(0x400) detail = ''; // 0100 -
+	@StructUInt8 parentalLevel = 0; // 0500 -
+	@StructStructArray(UInt8, 3) unknown = [0, 0, 0]; // 0501 -
 }
 
-class SceUtilitySavedataParam {
-	base = new PspUtilityDialogCommon(); // 0000 - PspUtilityDialogCommon
-	mode = <PspUtilitySavedataMode>0; // 0030 - 
-	unknown1 = 0; // 0034 -
-	overwrite = 0; // 0038 -
-	gameName = ''; // 003C - GameName: name used from the game for saves, equal for all saves
-	saveName = ''; // 004C - SaveName: name of the particular save, normally a number
-	saveNameListPointer = 0; // 0060 - SaveNameList: used by multiple modes (char[20])
-	fileName = ''; // 0064 - FileName: Name of the data file of the game for example DATA.BIN
-	dataBufPointer = 0; // 0074 - Pointer to a buffer that will contain data file unencrypted data
-	dataBufSize = 0; // 0078 - Size of allocated space to dataBuf
-	dataSize = 0; // 007C -
-	sfoParam = new PspUtilitySavedataSFOParam(); // 0080 - (504?)
-	icon0FileData = new PspUtilitySavedataFileData(); // 0584 - (16)
-	icon1FileData = new PspUtilitySavedataFileData(); // 0594 - (16)
-	pic1FileData = new PspUtilitySavedataFileData(); // 05A4 - (16)
-	snd0FileData = new PspUtilitySavedataFileData(); // 05B4 - (16)
-	newDataPointer = 0; // 05C4 -Pointer to an PspUtilitySavedataListSaveNewData structure (PspUtilitySavedataListSaveNewData *)
-	focus = PspUtilitySavedataFocus.PSP_UTILITY_SAVEDATA_FOCUS_UNKNOWN; // 05C8 -Initial focus for lists
-	abortStatus = 0; // 05CC -
-	msFreeAddr = 0; // 05D0 -
-	msDataAddr = 0; // 05D4 -
-	utilityDataAddr = 0; // 05D8 -
+class SceUtilitySavedataParam extends Struct {
+	@StructMember(PspUtilityDialogCommon.struct) base = new PspUtilityDialogCommon(); // 0000 - PspUtilityDialogCommon
+	@StructInt32 mode = <PspUtilitySavedataMode>0; // 0030 -
+	@StructInt32 unknown1 = 0; // 0034 -
+	@StructInt32 overwrite = 0; // 0038 -
+	@StructStructStringz(16) gameName = ''; // 003C - GameName: name used from the game for saves, equal for all saves
+	@StructStructStringz(20) saveName = ''; // 004C - SaveName: name of the particular save, normally a number
+	@StructUInt32 saveNameListPointer = 0; // 0060 - SaveNameList: used by multiple modes (char[20])
+	@StructStructStringz(16) fileName = ''; // 0064 - FileName: Name of the data file of the game for example DATA.BIN
+	@StructUInt32 dataBufPointer = 0; // 0074 - Pointer to a buffer that will contain data file unencrypted data
+	@StructUInt32 dataBufSize = 0; // 0078 - Size of allocated space to dataBuf
+	@StructUInt32 dataSize = 0; // 007C -
+	@StructMember(PspUtilitySavedataSFOParam.struct) sfoParam = new PspUtilitySavedataSFOParam(); // 0080 - (504?)
+	@StructMember(PspUtilitySavedataFileData.struct) icon0FileData = new PspUtilitySavedataFileData(); // 0584 - (16)
+	@StructMember(PspUtilitySavedataFileData.struct) icon1FileData = new PspUtilitySavedataFileData(); // 0594 - (16)
+	@StructMember(PspUtilitySavedataFileData.struct) pic1FileData = new PspUtilitySavedataFileData(); // 05A4 - (16)
+	@StructMember(PspUtilitySavedataFileData.struct) snd0FileData = new PspUtilitySavedataFileData(); // 05B4 - (16)
+	@StructUInt32 newDataPointer = 0; // 05C4 -Pointer to an PspUtilitySavedataListSaveNewData structure (PspUtilitySavedataListSaveNewData *)
+	@StructUInt32 focus = PspUtilitySavedataFocus.PSP_UTILITY_SAVEDATA_FOCUS_UNKNOWN; // 05C8 -Initial focus for lists
+	@StructUInt32 abortStatus = 0; // 05CC -
+	@StructUInt32 msFreeAddr = 0; // 05D0 -
+	@StructUInt32 msDataAddr = 0; // 05D4 -
+	@StructUInt32 utilityDataAddr = 0; // 05D8 -
+    @StructStructArray(UInt8, 16) key = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]; // 05E0 - Key: Encrypt/decrypt key for save with firmware >= 2.00
+	@StructUInt32 secureVersion = 0; // 05F0 -
+	@StructUInt32 multiStatus = 0; // 05F4 -
+	@StructUInt32 idListAddr = 0; // 05F8 -
+	@StructUInt32 fileListAddr = 0; // 05FC -
+	@StructUInt32 sizeAddr = 0; // 0600 -
+	@StructStructArray(UInt8, 20 - 5) unknown3 = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]; // 0604 -unknown3: ?
 
-	//#if _PSP_FW_VERSION >= 200
-	key = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]; // 05E0 - Key: Encrypt/decrypt key for save with firmware >= 2.00
-	secureVersion = 0; // 05F0 -
-	multiStatus = 0; // 05F4 -
-	idListAddr = 0; // 05F8 -
-	fileListAddr = 0; // 05FC -
-	sizeAddr = 0; // 0600 -
-	unknown3 = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]; // 0604 -unknown3: ?
-	//#endif
-
-	static struct = StructClass.create<SceUtilitySavedataParam>(SceUtilitySavedataParam, [
-		{ base: PspUtilityDialogCommon.struct },
-		{ mode: Int32 },
-		{ unknown1: Int32 },
-		{ overwrite: Int32 },
-		{ gameName: Stringz(16) },
-		{ saveName: Stringz(20) },
-		{ saveNameListPointer: UInt32 },
-		{ fileName: Stringz(16) },
-		{ dataBufPointer: UInt32 },
-		{ dataBufSize: UInt32 },
-		{ dataSize: UInt32 },
-		{ sfoParam: PspUtilitySavedataSFOParam.struct },
-		{ icon0FileData: PspUtilitySavedataFileData.struct },
-		{ icon1FileData: PspUtilitySavedataFileData.struct },
-		{ pic1FileData: PspUtilitySavedataFileData.struct },
-		{ snd0FileData: PspUtilitySavedataFileData.struct },
-		{ newDataPointer: UInt32 },
-		{ focus: UInt32 },
-		{ abortStatus: UInt32 },
-		{ msFreeAddr: UInt32 },
-		{ msDataAddr: UInt32 },
-		{ utilityDataAddr: UInt32 },
-		{ key: StructArray(UInt8, 16) },
-		{ secureVersion: UInt32 },
-		{ multiStatus: UInt32 },
-		{ idListAddr: UInt32 },
-		{ fileListAddr: UInt32 },
-		{ sizeAddr: UInt32 },
-		{ unknown3: StructArray(UInt8, 20 - 5) },
-	]);
 }
 
-class SizeFreeInfo {
-	sectorSize: number = 0
-	freeSectors: number = 0
-	freeKb: number = 0
-	freeKbString: string = ''
-
-	static struct = StructClass.create<SizeFreeInfo>(SizeFreeInfo, [
-		{ sectorSize: UInt32 },
-		{ freeSectors: UInt32 },
-		{ freeKb: UInt32 },
-		{ freeKbString: Stringz(8) },
-	]);
+class SizeFreeInfo extends Struct {
+	@StructUInt32 sectorSize: number = 0
+    @StructUInt32 freeSectors: number = 0
+    @StructUInt32 freeKb: number = 0
+    @StructStructStringz(8) freeKbString: string = ''
 }
 
-class SizeUsedInfo {
-	gameName: string = '' // 16
-	saveName: string = '' // 20
-	usedSectors: number = 0
-	usedKb: number = 0
-	usedKbString: string = '' // 8
-	usedKb32: number = 0
-	usedKb32String: string = '' // 8
-
-	static struct = StructClass.create<SizeUsedInfo>(SizeUsedInfo, [
-		{ gameName: Stringz(16) },
-		{ saveName: Stringz(24) },
-		{ usedSectors: UInt32 },
-		{ usedKb: UInt32 },
-		{ usedKbString: Stringz(8) },
-		{ usedKb32: UInt32 },
-		{ usedKb32String: Stringz(8) },
-	]);
+class SizeUsedInfo extends Struct {
+	@StructStructStringz(16) gameName: string = '' // 16
+	@StructStructStringz(24) saveName: string = '' // 20
+	@StructUInt32 usedSectors: number = 0
+	@StructUInt32 usedKb: number = 0
+	@StructStructStringz(8) usedKbString: string = '' // 8
+	@StructUInt32 usedKb32: number = 0
+	@StructStructStringz(8) usedKb32String: string = '' // 8
 }
 
-class SizeRequiredSpaceInfo {
-	requiredSpaceSectors: number = 0
-	requiredSpaceKb: number = 0
-	requiredSpaceString: string = '' // 8
-	requiredSpace32KB: number = 0
-	requiredSpace32KBString: string = '' // 8
-
-	static struct = StructClass.create<SizeRequiredSpaceInfo>(SizeRequiredSpaceInfo, [
-		{ requiredSpaceSectors: UInt32 },
-		{ requiredSpaceKb: UInt32 },
-		{ requiredSpaceString: Stringz(8) },
-		{ requiredSpace32KB: UInt32 },
-		{ requiredSpace32KBString: Stringz(8) },
-	]);
+class SizeRequiredSpaceInfo extends Struct {
+	@StructUInt32 requiredSpaceSectors: number = 0
+	@StructUInt32 requiredSpaceKb: number = 0
+	@StructStructStringz(8) requiredSpaceString: string = '' // 8
+	@StructUInt32 requiredSpace32KB: number = 0
+	@StructStructStringz(8) requiredSpace32KBString: string = '' // 8
 }
 
-class PspUtilityMsgDialogParams {
+class PspUtilityMsgDialogParams extends Struct {
 	// @ts-ignore
-    base: PspUtilityDialogCommon;
-	unknown: number = 0 // uint
-	mnode: PspUtilityMsgDialogMode = PspUtilityMsgDialogMode.PSP_UTILITY_MSGDIALOG_MODE_ERROR // uint
-	errorValue: number = 0 // uint
-	message: string = '' // byte[512]
-	options: PspUtilityMsgDialogOption = PspUtilityMsgDialogOption.PSP_UTILITY_MSGDIALOG_OPTION_ERROR
-	buttonPressed: PspUtilityMsgDialogPressed = PspUtilityMsgDialogPressed.PSP_UTILITY_MSGDIALOG_RESULT_UNKNOWN1
-
-	static struct = StructClass.create<PspUtilityMsgDialogParams>(PspUtilityMsgDialogParams, [
-		{ base: PspUtilityDialogCommon.struct },
-		{ unknown: Int32 },
-		{ mnode: Int32 },
-		{ errorValue: Int32 },
-		{ message: Utf8Stringz(512) },
-		{ options: Int32 },
-		{ buttonPressed: Int32 },
-	]);
+    @StructMember(PspUtilityDialogCommon.struct) base: PspUtilityDialogCommon;
+	@StructInt32 unknown: number = 0 // uint
+	@StructInt32 mnode: PspUtilityMsgDialogMode = PspUtilityMsgDialogMode.PSP_UTILITY_MSGDIALOG_MODE_ERROR // uint
+	@StructInt32 errorValue: number = 0 // uint
+	@StructStructUtf8Stringz(512) message: string = '' // byte[512]
+	@StructInt32 options: PspUtilityMsgDialogOption = PspUtilityMsgDialogOption.PSP_UTILITY_MSGDIALOG_OPTION_ERROR
+	@StructInt32 buttonPressed: PspUtilityMsgDialogPressed = PspUtilityMsgDialogPressed.PSP_UTILITY_MSGDIALOG_RESULT_UNKNOWN1
 }

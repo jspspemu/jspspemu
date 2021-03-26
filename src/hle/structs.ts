@@ -1,4 +1,14 @@
-﻿import {Int16, Int32, Int64, Stringz, StructArray, StructClass, StructEntry} from "../global/struct";
+﻿import {
+    Int16,
+    Int32,
+    Int64,
+    Stringz,
+    Struct,
+    StructArray,
+    StructClass,
+    StructEntry,
+    StructInt16, StructInt32, StructInt64, StructMember, StructStringz, StructStructArray, StructStructStringz
+} from "../global/struct";
 import {Integer64} from "../global/int64";
 
 export const enum SeekAnchor {
@@ -20,14 +30,14 @@ export const enum IOFileModes {
 	CanExecute = 0x0001,
 }
 
-export class ScePspDateTime {
-	year: number = 0;
-	month: number = 0;
-	day: number = 0;
-	hour: number = 0;
-	minute: number = 0;
-	second: number = 0;
-	microseconds: number = 0;
+export class ScePspDateTime extends Struct {
+    @StructInt16 year: number = 0;
+    @StructInt16 month: number = 0;
+    @StructInt16 day: number = 0;
+    @StructInt16 hour: number = 0;
+    @StructInt16 minute: number = 0;
+    @StructInt16 second: number = 0;
+    @StructInt32 microseconds: number = 0;
 
 	static fromDate(date: Date) {
 		if (!date) date = new Date();
@@ -51,50 +61,23 @@ export class ScePspDateTime {
 			(Date.UTC(this.year + 1970, this.month - 1, this.day, this.hour, this.minute, this.second, this.microseconds / 1000) * 1000)// + 62135596800000000
 		);
 	}
-
-	static struct = StructClass.create<ScePspDateTime>(ScePspDateTime, [
-		{ year: Int16 },
-		{ month: Int16 },
-		{ day: Int16 },
-		{ hour: Int16 },
-		{ minute: Int16 },
-		{ second: Int16 },
-		{ microsecond: Int32 },
-	]);
 }
 
-export class SceIoStat {
-	mode = <SceMode>0;
-	attributes = IOFileModes.File;
-	size = 0;
-	timeCreation = new ScePspDateTime();
-	timeLastAccess = new ScePspDateTime();
-	timeLastModification = new ScePspDateTime();
-	deviceDependentData = [0, 0, 0, 0, 0, 0];
-
-	static struct = StructClass.create<SceIoStat>(SceIoStat, <StructEntry[]>[
-		{ mode: Int32 },
-		{ attributes: Int32 },
-		{ size: Int64 },
-		{ timeCreation: ScePspDateTime.struct },
-		{ timeLastAccess: ScePspDateTime.struct },
-		{ timeLastModification: ScePspDateTime.struct },
-		{ deviceDependentData: StructArray(Int32, 6) },
-	]);
+export class SceIoStat extends Struct {
+	@StructInt32 mode = <SceMode>0;
+    @StructInt32 attributes = IOFileModes.File;
+    @StructInt64 size = 0;
+    @StructMember(ScePspDateTime.struct) timeCreation = new ScePspDateTime();
+    @StructMember(ScePspDateTime.struct) timeLastAccess = new ScePspDateTime();
+    @StructMember(ScePspDateTime.struct) timeLastModification = new ScePspDateTime();
+	@StructStructArray(Int32, 6) deviceDependentData = [0, 0, 0, 0, 0, 0];
 }
 
-export class HleIoDirent {
-	stat = new SceIoStat();
-	name = '';
-	privateData = 0;
-	dummy = 0;
-
-	static struct = StructClass.create<HleIoDirent>(HleIoDirent, <StructEntry[]>[
-		{ stat: SceIoStat.struct },
-		{ name: Stringz(256) },
-		{ privateData: Int32 },
-		{ dummy: Int32 },
-	]);
+export class HleIoDirent extends Struct {
+	@StructMember(SceIoStat.struct) stat = new SceIoStat();
+	@StructStructStringz(256) name = '';
+	@StructInt32 privateData = 0;
+    @StructInt32 dummy = 0;
 }
 
 export const enum PspLanguages { // ISO-639-1

@@ -477,13 +477,22 @@ export const StructUInt32: any = StructMember(UInt32)
 export const StructUInt32_2lb: any = StructMember(UInt32_2lb)
 export const StructUInt16_2lb: any = StructMember(UInt16_2lb)
 
+export const StructInt32_l: any = StructMember(Int32_l)
+export const StructUInt32_l: any = StructMember(UInt32_l)
+
+export const StructInt32_b: any = StructMember(Int32_b)
 export const StructUInt32_b: any = StructMember(UInt32_b)
+
+export const StructInt64: any = StructMember(Int64)
 
 export const StructInteger64_l: any = StructMember(Integer64_l)
 export const StructInteger64_b: any = StructMember(Integer64_b)
 
+export const StructStructStringzVariable: any = StructMember(StringzVariable)
+
 export function StructStructStringn(count: number): any { return StructMember(Stringn(count)) }
 export function StructStructStringz(count: number): any { return StructMember(Stringz(count)) }
+export function StructStructUtf8Stringz(count: number): any { return StructMember(Utf8Stringz(count)) }
 export function StructStructArray<T>(elementType: IType<T>, count: number): any { return StructMember(StructArray(elementType, count)) }
 
 export class Struct {

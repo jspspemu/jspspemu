@@ -133,20 +133,6 @@ class VagDecoder {
 
 enum VagBlockType { LOOP_END = 3, LOOP_START = 6, END = 7 }
 
-/*
-class VagBlock {
-	modificator: number;
-	type: VagBlockType;
-	data: number[];
-
-	static struct = StructClass.create<VagBlock>(VagBlock, [
-		{ modificator: UInt8 },
-		{ type: UInt8 },
-		{ data: StructArray<number>(UInt8, 14) },
-	]);
-}
-*/
-
 class VagHeader extends Struct {
 	@StructUInt32 magic: number = 0
 	@StructUInt32_b vagVersion: number = 0

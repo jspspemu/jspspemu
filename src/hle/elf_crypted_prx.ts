@@ -1,79 +1,52 @@
-﻿import {GetStruct, Stringz, StructArray, StructClass, UInt16, UInt32, UInt8} from "../global/struct";
+﻿import {
+    GetStruct,
+    Struct,
+    StructStructArray, StructStructStringz, StructUInt16,
+    StructUInt32, StructUInt8,
+    UInt16,
+    UInt32,
+    UInt8
+} from "../global/struct";
 import {Stream} from "../global/stream";
 import {CommandEnum, hleUtilsBufferCopyWithRange, KIRK_AES128CBC_HEADER, KirkMode} from "../core/kirk/kirk";
 import {g_tagInfo} from "./elf_crypted_prx_keys_144";
 import {g_tagInfo2} from "./elf_crypted_prx_keys_16";
 
-class Header {
-	magic: number = 0;
-	modAttr: number = 0;
-	compModAttr: number = 0;
-	modVerLo: number = 0;
-	modVerHi: number = 0;
-	moduleName: string = '';
-	modVersion: number = 0;
-	nsegments: number = 0;
-	elfSize: number = 0;
-	pspSize: number = 0;
-	bootEntry: number = 0;
-	modInfoOffset: number = 0;
-	bssSize: number = 0;
-	segAlign: number[] = [];
-	segAddress: number[] = [];
-	segSize: number[] = [];
-	reserved: number[] = [];
-	devkitVersion: number = 0;
-	decMode: number = 0;
-	pad: number = 0;
-	overlapSize: number = 0;
-	aesKey: number[] = [];
-	cmacKey: number[] = [];
-	cmacHeaderHash: number[] = [];
-	compressedSize: number = 0;
-	compressedOffset: number = 0;
-	unk1: number = 0;
-	unk2: number = 0;
-	cmacDataHash: number[] = [];
-	tag: number = 0;
-	sigcheck: number[] = [];
-	sha1Hash: number[] = [];
-	keyData: number[] = [];
+class Header extends Struct{
+	@StructUInt32 magic: number = 0;
+	@StructUInt16 modAttr: number = 0;
+	@StructUInt16 compModAttr: number = 0;
+	@StructUInt8 modVerLo: number = 0;
+	@StructUInt8 modVerHi: number = 0;
+	@StructStructStringz(28) moduleName: string = '';
+	@StructUInt8 modVersion: number = 0;
+	@StructUInt8 nsegments: number = 0;
+	@StructUInt32 elfSize: number = 0;
+	@StructUInt32 pspSize: number = 0;
+	@StructUInt32 bootEntry: number = 0;
+	@StructUInt32 modInfoOffset: number = 0;
+	@StructUInt32 bssSize: number = 0;
+	@StructStructArray(UInt16, 4) segAlign: number[] = [];
+	@StructStructArray(UInt32, 4) segAddress: number[] = [];
+	@StructStructArray(UInt32, 4) segSize: number[] = [];
+	@StructStructArray(UInt32, 5) reserved: number[] = [];
+	@StructUInt32 devkitVersion: number = 0;
+	@StructUInt8 decMode: number = 0;
+	@StructUInt8 pad: number = 0;
+	@StructUInt16 overlapSize: number = 0;
+	@StructStructArray(UInt8, 16) aesKey: number[] = [];
+	@StructStructArray(UInt8, 16) cmacKey: number[] = [];
+	@StructStructArray(UInt8, 16) cmacHeaderHash: number[] = [];
+	@StructUInt32 compressedSize: number = 0;
+	@StructUInt32 compressedOffset: number = 0;
+	@StructUInt32 unk1: number = 0;
+	@StructUInt32 unk2: number = 0;
+	@StructStructArray(UInt8, 16) cmacDataHash: number[] = [];
+	@StructUInt32 tag: number = 0;
+	@StructStructArray(UInt8, 88) sigcheck: number[] = [];
+	@StructStructArray(UInt8, 20) sha1Hash: number[] = [];
+	@StructStructArray(UInt8, 16) keyData: number[] = [];
 
-	static struct = StructClass.create<Header>(Header, [
-		{ magic: UInt32 },                        // 0000
-		{ modAttr: UInt16 },                      // 0004
-		{ compModAttr: UInt16 },                  // 0006
-		{ modVerLo: UInt8 },                      // 0008
-		{ modVerHi: UInt8 },                      // 0009
-		{ moduleName: Stringz(28) },              // 000A
-		{ modVersion: UInt8 },                    // 0026
-		{ nsegments: UInt8 },                     // 0027
-		{ elfSize: UInt32 },                      // 0028
-		{ pspSize: UInt32 },                      // 002C
-		{ bootEntry: UInt32 },                    // 0030
-		{ modInfoOffset: UInt32 },                // 0034
-		{ bssSize: UInt32 },                      // 0038
-		{ segAlign: StructArray(UInt16, 4) },     // 003C
-		{ segAddress: StructArray(UInt32, 4) },   // 0044
-		{ segSize: StructArray(UInt32, 4) },      // 0054
-		{ reserved: StructArray(UInt32, 5) },     // 0064
-		{ devkitVersion: UInt32 },
-		{ decMode: UInt8 },
-		{ pad: UInt8 },
-		{ overlapSize: UInt16 },
-		{ aesKey: StructArray(UInt8, 16) },
-		{ cmacKey: StructArray(UInt8, 16) },
-		{ cmacHeaderHash: StructArray(UInt8, 16) },
-		{ compressedSize: UInt32 },
-		{ compressedOffset: UInt32 },
-		{ unk1: UInt32 },
-		{ unk2: UInt32 },
-		{ cmacDataHash: StructArray(UInt8, 16) },
-		{ tag: UInt32 },
-		{ sigcheck: StructArray(UInt8, 88) },
-		{ sha1Hash: StructArray(UInt8, 20) },
-		{ keyData: StructArray(UInt8, 16) },
-	]);
 }
 
 function getTagInfo(checkTag: number) {

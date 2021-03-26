@@ -1,5 +1,15 @@
 ﻿import "../emu/global"
-import {StructArray, StructClass, UInt16, UInt32, UInt8} from "../global/struct";
+import {
+    Struct,
+    StructArray,
+    StructClass,
+    StructUInt16,
+    StructUInt32,
+    StructUInt8,
+    UInt16,
+    UInt32,
+    UInt8
+} from "../global/struct";
 import {StringDictionary} from "../global/utils";
 import {Stream} from "../global/stream";
 
@@ -9,20 +19,12 @@ enum DataType {
 	Int = 4,
 }
 
-class HeaderStruct {
-	magic: number = 0
-	version: number = 0
-	keyTable: number = 0
-	valueTable: number = 0
-	numberOfPairs: number = 0
-
-	static struct = StructClass.create<HeaderStruct>(HeaderStruct, [
-		{ magic: UInt32 },
-		{ version: UInt32 },
-		{ keyTable: UInt32 },
-		{ valueTable: UInt32 },
-		{ numberOfPairs: UInt32 },
-	]);
+class HeaderStruct extends Struct {
+	@StructUInt32 magic: number = 0
+    @StructUInt32 version: number = 0
+    @StructUInt32 keyTable: number = 0
+    @StructUInt32 valueTable: number = 0
+    @StructUInt32 numberOfPairs: number = 0
 }
 
 export interface IEntryStruct {
@@ -30,25 +32,16 @@ export interface IEntryStruct {
 	value: any;
 }
 
-class EntryStruct implements IEntryStruct {
-	key: string = ''
-	value: any
+class EntryStruct extends Struct implements IEntryStruct {
+	@StructUInt16 keyOffset: number = 0
+    @StructUInt8 private unknown: number = 0
+    @StructUInt8 dataType: DataType = DataType.Binary
+    @StructUInt32 valueSize: number = 0
+    @StructUInt32 valueSizePad: number = 0
+    @StructUInt32 valueOffset: number = 0
 
-	keyOffset: number = 0
-	private unknown: number = 0
-	dataType: DataType = DataType.Binary
-	valueSize: number = 0
-	valueSizePad: number = 0
-	valueOffset: number = 0
-
-	static struct = StructClass.create<EntryStruct>(EntryStruct, [
-		{ keyOffset: UInt16 },
-		{ unknown: UInt8 },
-		{ dataType: UInt8 },
-		{ valueSize: UInt32 },
-		{ valueSizePad: UInt32 },
-		{ valueOffset: UInt32 },
-	]);
+    key: string = ''
+    value: any
 }
 
 export class Psf {

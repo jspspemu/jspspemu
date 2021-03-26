@@ -90,29 +90,18 @@ Exported functions returning promises suspend the current psp thread until the p
 
 And binary structs are defined like this so it is pretty agile to work with binary stuff:
 ```typescript
-export class ElfPspModuleInfo {
-    moduleAtributes: number;
-    moduleVersion: number;
-    name: string;
-    gp: number;
-    pc: number;
-    exportsStart: number;
-    exportsEnd: number;
-    importsStart: number;
-    importsEnd: number;
-    
-    // http://hitmen.c02.at/files/yapspd/psp_doc/chap26.html
-    // 26.2.2.8
-    static struct = StructClass.create<ElfPspModuleInfo>(ElfPspModuleInfo, [
-        { moduleAtributes: UInt16 },
-        { moduleVersion: UInt16 },
-        { name: Stringz(28) },
-        { gp: UInt32 },
-        { exportsStart: UInt32 },
-        { exportsEnd: UInt32 },
-        { importsStart: UInt32 },
-        { importsEnd: UInt32 },
-    ]);
+// http://hitmen.c02.at/files/yapspd/psp_doc/chap26.html
+// 26.2.2.8
+export class ElfPspModuleInfo extends Struct {
+    @StructUInt16 moduleAtributes: number;
+    @StructUInt16 moduleVersion: number;
+    @StructStringz(28) name: string;
+    @StructUInt32 gp: number;
+    @StructUInt32 pc: number;
+    @StructUInt32 exportsStart: number;
+    @StructUInt32 exportsEnd: number;
+    @StructUInt32 importsStart: number;
+    @StructUInt32 importsEnd: number;
 }
 
 var item:ElfPspModuleInfo = ElfPspModuleInfo.struct.reed(stream);

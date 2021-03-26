@@ -1,6 +1,16 @@
 ﻿import {Cancelable, PromiseFast, Signal0, UidCollection} from "../../global/utils";
 import {Stream} from "../../global/stream";
-import {Int16, Int32, Int8, StructArray, StructClass, UInt32} from "../../global/struct";
+import {
+    Int16,
+    Int32,
+    Int8, Struct,
+    StructArray,
+    StructClass, StructInt16,
+    StructInt32,
+    StructStructArray,
+    StructUInt32,
+    UInt32
+} from "../../global/struct";
 import {xrange} from "../../global/math";
 import {EmulatorContext} from "../../emu/context";
 import {MemoryPartition} from "../manager/memory";
@@ -245,20 +255,12 @@ export class Pdp {
 	}
 }
 
-class PdpStatStruct {
-	nextPointer = 0;
-	pdpId = 0;
-	mac = [0, 0, 0, 0, 0, 0];
-	port = 0;
-	rcvdData = 0;
-
-	static struct = StructClass.create<PdpStatStruct>(PdpStatStruct, [
-		{ nextPointer: UInt32 }, // Pointer to next PDP structure in list (pdpStatStruct *next;) (uint)
-		{ pdpId: Int32 }, // pdp ID
-		{ mac: StructArray(Int8, 6) }, // pdp ID
-		{ port: Int16 },  // Port
-		{ rcvdData: UInt32 }, // Bytes received
-	]);
+class PdpStatStruct extends Struct {
+	@StructUInt32 nextPointer = 0
+    @StructInt32 pdpId = 0
+	@StructStructArray(Int8, 6) mac = [0, 0, 0, 0, 0, 0]
+	@StructInt16 port = 0
+    @StructUInt32 rcvdData = 0
 }
 
 /*

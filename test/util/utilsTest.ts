@@ -40,17 +40,6 @@ describe('utils', () => {
             assert.equal(Int16.read(stream), 0x0201);
             assert.equal(Int16.read(stream), 0x0403);
         });
-
-		/*
-        it('should read simple struct', () => {
-            const stream = Stream.fromArray([0x01, 0x02, 0x03, 0x04]);
-            const MyStruct = Struct.create([
-				{ item1: Int16 },
-				{ item2: Int16 }
-            ]);
-            assert.equal(JSON.stringify(MyStruct.read(stream)), JSON.stringify({ item1: 0x0201, item2: 0x0403 }));
-		});
-		*/
 	}); 
 
 	describe('Binary search', () => {

@@ -5,7 +5,18 @@ import { PixelFormat } from '../../core/pixelformat';
 import { SceKernelErrors } from '../SceKernelErrors';
 import {Stream} from "../../global/stream";
 import {addressToHex, ProgramExitException} from "../../global/utils";
-import {Int32, Int32_l, Int64, Stringn, StructClass, UInt32, UInt32_l} from "../../global/struct";
+import {
+    Int32,
+    Int32_l,
+    Int64,
+    Stringn,
+    Struct,
+    StructClass,
+    StructInt32, StructInt32_l, StructInt64, StructStructStringn,
+    StructUInt32, StructUInt32_l,
+    UInt32,
+    UInt32_l
+} from "../../global/struct";
 import {Integer64} from "../../global/int64";
 
 const ENABLE = false;
@@ -270,77 +281,42 @@ class Mpeg {
 	}
 }
 
-class SceMpegAvcMode {
-	mode: number = 0;
-	pixelformat: number = 0;
-	static struct = StructClass.create(SceMpegAvcMode, [
-		// PSP info
-		{ mode: Int32 },
-		{ pixelformat: Int32 },
-	]);
+class SceMpegAvcMode extends Struct {
+	@StructInt32 mode: number = 0;
+    @StructInt32 pixelformat: number = 0;
 }
 
-class SceMpegAu {
-	pts: Integer64 = Integer64.ZERO;  // presentation time stamp
-	dts: Integer64 = Integer64.ZERO;  // decode time stamp
-	esBuffer: number = 0;
-	esSize: number = 0;
-
-	static struct = StructClass.create(SceMpegAu, [
-		{ pts: Int64 },
-		{ dts: Int64 },
-		{ esBuffer: UInt32 },
-		{ esSize: UInt32 },
-	]);
+class SceMpegAu extends Struct {
+	@StructInt64 pts: Integer64 = Integer64.ZERO  // presentation time stamp
+    @StructInt64 dts: Integer64 = Integer64.ZERO  // decode time stamp
+    @StructUInt32 esBuffer: number = 0
+    @StructUInt32 esSize: number = 0
 }
 
-class PmfStruct {
-	magic: string = '' // PSMF
-	version: number = 0
-	offset: number = 0
-	size: number = 0
-	_dummy: number = 0
-	firstTimestampOffset: number = 0
-	lastTimestampOffset: number = 0
-	static struct = StructClass.create(PmfStruct, [
-		// PSP info
-		{ magic: Stringn(4) },
-		{ version: UInt32 },
-		{ offset: UInt32 },
-		{ size: UInt32 },
-		{ _unknown: Stringn(0x44) },
-		{ firstTimestampOffset: Stringn(6) },
-		{ lastTimestampOffset: Stringn(6) },
-	]);
+class PmfStruct extends Struct {
+    // PSP info
+	@StructStructStringn(4) magic: string = '' // PSMF
+	@StructUInt32 version: number = 0
+    @StructUInt32 offset: number = 0
+    @StructUInt32 size: number = 0
+    @StructStructStringn(0x44) _unknown: number = 0
+    @StructStructStringn(6) firstTimestampOffset: string = ''
+    @StructStructStringn(6) lastTimestampOffset: string = ''
 }
 
-class RingBuffer  {
-	packets: number = 0
-	packetsRead: number = 0
-	packetsWritten: number = 0
-	packetsAvail: number = 0 // pspsdk: unk2, noxa: iUnk0
-	packetSize: number = 0 // 2048
-	data: number = 0 // address, ring buffer
-	callback_addr: number = 0 // see sceMpegRingbufferPut
-	callback_args: number = 0
-	dataUpperBound: number = 0
-	semaID: number = 0 // unused?
-	mpeg: number = 0 // pointer to mpeg struct, fixed up in sceMpegCreate
+class RingBuffer extends Struct {
+	@StructInt32_l packets: number = 0
+    @StructInt32_l packetsRead: number = 0
+    @StructInt32_l packetsWritten: number = 0
+    @StructInt32_l packetsAvail: number = 0 // pspsdk: unk2, noxa: iUnk0
+    @StructInt32_l packetSize: number = 0 // 2048
+    @StructUInt32_l data: number = 0 // address, ring buffer
+    @StructUInt32_l callback_addr: number = 0 // see sceMpegRingbufferPut
+    @StructInt32_l callback_args: number = 0
+    @StructInt32_l dataUpperBound: number = 0
+    @StructInt32_l semaID: number = 0 // unused?
+    @StructInt32_l mpeg: number = 0 // pointer to mpeg struct, fixed up in sceMpegCreate
 	// Note: not available in all versions.
-	gp: number = 0
-	static struct = StructClass.create(RingBuffer, [
-		{ packets: Int32_l },
-		{ packetsRead: Int32_l },
-		{ packetsWritten: Int32_l },
-		{ packetsAvail: Int32_l },
-		{ packetSize: Int32_l },
-		{ data: UInt32_l },
-		{ callback_addr: UInt32_l },
-		{ callback_args: Int32_l },
-		{ dataUpperBound: Int32_l },
-		{ semaID: Int32_l },
-		{ mpeg: UInt32_l },
-		{ gp: UInt32_l },
-	]);
+    @StructInt32_l gp: number = 0
 }
 
