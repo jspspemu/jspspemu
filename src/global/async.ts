@@ -102,7 +102,7 @@ export function statFileAsync(url: string): PromiseFast<{size: number, date: Dat
             });
         })
     } else {
-        return _downloadFileAsync('HEAD', url).thenthen2(request => {
+        return _downloadFileAsync('HEAD', url).thenFast(request => {
             //console.error('content-type', request.getResponseHeader('content-type'));
             //console.log(request.getAllResponseHeaders());
 
