@@ -1,6 +1,6 @@
 ﻿import { SceKernelErrors } from '../SceKernelErrors';
 import {EmulatorContext} from "../../emu/context";
-import {nativeFunction} from "../utils";
+import {F32, I32, nativeFunctionEx} from "../utils";
 
 export class scePower {
     constructor(private context: EmulatorContext) { }
@@ -30,19 +30,19 @@ export class scePower {
 		}
 	}
 
-	@nativeFunction(0x04B7766E, 150, 'int', 'int/int')
-	scePowerRegisterCallback(slotIndex: number, callbackId: number) {
+	@nativeFunctionEx(0x04B7766E, 150)
+	@I32 scePowerRegisterCallback(@I32 slotIndex: number, @I32 callbackId: number) {
 		this.context.callbackManager.notify(callbackId, CallbackStatus.BATTERY_EXIST);
 		return 0;
 	}
 
-	@nativeFunction(0xDB9D28DD, 150, 'int', 'int')
-	scePowerUnregitserCallback(slotIndex: number) {
+	@nativeFunctionEx(0xDB9D28DD, 150)
+    @I32 scePowerUnregitserCallback(@I32 slotIndex: number) {
 		return 0;
 	}
 
-	@nativeFunction(0xDFA8BAF8, 150, 'int', 'int')
-	scePowerUnregisterCallback(slotIndex: number) {
+	@nativeFunctionEx(0xDFA8BAF8, 150)
+    @I32 scePowerUnregisterCallback(@I32 slotIndex: number) {
 		return 0;
 	}
 
@@ -68,88 +68,88 @@ export class scePower {
 		return 0;
 	}
 
-	@nativeFunction(0x737486F2, 150, 'int', 'int/int/int')
-	scePowerSetClockFrequency(pllFreq: number, cpuFreq: number, busFreq: number) {
+	@nativeFunctionEx(0x737486F2, 150)
+    @I32 scePowerSetClockFrequency(@I32 pllFreq: number, @I32 cpuFreq: number, @I32 busFreq: number) {
 		return this._scePowerSetClockFrequency(pllFreq, cpuFreq, busFreq);
 	}
 
-	@nativeFunction(0xEBD177D6, 150, 'int', 'int/int/int')
-	scePowerSetClockFrequency2(pllFreq: number, cpuFreq: number, busFreq: number) {
+	@nativeFunctionEx(0xEBD177D6, 150)
+    @I32 scePowerSetClockFrequency2(@I32 pllFreq: number, @I32 cpuFreq: number, @I32 busFreq: number) {
 		return this._scePowerSetClockFrequency(pllFreq, cpuFreq, busFreq);
 	}
 
-	@nativeFunction(0x469989AD, 150, 'int', 'int/int/int')
-	scePowerSetClockFrequency3(pllFreq: number, cpuFreq: number, busFreq: number) {
+	@nativeFunctionEx(0x469989AD, 150)
+    @I32 scePowerSetClockFrequency3(@I32 pllFreq: number, @I32 cpuFreq: number, @I32 busFreq: number) {
 		return this._scePowerSetClockFrequency(pllFreq, cpuFreq, busFreq);
 	}
 	
 
-	@nativeFunction(0xFEE03A2F, 150, 'int', '')
-	scePowerGetCpuClockFrequency() { return this._getCpuFreq(); }
-	@nativeFunction(0xFDB5BFE9, 150, 'int', '')
-	scePowerGetCpuClockFrequencyInt() { return this._getCpuFreq(); }
-	@nativeFunction(0xB1A52C83, 150, 'float', '')
-	scePowerGetCpuClockFrequencyFloat() { return this._getCpuFreq(); }
+	@nativeFunctionEx(0xFEE03A2F, 150)
+    @I32 scePowerGetCpuClockFrequency() { return this._getCpuFreq(); }
+	@nativeFunctionEx(0xFDB5BFE9, 150)
+    @I32 scePowerGetCpuClockFrequencyInt() { return this._getCpuFreq(); }
+	@nativeFunctionEx(0xB1A52C83, 150)
+    @F32 scePowerGetCpuClockFrequencyFloat() { return this._getCpuFreq(); }
 
-	@nativeFunction(0x478FE6F5, 150, 'int', '')
-	scePowerGetBusClockFrequency() { return this.busFreq; }
-	@nativeFunction(0xBD681969, 150, 'int', '')
-	scePowerGetBusClockFrequencyInt() { return this.busFreq; }
-	@nativeFunction(0x9BADB3EB, 150, 'float', '')
-	scePowerGetBusClockFrequencyFloat() { return this.busFreq; }
+	@nativeFunctionEx(0x478FE6F5, 150)
+    @I32 scePowerGetBusClockFrequency() { return this.busFreq; }
+	@nativeFunctionEx(0xBD681969, 150)
+    @I32 scePowerGetBusClockFrequencyInt() { return this.busFreq; }
+	@nativeFunctionEx(0x9BADB3EB, 150)
+    @F32 scePowerGetBusClockFrequencyFloat() { return this.busFreq; }
 
-	@nativeFunction(0x34F9C463, 150, 'int', '')
-	scePowerGetPllClockFrequencyInt() { return this.pllFreq; }
-	@nativeFunction(0xEA382A27, 150, 'float', '')
-	scePowerGetPllClockFrequencyFloat() { return this.pllFreq; }
+	@nativeFunctionEx(0x34F9C463, 150)
+    @I32 scePowerGetPllClockFrequencyInt() { return this.pllFreq; }
+	@nativeFunctionEx(0xEA382A27, 150)
+    @F32 scePowerGetPllClockFrequencyFloat() { return this.pllFreq; }
 
-	@nativeFunction(0xB8D7B3FB, 150, 'int', 'int')
-	scePowerSetBusClockFrequency(busFreq: number) {
+	@nativeFunctionEx(0xB8D7B3FB, 150)
+    @I32 scePowerSetBusClockFrequency(@I32 busFreq: number) {
 		if (!this._isValidBusFreq(busFreq)) return SceKernelErrors.ERROR_INVALID_VALUE;
 		//this.busFreq = busFreq;
 		this.busFreq = 111;
 		return 0;
 	}
 
-	@nativeFunction(0x843FBF43, 150, 'int', 'int')
-	scePowerSetCpuClockFrequency(cpuFreq: number) {
+	@nativeFunctionEx(0x843FBF43, 150)
+    @I32 scePowerSetCpuClockFrequency(@I32 cpuFreq: number) {
 		if (!this._isValidCpuFreq(cpuFreq)) return SceKernelErrors.ERROR_INVALID_VALUE;
 		this._setCpuFreq(cpuFreq);
 		return 0;
 	}
 
-	@nativeFunction(0x2085D15D, 150, 'int', '')
-	scePowerGetBatteryLifePercent() { return (this.context.battery.level * 100) | 0; }
+	@nativeFunctionEx(0x2085D15D, 150)
+    @I32 scePowerGetBatteryLifePercent() { return (this.context.battery.level * 100) | 0; }
 	
-	@nativeFunction(0x87440F5E, 150, 'int', '')
-	scePowerIsPowerOnline() { return +this.context.battery.charging; }
+	@nativeFunctionEx(0x87440F5E, 150)
+    @I32 scePowerIsPowerOnline() { return +this.context.battery.charging; }
 	
-	@nativeFunction(0x0AFD0D8B, 150, 'int', '')
-	scePowerIsBatteryExist() { return 1; }
+	@nativeFunctionEx(0x0AFD0D8B, 150)
+    @I32 scePowerIsBatteryExist() { return 1; }
 	
-	@nativeFunction(0xD3075926, 150, 'int', '')
-	scePowerIsLowBattery() { return +this.context.battery.isLowBattery; }
+	@nativeFunctionEx(0xD3075926, 150)
+    @I32 scePowerIsLowBattery() { return +this.context.battery.isLowBattery; }
 	
-	@nativeFunction(0x1E490401, 150, 'int', '')
-	scePowerIsBatteryCharging() { return +this.context.battery.charging; }
+	@nativeFunctionEx(0x1E490401, 150)
+    @I32 scePowerIsBatteryCharging() { return +this.context.battery.charging; }
 	
 	// in minutes
-	@nativeFunction(0x8EFB3FA2, 150, 'int', '')
-	scePowerGetBatteryLifeTime() { return (this.context.battery.lifetime / 60) | 0; }
+	@nativeFunctionEx(0x8EFB3FA2, 150)
+    @I32 scePowerGetBatteryLifeTime() { return (this.context.battery.lifetime / 60) | 0; }
 	
-	@nativeFunction(0x483CE86B, 150, 'int', '')
-	scePowerGetBatteryVolt() { return 4135; }
-	@nativeFunction(0x28E12023, 150, 'int', '')
-	scePowerGetBatteryTemp() { return 28; }
-	@nativeFunction(0xD6D016EF, 150, 'int', 'int')
-	scePowerLock(unknown: number) { return 0; }
-	@nativeFunction(0xCA3D34C1, 150, 'int', 'int')
-	scePowerUnlock(unknown: number) { return 0; }
-	@nativeFunction(0xEFD3C963, 150, 'int', 'int')
-	scePowerTick(type: number) { return 0; } // all = 0, suspend = 1, display = 6
+	@nativeFunctionEx(0x483CE86B, 150)
+    @I32 scePowerGetBatteryVolt() { return 4135; }
+	@nativeFunctionEx(0x28E12023, 150)
+    @I32 scePowerGetBatteryTemp() { return 28; }
+    @nativeFunctionEx(0xD6D016EF, 150)
+    @I32 scePowerLock(@I32 unknown: number) { return 0; }
+    @nativeFunctionEx(0xCA3D34C1, 150)
+    @I32 scePowerUnlock(@I32 unknown: number) { return 0; }
+    @nativeFunctionEx(0xEFD3C963, 150)
+    @I32 scePowerTick(type: number) { return 0; } // all = 0, suspend = 1, display = 6
 
-	@nativeFunction(0xB4432BC8, 150, 'int', '')
-	scePowerGetBatteryChargingStatus() {
+	@nativeFunctionEx(0xB4432BC8, 150)
+    @I32 scePowerGetBatteryChargingStatus() {
 		return PowerFlagsSet.BatteryExists | PowerFlagsSet.AcPower | PowerFlagsSet.BatteryPower;
 	}
 }

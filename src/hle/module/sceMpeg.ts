@@ -1,6 +1,5 @@
-﻿import { nativeFunction } from '../utils';
+﻿import {I32, nativeFunctionEx, PTR, U32} from '../utils';
 import { EmulatorContext } from '../../emu/context';
-import { Memory } from '../../core/memory';
 import { PixelFormat } from '../../core/pixelformat';
 import { SceKernelErrors } from '../SceKernelErrors';
 import {Stream} from "../../global/stream";
@@ -28,13 +27,13 @@ export class sceMpeg {
 	static RING_BUFFER_PACKET_SIZE = 0x800;
 	static MPEG_MEMSIZE = 64 * 1024;
 
-	@nativeFunction(0x682A619B, 150, 'uint', '')
-	sceMpegInit() {
+	@nativeFunctionEx(0x682A619B, 150)
+	@U32 sceMpegInit() {
 		return ENABLE ? 0 : -1;
 	}
 	
-	@nativeFunction(0x874624D6, 150, 'uint', '')
-	sceMpegFinish() {
+	@nativeFunctionEx(0x874624D6, 150)
+    @U32 sceMpegFinish() {
 		//this.getMpeg(sceMpegPointer).delete();
 		return 0;
 	}
@@ -50,14 +49,14 @@ export class sceMpeg {
 		return 0;
 	}
 
-	@nativeFunction(0x21FF80E4, 150, 'uint', 'uint/uint/void*')
-	sceMpegQueryStreamOffset(mpegAddr: number, bufferAddr: number, output: Stream) {
+	@nativeFunctionEx(0x21FF80E4, 150)
+    @U32 sceMpegQueryStreamOffset(@U32 mpegAddr: number, @U32 bufferAddr: number, @PTR output: Stream) {
 		if (!this.isValidMpeg(mpegAddr)) return -1;
 		return this._sceMpegReadField('sceMpegQueryStreamOffset', bufferAddr, output, p => p.offset);
 	}
 	
-	@nativeFunction(0x611E9E11, 150, 'uint', 'uint/void*')
-	sceMpegQueryStreamSize(bufferAddr: number, output: Stream) {
+	@nativeFunctionEx(0x611E9E11, 150)
+    @U32 sceMpegQueryStreamSize(@U32 bufferAddr: number, @PTR output: Stream) {
 		return this._sceMpegReadField('sceMpegQueryStreamSize', bufferAddr, output, p => p.size);
 	}
 	
@@ -65,8 +64,8 @@ export class sceMpeg {
 	private mode: number = 0
 	private pixelformat: PixelFormat = PixelFormat.RGBA_8888;
 	
-	@nativeFunction(0xA11C7026, 150, 'uint', 'uint/void*')
-	sceMpegAvcDecodeMode(mpegAddr: number, modeAddr: Stream) {
+	@nativeFunctionEx(0xA11C7026, 150)
+    @U32 sceMpegAvcDecodeMode(@U32 mpegAddr: number, @PTR modeAddr: Stream) {
 		if (!this.isValidMpeg(mpegAddr)) return -1;
         const mode = SceMpegAvcMode.struct.createProxy(modeAddr);
         this.mode = mode.mode;
@@ -78,15 +77,15 @@ export class sceMpeg {
 		return 0;
 	}
 	
-	@nativeFunction(0xA780CF7E, 150, 'uint', 'uint')
-	sceMpegMallocAvcEsBuf(mpegAddr: number) {
+	@nativeFunctionEx(0xA780CF7E, 150)
+    @U32 sceMpegMallocAvcEsBuf(@U32 mpegAddr: number) {
 		if (!this.isValidMpeg(mpegAddr)) return -1;
         const mpeg = this.mpegs.get(mpegAddr)!
 		return mpeg.allocAvcEsBuf();
 	}
 	
-	@nativeFunction(0x167AFD9E, 150, 'uint', 'uint/uint/void*')
-	sceMpegInitAu(mpegAddr: number, bufferAddr: number, auPointer: Stream) {
+	@nativeFunctionEx(0x167AFD9E, 150)
+    @U32 sceMpegInitAu(@U32 mpegAddr: number, @U32 bufferAddr: number, @PTR auPointer: Stream) {
 		const au = SceMpegAu.struct.createProxy(auPointer);
 		au.esBuffer = bufferAddr;
 		au.esSize = 2112;
@@ -95,22 +94,22 @@ export class sceMpeg {
 		return 0;
 	}
 
-	@nativeFunction(0xF8DCB679, 150, 'uint', 'uint/void*/void*')
-	sceMpegQueryAtracEsSize(mpegAddr: number, esSizeAddr: Stream, outSizeAddr: Stream) {
+	@nativeFunctionEx(0xF8DCB679, 150)
+    @U32 sceMpegQueryAtracEsSize(@U32 mpegAddr: number, @PTR esSizeAddr: Stream, @PTR outSizeAddr: Stream) {
 		esSizeAddr.writeInt32(2112);
 		outSizeAddr.writeInt32(8192);
 		return 0;
 	}
 	
-	@nativeFunction(0x42560F23, 150, 'uint', 'uint/uint/uint')
-	sceMpegRegistStream(mpegAddr: number, streamType: StreamType, streamNum: number) {
+	@nativeFunctionEx(0x42560F23, 150)
+    @U32 sceMpegRegistStream(@U32 mpegAddr: number, @U32 streamType: StreamType, @U32 streamNum: number) {
 		if (!this.isValidMpeg(mpegAddr)) return -1;
         const mpeg = this.mpegs.get(mpegAddr)!;
         return mpeg.registerStream(streamType, streamNum);
 	}
 	
-	@nativeFunction(0xC132E22F, 150, 'uint', 'int')
-	sceMpegQueryMemSize(mode: number) {
+	@nativeFunctionEx(0xC132E22F, 150)
+    @U32 sceMpegQueryMemSize(@I32 mode: number) {
 		return sceMpeg.MPEG_MEMSIZE;
 	}
 
@@ -122,8 +121,8 @@ export class sceMpeg {
 	// @ts-ignore
     private mpeg: Mpeg;
 
-	@nativeFunction(0xd8c5f121, 150, 'uint', 'uint/uint/uint/void*/uint/uint')
-	sceMpegCreate(mpegAddr: number, dataPtr: number, size: number, ringbufferAddr: Stream, mode: number, ddrTop: number) {
+	@nativeFunctionEx(0xd8c5f121, 150)
+    @U32 sceMpegCreate(@U32 mpegAddr: number, @U32 dataPtr: number, @U32 size: number, @PTR ringbufferAddr: Stream, @U32 mode: number, @U32 ddrTop: number) {
 		if (!this.context.memory.isValidAddress(mpegAddr)) return -1;
 		if (size < sceMpeg.MPEG_MEMSIZE) return SceKernelErrors.ERROR_MPEG_NO_MEMORY;
 		if (ringbufferAddr == Stream.INVALID) {
@@ -149,26 +148,26 @@ export class sceMpeg {
 		//mpegHandle.write
 	}
 
-	@nativeFunction(0x606A4649, 150, 'uint', 'int')
-	sceMpegDelete(sceMpegPointer: number) {
+	@nativeFunctionEx(0x606A4649, 150)
+    @U32 sceMpegDelete(@I32 sceMpegPointer: number) {
 		//this.getMpeg(sceMpegPointer).delete();
 
 		return 0;
 	}
 
-	@nativeFunction(0xB5F6DC87, 150, 'uint', 'void*')
-	sceMpegRingbufferAvailableSize(rinbuggerAddr: Stream) {
+	@nativeFunctionEx(0xB5F6DC87, 150)
+    @U32 sceMpegRingbufferAvailableSize(@PTR rinbuggerAddr: Stream) {
         const ringbuffer = RingBuffer.struct.createProxy(rinbuggerAddr);
         return ringbuffer.packets - ringbuffer.packetsAvail;
 	}
 
-	@nativeFunction(0xD7A29F46, 150, 'uint', 'int')
-	sceMpegRingbufferQueryMemSize(numberOfPackets:number) {
+	@nativeFunctionEx(0xD7A29F46, 150)
+    @U32 sceMpegRingbufferQueryMemSize(@I32 numberOfPackets:number) {
 		return (sceMpeg.RING_BUFFER_PACKET_SIZE + 0x68) * numberOfPackets;
 	}
 	
-	@nativeFunction(0x37295ED8, 150, 'uint', 'void*/int/int/int/int/int')
-	sceMpegRingbufferConstruct(ringbufferAddr: Stream, numPackets: number, data: number, size: number, callbackAddr: number, callbackArg: number) {
+	@nativeFunctionEx(0x37295ED8, 150)
+    @U32 sceMpegRingbufferConstruct(@PTR ringbufferAddr: Stream, @I32 numPackets: number, @I32 data: number, @I32 size: number, @I32 callbackAddr: number, @I32 callbackArg: number) {
 		if (ringbufferAddr == Stream.INVALID) return SceKernelErrors.ERROR_KERNEL_ILLEGAL_ADDR;
 		if (size < 0) return SceKernelErrors.ERROR_MPEG_NO_MEMORY;
 		if (this.__mpegRingbufferQueryMemSize(numPackets) > size) {
@@ -194,8 +193,8 @@ export class sceMpeg {
 		//if (mpegLibVersion >= 0x0105) buf.gp = __KernelGetModuleGP(__KernelGetCurThreadModuleId());
 	}
 	
-	@nativeFunction(0x13407F13, 150, 'uint', 'int')
-	sceMpegRingbufferDestruct(ringBufferPointer: number) {
+	@nativeFunctionEx(0x13407F13, 150)
+    @U32 sceMpegRingbufferDestruct(@I32 ringBufferPointer: number) {
 		//Ringbuffer- > PacketsAvailable = Ringbuffer- > PacketsTotal;
 		//Ringbuffer- > PacketsRead = 0;
 		//Ringbuffer- > PacketsWritten = 0;
@@ -206,8 +205,8 @@ export class sceMpeg {
 		
 	}
 
-	@nativeFunction(0xB240A59E, 150, 'uint', 'void*/uint/uint')
-	sceMpegRingbufferPut(ringbufferAddr: Stream, numPackets: number, available: number) {
+	@nativeFunctionEx(0xB240A59E, 150)
+    @U32 sceMpegRingbufferPut(@PTR ringbufferAddr: Stream, @U32 numPackets: number, @U32 available: number) {
         const state = this.context.currentState;
 
         //console.log('sceMpegRingbufferPut');
