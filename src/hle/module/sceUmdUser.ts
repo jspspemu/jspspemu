@@ -83,7 +83,7 @@ export class sceUmdUser {
 
 	@nativeFunction(0x20628E6F, 150, 'uint', '')
 	sceUmdGetErrorStat() {
-		console.warn('called sceUmdGetErrorStat!');
+		//console.warn('called sceUmdGetErrorStat!');
 		return PromiseFast.resolve(0);
 	}
 }

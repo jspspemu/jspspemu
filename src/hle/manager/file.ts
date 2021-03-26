@@ -46,9 +46,9 @@ export class HleFile {
 		this._asyncResult = null;
 	}
 
-	setAsyncOperation(operation: PromiseFast<Integer64>) {
+	setAsyncOperation(operation: Integer64 | PromiseFast<Integer64> | Promise<Integer64>) {
 		this._asyncResult = null;
-		this._asyncPromise = operation.then((value) => {
+		this._asyncPromise = PromiseFast.ensure(operation).then((value) => {
 			this._asyncResult = value;
 			return value;
 		});

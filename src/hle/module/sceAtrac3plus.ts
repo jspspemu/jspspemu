@@ -70,6 +70,7 @@ export class sceAtrac3plus {
         id.readAddr = id.startAddr
         id.endAddr = id.startAddr + id.info.inputDataSize
         id.decoder.init(id.info.atracBytesPerFrame, id.info.atracChannels, outputChannels, 0)
+        //console.log(id.info)
         //console.error(`Decoder initialized with ${id.info.atracBytesPerFrame}, ${id.info.atracChannels}, ${outputChannels}, 0`)
         return 0;
     }
@@ -162,7 +163,7 @@ export class sceAtrac3plus {
             return result
         }
 
-        id.readAddr += info.atracBytesPerFrame
+        id.moveNext()
         samplesNbrAddr.writeInt32(id.decoder.numberOfSamples)
         //remainFramesAddr.set(id.remainFrames)
         remainFramesAddr.writeInt32(id.remainFrames)
@@ -279,262 +280,6 @@ export class sceAtrac3plus {
 	}
 }
 
-/*
-class Atrac3 {
-	format = new At3FormatStruct();
-	fact = new FactStruct();
-	smpl = new SmplStruct();
-	loopInfoList = <LoopInfoStruct[]>[];
-	dataStream = Stream.fromArray([]);
-	numberOfLoops = 0;
-	currentFrame = 0;
-	codecType = CodecType.PSP_MODE_AT_3_PLUS;
-	public stream: MeStream|null = null;
-
-	constructor(private id:number) {
-	}
-	
-	free() {
-		this.flushPacket();
-		if (this.stream) {
-			this.stream.close();
-			this.stream = null;
-		}
-	}
-
-	setDataStream(data: Stream) {
-        const dataBytes = data.clone().readAllBytes();
-
-        Riff.fromStreamWithHandlers(data, {
-			'fmt ': (stream: Stream) => { this.format = At3FormatStruct.struct.read(stream); },
-			'fact': (stream: Stream) => { this.fact = FactStruct.struct.read(stream); },
-			'smpl': (stream: Stream) => {
-				this.smpl = SmplStruct.struct.read(stream);
-				this.loopInfoList = StructArray<LoopInfoStruct>(LoopInfoStruct.struct, this.smpl.loopCount).read(stream)
-			},
-			'data': (stream: Stream) => { this.dataStream = stream; },
-		});
-
-		this.stream = MeStream.open(dataBytes);
-		
-		//console.log(this.fmt);
-		//console.log(this.fact);
-
-		return this;
-	}
-
-	get bitrate() {
-        const _atracBitrate = Math.floor((this.format.bytesPerFrame * 352800) / 1000);
-        if (this.codecType == CodecType.PSP_MODE_AT_3_PLUS) {
-			return ((_atracBitrate >> 11) + 8) & 0xFFFFFFF0;
-		}
-		else {
-			return (_atracBitrate + 511) >> 10;
-		}
-	}
-
-	get maximumSamples() {
-		switch (this.codecType) {
-			case CodecType.PSP_MODE_AT_3_PLUS: return 0x800;
-			case CodecType.PSP_MODE_AT_3: return 0x400;
-			default: throw (new Error("Unknown codec type"));
-		}
-	}
-
-	get endSample() {
-		return this.fact.endSample;
-	}
-
-	getNumberOfSamplesInNextFrame() {
-		return Math.min(this.maximumSamples, this.endSample - this.currentFrame);
-	}
-	
-	get totalFrames() {
-		return Math.floor(this.dataStream.length / this.format.blockSize);
-	}
-
-	get remainingFrames() {
-		return this.totalFrames - this.currentFrame;
-	}
-
-	get decodingReachedEnd() {
-		return this.remainingFrames <= 0;
-	}
-
-	//private static useWorker = false;
-	private static useWorker = true;
-	public packet: MePacket|null = null;
-	
-	seekToSample(sample: number): void {
-		this.seekToFrame(Math.floor(sample / this.maximumSamples));
-	}
-	
-	seekToFrame(frame: number): void {
-		if (frame >= this.totalFrames) frame = 0;
-		this.flushPacket();
-		this.stream!.seek(0);
-		// @TODO: Fix seek times! We could detect timestamps while decoding to do a faster seek
-		// later on loops.
-		while (this.currentFrame < frame) {
-            const data = this.decodeOne();
-            if (data == null) return;
-		}
-	}
-	
-	private flushPacket() {
-		this.currentFrame = 0;
-		if (this.packet) {
-			this.packet.free();
-			this.packet = null;
-		}
-	}
-	
-	private decodeOne() {
-		this.currentFrame++;
-		let data: Int16Array
-		do {
-			if (this.packet == null) {
-				this.packet = this.stream!.readPacket();
-				//console.warn('readPacket', this.packet != null);
-				if (this.packet == null) {
-					return null;
-				}
-			}
-			data = this.packet.decodeAudio(this.format.atracChannels, 44100);
-			//console.log('decodeAudio', data != null);
-			if (data == null) {
-				this.packet.free();
-				this.packet = null;
-			}
-		} while (data == null);
-		return data;
-	}
-
-	decodeAsync(samplesOutPtr: Stream) {
-		if (this.totalFrames <= 0) return PromiseFast.resolve(0);
-		//const blockData = this.dataStream.readBytes(this.format.blockSize);
-		try {
-			
-			//console.log(data);
-            const data = this.decodeOne();
-            if (data == null) return PromiseFast.resolve(0);
-
-			for (let n = 0; n < data.length; n++) samplesOutPtr.writeInt16(data[n]);
-			return PromiseFast.resolve(data.length);
-		} catch (e) {
-			console.error(e.stack || e);
-			throw e;
-		}
-	}
-
-	static lastId = 0;
-	static fromStreamAsync(data: Stream):PromiseFast<Atrac3> {
-		return PromiseFast.resolve(new Atrac3(Atrac3.lastId++).setDataStream(data));
-	}
-}
-
-class FactStruct {
-	endSample = 0;
-	sampleOffset = 0;
-
-	static struct = StructClass.create<FactStruct>(FactStruct, [
-		{ endSample: Int32 },
-		{ sampleOffset: Int32 },
-	]);
-}
-
-class SmplStruct {
-	unknown = [0, 0, 0, 0, 0, 0, 0];
-	loopCount = 0;
-	unknown2 = 0;
-
-	static struct = StructClass.create<SmplStruct>(SmplStruct, [
-		{ unknown: StructArray(Int32, 7) },
-		{ loopCount: Int32 },
-		{ unknown2: Int32 },
-	]);
-}
-
-class LoopInfoStruct {
-	cuePointID = 0;
-	type = 0;
-	startSample = 0;
-	endSample = 0;
-	fraction = 0;
-	playCount = 0;
-
-	static struct = StructClass.create<LoopInfoStruct>(LoopInfoStruct, [
-		{ cuePointID: Int32 },
-		{ type: Int32 },
-		{ startSample: Int32 },
-		{ endSample: Int32 },
-		{ fraction: Int32 },
-		{ playCount: Int32 },
-	]);
-}
-
-class At3FormatStruct {
-	compressionCode = 0;
-	atracChannels = 0;
-	bitrate = 0;
-	averageBytesPerSecond = 0;
-	blockAlignment = 0;
-	bytesPerFrame = 0;
-	unknown = [0, 0, 0, 0];
-	omaInfo = 0;
-	_unk2 = 0;
-	_blockSize = 0;
-
-	get blockSize() { return (this._blockSize & 0x3FF) * 8 + 8; }
-
-	static struct = StructClass.create<At3FormatStruct>(At3FormatStruct, <StructEntry[]>[
-		{ compressionCode: UInt16 },           // 00
-		{ atracChannels: UInt16 },             // 02
-		{ bitrate: UInt32 },                   // 04
-		{ averageBytesPerSecond: UInt16 },     // 08
-		{ blockAlignment: UInt16 },            // 0A
-		{ bytesPerFrame: UInt16 },             // 0C
-		{ _unk: UInt16 },                      // 0E
-		{ unknown: StructArray(UInt32, 6) },   // 10
-		{ _unk2: UInt16_b },                   // 28
-		{ _blockSize: UInt16_b },              // 2A
-	]);
-}
-
-*/
-
-/*
-class MyMemoryCustomStream extends MediaEngine.CustomStream {
-	constructor(public data:Uint8Array) {
-		super();
-	}
-	get length() { return this.data.length; }
-	
-	public read(buf:Uint8Array):number {
-		const readlen = Math.min(buf.length, this.available);
-		console.log('read', this.position, buf.length, readlen);
-		buf.subarray(0, readlen).set(this.data.subarray(this.position, this.position + readlen));
-		return readlen;
-	}
-	public write(buf:Uint8Array):number {
-		throw new Error("Must override CustomStream.write()");
-	}
-	public close():void {
-	}
-	
-	public _seek(offset: number, whence: MediaEngine.SeekType) {
-		console.info('seek', offset, whence);
-		switch (whence) {
-			case MediaEngine.SeekType.Set: this.position = 0 + offset; break;
-			case MediaEngine.SeekType.Cur: this.position = this.position + offset; break;
-			case MediaEngine.SeekType.End: this.position = this.length + offset; break;
-			case MediaEngine.SeekType.Tell: return this.position;
-		}
-		return this.position;
-	}
-}
-*/
-
 class Uint8ArrayMem implements IMemory {
     constructor(public data: Uint8Array) {
     }
@@ -549,7 +294,6 @@ class AtracID {
     }
 
     decoder = new Atrac3plusDecoder()
-    //inputBuffer = new Uint8Array()
     inUse = false
     isSecondBufferNeeded = false
     isSecondBufferSet = false
@@ -575,5 +319,21 @@ class AtracID {
 
     get decodingReachedEnd() {
         return this.remainFrames <= 0
+    }
+
+    getNumberOfSamplesInNextFrame() {
+        return Math.min(this.getMaxSamples(CodecType.PSP_MODE_AT_3_PLUS), this.info.atracEndSample - this.currentFrame);
+    }
+
+    getMaxSamples(codecType: CodecType) {
+        switch (codecType) {
+            case Atrac3plusConstants.PSP_CODEC_AT3: return 1024
+            case Atrac3plusConstants.PSP_CODEC_AT3PLUS: return Atrac3plusConstants.ATRAC3P_FRAME_SAMPLES
+            default: return 0
+        }
+    }
+
+    moveNext() {
+        this.readAddr += this.info.atracBytesPerFrame
     }
 }

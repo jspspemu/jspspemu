@@ -358,12 +358,13 @@ export class Pool<T> {
 export class UidCollection<T>
 {
     private items: NumberDictionary<T> = {};
+    private freeItems: number[] = []
 
     constructor(private lastId: number = 1) {
     }
 
-    allocate(item: T):number {
-        const id = this.lastId++;
+    allocate(item: T): number {
+        const id = (this.freeItems.length > 0) ? this.freeItems.pop()! : this.lastId++;
         this.items[id] = item;
         return id;
     }
@@ -382,8 +383,11 @@ export class UidCollection<T>
 		return out;
 	}
 
-    remove(id: number):void {
-        delete this.items[id];
+    remove(id: number): void {
+        if (this.items[id] !== undefined) {
+            delete this.items[id];
+            this.freeItems.push(id)
+        }
     }
 }
 
@@ -1414,6 +1418,13 @@ export function isInsideWorker() {
 	return typeof (<any>window).document == 'undefined';
 }
 
+export async function delay(ms: number) {
+    await new Promise<void>((resolve, _) => {
+        setTimeout(() => {
+            resolve()
+        }, ms)
+    })
+}
 
 (<any>window).sprintf = sprintf;
 (<any>window).throwEndCycles = throwEndCycles;

@@ -1,4 +1,4 @@
-﻿import {DebugOnce, logger, PromiseFast, setToString, sprintf, UidCollection} from "../../../global/utils";
+﻿import {DebugOnce, delay, logger, PromiseFast, setToString, sprintf, UidCollection} from "../../../global/utils";
 import {Stream} from "../../../global/stream";
 import {Integer64} from "../../../global/int64";
 import {SceKernelErrors} from "../../SceKernelErrors";
@@ -24,7 +24,11 @@ export class IoFileMgrForUser {
 	}
 
 
+    static STDIN_ID = 0
+    static STDOUT_ID = 1
+    static STDERR_ID = 2
 	fileUids = new UidCollection<HleFile>(3);
+
 	directoryUids = new UidCollection<HleDirectory>(1);
 
 	hasFileById(id:number):boolean { return this.fileUids.has(id); }
@@ -66,12 +70,12 @@ export class IoFileMgrForUser {
             file.setAsyncOperation(PromiseFast.resolve(Integer64.fromNumber(fileId)));
 			log.info('-->', fileId);
 			return fileId;
-		});
+		})
 	}
 
 	@nativeFunction(0xFF5940B6, 150, 'int', 'int')
 	sceIoCloseAsync(fileId: number) {
-		log.warn(sprintf('Not implemented IoFileMgrForUser.sceIoCloseAsync(%d)', fileId));
+        log.info(sprintf('IoFileMgrForUser.closeAsync(%d)', fileId));
 		//if (filename == '') return PromiseFast.resolve(0);
 
 		if (!this.hasFileById(fileId)) return SceKernelErrors.ERROR_ERRNO_FILE_NOT_FOUND;
@@ -79,7 +83,14 @@ export class IoFileMgrForUser {
         if (file) file.close();
 
 		//file.setAsyncOperation(PromiseFast.resolve(Integer64.fromInt(fileId)));
-		file.setAsyncOperation(PromiseFast.resolve(Integer64.fromInt(0)));
+		//file.setAsyncOperation(PromiseFast.resolve(Integer64.fromInt(0)));
+
+        (async () => {
+            await delay(100)
+            this.fileUids.remove(fileId);
+        })()
+
+        file.setAsyncOperation(Integer64.ZERO);
 
 		return 0;
 	}

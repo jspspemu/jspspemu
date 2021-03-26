@@ -56,4 +56,12 @@ export class sceRtc {
 
 		return 0;
 	}
+
+    @nativeFunction(0xE7C27D1B, 150, 'int', 'uint')
+    @nativeFunction(0x9012B140, 660, 'int', 'uint')
+    sceRtcGetCurrentClockLocalTime(dateAddress: number) {
+        const pointer = this.context.memory.getPointerPointer<ScePspDateTime>(ScePspDateTime.struct, dateAddress)!
+        pointer.write(ScePspDateTime.fromDate(new Date()));
+        return 0;
+    }
 }

@@ -30,7 +30,15 @@ export class sceAudio {
 		return waitAsync(10).then(() => 0);
 	}
 
-	@nativeFunction(0x5EC81C55, 150, 'uint', 'int/int/int')
+    @nativeFunction(0xB011922F, 150, "int", "int", {disableInsideInterrupt: true})
+    sceAudioGetChannelRestLength(channelId: number) {
+        if (!this.isValidChannel(channelId)) return SceKernelErrors.ERROR_AUDIO_INVALID_CHANNEL;
+        const channel = this.getChannelById(channelId);
+        return channel.restLength
+    }
+
+
+    @nativeFunction(0x5EC81C55, 150, 'uint', 'int/int/int')
 	sceAudioChReserve(channelId: number, sampleCount: number, format: AudioFormat) {
 		if (channelId >= this.channels.length) return -1;
 		if (channelId < 0) {
@@ -144,6 +152,7 @@ class Channel {
 	sampleCount: number = 44100;
 	format: AudioFormat = AudioFormat.Stereo;
 	channel: PspAudioChannel|null = null;
+    restLength: number = 1024
 
 	get totalSampleCount() {
 		return this.sampleCount * this.numberOfChannels;

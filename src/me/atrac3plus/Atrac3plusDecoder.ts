@@ -112,7 +112,7 @@ export class Atrac3plusDecoder {
         }
 
         if (log.isTraceEnabled) {
-            log.trace("Bytes read 0x%X".format(this.ctx!!.br!!.bytesRead))
+            log.trace("Bytes read 0x%X".format(this.ctx.br.bytesRead))
         }
 
         return this.ctx!!.br!!.bytesRead
