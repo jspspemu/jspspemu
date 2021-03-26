@@ -47,10 +47,12 @@ export class ThreadManForUser {
 		if (bits == 0) return SceKernelErrors.ERROR_KERNEL_EVENT_FLAG_ILLEGAL_WAIT_PATTERN;
         const timedOut = false;
         const previousPattern = eventFlag.currentPattern;
-        return new WaitingThreadInfo('_sceKernelWaitEventFlagCB', eventFlag, eventFlag.waitAsync(bits, waitType, outBits, timeout, acceptCallbacks).thenFast(() => {
-			if (outBits != null) outBits.writeUInt32(previousPattern);
-			return 0;
-		}), acceptCallbacks);
+        const promise = (async () => {
+            await eventFlag.waitAsync(bits, waitType, outBits, timeout, acceptCallbacks)
+            if (outBits != null) outBits.writeUInt32(previousPattern);
+            return 0;
+        })()
+        return new WaitingThreadInfo('_sceKernelWaitEventFlagCB', eventFlag, promise, acceptCallbacks);
 	}
 
 	@nativeFunction(0x402FCF22, 150, 'uint', 'int/uint/int/void*/void*')
@@ -134,14 +136,14 @@ class EventFlag {
 	waitingThreads = new SortedSet<EventFlagWaitingThread>();
 
 	waitAsync(bits: number, waitType: EventFlagWaitTypeSet, outBits: Stream, timeout: Stream, callbacks: AcceptCallbacks) {
-		return new PromiseFast((resolve, reject) => {
+		return new Promise((resolve, reject) => {
 			const waitingSemaphoreThread = new EventFlagWaitingThread(bits, waitType, outBits, this, () => {
 				this.waitingThreads.delete(waitingSemaphoreThread);
-				resolve();
+				resolve(0);
 				throwEndCycles();
 			});
 			this.waitingThreads.add(waitingSemaphoreThread);
-		}).thenFast(() => 0);
+		})
 	}
 
 	poll(bitsToMatch: number, waitType: EventFlagWaitTypeSet, outBits: Stream) {
