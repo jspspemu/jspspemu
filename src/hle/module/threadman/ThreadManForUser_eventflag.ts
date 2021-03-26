@@ -19,7 +19,7 @@ import {
 } from "../../../global/struct";
 import {SceKernelErrors} from "../../SceKernelErrors";
 import {EmulatorContext} from "../../../emu/context";
-import {I32, nativeFunctionEx, PTR, STRING, U32} from "../../utils";
+import {I32, nativeFunction, PTR, STRING, U32} from "../../utils";
 
 export class ThreadManForUser {
 	constructor(private context: EmulatorContext) { }
@@ -27,7 +27,7 @@ export class ThreadManForUser {
 
 	private eventFlagUids = new UidCollection<EventFlag>(1);
 
-	@nativeFunctionEx(0x55C20A00, 150)
+	@nativeFunction(0x55C20A00, 150)
 	@U32 sceKernelCreateEventFlag(
 	    @STRING name: string,
         @I32 attributes: number,
@@ -46,7 +46,7 @@ export class ThreadManForUser {
 		return this.eventFlagUids.allocate(eventFlag);
 	}
 
-	@nativeFunctionEx(0x1FB15A32, 150)
+	@nativeFunction(0x1FB15A32, 150)
     @U32 sceKernelSetEventFlag(@I32 id: number, @U32 bitPattern: number) {
 		if (!this.eventFlagUids.has(id)) return SceKernelErrors.ERROR_KERNEL_NOT_FOUND_EVENT_FLAG;
 		this.eventFlagUids.get(id).setBits(bitPattern);
@@ -69,7 +69,7 @@ export class ThreadManForUser {
         return new WaitingThreadInfo('_sceKernelWaitEventFlagCB', eventFlag, promise, acceptCallbacks);
 	}
 
-	@nativeFunctionEx(0x402FCF22, 150)
+	@nativeFunction(0x402FCF22, 150)
     @U32 sceKernelWaitEventFlag(
         @I32 id: number, @U32 bits: number,
         @I32 waitType: EventFlagWaitTypeSet,
@@ -78,7 +78,7 @@ export class ThreadManForUser {
 		return this._sceKernelWaitEventFlagCB(id, bits, waitType, outBits, timeout, AcceptCallbacks.NO);
 	}
 
-	@nativeFunctionEx(0x328C546A, 150)
+	@nativeFunction(0x328C546A, 150)
     @U32 sceKernelWaitEventFlagCB(
         @I32 id: number, @U32 bits: number,
         @I32 waitType: EventFlagWaitTypeSet,
@@ -87,7 +87,7 @@ export class ThreadManForUser {
 		return this._sceKernelWaitEventFlagCB(id, bits, waitType, outBits, timeout, AcceptCallbacks.YES);
 	}
 
-	@nativeFunctionEx(0x30FD48F0, 150)
+	@nativeFunction(0x30FD48F0, 150)
     @U32 sceKernelPollEventFlag(
         @I32 id: number, @U32 bits: number,
         @I32 waitType: EventFlagWaitTypeSet,
@@ -106,28 +106,28 @@ export class ThreadManForUser {
         return matched ? 0 : SceKernelErrors.ERROR_KERNEL_EVENT_FLAG_POLL_FAILED;
 	}
 
-	@nativeFunctionEx(0xEF9E4C70, 150)
+	@nativeFunction(0xEF9E4C70, 150)
     @U32 sceKernelDeleteEventFlag(@I32 id: number) {
 		if (!this.eventFlagUids.has(id)) return SceKernelErrors.ERROR_KERNEL_NOT_FOUND_EVENT_FLAG;
 		this.eventFlagUids.remove(id);
 		return 0;
 	}
 
-	@nativeFunctionEx(0x812346E4, 150)
+	@nativeFunction(0x812346E4, 150)
     @U32 sceKernelClearEventFlag(@I32 id: number, @U32 bitsToClear: number) {
 		if (!this.eventFlagUids.has(id)) return SceKernelErrors.ERROR_KERNEL_NOT_FOUND_EVENT_FLAG;
 		this.eventFlagUids.get(id).clearBits(bitsToClear);
 		return 0;
 	}
 
-	@nativeFunctionEx(0xCD203292, 150)
+	@nativeFunction(0xCD203292, 150)
     @U32 sceKernelCancelEventFlag(@I32 id: number, @U32 newPattern: number, @PTR numWaitThreadPtr: Stream) {
 		if (!this.eventFlagUids.has(id)) return SceKernelErrors.ERROR_KERNEL_NOT_FOUND_EVENT_FLAG;
 		this.eventFlagUids.get(id).cancel(newPattern);
 		return 0;
 	}
 
-	@nativeFunctionEx(0xA66B0120, 150)
+	@nativeFunction(0xA66B0120, 150)
     @U32 sceKernelReferEventFlagStatus(@I32 id: number, @PTR infoPtr: Stream) {
         const size = infoPtr.readUInt32();
         if (size == 0) return 0;

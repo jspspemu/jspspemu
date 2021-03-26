@@ -10,7 +10,7 @@
 import {Float32, Int32, Int64, IType, Pointer, Ptr, StringzVariable, UInt32} from "../global/struct";
 import {Stream} from "../global/stream";
 
-export function nativeFunction(exportId: number, firmwareVersion: number, retval: string|undefined, args: string|undefined, options?: CreateOptions) {
+export function nativeFunction(exportId: number, firmwareVersion: number, options?: CreateOptions) {
     return (target: any, key: string, descriptor: TypedPropertyDescriptor<any>) => {
         //console.log(target, key, descriptor);
         if (typeof target.natives == 'undefined') target.natives = [];
@@ -23,14 +23,10 @@ export function nativeFunction(exportId: number, firmwareVersion: number, retval
             console.error(descriptor);
         }
         target.natives.push((target: any) => {
-            return createNativeFunction(exportId, firmwareVersion, retval, target.nativeRet[key], args, target.nativesParams[key], target, descriptor.value, options, `${target.constructor.name}`, key)
+            return createNativeFunction(exportId, firmwareVersion, target.nativeRet[key], target.nativesParams[key], target, descriptor.value, options, `${target.constructor.name}`, key)
         });
         return descriptor;
     };
-}
-
-export function nativeFunctionEx(exportId: number, firmwareVersion: number, options?: CreateOptions) {
-    return nativeFunction(exportId, firmwareVersion, undefined, undefined, options)
 }
 
 //export function nativeFunction2(): any {

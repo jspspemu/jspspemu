@@ -19,7 +19,7 @@ import {Integer64} from "../../../global/int64";
 import {SceKernelErrors} from "../../SceKernelErrors";
 import {EmulatorContext} from "../../../emu/context";
 import {PspThreadAttributes, Thread, ThreadStatus} from "../../manager/thread";
-import {I32, I64, nativeFunctionEx, PTR, STRING, THREAD, U32} from "../../utils";
+import {I32, I64, nativeFunction, PTR, STRING, THREAD, U32} from "../../utils";
 import {OutOfMemoryError} from "../../manager/memory";
 import {CpuSpecialAddresses} from "../../../core/cpu/cpu_core";
 
@@ -30,7 +30,7 @@ export class ThreadManForUser {
 
 	private threadUids = new UidCollection<Thread>(1);
 
-	@nativeFunctionEx(0x446D8DE6, 150)
+	@nativeFunction(0x446D8DE6, 150)
     @I32 sceKernelCreateThread(
         @STRING name: string,
         @U32 entryPoint: number, @I32 initPriority: number, @I32 stackSize: number,
@@ -83,12 +83,12 @@ export class ThreadManForUser {
 		return new WaitingThreadInfo('_sceKernelDelayThreadCB', `microseconds:${delayInMicroseconds}`, thread.delayMicrosecondsAsync(delayInMicroseconds, false), acceptCallbacks);
 	}
 
-	@nativeFunctionEx(0xCEADEB47, 150)
+	@nativeFunction(0xCEADEB47, 150)
     @U32 sceKernelDelayThread(@THREAD thread: Thread, @U32 delayInMicroseconds: number) {
 		return this._sceKernelDelayThreadCB(thread, delayInMicroseconds, AcceptCallbacks.NO);
 	}
 
-	@nativeFunctionEx(0x68DA9E36, 150)
+	@nativeFunction(0x68DA9E36, 150)
     @U32 sceKernelDelayThreadCB(@THREAD thread: Thread, @U32 delayInMicroseconds: number) {
 		return this._sceKernelDelayThreadCB(thread, delayInMicroseconds, AcceptCallbacks.YES);
 	}
@@ -100,24 +100,24 @@ export class ThreadManForUser {
         })(), acceptCallbacks);
 	}
 
-	@nativeFunctionEx(0x840E8133, 150)
+	@nativeFunction(0x840E8133, 150)
     @U32 sceKernelWaitThreadEndCB(@U32 threadId: number, @PTR timeoutPtr: Stream):any {
 		if (!this.hasThreadById(threadId)) return SceKernelErrors.ERROR_KERNEL_NOT_FOUND_THREAD;
 		return this._sceKernelWaitThreadEndCB(this.getThreadById(threadId), AcceptCallbacks.YES);
 	}
 
-	@nativeFunctionEx(0x278C0DF5, 150)
+	@nativeFunction(0x278C0DF5, 150)
     @U32 sceKernelWaitThreadEnd(@U32 threadId: number, @PTR timeoutPtr: Stream): any {
 		if (!this.hasThreadById(threadId)) return SceKernelErrors.ERROR_KERNEL_NOT_FOUND_THREAD;
 		return this._sceKernelWaitThreadEndCB(this.getThreadById(threadId), AcceptCallbacks.NO);
 	}
 
-	@nativeFunctionEx(0x94AA61EE, 150)
+	@nativeFunction(0x94AA61EE, 150)
     @I32 sceKernelGetThreadCurrentPriority(@THREAD currentThread: Thread) {
 		return currentThread.priority;
 	}
 
-	@nativeFunctionEx(0xF475845D, 150)
+	@nativeFunction(0xF475845D, 150)
     @U32 sceKernelStartThread(@THREAD currentThread: Thread, @I32 threadId: number, @I32 userDataLength: number, @I32 userDataPointer: number):any {
 		if (!this.hasThreadById(threadId)) return SceKernelErrors.ERROR_KERNEL_NOT_FOUND_THREAD;
         const newThread = this.getThreadById(threadId);
@@ -163,7 +163,7 @@ export class ThreadManForUser {
 		return PromiseFast.resolve(0);
 	}
 
-	@nativeFunctionEx(0x71BC9871, 150)
+	@nativeFunction(0x71BC9871, 150)
     @U32 sceKernelChangeThreadPriority(@THREAD currentThread: Thread, @I32 threadId: number, @I32 priority: number): any {
 		if (!this.hasThreadById(threadId)) return SceKernelErrors.ERROR_KERNEL_NOT_FOUND_THREAD;
         const thread = this.getThreadById(threadId);
@@ -171,7 +171,7 @@ export class ThreadManForUser {
 		return PromiseFast.resolve(0);
 	}
 
-	@nativeFunctionEx(0xAA73C935, 150)
+	@nativeFunction(0xAA73C935, 150)
     @I32 sceKernelExitThread(@THREAD currentThread: Thread, @I32 exitStatus: number) {
 		console.info(sprintf('sceKernelExitThread: %d', exitStatus));
 
@@ -180,7 +180,7 @@ export class ThreadManForUser {
 		throwEndCycles();
 	}
 
-	@nativeFunctionEx(0x3B183E26, 150)
+	@nativeFunction(0x3B183E26, 150)
     @I32 sceKernelGetThreadExitStatus(@I32 threadId: number) {
 		if (!this.hasThreadById(threadId)) return SceKernelErrors.ERROR_KERNEL_NOT_FOUND_THREAD;
         const thread = this.getThreadById(threadId);
@@ -203,43 +203,43 @@ export class ThreadManForUser {
 		return 0;
 	}
 
-	@nativeFunctionEx(0x9FA03CD3, 150)
+	@nativeFunction(0x9FA03CD3, 150)
     @I32 sceKernelDeleteThread(@I32 threadId: number) {
 		return this._sceKernelDeleteThread(threadId);
 	}
 
-	@nativeFunctionEx(0x616403BA, 150)
+	@nativeFunction(0x616403BA, 150)
     @I32 sceKernelTerminateThread(@I32 threadId: number) {
 		console.info(sprintf('sceKernelTerminateThread: %d', threadId));
 
 		return this._sceKernelTerminateThread(threadId);
 	}
 
-	@nativeFunctionEx(0x809CE29B, 150)
+	@nativeFunction(0x809CE29B, 150)
     @U32 sceKernelExitDeleteThread(@THREAD currentThread: Thread, @I32 exitStatus: number) {
 		currentThread.exitStatus = exitStatus;
 		currentThread.stop('sceKernelExitDeleteThread');
 		throwEndCycles();
 	}
 
-	@nativeFunctionEx(0x383F7BCC, 150)
+	@nativeFunction(0x383F7BCC, 150)
     @I32 sceKernelTerminateDeleteThread(@I32 threadId: number) {
 		this._sceKernelTerminateThread(threadId);
 		this._sceKernelDeleteThread(threadId);
 		return 0;
 	}
 
-	@nativeFunctionEx(0x82826F70, 150)
+	@nativeFunction(0x82826F70, 150)
     @U32 sceKernelSleepThreadCB(@THREAD currentThread: Thread) {
 		return currentThread.wakeupSleepAsync(AcceptCallbacks.YES);
 	}
 
-	@nativeFunctionEx(0x9ACE131E, 150)
+	@nativeFunction(0x9ACE131E, 150)
     @U32 sceKernelSleepThread(@THREAD currentThread: Thread) {
 		return currentThread.wakeupSleepAsync(AcceptCallbacks.NO);
 	}
 
-	@nativeFunctionEx(0xD59EAD2F, 150)
+	@nativeFunction(0xD59EAD2F, 150)
     @U32 sceKernelWakeupThread(@I32 threadId: number) {
 		if (!this.hasThreadById(threadId)) return PromiseFast.resolve(SceKernelErrors.ERROR_KERNEL_NOT_FOUND_THREAD);
         const thread = this.getThreadById(threadId);
@@ -250,50 +250,50 @@ export class ThreadManForUser {
 		return this.context.rtc.getCurrentUnixMicroseconds();
 	}
 
-	@nativeFunctionEx(0x110DEC9A, 150)
+	@nativeFunction(0x110DEC9A, 150)
     @U32 sceKernelUSec2SysClock(@U32 microseconds: number, @PTR clockPtr: Stream) {
 		if (clockPtr != null) clockPtr.writeInt64(Integer64.fromUnsignedInt(microseconds));
 		return 0;
 	}
 
-	@nativeFunctionEx(0x369ED59D, 150)
+	@nativeFunction(0x369ED59D, 150)
     @U32 sceKernelGetSystemTimeLow() {
 		return this._getCurrentMicroseconds();
 	}
 
-	@nativeFunctionEx(0xDB738F35, 150)
+	@nativeFunction(0xDB738F35, 150)
     @U32 sceKernelGetSystemTime(@PTR timePtr: Stream) {
 		if (timePtr == null) return SceKernelErrors.ERROR_ERRNO_INVALID_ARGUMENT;
 		timePtr.writeInt64(Integer64.fromNumber(this._getCurrentMicroseconds()));
 		return 0;
 	}
 
-	@nativeFunctionEx(0x82BC5777, 150)
+	@nativeFunction(0x82BC5777, 150)
     @I64 sceKernelGetSystemTimeWide() {
 		//console.warn('Not implemented ThreadManForUser.sceKernelGetSystemTimeLow');
 		return Integer64.fromNumber(this._getCurrentMicroseconds());
 	}
 
-    @I32 @nativeFunctionEx(0x293B45B8, 150)
+    @I32 @nativeFunction(0x293B45B8, 150)
 	sceKernelGetThreadId(@THREAD currentThread: Thread) {
 		return currentThread.id
 	}
 
-	@nativeFunctionEx(0x9944F31F, 150)
+	@nativeFunction(0x9944F31F, 150)
     @I32 sceKernelSuspendThread(@I32 threadId: number) {
 		if (!this.hasThreadById(threadId)) return SceKernelErrors.ERROR_KERNEL_NOT_FOUND_THREAD;
 		this.getThreadById(threadId).suspend();
 		return 0;
 	}
 
-	@nativeFunctionEx(0x75156E8F, 150)
+	@nativeFunction(0x75156E8F, 150)
     @I32 sceKernelResumeThread(@I32 threadId: number) {
 		if (!this.hasThreadById(threadId)) return SceKernelErrors.ERROR_KERNEL_NOT_FOUND_THREAD;
 		this.getThreadById(threadId).resume();
 		return 0;
 	}
 
-	@nativeFunctionEx(0x17C1684E, 150)
+	@nativeFunction(0x17C1684E, 150)
     @I32 sceKernelReferThreadStatus(@I32 threadId: number, @PTR sceKernelThreadInfoPtr: Stream) {
 		if (!this.hasThreadById(threadId)) return SceKernelErrors.ERROR_KERNEL_NOT_FOUND_THREAD;
         const thread = this.getThreadById(threadId);
@@ -328,14 +328,14 @@ export class ThreadManForUser {
 		return 0;
 	}
 
-	@nativeFunctionEx(0xEA748E31, 150)
+	@nativeFunction(0xEA748E31, 150)
     @I32 sceKernelChangeCurrentThreadAttr(@THREAD currentThread: Thread, @U32 removeAttributes: number, @U32 addAttributes: number) {
 		currentThread.attributes &= ~removeAttributes;
 		currentThread.attributes |= addAttributes;
 		return 0;
 	}
 
-	@nativeFunctionEx(0xC8CD158C, 150)
+	@nativeFunction(0xC8CD158C, 150)
     @I32 sceKernelUSec2SysClockWide(@U32 microseconds: number) {
 		return microseconds;
 	}

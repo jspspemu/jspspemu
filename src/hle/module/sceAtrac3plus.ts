@@ -2,7 +2,7 @@
 import {Stream} from "../../global/stream";
 import {logger} from "../../global/utils";
 import {EmulatorContext} from "../../emu/context";
-import {I32, nativeFunctionEx, PTR, U32} from "../utils";
+import {I32, nativeFunction, PTR, U32} from "../utils";
 import {Atrac3PlusUtil, AtracFileInfo} from "../../me/atrac3plus/Atrac3PlusUtil";
 import {Atrac3plusDecoder} from "../../me/atrac3plus/Atrac3plusDecoder";
 import {ArrayUtils} from "../../global/math";
@@ -34,7 +34,7 @@ export class sceAtrac3plus {
 
     private atracIDs = ArrayUtils.create(6, i => new AtracID(i))
 
-    @nativeFunctionEx(0x7A20E7AF, 150)
+    @nativeFunction(0x7A20E7AF, 150)
 	@U32 sceAtracSetDataAndGetID(@I32 dataPtr: number, @I32 bufferSize: number) {
         const id = this.atracIDs.first(it => !it.inUse)
         if (!id) return SceKernelErrors.ERROR_ATRAC_NO_ID
@@ -42,7 +42,7 @@ export class sceAtrac3plus {
         return id.id
 	}
 
-    @nativeFunctionEx(0x0E2A73AB, 150)
+    @nativeFunction(0x0E2A73AB, 150)
     @U32 sceAtracSetData(@I32 atID: number, @I32 dataPtr: number, @I32 bufferSize: number) {
         if (!this.hasById(atID)) return SceKernelErrors.ATRAC_ERROR_NO_ATRACID;
         const id = this.getAtrac(atID)
@@ -77,7 +77,7 @@ export class sceAtrac3plus {
 
     getAtrac(id: Int) { return this.atracIDs[id] }
 
-    @nativeFunctionEx(0x83E85EA0, 150)
+    @nativeFunction(0x83E85EA0, 150)
     @U32 sceAtracGetSecondBufferInfo(@I32 atID: number, @PTR puiPosition: Stream, @PTR puiDataByte: Stream) {
         logger.error(`sceAtracGetSecondBufferInfo Not implemented (${atID}, ${puiPosition}, ${puiDataByte})`)
         const id = this.getAtrac(atID)
@@ -92,13 +92,13 @@ export class sceAtrac3plus {
         }
     }
 
-    @nativeFunctionEx(0x83BF7AFD, 150)
+    @nativeFunction(0x83BF7AFD, 150)
     @U32 sceAtracSetSecondBuffer(@I32 id: number, @PTR pucSecondBufferAddr: Stream, @U32 uiSecondBufferByte: number) {
         //throw (new Error("Not implemented sceAtracSetSecondBuffer"));
         return 0;
     }
 
-    @nativeFunctionEx(0xA2BBA8BE, 150)
+    @nativeFunction(0xA2BBA8BE, 150)
     @U32 sceAtracGetSoundSample(@I32 id: number, @PTR endSamplePtr: Stream, @PTR loopStartSamplePtr: Stream, @PTR loopEndSamplePtr: Stream) {
         if (!this.hasById(id)) return SceKernelErrors.ATRAC_ERROR_NO_ATRACID;
         const atrac3 = this.getAtrac(id);
@@ -111,7 +111,7 @@ export class sceAtrac3plus {
         return 0;
     }
 
-    @nativeFunctionEx(0x868120B5, 150)
+    @nativeFunction(0x868120B5, 150)
     @U32 sceAtracSetLoopNum(@I32 id: number, @I32 numberOfLoops: number) {
         if (!this.hasById(id)) return SceKernelErrors.ATRAC_ERROR_NO_ATRACID;
         const atrac3 = this.getAtrac(id);
@@ -124,7 +124,7 @@ export class sceAtrac3plus {
      * or the remaining (not decoded yet) frames at memory if not all at3 data is on memory
      * @return Less than 0 on error, otherwise 0
      */
-    @nativeFunctionEx(0x9AE849A7, 150)
+    @nativeFunction(0x9AE849A7, 150)
     @U32 sceAtracGetRemainFrame(@I32 id: number, @PTR remainFramePtr: Stream) {
         if (!this.hasById(id)) return SceKernelErrors.ATRAC_ERROR_NO_ATRACID;
         const atrac3 = this.getAtrac(id);
@@ -132,7 +132,7 @@ export class sceAtrac3plus {
         return 0;
     }
 
-    @nativeFunctionEx(0xE23E3A35, 150)
+    @nativeFunction(0xE23E3A35, 150)
     @U32 sceAtracGetNextDecodePosition(@I32 id: number, @PTR samplePositionPtr: Stream) {
         if (!this.hasById(id)) return SceKernelErrors.ATRAC_ERROR_NO_ATRACID;
         const atrac3 = this.getAtrac(id);
@@ -141,7 +141,7 @@ export class sceAtrac3plus {
         return 0;
     }
 
-    @nativeFunctionEx(0x6A8C3CD5, 150)
+    @nativeFunction(0x6A8C3CD5, 150)
     @U32 sceAtracDecodeData(
         @I32 idAT: number,
         @PTR samplesAddr: Stream,
@@ -175,14 +175,14 @@ export class sceAtrac3plus {
         return result
     }
 
-	@nativeFunctionEx(0x61EB33F5, 150)
+	@nativeFunction(0x61EB33F5, 150)
     @U32 sceAtracReleaseAtracID(@I32 atID: number) {
         const atrac = this.getAtrac(atID)
         atrac.inUse = false
         return 0
 	}
 
-	@nativeFunctionEx(0xA554A158, 150)
+	@nativeFunction(0xA554A158, 150)
 	@U32 sceAtracGetBitrate(@I32 id: number, @PTR bitratePtr: Stream) {
 		if (!this.hasById(id)) return SceKernelErrors.ATRAC_ERROR_NO_ATRACID;
         const atrac3 = this.getAtrac(id);
@@ -190,7 +190,7 @@ export class sceAtrac3plus {
 		return 0;
 	}
 
-	@nativeFunctionEx(0x31668baa, 150)
+	@nativeFunction(0x31668baa, 150)
 	@U32 sceAtracGetChannel(@I32 id: number, @PTR channelsPtr: Stream) {
 		if (!this.hasById(id)) return SceKernelErrors.ATRAC_ERROR_NO_ATRACID;
         const atrac3 = this.getAtrac(id);
@@ -198,7 +198,7 @@ export class sceAtrac3plus {
 		return 0;
 	}
 
-	@nativeFunctionEx(0xD6A5F2F7, 150)
+	@nativeFunction(0xD6A5F2F7, 150)
 	@U32 sceAtracGetMaxSample(@I32 id: number, @PTR maxNumberOfSamplesPtr: Stream) {
 		if (!this.hasById(id)) return SceKernelErrors.ATRAC_ERROR_NO_ATRACID;
         const atrac3 = this.getAtrac(id);
@@ -206,7 +206,7 @@ export class sceAtrac3plus {
 		return 0;
 	}
 
-	@nativeFunctionEx(0x36FAABFB, 150)
+	@nativeFunction(0x36FAABFB, 150)
 	@U32 sceAtracGetNextSample(@I32 id: number, @PTR numberOfSamplesInNextFramePtr: Stream) {
 		if (!this.hasById(id)) return SceKernelErrors.ATRAC_ERROR_NO_ATRACID;
         const atrac3 = this.getAtrac(id);
@@ -215,7 +215,7 @@ export class sceAtrac3plus {
 		return 0;
 	}
 
-	@nativeFunctionEx(0x780F88D1, 150)
+	@nativeFunction(0x780F88D1, 150)
 	@U32 sceAtracGetAtracID(@I32 codecType: CodecType) {
 		if (codecType != CodecType.PSP_MODE_AT_3 && codecType != CodecType.PSP_MODE_AT_3_PLUS) {
 			return SceKernelErrors.ATRAC_ERROR_INVALID_CODECTYPE;
@@ -227,7 +227,7 @@ export class sceAtrac3plus {
         return id >= 0 && id < this.atracIDs.length
     }
 	
-	@nativeFunctionEx(0x7DB31251, 150)
+	@nativeFunction(0x7DB31251, 150)
 	@U32 sceAtracAddStreamData(@I32 id: number, @I32 bytesToAdd: number) {
 		if (!this.hasById(id)) return SceKernelErrors.ATRAC_ERROR_NO_ATRACID;
         const atrac3 = this.getAtrac(id);
@@ -237,7 +237,7 @@ export class sceAtrac3plus {
 		return 0;
 	}
 
-	@nativeFunctionEx(0x5D268707, 150)
+	@nativeFunction(0x5D268707, 150)
 	@U32 sceAtracGetStreamDataInfo(
 	    @I32 id: number,
         @PTR writePointerPointer: Stream,
@@ -259,22 +259,22 @@ export class sceAtrac3plus {
 		return 0;
 	}
 
-	@nativeFunctionEx(0xCA3CA3D2, 150)
+	@nativeFunction(0xCA3CA3D2, 150)
 	@U32 sceAtracGetBufferInfoForReseting(@I32 id: number, @U32 uiSample: number, @PTR bufferInfoPtr: Stream) {
 		throw new Error("Not implemented sceAtracGetBufferInfoForReseting");
 	}
 
-	@nativeFunctionEx(0x644E5607, 150)
+	@nativeFunction(0x644E5607, 150)
 	@U32 sceAtracResetPlayPosition(@I32 id: number, @U32 uiSample: number, @U32 uiWriteByteFirstBuf: number, @U32 uiWriteByteSecondBuf: number) {
 		throw new Error("Not implemented sceAtracResetPlayPosition");
 	}
 
-	@nativeFunctionEx(0xE88F759B, 150)
+	@nativeFunction(0xE88F759B, 150)
 	@U32 sceAtracGetInternalErrorInfo(@I32 id: number, @PTR errorResultPtr: Stream) {
 		throw new Error("Not implemented sceAtracGetInternalErrorInfo");
 	}
 
-	@nativeFunctionEx(0xB3B5D042, 150)
+	@nativeFunction(0xB3B5D042, 150)
 	@U32 sceAtracGetOutputChannel(@I32 id: number, @PTR outputChannelPtr: Stream) {
 		if (!this.hasById(id)) return SceKernelErrors.ATRAC_ERROR_NO_ATRACID;
         const atrac3 = this.getAtrac(id);

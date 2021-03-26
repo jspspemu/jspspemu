@@ -1,6 +1,6 @@
 ﻿import {addressToHex} from "../../global/utils";
 import {EmulatorContext} from "../../emu/context";
-import {I32, nativeFunctionEx, THREAD, U32} from "../utils";
+import {I32, nativeFunction, THREAD, U32} from "../utils";
 import {Thread} from "../manager/thread";
 import {InterruptHandler, PspInterrupts} from "../../core/interrupt";
 
@@ -11,7 +11,7 @@ export class InterruptManager {
 		});
 	}
 
-	@nativeFunctionEx(0xCA04A2B9, 150)
+	@nativeFunction(0xCA04A2B9, 150)
 	@U32 sceKernelRegisterSubIntrHandler(
 	    @THREAD thread:Thread,
         @I32 interrupt: PspInterrupts,
@@ -29,7 +29,7 @@ export class InterruptManager {
 		return 0;
 	}
 
-	@nativeFunctionEx(0xFB8E22EC, 150)
+	@nativeFunction(0xFB8E22EC, 150)
 	@U32 sceKernelEnableSubIntr(@I32 interrupt: PspInterrupts, @I32 handlerIndex: number) {
         const interruptManager = this.context.interruptManager;
 
@@ -40,7 +40,7 @@ export class InterruptManager {
 		return 0;
 	}
 
-	@nativeFunctionEx(0xD61E6961, 150)
+	@nativeFunction(0xD61E6961, 150)
 	@U32 sceKernelReleaseSubIntrHandler(@I32 pspInterrupt: PspInterrupts, @I32 handlerIndex: number) {
         const interruptManager = this.context.interruptManager;
 

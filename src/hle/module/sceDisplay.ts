@@ -1,7 +1,7 @@
 ﻿import {AcceptCallbacks, logger, sprintf, WaitingThreadInfo} from "../../global/utils";
 import {Stream} from "../../global/stream";
 import {EmulatorContext} from "../../emu/context";
-import {I32, U32, PTR, THREAD, F32, nativeFunctionEx} from "../utils";
+import {I32, U32, PTR, THREAD, F32, nativeFunction} from "../utils";
 import {Thread} from "../manager/thread";
 import {PspDisplay} from "../../core/display";
 import {PixelFormat} from "../../core/pixelformat";
@@ -18,7 +18,7 @@ export class sceDisplay {
 	private width = 512;
 	private height = 272;
 
-	@nativeFunctionEx(0x0E20F177, 150)
+	@nativeFunction(0x0E20F177, 150)
     @U32 sceDisplaySetMode(@U32 mode: number, @U32 width: number, @U32 height: number) {
 		console.info(sprintf("sceDisplay.sceDisplaySetMode(mode: %d, width: %d, height: %d)", mode, width, height));
 		this.mode = mode;
@@ -27,7 +27,7 @@ export class sceDisplay {
         return 0;
 	}
 
-	@nativeFunctionEx(0xDEA197D4, 150)
+	@nativeFunction(0xDEA197D4, 150)
     @U32 sceDisplayGetMode(@PTR modePtr: Stream, @PTR widthPtr: Stream, @PTR heightPtr: Stream) {
 		if (modePtr) modePtr.writeInt32(this.mode);
 		if (widthPtr) widthPtr.writeInt32(this.width);
@@ -45,45 +45,45 @@ export class sceDisplay {
 		return new WaitingThreadInfo('_waitVblankStartAsync', this.context.display, this.context.display.waitVblankStartAsync(thread), acceptCallbacks);
 	}
 
-	@nativeFunctionEx(0x36CDFADE, 150, {disableInsideInterrupt: true})
+	@nativeFunction(0x36CDFADE, 150, {disableInsideInterrupt: true})
     @U32 sceDisplayWaitVblank(@THREAD thread: Thread, @I32 cycleNum: number) {
 		return this._waitVblankAsync(thread, AcceptCallbacks.NO);
 	}
 
-	@nativeFunctionEx(0x8EB9EC49, 150, {disableInsideInterrupt: true})
+	@nativeFunction(0x8EB9EC49, 150, {disableInsideInterrupt: true})
     @U32 sceDisplayWaitVblankCB(@THREAD thread: Thread, @I32 cycleNum: number) {
 		return this._waitVblankAsync(thread, AcceptCallbacks.YES);
 	}
 
-	@nativeFunctionEx(0x984C27E7, 150, {disableInsideInterrupt: true})
+	@nativeFunction(0x984C27E7, 150, {disableInsideInterrupt: true})
     @U32 sceDisplayWaitVblankStart(@THREAD thread: Thread) {
 		return this._waitVblankAsync(thread, AcceptCallbacks.NO);
 		//return this._waitVblankStartAsync(thread, AcceptCallbacks.NO);
 	}
 
-	@nativeFunctionEx(0x46F186C3, 150, {disableInsideInterrupt: true})
+	@nativeFunction(0x46F186C3, 150, {disableInsideInterrupt: true})
     @U32 sceDisplayWaitVblankStartCB(@THREAD thread: Thread) {
 		return this._waitVblankAsync(thread, AcceptCallbacks.YES);
 		//return this._waitVblankStartAsync(thread, AcceptCallbacks.YES)
 	}
 
-	@nativeFunctionEx(0x9C6EAAD7, 150)
+	@nativeFunction(0x9C6EAAD7, 150)
     @I32 sceDisplayGetVcount() {
 		this.context.display.updateTime();
 		return this.context.display.vblankCount;
 	}
 
-	@nativeFunctionEx(0xDBA6C4C4, 150)
+	@nativeFunction(0xDBA6C4C4, 150)
     @F32 sceDisplayGetFramePerSec() {
 		return PspDisplay.PROCESSED_PIXELS_PER_SECOND * PspDisplay.CYCLES_PER_PIXEL / (PspDisplay.PIXELS_IN_A_ROW * PspDisplay.NUMBER_OF_ROWS);
 	}
 
-	@nativeFunctionEx(0x4D4E10EC, 150)
+	@nativeFunction(0x4D4E10EC, 150)
 	@I32 sceDisplayIsVblank() {
 		return (this.context.display.secondsLeftForVblank == 0);
 	}
 
-	@nativeFunctionEx(0x289D82FE, 150)
+	@nativeFunction(0x289D82FE, 150)
 	@U32 sceDisplaySetFrameBuf(@U32 address: uint, @I32 bufferWidth: int, @U32 pixelFormat: PixelFormat, @U32 sync: SebufMode) {
 	    //console.log('sceDisplaySetFrameBuf', sync, SebufMode[sync])
         this.context.display.address = address;
@@ -93,7 +93,7 @@ export class sceDisplay {
         return 0;
 	}
 
-	@nativeFunctionEx(0xEEDA2E54, 150)
+	@nativeFunction(0xEEDA2E54, 150)
     @U32 sceDisplayGetFrameBuf(@PTR topaddrPtr: Stream, @PTR bufferWidthPtr: Stream, @PTR pixelFormatPtr: Stream, @PTR syncPtr: Stream) {
 		if (topaddrPtr) topaddrPtr.writeInt32(this.context.display.address);
 		if (bufferWidthPtr) bufferWidthPtr.writeInt32(this.context.display.bufferWidth);
@@ -102,7 +102,7 @@ export class sceDisplay {
 		return 0;
 	}
 
-	@nativeFunctionEx(0x773DD3A3, 150)
+	@nativeFunction(0x773DD3A3, 150)
     @U32 sceDisplayGetCurrentHcount() {
 		this.context.display.updateTime();
 		return this.context.display.hcountTotal;

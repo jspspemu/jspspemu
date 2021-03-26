@@ -4,7 +4,7 @@ import {waitAsync} from "../../global/async";
 import {AcceptCallbacks, PromiseFast, WaitingThreadInfo} from "../../global/utils";
 import {MathUtils} from "../../global/math";
 import {EmulatorContext} from "../../emu/context";
-import {I32, nativeFunctionEx, PTR, U32} from "../utils";
+import {I32, nativeFunction, PTR, U32} from "../utils";
 import {PspAudioChannel} from "../../core/audio";
 
 export class sceAudio {
@@ -18,20 +18,20 @@ export class sceAudio {
 		return (channelId >= 0 && channelId < this.channels.length);
 	}
 
-	@nativeFunctionEx(0x01562BA3, 150)
+	@nativeFunction(0x01562BA3, 150)
 	@U32 sceAudioOutput2Reserve(@I32 sampleCount: number) {
 		console.warn('sceAudioOutput2Reserve not implemented!');
 		debugger;
 		return 0;
 	}
 
-	@nativeFunctionEx(0x2D53F36E, 150)
+	@nativeFunction(0x2D53F36E, 150)
     @U32 async sceAudioOutput2OutputBlocking(@I32 volume: number, @PTR buffer: Stream) {
         await waitAsync(10)
 		return 0
 	}
 
-    @nativeFunctionEx(0xB011922F, 150, {disableInsideInterrupt: true})
+    @nativeFunction(0xB011922F, 150, {disableInsideInterrupt: true})
     @U32 sceAudioGetChannelRestLength(@I32 channelId: number) {
         if (!this.isValidChannel(channelId)) return SceKernelErrors.ERROR_AUDIO_INVALID_CHANNEL;
         const channel = this.getChannelById(channelId);
@@ -39,7 +39,7 @@ export class sceAudio {
     }
 
 
-    @nativeFunctionEx(0x5EC81C55, 150)
+    @nativeFunction(0x5EC81C55, 150)
     @U32 sceAudioChReserve(@I32 channelId: number, @I32 sampleCount: number, @I32 format: AudioFormat) {
 		if (channelId >= this.channels.length) return -1;
 		if (channelId < 0) {
@@ -63,7 +63,7 @@ export class sceAudio {
 		return this.channels[id];
 	}
 
-	@nativeFunctionEx(0x6FC46853, 150)
+	@nativeFunction(0x6FC46853, 150)
     @U32 sceAudioChRelease(@I32 channelId: number) {
 		if (!this.isValidChannel(channelId)) return SceKernelErrors.ERROR_AUDIO_INVALID_CHANNEL;
         const channel = this.getChannelById(channelId);
@@ -73,7 +73,7 @@ export class sceAudio {
 		return 0;
 	}
 
-	@nativeFunctionEx(0x95FD0C2D, 150)
+	@nativeFunction(0x95FD0C2D, 150)
     @U32 sceAudioChangeChannelConfig(@I32 channelId: number, @I32 format: AudioFormat) {
 		if (!this.isValidChannel(channelId)) return SceKernelErrors.ERROR_AUDIO_INVALID_CHANNEL;
         const channel = this.getChannelById(channelId);
@@ -81,7 +81,7 @@ export class sceAudio {
 		return 0;
 	}
 
-	@nativeFunctionEx(0xCB2E439E, 150)
+	@nativeFunction(0xCB2E439E, 150)
     @U32 sceAudioSetChannelDataLen(@I32 channelId: number, @I32 sampleCount: number) {
 		//ERROR_AUDIO_CHANNEL_NOT_INIT
 		if (!this.isValidChannel(channelId)) return SceKernelErrors.ERROR_AUDIO_INVALID_CHANNEL;
@@ -104,39 +104,39 @@ export class sceAudio {
 		);
 	}
 
-	@nativeFunctionEx(0x13F592BC, 150)
+	@nativeFunction(0x13F592BC, 150)
     @U32 sceAudioOutputPannedBlocking(@I32 channelId: number, @I32 leftVolume: number, @I32 rightVolume: number, @PTR buffer: Stream): any {
         const result = this._sceAudioOutput(channelId, leftVolume, rightVolume, buffer);
         if (!PromiseFast.isPromise(result)) return result;
 		return new WaitingThreadInfo('sceAudioOutputPannedBlocking', channelId, result, AcceptCallbacks.NO);
 	}
 
-	@nativeFunctionEx(0x136CAF51, 150)
+	@nativeFunction(0x136CAF51, 150)
     @U32 sceAudioOutputBlocking(@I32 channelId: number, @I32 volume: number, @PTR buffer: Stream): any {
         return this._sceAudioOutput(channelId, volume, volume, buffer);
 		//debugger;
 		//return new WaitingThreadInfo('sceAudioOutputBlocking', channel, , AcceptCallbacks.NO);
 	}
 
-	@nativeFunctionEx(0x8C1009B2, 150)
+	@nativeFunction(0x8C1009B2, 150)
     @U32 sceAudioOutput(@I32 channelId: number, @I32 volume: number, @PTR buffer: Stream): any {
         const result = this._sceAudioOutput(channelId, volume, volume, buffer);
         return 0;
 	}
 
-	@nativeFunctionEx(0xE2D56B2D, 150)
+	@nativeFunction(0xE2D56B2D, 150)
     @U32 sceAudioOutputPanned(@I32 channelId: number, @I32 leftVolume: number, @I32 rightVolume: number, @PTR buffer: Stream): any {
         const result = this._sceAudioOutput(channelId, leftVolume, rightVolume, buffer);
         return 0;
 	}
 
-	@nativeFunctionEx(0xB7E1D8E7, 150)
+	@nativeFunction(0xB7E1D8E7, 150)
     @U32 sceAudioChangeChannelVolume(@I32 channelId: number, @I32 volumeLeft: number, @I32 volumeRight: number) {
 		console.warn("Not implemented sceAudioChangeChannelVolume");
 		return 0;
 	}
 
-	@nativeFunctionEx(0xB7E1D8E7, 150)
+	@nativeFunction(0xB7E1D8E7, 150)
     @U32 sceAudioGetChannelRestLen(@I32 channelId: number) {
 		console.warn("Not implemented sceAudioGetChannelRestLen");
 		return 0;

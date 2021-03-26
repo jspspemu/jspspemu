@@ -3,7 +3,7 @@ import {Stream} from "../../../global/stream";
 import {Integer64} from "../../../global/int64";
 import {SceKernelErrors} from "../../SceKernelErrors";
 import {EmulatorContext} from "../../../emu/context";
-import {BYTES, I32, I64, nativeFunctionEx, PTR, STRING, THREAD, U32} from "../../utils";
+import {BYTES, I32, I64, nativeFunction, PTR, STRING, THREAD, U32} from "../../utils";
 import {HleDirectory, HleFile} from "../../manager/file";
 import {FileMode, FileOpenFlags, VfsStat} from "../../vfs/vfs";
 import {Thread} from "../../manager/thread";
@@ -15,7 +15,7 @@ const log = logger.named('module.IoFileMgrForUser');
 export class IoFileMgrForUser {
 	constructor(private context: EmulatorContext) { }
 
-	@nativeFunctionEx(0x54F5FB11, 150)
+	@nativeFunction(0x54F5FB11, 150)
 	@U32 sceIoDevctl(@STRING deviceName: string, @U32 command: number, @U32 inputPointer: number, @I32 inputLength: number, @U32 outputPointer: number, @I32 outputLength: number) {
         const input = this.context.memory.getPointerStream(inputPointer, inputLength)!
 		const output = this.context.memory.getPointerStream(outputPointer, outputLength)!
@@ -34,7 +34,7 @@ export class IoFileMgrForUser {
 	hasFileById(id:number):boolean { return this.fileUids.has(id); }
 	getFileById(id:number):HleFile { return this.fileUids.get(id); }
 
-	@nativeFunctionEx(0x109F50BC, 150)
+	@nativeFunction(0x109F50BC, 150)
 	@I32 sceIoOpen(@STRING filename: string, @I32 flags: FileOpenFlags, @I32 mode: FileMode) {
 		return this._sceIoOpenAsync(filename, flags, mode).thenFast(result => {
             const str = sprintf('IoFileMgrForUser.sceIoOpen("%s", %d(%s), 0%o)', filename, flags, setToString(FileOpenFlags, flags), mode);
@@ -59,7 +59,7 @@ export class IoFileMgrForUser {
 		;
 	}
 
-	@nativeFunctionEx(0x89AA9906, 150)
+	@nativeFunction(0x89AA9906, 150)
 	@I32 sceIoOpenAsync(@STRING filename: string, @I32 flags: FileOpenFlags, @I32 mode: FileMode) {
 		log.info(sprintf('IoFileMgrForUser.sceIoOpenAsync("%s", %d(%s), 0%o)', filename, flags, setToString(FileOpenFlags, flags), mode));
 		//if (filename == '') return PromiseFast.resolve(0);
@@ -73,7 +73,7 @@ export class IoFileMgrForUser {
 		})
 	}
 
-	@nativeFunctionEx(0xFF5940B6, 150)
+	@nativeFunction(0xFF5940B6, 150)
 	@I32 sceIoCloseAsync(@I32 fileId: number) {
         log.info(sprintf('IoFileMgrForUser.closeAsync(%d)', fileId));
 		//if (filename == '') return PromiseFast.resolve(0);
@@ -96,14 +96,14 @@ export class IoFileMgrForUser {
 	}
 
 
-	@nativeFunctionEx(0xB2A628C1, 150)
+	@nativeFunction(0xB2A628C1, 150)
 	@I32 sceIoAssign(@STRING device1: string, @STRING device2: string, @STRING device3: string, @I32 mode: number, @PTR unk1Ptr: Stream, @I64 unk2: Integer64) {
 		// IoFileMgrForUser.sceIoAssign(Device1:'disc0:', Device2:'umd0:', Device3:'isofs0:', mode:1, unk1:0x00000000, unk2:0x0880001E)
 		log.warn(sprintf("sceIoAssign not implemented! %s -> %s -> %s", device1, device2, device3));
 		return 0;
 	}
 
-	@nativeFunctionEx(0x810C4BC3, 150)
+	@nativeFunction(0x810C4BC3, 150)
 	@I32 sceIoClose(@I32 fileId: number) {
 		if (!this.hasFileById(fileId)) return SceKernelErrors.ERROR_ERRNO_FILE_NOT_FOUND;
         const file = this.getFileById(fileId);
@@ -112,7 +112,7 @@ export class IoFileMgrForUser {
 		return 0;
 	}
 
-	@nativeFunctionEx(0x42EC03AC, 150)
+	@nativeFunction(0x42EC03AC, 150)
 	@I32 sceIoWrite(@I32 fileId: number, @BYTES input: Stream): any {
 		if (fileId < 3) {
 			// @TODO: Fixme! Create a proper file
@@ -136,7 +136,7 @@ export class IoFileMgrForUser {
 		}
 	}
 
-	@nativeFunctionEx(0x6A638D83, 150)
+	@nativeFunction(0x6A638D83, 150)
 	@I32 sceIoRead(@I32 fileId: number, @U32 outputPointer: number, @I32 outputLength: number):number | PromiseFast<number> {
 		if (!this.hasFileById(fileId)) return SceKernelErrors.ERROR_ERRNO_FILE_NOT_FOUND;
         const file = this.getFileById(fileId);
@@ -150,7 +150,7 @@ export class IoFileMgrForUser {
 		});
 	}
 
-	@nativeFunctionEx(0xA0B5A7C2, 150)
+	@nativeFunction(0xA0B5A7C2, 150)
 	@I32 sceIoReadAsync(@THREAD thread:Thread, @I32 fileId: number, @U32 outputPointer: number, @I32 outputLength: number) {
 		if (!this.hasFileById(fileId)) return SceKernelErrors.ERROR_ERRNO_FILE_NOT_FOUND;
         const file = this.getFileById(fileId);
@@ -195,17 +195,17 @@ export class IoFileMgrForUser {
 	}
 
 
-	@nativeFunctionEx(0xE23EEC33, 150)
+	@nativeFunction(0xE23EEC33, 150)
 	@I32 sceIoWaitAsync(@THREAD thread: Thread, @I32 fileId: number, @PTR resultPointer: Stream) {
 		return this._sceIoWaitAsyncCB(thread, fileId, resultPointer);
 	}
 
-	@nativeFunctionEx(0x35DBD746, 150)
+	@nativeFunction(0x35DBD746, 150)
 	@I32 sceIoWaitAsyncCB(@THREAD thread: Thread, @I32 fileId: number, @PTR resultPointer: Stream) {
 		return this._sceIoWaitAsyncCB(thread, fileId, resultPointer);
 	}
 
-	@nativeFunctionEx(0x3251EA56, 150)
+	@nativeFunction(0x3251EA56, 150)
 	@U32 sceIoPollAsync(@THREAD thread: Thread, @I32 fileId: number, @PTR resultPointer: Stream) {
 		//log.info('sceIoPollAsync', fileId);
 		if (!this.hasFileById(fileId)) return SceKernelErrors.ERROR_ERRNO_FILE_NOT_FOUND;
@@ -264,7 +264,7 @@ export class IoFileMgrForUser {
 		return stat2;
 	}
 
-	@nativeFunctionEx(0xACE946E8, 150)
+	@nativeFunction(0xACE946E8, 150)
 	@I32 sceIoGetstat(@STRING fileName: string, @PTR sceIoStatPointer: Stream): any {
 		if (sceIoStatPointer) {
 			sceIoStatPointer.position = 0;
@@ -290,7 +290,7 @@ export class IoFileMgrForUser {
 		}
 	}
 
-	@nativeFunctionEx(0x55F4717D, 150)
+	@nativeFunction(0x55F4717D, 150)
 	@I32 sceIoChdir(@STRING path: string) {
 		log.info(sprintf('IoFileMgrForUser.sceIoChdir("%s")', path));
 		try {
@@ -313,7 +313,7 @@ export class IoFileMgrForUser {
 	}
 	*/
 
-	@nativeFunctionEx(0x71B19E77, 150)
+	@nativeFunction(0x71B19E77, 150)
 	@I32 sceIoLseekAsync(@I32 fileId: number, @I64 offset: Integer64, @I32 whence: number) {
 		//const file = this.getFileById(fileId);
 		if (!this.hasFileById(fileId)) return SceKernelErrors.ERROR_ERRNO_FILE_NOT_FOUND;
@@ -323,27 +323,27 @@ export class IoFileMgrForUser {
 		return 0;
 	}
 
-	@nativeFunctionEx(0x27EB27B8, 150)
+	@nativeFunction(0x27EB27B8, 150)
 	@I64 sceIoLseek(@I32 fileId: number, @I64 offset: Integer64, @I32 whence: number) {
         const result = this._seek(fileId, offset.getNumber(), whence);
         //log.info(sprintf('IoFileMgrForUser.sceIoLseek(%d, %d, %d): %d', fileId, offset, whence, result));
 		return Integer64.fromNumber(result);
 	}
 
-	@nativeFunctionEx(0x68963324, 150)
+	@nativeFunction(0x68963324, 150)
 	@I32 sceIoLseek32(@I32 fileId: number, @I32 offset: number, @I32 whence: number) {
         const result = this._seek(fileId, offset, whence);
         //log.info(sprintf('IoFileMgrForUser.sceIoLseek32(%d, %d, %d) : %d', fileId, offset, whence, result));
 		return result;
 	}
 
-	@nativeFunctionEx(0x06A70004, 150)
+	@nativeFunction(0x06A70004, 150)
 	@U32 sceIoMkdir(@STRING path: string, @I32 accessMode: number) {
 		log.warn(`Not implemented: sceIoMkdir("${path}", ${accessMode.toString(8)})`);
 		return 0;
 	}
 
-	@nativeFunctionEx(0xB29DDF9C, 150)
+	@nativeFunction(0xB29DDF9C, 150)
 	@U32 sceIoDopen(@STRING path: string) {
 		log.log(`sceIoDopen("${path}")`);
 		return this.context.fileManager.openDirectoryAsync(path).thenFast((directory) => {
@@ -355,7 +355,7 @@ export class IoFileMgrForUser {
 		});
 	}
 
-	@nativeFunctionEx(0xEB092469, 150)
+	@nativeFunction(0xEB092469, 150)
 	@U32 sceIoDclose(@I32 fileId: number) {
 		if (!this.directoryUids.has(fileId)) return -1;
 		this.directoryUids.get(fileId).close();
@@ -363,7 +363,7 @@ export class IoFileMgrForUser {
 		return 0;
 	}
 
-	@nativeFunctionEx(0xE3EB004C, 150)
+	@nativeFunction(0xE3EB004C, 150)
 	@I32 sceIoDread(@I32 fileId: number, @PTR hleIoDirentPtr: Stream) {
 		if (!this.directoryUids.has(fileId)) return -1;
         const directory = this.directoryUids.get(fileId);
@@ -378,7 +378,7 @@ export class IoFileMgrForUser {
 		return directory.left;
 	}
 
-	@nativeFunctionEx(0xB293727F, 150)
+	@nativeFunction(0xB293727F, 150)
 	@I32 sceIoChangeAsyncPriority(@I32 fileId: number, @I32 priority: number) {
 		return 0;
 	}

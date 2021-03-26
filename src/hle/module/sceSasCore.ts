@@ -1,4 +1,4 @@
-﻿import {BOOL, BYTES, I32, nativeFunctionEx, PTR, U32} from '../utils';
+﻿import {BOOL, BYTES, I32, nativeFunction, PTR, U32} from '../utils';
 import { SceKernelErrors } from '../SceKernelErrors';
 import {Stream} from "../../global/stream";
 import {MathUtils} from "../../global/math";
@@ -29,7 +29,7 @@ export class sceSasCore {
 	constructor(private context: EmulatorContext) {
 	}
 
-	@nativeFunctionEx(0x42778A9F, 150, { originalName: "__sceSasInit" })
+	@nativeFunction(0x42778A9F, 150, { originalName: "__sceSasInit" })
     @U32 sceSasInit(@I32 sasCorePointer: number, @I32 grainSamples: number, @I32 maxVoices: number, @I32 outputMode: number, @I32 sampleRate: number) {
 		if (sampleRate != 44100) {
 			return SceKernelErrors.ERROR_SAS_INVALID_SAMPLE_RATE;
@@ -59,19 +59,19 @@ export class sceSasCore {
 		return 0;
 	}
 
-	@nativeFunctionEx(0xD1E0A01E, 150, { originalName: "__sceSasSetGrain" })
+	@nativeFunction(0xD1E0A01E, 150, { originalName: "__sceSasSetGrain" })
     @U32 sceSasSetGrain(@I32 sasCorePointer: number, @I32 grainSamples: number) {
 		this.core.grainSamples = grainSamples;
 		return 0;
 	}
 
-	@nativeFunctionEx(0xE855BF76, 150, { originalName: "__sceSasSetOutputmode" })
+	@nativeFunction(0xE855BF76, 150, { originalName: "__sceSasSetOutputmode" })
     @U32 sceSasSetOutputmode(@I32 sasCorePointer: number, @I32 outputMode: OutputMode) {
 		this.core.outputMode = outputMode;
 		return 0;
 	}
 
-	@nativeFunctionEx(0x99944089, 150, { originalName: "__sceSasSetVoice" })
+	@nativeFunction(0x99944089, 150, { originalName: "__sceSasSetVoice" })
     @U32 sceSasSetVoice(@I32 sasCorePointer: number, @I32 voiceId: number, @BYTES data: Stream, @I32 loop: number) {
 		if (!this.hasSasCoreVoice(sasCorePointer, voiceId)) return SceKernelErrors.ERROR_SAS_INVALID_VOICE;
         const voice = this.getSasCoreVoice(sasCorePointer, voiceId);
@@ -92,7 +92,7 @@ export class sceSasCore {
 		return 0;
 	}
 
-	@nativeFunctionEx(0xE1CD9561, 150, { originalName: "__sceSasSetVoicePCM" })
+	@nativeFunction(0xE1CD9561, 150, { originalName: "__sceSasSetVoicePCM" })
     @U32 sceSasSetVoicePCM(@I32 sasCorePointer: number, @I32 voiceId: number, @BYTES data: Stream, @I32 loop: number) {
 		if (!this.hasSasCoreVoice(sasCorePointer, voiceId)) return SceKernelErrors.ERROR_SAS_INVALID_VOICE;
         const voice = this.getSasCoreVoice(sasCorePointer, voiceId);
@@ -104,35 +104,35 @@ export class sceSasCore {
 		return 0;
 	}
 
-	@nativeFunctionEx(0x50A14DFC, 150, { originalName: "__sceSasCoreWithMix" })
+	@nativeFunction(0x50A14DFC, 150, { originalName: "__sceSasCoreWithMix" })
     @U32 sceSasCoreWithMix(@I32 sasCorePointer: number, @PTR sasOut: Stream, @I32 leftVolume: number, @I32 rightVolume: number) {
 		return this.core.mix(sasCorePointer, sasOut, leftVolume, rightVolume);
 	}
 
-	@nativeFunctionEx(0xA3589D81, 150, { originalName: "__sceSasCore" })
+	@nativeFunction(0xA3589D81, 150, { originalName: "__sceSasCore" })
     @U32 sceSasCore(@I32 sasCorePointer: number, @PTR sasOut: Stream) {
 		return this.core.mix(sasCorePointer, sasOut, PSP_SAS_VOL_MAX, PSP_SAS_VOL_MAX);
 	}
 
-	@nativeFunctionEx(0x68A46B95, 150, { originalName: "__sceSasGetEndFlag" })
+	@nativeFunction(0x68A46B95, 150, { originalName: "__sceSasGetEndFlag" })
     @U32 sceSasGetEndFlag(@I32 sasCorePointer: number) {
 		return this.core.endFlags;
 	}
 
-	@nativeFunctionEx(0x33D4AB37, 150, { originalName: "__sceSasRevType" })
+	@nativeFunction(0x33D4AB37, 150, { originalName: "__sceSasRevType" })
     @U32 sceSasRevType(@I32 sasCorePointer: number, @I32 waveformEffectType: WaveformEffectType) {
 		this.core.waveformEffectType = waveformEffectType;
 		return 0;
 	}
 
-	@nativeFunctionEx(0xF983B186, 150, { originalName: "__sceSasRevVON" })
+	@nativeFunction(0xF983B186, 150, { originalName: "__sceSasRevVON" })
     @U32 sceSasRevVON(@I32 sasCorePointer: number, @I32 waveformEffectIsDry: boolean, @I32 waveformEffectIsWet: boolean) {
 		this.core.waveformEffectIsDry = waveformEffectIsDry;
 		this.core.waveformEffectIsWet = waveformEffectIsWet;
 		return 0;
 	}
 
-	@nativeFunctionEx(0xD5A229C9, 150, { originalName: "__sceSasRevEVOL" })
+	@nativeFunction(0xD5A229C9, 150, { originalName: "__sceSasRevEVOL" })
     @U32 sceSasRevEVOL(@I32 sasCorePointer: number, @I32 leftVolume: number, @I32 rightVolume: number) {
 		this.core.leftVolume = leftVolume;
 		this.core.rightVolume = rightVolume;
@@ -147,7 +147,7 @@ export class sceSasCore {
 		return this.core.voices[voiceId];
 	}
 
-	@nativeFunctionEx(0x019B25EB, 150, { originalName: "__sceSasSetADSR" })
+	@nativeFunction(0x019B25EB, 150, { originalName: "__sceSasSetADSR" })
     @U32 sceSasSetADSR(@I32 sasCorePointer: number, @I32 voiceId: number, @I32 flags: AdsrFlags, @I32 attackRate: number, @I32 decayRate: number, @I32 sustainRate: number, @I32 releaseRate: number) {
 		if (!this.hasSasCoreVoice(sasCorePointer, voiceId)) return SceKernelErrors.ERROR_SAS_INVALID_VOICE;
         const voice = this.getSasCoreVoice(sasCorePointer, voiceId);
@@ -160,13 +160,13 @@ export class sceSasCore {
 		return 0;
 	}
 
-	@nativeFunctionEx(0x9EC3676A, 150, {originalName:"__sceSasSetADSRmode"})
+	@nativeFunction(0x9EC3676A, 150, {originalName:"__sceSasSetADSRmode"})
     @U32 sceSasSetADSRmode(@I32 sasCorePointer: number, @I32 voiceId: number, @I32 flags: AdsrFlags, @I32 attackCurveMode: AdsrCurveMode, @I32 decayCurveMode: AdsrCurveMode, @I32 sustainCurveMode: AdsrCurveMode, @I32 releaseCurveMode: AdsrCurveMode) {
 		console.warn('__sceSasSetADSRmode not implemented!');
 		return 0;
 	}
 
-	@nativeFunctionEx(0xA0CF2FA4, 150, {originalName:"__sceSasSetKeyOff"})
+	@nativeFunction(0xA0CF2FA4, 150, {originalName:"__sceSasSetKeyOff"})
     @U32 sceSasSetKeyOff(@I32 sasCorePointer: number, @I32 voiceId: number) {
 		if (!this.hasSasCoreVoice(sasCorePointer, voiceId)) return SceKernelErrors.ERROR_SAS_INVALID_VOICE;
         const voice = this.getSasCoreVoice(sasCorePointer, voiceId);
@@ -175,7 +175,7 @@ export class sceSasCore {
 		return 0;
 	}
 
-	@nativeFunctionEx(0x76F01ACA, 150, {originalName:"__sceSasSetKeyOn"})
+	@nativeFunction(0x76F01ACA, 150, {originalName:"__sceSasSetKeyOn"})
     @U32 sceSasSetKeyOn(@I32 sasCorePointer: number, @I32 voiceId: number) {
 		if (!this.hasSasCoreVoice(sasCorePointer, voiceId)) return SceKernelErrors.ERROR_SAS_INVALID_VOICE;
         const voice = this.getSasCoreVoice(sasCorePointer, voiceId);
@@ -183,14 +183,14 @@ export class sceSasCore {
 		return 0;
 	}
 
-	@nativeFunctionEx(0x74AE582A, 150, {originalName:"__sceSasGetEnvelopeHeight"})
+	@nativeFunction(0x74AE582A, 150, {originalName:"__sceSasGetEnvelopeHeight"})
     @U32 sceSasGetEnvelopeHeight(@I32 sasCorePointer: number, @I32 voiceId: number) {
 		if (!this.hasSasCoreVoice(sasCorePointer, voiceId)) return SceKernelErrors.ERROR_SAS_INVALID_VOICE;
         const voice = this.getSasCoreVoice(sasCorePointer, voiceId);
         return voice.envelope.height;
 	}
 
-	@nativeFunctionEx(0x5F9529F6, 150, {originalName:"__sceSasSetSL"})
+	@nativeFunction(0x5F9529F6, 150, {originalName:"__sceSasSetSL"})
     @U32 sceSasSetSL(@I32 sasCorePointer: number, @I32 voiceId: number, @I32 sustainLevel: number) {
 		if (!this.hasSasCoreVoice(sasCorePointer, voiceId)) return SceKernelErrors.ERROR_SAS_INVALID_VOICE;
         const voice = this.getSasCoreVoice(sasCorePointer, voiceId);
@@ -198,7 +198,7 @@ export class sceSasCore {
 		return 0;
 	}
 
-	@nativeFunctionEx(0x787D04D5, 150, {originalName:"__sceSasSetPause"})
+	@nativeFunction(0x787D04D5, 150, {originalName:"__sceSasSetPause"})
     @U32 sceSasSetPause(@I32 sasCorePointer: number, @I32 voiceBits: number, @BOOL pause: boolean) {
 		this.core.voices.forEach((voice) => {
 			if (voiceBits & (1 << voice.index)) {
@@ -208,7 +208,7 @@ export class sceSasCore {
 		return 0;
 	}
 
-	@nativeFunctionEx(0x2C8E6AB3, 150, {originalName:"__sceSasGetPauseFlag"})
+	@nativeFunction(0x2C8E6AB3, 150, {originalName:"__sceSasGetPauseFlag"})
     @U32 sceSasGetPauseFlag(@I32 sasCorePointer: number) {
         let voiceBits = 0;
         this.core.voices.forEach((voice) => {
@@ -217,7 +217,7 @@ export class sceSasCore {
 		return voiceBits;
 	}
 
-	@nativeFunctionEx(0x07F58C24, 150, {originalName:"__sceSasGetAllEnvelopeHeights"})
+	@nativeFunction(0x07F58C24, 150, {originalName:"__sceSasGetAllEnvelopeHeights"})
     @U32 sceSasGetAllEnvelopeHeights(@I32 sasCorePointer: number, @PTR heightPtr: Stream) {
 		this.core.voices.forEach((voice) => {
 			heightPtr.writeInt32(voice.envelope.height);
@@ -225,7 +225,7 @@ export class sceSasCore {
 		return 0;
 	}
 
-	@nativeFunctionEx(0xB7660A23, 150, {originalName:"__sceSasSetNoise"})
+	@nativeFunction(0xB7660A23, 150, {originalName:"__sceSasSetNoise"})
     @U32 sceSasSetNoise(@I32 sasCorePointer: number, @I32 voiceId: number, @I32 noiseFrequency: number) {
 		if (noiseFrequency < 0 || noiseFrequency >= 64) return SceKernelErrors.ERROR_SAS_INVALID_NOISE_CLOCK;
 		if (!this.hasSasCoreVoice(sasCorePointer, voiceId)) return SceKernelErrors.ERROR_SAS_INVALID_VOICE;
@@ -233,7 +233,7 @@ export class sceSasCore {
         return 0;
 	}
 
-	@nativeFunctionEx(0x440CA7D8, 150, {originalName:"__sceSasSetVolume"})
+	@nativeFunction(0x440CA7D8, 150, {originalName:"__sceSasSetVolume"})
     @U32 sceSasSetVolume(@I32 sasCorePointer: number, @I32 voiceId: number, @I32 leftVolume: number, @I32 rightVolume: number, @I32 effectLeftVol: number, @I32 effectRightVol: number) {
 		if (!this.hasSasCoreVoice(sasCorePointer, voiceId)) return SceKernelErrors.ERROR_SAS_INVALID_VOICE;
         const voice = this.getSasCoreVoice(sasCorePointer, voiceId);
@@ -254,7 +254,7 @@ export class sceSasCore {
 		return 0;
 	}
 
-	@nativeFunctionEx(0xAD84D37F, 150, {originalName:"__sceSasSetPitch"})
+	@nativeFunction(0xAD84D37F, 150, {originalName:"__sceSasSetPitch"})
     @U32 sceSasSetPitch(@I32 sasCorePointer: number, @I32 voiceId: number, @I32 pitch: number) {
 		if (!this.hasSasCoreVoice(sasCorePointer, voiceId)) return SceKernelErrors.ERROR_SAS_INVALID_VOICE;
         const voice = this.getSasCoreVoice(sasCorePointer, voiceId);
@@ -264,7 +264,7 @@ export class sceSasCore {
 		return 0;
 	}
 
-	@nativeFunctionEx(0x267A6DD2, 150, {originalName:"__sceSasRevParam"})
+	@nativeFunction(0x267A6DD2, 150, {originalName:"__sceSasRevParam"})
     @U32 sceSasRevParam(@I32 sasCorePointer: number, @I32 delay: number, @I32 feedback: number) {
 		this.core.delay = delay;
 		this.core.feedback = feedback;
@@ -272,7 +272,7 @@ export class sceSasCore {
 		return 0;
 	}
 
-	@nativeFunctionEx(0xCBCD4F79, 150, {originalName:"__sceSasSetSimpleADSR"})
+	@nativeFunction(0xCBCD4F79, 150, {originalName:"__sceSasSetSimpleADSR"})
     @U32 sceSasSetSimpleADSR(@I32 sasCorePointer: number, @I32 voiceId: number, @I32 env1Bitfield: number, @I32 env2Bitfield: number) {
 		if (!this.hasSasCoreVoice(sasCorePointer, voiceId)) return SceKernelErrors.ERROR_SAS_INVALID_VOICE;
         const voice = this.getSasCoreVoice(sasCorePointer, voiceId);

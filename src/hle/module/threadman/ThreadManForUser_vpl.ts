@@ -2,7 +2,7 @@
 import {Stream} from "../../../global/stream";
 import {SceKernelErrors} from "../../SceKernelErrors";
 import {EmulatorContext} from "../../../emu/context";
-import {I32, nativeFunctionEx, PTR, STRING, U32} from "../../utils";
+import {I32, nativeFunction, PTR, STRING, U32} from "../../utils";
 import {MemoryAnchor, MemoryPartition} from "../../manager/memory";
 
 export class ThreadManForUser {
@@ -10,7 +10,7 @@ export class ThreadManForUser {
 
 	private vplUid = new UidCollection<Vpl>(1);
 
-	@nativeFunctionEx(0x56C039B5, 150)
+	@nativeFunction(0x56C039B5, 150)
 	@U32 sceKernelCreateVpl(@STRING name: string, @I32 partitionId: number, @I32 attribute: VplAttributeFlags, @I32 size: number, @PTR optionsPtr: Stream) {
         const partition = this.context.memoryManager.memoryPartitionsUid[partitionId];
         const allocatedPartition = partition.allocate(size, (attribute & VplAttributeFlags.PSP_VPL_ATTR_ADDR_HIGH) ? MemoryAnchor.High : MemoryAnchor.Low);
@@ -19,7 +19,7 @@ export class ThreadManForUser {
         return this.vplUid.allocate(vpl);
 	}
 
-	@nativeFunctionEx(0xAF36D708, 150)
+	@nativeFunction(0xAF36D708, 150)
 	@U32 sceKernelTryAllocateVpl(@I32 vplId: number, @I32 size: number, @PTR addressPtr: Stream) {
         const vpl = this.vplUid.get(vplId);
         //console.log('sceKernelTryAllocateVpl', vplId, size, addressPtr);

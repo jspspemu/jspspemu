@@ -1671,9 +1671,7 @@ export interface CreateOptions {
 export function createNativeFunction(
     exportId: number,
     firmwareVersion: number,
-    retval: string|undefined,
     retvalIType: IType<any>|undefined,
-    argTypesString: string|undefined,
     arcITypes: IType<any>[]|undefined,
     that: any,
     internalFunc: Function,
@@ -1736,35 +1734,7 @@ export function createNativeFunction(
                     }
             }
         })
-    } else if (argTypesString) {
-        const argTypes = argTypesString.split('/').filter(item => item.length > 0);
-
-        if (argTypes.length != internalFunc.length) throw(new Error("Function arity mismatch '" + argTypesString + "' != " + String(internalFunc)));
-
-        argTypes.forEach(item => {
-            switch (item) {
-                case 'EmulatorContext': args.push('context'); break;
-                case 'Thread': args.push('state.thread'); break;
-                case 'CpuState': args.push('state'); break;
-                case 'Memory': args.push('state.memory'); break;
-                case 'string': args.push(`state.memory.readStringz(${readGpr32_S()})`); break;
-                case 'uint': args.push(`${readGpr32_U()} >>> 0`); break;
-                case 'int': args.push(`${readGpr32_S()} | 0`); break;
-                case 'bool': args.push(`${readGpr32_S()} != 0`); break;
-                case 'float': args.push(readFpr32()); break;
-                case 'ulong': case 'long': args.push(readGpr64()); break;
-                case 'void*': args.push(`state.memory.getPointerStream(${readGpr32_S()})`); break;
-                case 'byte[]': args.push(`state.memory.getPointerStream(${readGpr32_S()}, ${readGpr32_S()})`); break;
-                default:
-                    let matches = item.match(/^byte\[(\d+)\]$/)
-                    if (matches) {
-                        args.push(`state.memory.getPointerU8Array(${readGpr32_S()}, ${matches[1]})`);
-                    } else {
-                        throw new Error(`Invalid argument "${item}"`)
-                    }
-            }
-        });
-	}
+    }
 
 	if (options.disableInsideInterrupt) {
 		// ERROR_KERNEL_CANNOT_BE_CALLED_FROM_INTERRUPT
@@ -1827,23 +1797,7 @@ export function createNativeFunction(
                 code += `${V0} = result; ${V1} = 0;\n`;
                 code += '}\n';
                 break;
-            default: throw new Error(`Invalid return value "${retval}"`)
-        }
-    } else {
-        switch (retval) {
-            case 'void': break;
-            case 'uint': case 'int': code += `${V0} = result | 0;\n`; break;
-            case 'bool': code += `${V0} = result ? 1 : 0;\n`; break;
-            case 'float': code += 'state.fpr[0] = result;\n'; break;
-            case 'long':
-                code += 'if (!error) {\n';
-                code += 'if (!(result instanceof Integer64)) { logger.info("FUNC:", nativeFunction); throw(new Error("Invalid long result. Expecting Integer64 but found \'" + result + "\'.")); }\n';
-                code += `${V0} = result.low; ${V1} = result.high;\n`;
-                code += '} else {\n';
-                code += `${V0} = result; ${V1} = 0;\n`;
-                code += '}\n';
-                break;
-            default: throw new Error(`Invalid return value "${retval}"`)
+            default: throw new Error(`Invalid return value "${retvalIType}"`)
         }
     }
 

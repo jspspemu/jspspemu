@@ -1,21 +1,21 @@
 ﻿import {Stream} from "../../global/stream";
 import {AcceptCallbacks, WaitingThreadInfo} from "../../global/utils";
 import {EmulatorContext} from "../../emu/context";
-import {I32, nativeFunctionEx, PTR, THREAD, U32} from "../utils";
+import {I32, nativeFunction, PTR, THREAD, U32} from "../utils";
 import {SceCtrlData} from "../../core/controller";
 import {Thread} from "../manager/thread";
 
 export class sceCtrl {
 	constructor(private context: EmulatorContext) { }
 
-	@nativeFunctionEx(0x3A622550, 150)
+	@nativeFunction(0x3A622550, 150)
     @U32 sceCtrlPeekBufferPositive(@PTR sceCtrlDataPtr: Stream, @I32 count: number) {
 		//console.log('sceCtrlPeekBufferPositive');
 		for (let n = 0; n < count; n++) SceCtrlData.struct.write(sceCtrlDataPtr, this.context.controller.data);
         return count;
     }
 
-	@nativeFunctionEx(0x1F803938, 150)
+	@nativeFunction(0x1F803938, 150)
     @U32 sceCtrlReadBufferPositive(@THREAD thread: Thread, @PTR sceCtrlDataPtr: Stream, @I32 count: number) {
 		//console.log('sceCtrlReadBufferPositive');
 
@@ -29,13 +29,13 @@ export class sceCtrl {
 		//return 0;
     }
 
-	@nativeFunctionEx(0x6A2774F3, 150)
+	@nativeFunction(0x6A2774F3, 150)
     @U32 sceCtrlSetSamplingCycle(@I32 samplingCycle: number) {
         //console.warn('Not implemented sceCtrl.sceCtrlSetSamplingCycle');
         return 0;
     }
 
-	@nativeFunctionEx(0x1F4011E6, 150)
+	@nativeFunction(0x1F4011E6, 150)
     @U32 sceCtrlSetSamplingMode(@I32 samplingMode: number) {
         //console.warn('Not implemented sceCtrl.sceCtrlSetSamplingMode');
         return 0;
@@ -56,7 +56,7 @@ export class sceCtrl {
 		return this.context.controller.latchSamplingCount;
 	}
 
-	@nativeFunctionEx(0x0B588501, 150)
+	@nativeFunction(0x0B588501, 150)
 	@U32 sceCtrlReadLatch(@PTR currentLatchPtr: Stream) {
 		try {
 			return this._peekLatch(currentLatchPtr);
@@ -66,7 +66,7 @@ export class sceCtrl {
 		}
 	}
 
-	@nativeFunctionEx(0xA7144800, 150)
+	@nativeFunction(0xA7144800, 150)
     @U32 sceCtrlSetIdleCancelThreshold(@I32 idlereset: number, @I32 idleback: number) {
 		return 0;
 	}
