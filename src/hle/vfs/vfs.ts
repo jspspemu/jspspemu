@@ -8,9 +8,13 @@ export class Vfs {
 	}
 
 	openAsync(path: string, flags: FileOpenFlags, mode: FileMode): PromiseFast<VfsEntry> {
-		console.error('VfsMustOverride openAsync', this);
-		throw new Error("Must override openAsync : " + this);
+	    return PromiseFast.ensure(this.openPromiseAsync(path, flags, mode))
 	}
+
+    openPromiseAsync(path: string, flags: FileOpenFlags, mode: FileMode): Promise<VfsEntry> {
+        console.error('VfsMustOverride openAsync', this);
+        throw new Error("Must override openAsync : " + this);
+    }
 
 	readAllAsync(path: string) {
 		return this.openAsync(path, FileOpenFlags.Read, parseInt('0777', 8)).thenFast(entry => entry.readAllAsync());
@@ -55,10 +59,16 @@ export class ProxyVfs extends Vfs {
 			return vfs.devctlAsync(command, input, output);
 		});
 	}
-	openAsync(path: string, flags: FileOpenFlags, mode: FileMode): PromiseFast<VfsEntry> {
-		return this._callChainWhenError<VfsEntry>((vfs, e) => {
-			return vfs.openAsync(path, flags, mode);
-		});
+	async openPromiseAsync(path: string, flags: FileOpenFlags, mode: FileMode): Promise<VfsEntry> {
+	    const errors = []
+	    for (const vfs of this.parentVfsList) {
+            try {
+                return await vfs.openPromiseAsync(path, flags, mode)
+            } catch (e) {
+                errors.push(e)
+            }
+        }
+	    throw errors.first() || new Error("Error ProxyVfs.openPromiseAsync")
 	}
 	deleteAsync(path: string) {
 		return this._callChainWhenError<VfsEntry>((vfs, e) => {

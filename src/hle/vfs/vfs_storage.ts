@@ -23,10 +23,9 @@ export class StorageVfs extends Vfs {
 		return this.openDbPromise;
 	}
 
-	openAsync(path: string, flags: FileOpenFlags, mode: FileMode): PromiseFast<VfsEntry> {
-		return this.initializeOnceAsync().thenFast(() => {
-			return StorageVfsEntry.fromNameAsync(this.db!, path, flags, mode);
-		});
+	async openPromiseAsync(path: string, flags: FileOpenFlags, mode: FileMode) {
+        await this.initializeOnceAsync()
+        return await StorageVfsEntry.fromNameAsync(this.db!, path, flags, mode);
 	}
 	
 	deleteAsync(path:string):PromiseFast<void> {
@@ -56,7 +55,7 @@ class StorageVfsEntry extends VfsEntry {
 			console.info('initAsync', file);
 			if (!file.exists) {
 				if (!(flags & FileOpenFlags.Create)) {
-					throw (new Error("File '" + file.name + "' doesn't exist"));
+					throw new Error(`File '${file.name}' doesn't exist`);
 				}
 			}
 			if (flags & FileOpenFlags.Truncate) {

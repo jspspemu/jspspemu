@@ -7,12 +7,8 @@ export class ZipVfs extends Vfs {
 		super();
 	}
 
-	openAsync(path: string, flags: FileOpenFlags, mode: FileMode): PromiseFast<VfsEntry> {
-		try {
-			return PromiseFast.resolve(new ZipVfsFile(this.zip.get(path)));
-		} catch (e) {
-			return PromiseFast.reject(e);
-		}
+	async openPromiseAsync(path: string, flags: FileOpenFlags, mode: FileMode) {
+		return new ZipVfsFile(this.zip.get(path))
 	}
 }
 

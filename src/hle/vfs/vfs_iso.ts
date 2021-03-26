@@ -7,12 +7,8 @@ export class IsoVfs extends Vfs {
 		super();
 	}
 
-	openAsync(path: string, flags: FileOpenFlags, mode: FileMode): PromiseFast<VfsEntry> {
-		try {
-			return PromiseFast.resolve(new IsoVfsFile(this.iso.get(path)));
-		} catch (e) {
-			return PromiseFast.reject(e);
-		}
+	async openPromiseAsync(path: string, flags: FileOpenFlags, mode: FileMode): Promise<VfsEntry> {
+        return new IsoVfsFile(this.iso.get(path));
 	}
 }
 

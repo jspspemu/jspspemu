@@ -30,7 +30,7 @@ export class EmulatorVfs extends Vfs {
 				console.warn('emit screenshot!');
 				return 0;
 			default:
-				throw (new Error("Can't handle EmulatorVfs devctlAsync. Command '" + command + "'"));
+				throw (new Error(`Can't handle EmulatorVfs devctlAsync. Command '${command}'`));
 		}
 
 		return 0;

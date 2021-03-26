@@ -13,14 +13,15 @@ export class UriVfs extends Vfs {
 		return `${this.baseUri}/${path}`;
 	}
 
-	openAsync(path: string, flags: FileOpenFlags, mode: FileMode): PromiseFast<VfsEntry> {
+	async openPromiseAsync(path: string, flags: FileOpenFlags, mode: FileMode) {
 		if (flags & FileOpenFlags.Write) {
 			return PromiseFast.resolve(new MemoryVfsEntry(path, new ArrayBuffer(0)));
 		}
 
         const url = this.getAbsoluteUrl(path);
 
-        return PromiseFast.ensure(UrlAsyncStream.fromUrlAsync(url)).thenFast(stream => new VfsEntryStream(stream));
+        const stream = await UrlAsyncStream.fromUrlAsync(url)
+        return new VfsEntryStream(stream)
 	}
 
 	openDirectoryAsync(path: string) {

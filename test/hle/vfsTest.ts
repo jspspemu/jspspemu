@@ -81,7 +81,7 @@ describe('vfs', async () => {
         }
         {
             const e = await assert.catchExceptionAsync(async () => { await msVfs.readAllAsync('nonExistant') })
-            assert.equal("File 'nonExistant' doesn't exist", e.message);
+            assert.equal("File 'nonExistant' doesn't exist", `${e.message}`);
         }
 	});
 

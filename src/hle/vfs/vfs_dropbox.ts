@@ -196,10 +196,10 @@ export class DropboxVfs extends Vfs {
 		return client.initOnceAsync();
 	}
 
-	openAsync(path: string, flags: FileOpenFlags, mode: FileMode): PromiseFast<VfsEntry> {
+	async openPromiseAsync(path: string, flags: FileOpenFlags, mode: FileMode): Promise<VfsEntry> {
 		path = getCanonicalPath(path);
-		if (!this.enabled) return PromiseFast.reject(new Error("Not using dropbox"));
-		return PromiseFast.ensure(DropboxVfsEntry.fromPathAsync(path, flags, mode))
+		if (!this.enabled) throw new Error("Not using dropbox")
+		return await DropboxVfsEntry.fromPathAsync(path, flags, mode)
 	}
 }
 

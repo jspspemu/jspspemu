@@ -10,7 +10,7 @@ export class MemoryVfs extends Vfs {
 		this.files[name] = new MemoryVfsEntry(name, data);
 	}
 
-	openAsync(path: string, flags: FileOpenFlags, mode: FileMode): PromiseFast<VfsEntry> {
+	async openPromiseAsync(path: string, flags: FileOpenFlags, mode: FileMode) {
 		if (flags & FileOpenFlags.Write) {
 			if (!this.files[path]) {
 				this.addFile(path, new ArrayBuffer(0));
@@ -21,12 +21,9 @@ export class MemoryVfs extends Vfs {
 		}
         const file = this.files[path];
 		if (!file) {
-            const error:any = new Error(`MemoryVfs: Can't find '${path}'`);
-			//console.warn(error);
-			//console.warn(error['stack']);
-			return PromiseFast.reject(error);
+            throw new Error(`MemoryVfs: Can't find '${path}'`);
 		} else {
-			return PromiseFast.resolve(file);
+			return file
 		}
 	}
 }
