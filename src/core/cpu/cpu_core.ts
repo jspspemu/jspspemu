@@ -1510,10 +1510,14 @@ export class FunctionGenerator {
         if (info.start == CpuSpecialAddresses.EXIT_THREAD) return new FunctionCode("state.throwCpuBreakException();", args);
         if (info.start == CpuSpecialAddresses.EXIT_INTERRUPT) return new FunctionCode("state.throwInterruptBreakException();", args);
 
+        const state_PC = `state.${CpuStateFields.PC}`
+        const state_RA = `state.${CpuStateFields.RA}`
+        const state_jumpCall = `state.${CpuStateFields.jumpCall}`
+
         const func = ast.func(
             info.start,
-            ast.raw_stm('let label = 0, BRANCHPC = 0, BRANCHFLAG = false, expectedRA = 0; const memory = state.memory, gpr = state.gpr, gpr_f = state.gpr_f;'),
-            ast.raw_stm('state.jumpCall = null; return;'),
+            ast.raw_stm(`let label = 0, BRANCHPC = 0, BRANCHFLAG = false, expectedRA = 0, doJumps = false; const memory = state.memory, gpr = state.gpr, gpr_f = state.gpr_f;`),
+            ast.raw_stm(`${state_jumpCall} = null; return;`),
             []
         );
 
@@ -1530,7 +1534,7 @@ export class FunctionGenerator {
 				return new FunctionCode(
 					`
 					/* ${this.syscallManager.getName(syscallId)} at ${addressToHex(info.start)} */
-					state.PC = state.RA; state.jumpCall = null;
+					${state_PC} = ${state_RA}; ${state_jumpCall} = null;
 					state.syscall(${syscallId});
 					return;
 					`,
@@ -1542,7 +1546,7 @@ export class FunctionGenerator {
 		let cycles = 0;
 
 		function createCycles(PC:number) {
-			let out = ast.raw(`state.PC = ${addressToHex(PC)}; state.checkCycles(${cycles});`);
+			let out = ast.raw(`${state_PC} = ${addressToHex(PC)}; state.${CpuStateFields.checkCycles}(${cycles});`);
 			cycles = 0;
 			return out;
 		}
@@ -1558,7 +1562,7 @@ export class FunctionGenerator {
 			
 			if (labels[PC]) func.add(labels[PC]);
 			if (type.name == 'syscall') {
-				func.add(ast.raw(`state.PC = ${PC + 4};`));
+				func.add(ast.raw(`${state_PC} = ${PC + 4};`));
 			}
 
 			if (!type.hasDelayedBranch) {
@@ -1577,26 +1581,20 @@ export class FunctionGenerator {
                 if (type.name == 'jal' || type.name == 'j') {
                     const cachefuncName = `cache_${addressToHex(targetAddress)}`;
                     args[cachefuncName] = this.instructionCache.getFunction(targetAddress, level + 1);
-                    func.add(ast.raw(`state.PC = ${targetAddressHex};`));
+                    func.add(ast.raw(`${state_PC} = ${targetAddressHex};`));
                     if (type.name == 'j') {
                         func.add(delayedCode);
                         if (labels[targetAddress]) {
                             func.add(ast.sjump(ast.raw('true'), targetAddress));
                         } else {
-                            func.add(ast.raw(`state.jumpCall = args.${cachefuncName};`));
+                            func.add(ast.raw(`${state_jumpCall} = args.${cachefuncName};`));
                             func.add(ast.raw(`return;`));
                         }
                     } else {
-                        func.add(ast.raw(`expectedRA = state.RA = ${nextAddressHex};`));
+                        func.add(ast.raw(`expectedRA = ${state_RA} = ${nextAddressHex};`));
                         func.add(delayedCode);
                         func.add(ast.raw(`args.${cachefuncName}.execute(state);`));
-                        func.add(ast.raw(`
-                            if (state.PC != expectedRA) {
-                                while ((state.PC != expectedRA) && (state.jumpCall != null)) state.jumpCall.execute(state);
-                                state.jumpCall = null;
-                                return;
-                            }`
-                        ));
+                        func.add(ast.raw(`if (${state_PC} != expectedRA) { doJumps = true; break loop_label; }`))
                     }
 				} else if (type.isJal) { // jalr, bgezal...
 					const cachefuncName = `cachefunc_${addressToHex(PC)}`; args[cachefuncName] = null;
@@ -1604,12 +1602,12 @@ export class FunctionGenerator {
 					func.add(ins);
 					func.add(delayedCode);
 					func.add(ast.raw('if (BRANCHFLAG) {'));
-					func.add(ast.raw(`state.PC = BRANCHPC & ${Memory.MASK};`));
-					func.add(ast.raw(`expectedRA = state.RA;`));
-					func.add(ast.raw(`if (args.${cacheaddrName} != state.PC) args.${cachefuncName} = state.getFunction(args.${cacheaddrName} = state.PC);`));
+					func.add(ast.raw(`${state_PC} = BRANCHPC & ${Memory.MASK};`));
+					func.add(ast.raw(`expectedRA = ${state_RA};`));
+					func.add(ast.raw(`if (args.${cacheaddrName} != ${state_PC}) args.${cachefuncName} = state.${CpuStateFields.getFunction}(args.${cacheaddrName} = ${state_PC});`));
 					func.add(ast.raw(`args.${cachefuncName}.execute(state);`));
-					func.add(ast.raw(`while ((state.PC != expectedRA) && (state.jumpCall != null)) state.jumpCall.execute(state);`));
-					func.add(ast.raw(`if (state.PC != expectedRA) { state.jumpCall = null; return; }`));
+					func.add(ast.raw(`while ((${state_PC} != expectedRA) && (${state_jumpCall} != null)) ${state_jumpCall}.execute(state);`));
+					func.add(ast.raw(`if (${state_PC} != expectedRA) { ${state_jumpCall} = null; return; }`));
 					func.add(ast.raw('}'));
 				} else if (type.isJumpNoLink) {
 					func.add(createCycles(PC));
@@ -1618,14 +1616,14 @@ export class FunctionGenerator {
 					if (type.name == 'jr') {
 						func.add(delayedCode);
 						
-						func.add(ast.raw(`state.PC = ${CpuState.GPR_access('state', di.instruction.rs)};`));
-						func.add(ast.raw('state.jumpCall = null;'));
-						func.add(ast.raw('return;'));
+						func.add(ast.raw(`${state_PC} = ${CpuState.GPR_access('state', di.instruction.rs)};`));
+						func.add(ast.raw(`${state_jumpCall} = null;`));
+						func.add(ast.raw(`return;`));
 					} else if (type.name == 'j') {
 						func.add(ins);
 						func.add(delayedCode);
-						func.add(ast.raw('state.jumpCall = state.getFunction(state.PC = BRANCHPC);'));
-						func.add(ast.raw('return;'));
+						func.add(ast.raw(`${state_jumpCall} = state.${CpuStateFields.getFunction}(${state_PC} = BRANCHPC);`));
+						func.add(ast.raw(`return;`));
 					} else {
 						debugger;
 						throw new Error("Unexpected!");
@@ -1649,8 +1647,8 @@ export class FunctionGenerator {
 						func.add(ins);
 						func.add(delayedCode);
 						func.add(ast.raw(`if (BRANCHFLAG) {`));
-						func.add(ast.raw(`state.PC = ${targetAddressHex};`));
-						func.add(ast.raw('state.jumpCall = state.getFunction(state.PC);'));
+						func.add(ast.raw(`${state_PC} = ${targetAddressHex};`));
+						func.add(ast.raw(`${state_jumpCall} = state.${CpuStateFields.getFunction}(${state_PC});`));
 						func.add(ast.raw(`return;`));
 						func.add(ast.raw(`}`));
 					}
@@ -1662,7 +1660,13 @@ export class FunctionGenerator {
 			}
 		}
         const code = func.toJs();
-        args.code = code;
+        args.code = code + `
+            if (doJumps) {
+                while ((${state_PC} != expectedRA) && (${state_jumpCall} != null)) ${state_jumpCall}.execute(state);
+                ${state_jumpCall} = null;
+                return;
+            }
+        `;
 		return new FunctionCode(code, args);
 	}
 }
@@ -1709,7 +1713,7 @@ export function createNativeFunction(
 		}
 	}
 
-	function readFpr32() { return `state.fpr[${fprindex++}]`; }
+	function readFpr32() { return `state.state.${CpuStateFields.fpr}[${fprindex++}]`; }
 	function readGpr32_S() { return `(${_readGpr32()} | 0)`; }
 	function readGpr32_U() { return `(${_readGpr32()} >>> 0)`; }
 
