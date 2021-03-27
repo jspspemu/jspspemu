@@ -2,12 +2,11 @@
 
 import {
     addressToHex,
-    CpuBreakException, InterruptBreakException,
+    CpuBreakException, fields, InterruptBreakException,
     logger,
     NumberDictionary, ProgramExitException,
     sprintf,
-    StringDictionary,
-    throwEndCycles
+    StringDictionary
 } from "../../global/utils";
 import {BitUtils, MathFloat, MathUtils, MathVfpu} from "../../global/math";
 import {compareNumbers} from "../../global/array";
@@ -42,6 +41,7 @@ export class ThreadType extends BaseCustomType { }
 export class BoolType extends BaseCustomType { }
 export class VoidType extends BaseCustomType { }
 export class BytesType extends BaseCustomType { }
+export class CpuStateType extends BaseCustomType { }
 export class FixedBytesType extends BaseCustomType {
     constructor(public size: number) {
         super();
@@ -50,6 +50,7 @@ export class FixedBytesType extends BaseCustomType {
 
 export const MemoryTypeType = new MemoryType()
 export const ThreadTypeType = new ThreadType()
+export const CpuStateTypeType = new CpuStateType()
 export const BoolTypeType = new BoolType()
 export const VoidTypeType = new VoidType()
 export const BytesTypeType = new BytesType()
@@ -258,6 +259,10 @@ export class CpuState extends Instruction {
 
     throwCpuBreakException(): never {
         this.thread.stop('CpuSpecialAddresses.EXIT_THREAD');
+        this.throwEndCycles()
+    }
+
+    throwEndCycles(): never {
         throw new CpuBreakException()
     }
 
@@ -982,7 +987,7 @@ export class CpuState extends Instruction {
 	//}
 
 	break() {
-		throwEndCycles();
+	    this.throwEndCycles()
 	}
 	
 	private cycles: number = 0;
@@ -1005,7 +1010,7 @@ export class CpuState extends Instruction {
 			console.info('last syscall called:', this.lastSyscallCalled);
 			this.startThreadStep();
 			debugger;
-			//if (!this.insideInterrupt) throwEndCycles();
+			//if (!this.insideInterrupt) state.throwEndCycles();
 		}
 		*/
 	}
@@ -1019,7 +1024,7 @@ export class CpuState extends Instruction {
 		/*
 		if (this.cycles2 >= 1000) {
 			this.cycles2 = 0;
-			if (!this.insideInterrupt) throwEndCycles();
+			if (!this.insideInterrupt) state.throwEndCycles();
 		}
 		*/
 	}
@@ -1720,17 +1725,19 @@ export function createNativeFunction(
             switch (item) {
                 case Int32: args.push(`${readGpr32_S()} | 0`); break;
                 case UInt32: args.push(`${readGpr32_U()} >>> 0`); break;
-                case Ptr: args.push(`state.memory.getPointerStream(${readGpr32_S()})`); break;
-                case BytesTypeType: args.push(`state.memory.getPointerStream(${readGpr32_S()}, ${readGpr32_S()})`); break;
-                case ThreadTypeType: args.push('state.thread'); break;
-                case MemoryTypeType: args.push('state.memory'); break;
-                case StringzVariable: args.push(`state.memory.readStringz(${readGpr32_S()})`); break;
+                case BoolTypeType: args.push(`${readGpr32_S()} != 0`); break;
+                case Ptr: args.push(`state.${CpuStateFields.memory}.getPointerStream(${readGpr32_S()})`); break;
+                case BytesTypeType: args.push(`state.${CpuStateFields.memory}.getPointerStream(${readGpr32_S()}, ${readGpr32_S()})`); break;
+                case ThreadTypeType: args.push(`state.${CpuStateFields.thread}`); break;
+                case CpuStateTypeType: args.push(`state`); break;
+                case MemoryTypeType: args.push(`state.${CpuStateFields.memory}`); break;
+                case StringzVariable: args.push(`state.${CpuStateFields.memory}.readStringz(${readGpr32_S()})`); break;
                 case Int64: args.push(readGpr64()); break;
                 default:
                     if (item instanceof FixedBytesType) {
-                        args.push(`state.memory.getPointerU8Array(${readGpr32_S()}, ${item.size})`);
+                        args.push(`state.${CpuStateFields.memory}.getPointerU8Array(${readGpr32_S()}, ${item.size})`);
                     } else {
-                        throw new Error(`Invalid parameter type ${item}`)
+                        throw new Error(`Invalid parameter type ${item.constructor.name}`)
                     }
             }
         })
@@ -1738,13 +1745,13 @@ export function createNativeFunction(
 
 	if (options.disableInsideInterrupt) {
 		// ERROR_KERNEL_CANNOT_BE_CALLED_FROM_INTERRUPT
-		code += `if (state.insideInterrupt) return 0x80020064; \n`;
+		code += `if (state.${CpuStateFields.insideInterrupt}) return 0x80020064; \n`;
 	}
-	
-	
+
+
 	code += 'let error = false;\n';
 	if (DEBUG_NATIVEFUNC) {
-		code += `console.info(state.thread.name, nativeFunction.name);`;
+		code += `console.info(state.${CpuStateFields.thread}.name, nativeFunction.name);`;
 	}
 	code += `let result = internalFunc(${args.join(', ')});\n`;
 
@@ -1760,20 +1767,23 @@ export function createNativeFunction(
 	}
 	*/
 
+    //const nameof = <T>(name: Extract<keyof T, string>): string => name;
+
+
+
     if (!options.doNotWait) {
-        //language=JavaScript
         code += `
             if (PromiseFast.isPromise(result)) {
                 ${DEBUG_NATIVEFUNC ? 'console.log("returned promise!");' : ''}
-                state.thread.suspendUntilPromiseDone(PromiseFast.ensure(result), nativeFunction);
-                throwEndCycles();
+                state.${CpuStateFields.thread}.suspendUntilPromiseDone(PromiseFast.ensure(result), nativeFunction);
+                state.${CpuStateFields.throwEndCycles}();
                 //return state.thread.suspendUntilPromiseDone(result, nativeFunction);
             }
             if (result instanceof WaitingThreadInfo) {
                 ${DEBUG_NATIVEFUNC ? 'console.log("returned WaitingThreadInfo!");' : ''}
                 if (PromiseFast.isPromise(result.promise)) {
-                    state.thread.suspendUntilDone(result);
-                    throwEndCycles();
+                    state.${CpuStateFields.thread}.suspendUntilDone(result);
+                    state.${CpuStateFields.throwEndCycles}();
                 } else {
                     result = result.promise;
                 }
@@ -1826,3 +1836,5 @@ export function ensureValidFunctionName(name: string) {
     const out = String(name).replace(/\W/g, '_')
     return out.substr(0, 1).match(/\d/) ? `_${out}` : out
 }
+
+export const CpuStateFields = fields<CpuState>();

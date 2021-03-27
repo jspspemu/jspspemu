@@ -3,6 +3,7 @@
     "strict": true,
     "alwaysStrict": true,
     "experimentalDecorators": true,
+    "emitDecoratorMetadata": false,
     "strictNullChecks": true,
     "incremental": true,
     "target": "es6",

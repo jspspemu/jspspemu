@@ -1491,10 +1491,6 @@ export class ProgramExitException extends Error {
     }
 }
 
-export function throwEndCycles() {
-	throw new CpuBreakException();
-}
-
 export function throwWaitPromise<T>(promise:PromiseFast<T>) {
     const error:any = new Error('WaitPromise');
 	//const error:any = new Error('WaitPromise');
@@ -1514,8 +1510,21 @@ export async function delay(ms: number) {
     })
 }
 
+export function fields<T>() {
+    return new Proxy(
+        {},
+        {
+            get: function (_target, prop, _receiver) {
+                return prop;
+            },
+        }
+    ) as {
+        [P in keyof T]: P;
+    };
+};
+
+
 (<any>window).sprintf = sprintf;
-(<any>window).throwEndCycles = throwEndCycles;
 (<any>window).throwWaitPromise = throwWaitPromise;
 (<any>window).PromiseFast = PromiseFast;
 (<any>window).DomHelp = DomHelp;

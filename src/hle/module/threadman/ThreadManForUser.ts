@@ -3,7 +3,6 @@
 	logger,
 	PromiseFast,
 	sprintf,
-	throwEndCycles,
 	UidCollection,
 	WaitingThreadInfo
 } from "../../../global/utils";
@@ -19,9 +18,9 @@ import {Integer64} from "../../../global/int64";
 import {SceKernelErrors} from "../../SceKernelErrors";
 import {EmulatorContext} from "../../../emu/context";
 import {PspThreadAttributes, Thread, ThreadStatus} from "../../manager/thread";
-import {I32, I64, nativeFunction, PTR, STRING, THREAD, U32} from "../../utils";
+import {CPUSTATE, I32, I64, nativeFunction, PTR, STRING, THREAD, U32} from "../../utils";
 import {OutOfMemoryError} from "../../manager/memory";
-import {CpuSpecialAddresses} from "../../../core/cpu/cpu_core";
+import {CpuSpecialAddresses, CpuState} from "../../../core/cpu/cpu_core";
 
 const console = logger.named('module.ThreadManForUser');
 
@@ -172,12 +171,12 @@ export class ThreadManForUser {
 	}
 
 	@nativeFunction(0xAA73C935, 150)
-    @I32 sceKernelExitThread(@THREAD currentThread: Thread, @I32 exitStatus: number) {
+    @I32 sceKernelExitThread(@I32 exitStatus: number, @THREAD currentThread: Thread, @CPUSTATE state: CpuState) {
 		console.info(sprintf('sceKernelExitThread: %d', exitStatus));
 
 		currentThread.exitStatus = (exitStatus < 0) ? SceKernelErrors.ERROR_KERNEL_ILLEGAL_ARGUMENT : exitStatus;
 		currentThread.stop('sceKernelExitThread');
-		throwEndCycles();
+		state.throwEndCycles();
 	}
 
 	@nativeFunction(0x3B183E26, 150)
@@ -216,10 +215,10 @@ export class ThreadManForUser {
 	}
 
 	@nativeFunction(0x809CE29B, 150)
-    @U32 sceKernelExitDeleteThread(@THREAD currentThread: Thread, @I32 exitStatus: number) {
+    @U32 sceKernelExitDeleteThread(@I32 exitStatus: number, @THREAD currentThread: Thread, @CPUSTATE state: CpuState) {
 		currentThread.exitStatus = exitStatus;
 		currentThread.stop('sceKernelExitDeleteThread');
-		throwEndCycles();
+		state.throwEndCycles();
 	}
 
 	@nativeFunction(0x383F7BCC, 150)

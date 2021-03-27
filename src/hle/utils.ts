@@ -1,6 +1,6 @@
 ﻿import {
     BoolTypeType,
-    BytesTypeType,
+    BytesTypeType, CpuStateTypeType,
     createNativeFunction,
     CreateOptions, FixedBytesType,
     MemoryTypeType,
@@ -56,6 +56,7 @@ export function param(type: IType<any>): any {
 export const VOID: any = param(VoidTypeType)
 export const STRING: any = param(StringzVariable)
 export const THREAD: any = param(ThreadTypeType)
+export const CPUSTATE: any = param(CpuStateTypeType)
 export const MEMORY: any = param(MemoryTypeType)
 export const I64: any = param(Int64)
 export const F32: any = param(Float32)

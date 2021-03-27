@@ -1,5 +1,5 @@
 ﻿import "../emu/global"
-import {printf, Signal0, Signal2, sprintf} from "../global/utils";
+import {fields, printf, Signal0, Signal2, sprintf} from "../global/utils";
 import {IType, Pointer} from "../global/struct";
 import {Stream} from "../global/stream";
 import {MathUtils} from "../global/math";
@@ -355,6 +355,8 @@ export abstract class Memory {
 		saveAs(new Blob([this.getPointerDataView(0x08000000, 0x2000000)]), name);
 	}
 }
+
+export const MemoryFields = fields<Memory>()
 
 class FastMemory extends Memory {
 	private buffer: ArrayBuffer;

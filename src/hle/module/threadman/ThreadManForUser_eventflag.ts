@@ -1,25 +1,19 @@
 ﻿import {
 	AcceptCallbacks,
-	PromiseFast,
 	SortedSet,
-	throwEndCycles,
 	UidCollection,
 	WaitingThreadInfo
 } from "../../../global/utils";
 import {Stream} from "../../../global/stream";
 import {
-    Int32,
-    Stringz,
     Struct,
-    StructClass,
     StructInt32,
-    StructStringz,
-    StructStructStringz, StructUInt32,
-    UInt32
+    StructStructStringz, StructUInt32
 } from "../../../global/struct";
 import {SceKernelErrors} from "../../SceKernelErrors";
 import {EmulatorContext} from "../../../emu/context";
-import {I32, nativeFunction, PTR, STRING, U32} from "../../utils";
+import {CPUSTATE, I32, nativeFunction, PTR, STRING, U32} from "../../utils";
+import {CpuState} from "../../../core/cpu/cpu_core";
 
 export class ThreadManForUser {
 	constructor(private context: EmulatorContext) { }
@@ -53,7 +47,7 @@ export class ThreadManForUser {
 		return 0;
 	}
 
-	private _sceKernelWaitEventFlagCB(id: number, bits: number, waitType: EventFlagWaitTypeSet, outBits: Stream, timeout: Stream, acceptCallbacks: AcceptCallbacks): any {
+	private _sceKernelWaitEventFlagCB(id: number, bits: number, waitType: EventFlagWaitTypeSet, outBits: Stream, timeout: Stream, acceptCallbacks: AcceptCallbacks, state: CpuState): any {
 		if (!this.eventFlagUids.has(id)) return SceKernelErrors.ERROR_KERNEL_NOT_FOUND_EVENT_FLAG;
         const eventFlag = this.eventFlagUids.get(id);
 
@@ -62,7 +56,7 @@ export class ThreadManForUser {
         const timedOut = false;
         const previousPattern = eventFlag.currentPattern;
         const promise = (async () => {
-            await eventFlag.waitAsync(bits, waitType, outBits, timeout, acceptCallbacks)
+            await eventFlag.waitAsync(bits, waitType, outBits, timeout, acceptCallbacks, state)
             if (outBits != null) outBits.writeUInt32(previousPattern);
             return 0;
         })()
@@ -73,18 +67,20 @@ export class ThreadManForUser {
     @U32 sceKernelWaitEventFlag(
         @I32 id: number, @U32 bits: number,
         @I32 waitType: EventFlagWaitTypeSet,
-        @PTR outBits: Stream, @PTR timeout: Stream
+        @PTR outBits: Stream, @PTR timeout: Stream,
+        @CPUSTATE state: CpuState,
     ) {
-		return this._sceKernelWaitEventFlagCB(id, bits, waitType, outBits, timeout, AcceptCallbacks.NO);
+		return this._sceKernelWaitEventFlagCB(id, bits, waitType, outBits, timeout, AcceptCallbacks.NO, state);
 	}
 
 	@nativeFunction(0x328C546A, 150)
     @U32 sceKernelWaitEventFlagCB(
         @I32 id: number, @U32 bits: number,
         @I32 waitType: EventFlagWaitTypeSet,
-        @PTR outBits: Stream, @PTR timeout: Stream
+        @PTR outBits: Stream, @PTR timeout: Stream,
+        @CPUSTATE state: CpuState,
     ) {
-		return this._sceKernelWaitEventFlagCB(id, bits, waitType, outBits, timeout, AcceptCallbacks.YES);
+		return this._sceKernelWaitEventFlagCB(id, bits, waitType, outBits, timeout, AcceptCallbacks.YES, state);
 	}
 
 	@nativeFunction(0x30FD48F0, 150)
@@ -161,12 +157,12 @@ class EventFlag {
 	initialPattern: number = 0
 	waitingThreads = new SortedSet<EventFlagWaitingThread>();
 
-	waitAsync(bits: number, waitType: EventFlagWaitTypeSet, outBits: Stream, timeout: Stream, callbacks: AcceptCallbacks) {
+	waitAsync(bits: number, waitType: EventFlagWaitTypeSet, outBits: Stream, timeout: Stream, callbacks: AcceptCallbacks, state: CpuState) {
 		return new Promise((resolve, reject) => {
 			const waitingSemaphoreThread = new EventFlagWaitingThread(bits, waitType, outBits, this, () => {
 				this.waitingThreads.delete(waitingSemaphoreThread);
 				resolve(0);
-				throwEndCycles();
+				state.throwEndCycles();
 			});
 			this.waitingThreads.add(waitingSemaphoreThread);
 		})
